@@ -28,7 +28,8 @@ function pngChunk(type, data) {
   return Buffer.concat([len, t, data, crcBuf]);
 }
 
-const W = 512, H = 512;
+// Generate at 1024px so macOS downscaling stays crisp across Dock/App Switcher sizes.
+const W = 1024, H = 1024;
 
 function inRRect(px, py, x0, y0, w, h, rx) {
   if (px < x0 || px >= x0 + w || py < y0 || py >= y0 + h) return false;
@@ -41,7 +42,8 @@ function inRRect(px, py, x0, y0, w, h, rx) {
 }
 
 function makePixel(x, y) {
-  const pad = Math.round(W * 0.065);
+  // macOS Dock/App Switcher visual balance: keep more breathing room around the glyph.
+  const pad = Math.round(W * 0.11);
   const iconX = pad;
   const iconY = pad;
   const iconW = W - pad * 2;

@@ -27,8 +27,20 @@
   "build": {
     "appId": "com.timebox.app",
     "productName": "TimeBox",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "db/**/*",
+      "build/**/*",
+      "renderer-dist/**/*",
+      "package.json"
+    ],
     "mac": {
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png"
     }
   }
 }

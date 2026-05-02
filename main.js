@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeImage, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { initDb } = require('./db/schema');
 const q = require('./db/queries');
 
@@ -8,12 +9,101 @@ function getAppIcon() {
   return img.isEmpty() ? null : img;
 }
 
+function createLogger() {
+  const logDir = path.join(app.getPath('userData'), 'logs');
+  const logFile = path.join(logDir, 'timebox.log');
+
+  function write(level, message, extra) {
+    try {
+      fs.mkdirSync(logDir, { recursive: true });
+      const ts = new Date().toISOString();
+      const suffix = extra !== undefined ? ` ${JSON.stringify(extra)}` : '';
+      fs.appendFileSync(logFile, `[${ts}] [${level}] ${message}${suffix}\n`, 'utf8');
+    } catch (_) {
+      // Last-resort logging must never crash app startup.
+    }
+  }
+
+  return {
+    file: logFile,
+    info: (msg, extra) => write('INFO', msg, extra),
+    warn: (msg, extra) => write('WARN', msg, extra),
+    error: (msg, extra) => write('ERROR', msg, extra),
+  };
+}
+
 app.name = 'TimeBox';
 
 const isDev = !!process.env.ELECTRON_START_URL;
+const logger = createLogger();
+
+let _db = null;
+let _dbPath = null;
+
+function getConfigPath() {
+  return path.join(app.getPath('userData'), 'config.json');
+}
+
+function loadConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(getConfigPath(), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function saveConfig(data) {
+  try {
+    fs.writeFileSync(getConfigPath(), JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) {
+    logger.error('saveConfig failed', { message: err.message });
+  }
+}
+
+function openDatabase(dbPath) {
+  if (_db) {
+    try { _db.close(); } catch (_) {}
+  }
+  _dbPath = dbPath;
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  logger.info('db init', { dbPath });
+  _db = initDb(dbPath);
+  q.init(_db);
+  saveConfig({ dbPath });
+}
 
 if (isDev) {
   app.commandLine.appendSwitch('remote-debugging-port', '9223');
+}
+
+function attachWindowLogging(win) {
+  win.webContents.on('did-start-loading', () => {
+    logger.info('did-start-loading');
+  });
+
+  win.webContents.on('did-finish-load', () => {
+    logger.info('did-finish-load', { url: win.webContents.getURL() });
+  });
+
+  win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    logger.error('did-fail-load', { errorCode, errorDescription, validatedURL, isMainFrame });
+  });
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    logger.error('render-process-gone', details);
+  });
+
+  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    logger.info('renderer-console', { level, message, line, sourceId });
+  });
+
+  win.webContents.on('unresponsive', () => {
+    logger.warn('window-unresponsive');
+  });
+
+  win.webContents.on('responsive', () => {
+    logger.info('window-responsive');
+  });
 }
 
 function createWindow() {
@@ -32,11 +122,16 @@ function createWindow() {
     },
   });
 
+  attachWindowLogging(win);
+
   if (isDev) {
+    logger.info('loading dev url', { url: process.env.ELECTRON_START_URL });
     win.loadURL(process.env.ELECTRON_START_URL);
     win.webContents.openDevTools({ mode: 'detach' });
   } else {
-    win.loadFile(path.join(__dirname, 'dist', 'index.html'));
+    const rendererEntry = path.join(__dirname, 'renderer-dist', 'index.html');
+    logger.info('loading production file', { rendererEntry, exists: fs.existsSync(rendererEntry) });
+    win.loadFile(rendererEntry);
   }
 }
 
@@ -63,17 +158,51 @@ function setupIpc() {
 
   ipcMain.handle('db:resetAllData',        ()              => q.resetAllData());
   ipcMain.handle('db:seedDemoData',        ()              => q.seedDemoData());
+
+  ipcMain.handle('app:getDbPath', () => _dbPath);
+
+  ipcMain.handle('app:selectDbFile', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: 'Seleziona file dati',
+      defaultPath: app.getPath('documents'),
+      filters: [{ name: 'Database SQLite', extensions: ['db'] }],
+      properties: ['openFile', 'createDirectories', 'promptToCreate'],
+    });
+    if (canceled || !filePaths[0]) return null;
+    openDatabase(filePaths[0]);
+    return filePaths[0];
+  });
 }
 
+process.on('uncaughtException', (err) => {
+  logger.error('uncaughtException', { message: err.message, stack: err.stack });
+});
+
+process.on('unhandledRejection', (reason) => {
+  const normalized = reason instanceof Error
+    ? { message: reason.message, stack: reason.stack }
+    : { reason };
+  logger.error('unhandledRejection', normalized);
+});
+
 app.whenReady().then(() => {
-  const dbPath = path.join(app.getPath('userData'), 'timebox.db');
-  const db = initDb(dbPath);
-  q.init(db);
+  logger.info('app ready', {
+    appPath: app.getAppPath(),
+    userData: app.getPath('userData'),
+    isPackaged: app.isPackaged,
+    logFile: logger.file,
+  });
+
+  const config = loadConfig();
+  const defaultDbPath = path.join(app.getPath('documents'), 'TimeBox', 'timebox.db');
+  openDatabase(config.dbPath || defaultDbPath);
   setupIpc();
+
   if (process.platform === 'darwin') {
     const icon = getAppIcon();
     if (icon) app.dock.setIcon(icon);
   }
+
   createWindow();
 
   app.on('activate', () => {
