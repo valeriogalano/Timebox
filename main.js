@@ -8,6 +8,8 @@ function getAppIcon() {
   return img.isEmpty() ? null : img;
 }
 
+app.name = 'TimeBox';
+
 const isDev = !!process.env.ELECTRON_START_URL;
 
 if (isDev) {
