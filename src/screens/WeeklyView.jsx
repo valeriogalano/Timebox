@@ -113,20 +113,22 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     }
   }
 
-  function saveEntry(projectId, dateStr, hours, slot) {
-    setWeekEntries(prev => {
-      const existing = prev.find(e => e.projectId === projectId && e.date === dateStr);
-      if (hours === 0) {
-        if (existing) window.api.deleteEntry(existing.id);
-        return prev.filter(e => !(e.projectId === projectId && e.date === dateStr));
-      }
+  async function saveEntry(projectId, dateStr, hours, slot) {
+    const existing = weekEntries.find(e => e.projectId === projectId && e.date === dateStr);
+    if (hours === 0) {
+      setWeekEntries(prev => prev.filter(e => !(e.projectId === projectId && e.date === dateStr)));
+      if (existing) await window.api.deleteEntry(existing.id);
+    } else {
       const entry = existing
         ? { ...existing, hours }
         : { id: crypto.randomUUID(), projectId, date: dateStr, hours, slot: slot ?? 'am', billed: false };
-      window.api.saveEntry(entry);
-      if (existing) return prev.map(e => e.projectId === projectId && e.date === dateStr ? entry : e);
-      return [...prev, entry];
-    });
+      setWeekEntries(prev =>
+        existing
+          ? prev.map(e => e.projectId === projectId && e.date === dateStr ? entry : e)
+          : [...prev, entry]
+      );
+      await window.api.saveEntry(entry);
+    }
     onEntryChange?.();
   }
 
