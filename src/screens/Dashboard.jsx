@@ -1,19 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { TODAY, getMondayOfWeek, fmt, fmtH } from '../utils';
+import { TODAY, MONTHS_IT, getMondayOfWeek, fmtH } from '../utils';
 
 export default function Dashboard({ clients, projects, screen }) {
   const [entries, setEntries] = useState([]);
+  const [monthOffset, setMonthOffset] = useState(0);
+
+  const selectedDate = new Date(TODAY.getFullYear(), TODAY.getMonth() + monthOffset, 1);
+  const selectedYear = selectedDate.getFullYear();
+  const selectedMonthIdx = selectedDate.getMonth();
+  const monthLabel = `${MONTHS_IT[selectedMonthIdx]} ${selectedYear}`;
+  const lastDay = new Date(selectedYear, selectedMonthIdx + 1, 0).getDate();
+  const from = `${selectedYear}-${String(selectedMonthIdx + 1).padStart(2, '0')}-01`;
+  const to   = `${selectedYear}-${String(selectedMonthIdx + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
   useEffect(() => {
     if (screen !== 'dashboard') return;
-    const year = TODAY.getFullYear();
-    const from = `${year}-01-01`;
-    const to = fmt(TODAY);
     window.api.getEntries(from, to).then(setEntries);
-  }, [screen]);
+  }, [screen, from, to]);
 
   const startOfWeek  = getMondayOfWeek(TODAY);
-  const startOfMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+  const startOfMonth = new Date(selectedYear, selectedMonthIdx, 1);
 
   const clientStats = clients.map(client => {
     const pids      = projects.filter(p => p.clientId === client.id).map(p => p.id);
@@ -34,7 +40,17 @@ export default function Dashboard({ clients, projects, screen }) {
   const totalUnbilledEur = clientStats.reduce((s, c) => s + (c.billing === 'hourly' && c.rate ? c.unbilledH * c.rate : 0), 0);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* Month navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <NavBtn onClick={() => setMonthOffset(o => o - 1)}>‹</NavBtn>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#383838', minWidth: 110, textAlign: 'center' }}>{monthLabel}</span>
+        <NavBtn onClick={() => setMonthOffset(o => o + 1)}>›</NavBtn>
+        {monthOffset !== 0 && <NavBtn small onClick={() => setMonthOffset(0)}>Oggi</NavBtn>}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }}>
 
       {/* Left: client utilization */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -75,7 +91,7 @@ export default function Dashboard({ clients, projects, screen }) {
           </div>
         </div>
 
-        <SectionLabel>Questo mese</SectionLabel>
+        <SectionLabel>{monthLabel}</SectionLabel>
         <div style={{ background: 'white', borderRadius: 8, border: '1px solid #e8e7e0', padding: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <MonthStat label="Ore tracciate"    value={fmtH(clientStats.reduce((s, c) => s + c.monthH, 0))} />
@@ -85,7 +101,21 @@ export default function Dashboard({ clients, projects, screen }) {
           </div>
         </div>
       </div>
+      </div>
     </div>
+  );
+}
+
+function NavBtn({ onClick, children, small }) {
+  return (
+    <button onClick={onClick} style={{
+      background: 'white', border: '1px solid #e8e7e0', borderRadius: 5,
+      padding: small ? '3px 9px' : '3px 8px', cursor: 'pointer',
+      fontSize: small ? 10 : 14, fontWeight: 700, color: '#555',
+      fontFamily: "'Open Sans', sans-serif", lineHeight: 1.4,
+    }}>
+      {children}
+    </button>
   );
 }
 
