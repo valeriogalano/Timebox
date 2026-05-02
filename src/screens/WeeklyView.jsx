@@ -105,7 +105,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       delete next[weekKey];
       return next;
     });
-    // Delete all overrides for this week from DB (Mon–Sun)
     for (let d = 0; d < 7; d++) {
       for (const slot of ['am', 'pm']) {
         window.api.deleteWeekOverride(weekKey, d, slot);
@@ -182,8 +181,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   })).filter(c => c.projects.length > 0);
 
   const COL = '200px repeat(7, 1fr) 72px';
-  const todayBorderLeft = d => `1px solid ${d.isToday ? '#3DB33D28' : '#f0efe8'}`;
-  const todayBg = (d, base) => d.isToday ? '#f4fbf4' : (base || 'transparent');
+  const todayBorderLeft = d => `1px solid ${d.isToday ? '#3DB33D28' : 'var(--tb-border-soft)'}`;
+  const todayBg = (d, base) => d.isToday ? 'var(--tb-cell-today)' : (base || 'transparent');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -192,14 +191,14 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <NavBtn onClick={() => setWeekOffset(o => o - 1)}>‹</NavBtn>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#383838', minWidth: 210, textAlign: 'center' }}>{weekLabel}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', minWidth: 210, textAlign: 'center' }}>{weekLabel}</span>
           <NavBtn onClick={() => setWeekOffset(o => o + 1)}>›</NavBtn>
           {weekOffset !== 0 && <NavBtn small onClick={() => setWeekOffset(0)}>Oggi</NavBtn>}
           {hasOverride && (
             <button onClick={resetWeekToTemplate}
               style={{
                 fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 5,
-                background: '#fff8f0', border: '1px solid #E07B3A55', color: '#E07B3A',
+                background: 'var(--tb-reset-btn-bg)', border: '1px solid #E07B3A55', color: '#E07B3A',
                 cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
               }}>
               ↩ Ripristina template
@@ -207,35 +206,35 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           )}
         </div>
         <div style={{ display: 'flex', gap: 28 }}>
-          <Pill label="Pianificate" value={fmtH(weekPlanned)} color="#aaa" />
-          <Pill label="Tracciate"   value={fmtH(weekActual)}  color="#383838" />
+          <Pill label="Pianificate" value={fmtH(weekPlanned)} color="var(--tb-text-muted)" />
+          <Pill label="Tracciate"   value={fmtH(weekActual)}  color="var(--tb-text-primary)" />
           <Pill label="Delta"       value={(weekDelta >= 0 ? '+' : '') + fmtH(weekDelta)}
-            color={weekDelta === 0 ? '#888' : weekDelta > 0 ? '#3DB33D' : '#E05252'} />
+            color={weekDelta === 0 ? 'var(--tb-text-secondary)' : weekDelta > 0 ? '#3DB33D' : '#E05252'} />
         </div>
       </div>
 
       {/* Unified grid */}
-      <div style={{ background: 'white', borderRadius: 8, border: '1px solid #e8e7e0', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-border)', overflow: 'hidden' }}>
         <div style={{ display: 'grid', gridTemplateColumns: COL }}>
 
           {/* Day header */}
           <GridLabel>Pianificato</GridLabel>
           {days.map((d, i) => (
             <div key={i} style={{
-              background: d.isToday ? '#e8f5e8' : '#f8f7f2',
-              borderBottom: '1px solid #e8e7e0',
-              borderLeft: `1px solid ${d.isToday ? '#3DB33D55' : '#f0efe8'}`,
+              background: d.isToday ? 'var(--tb-cell-today-header)' : 'var(--tb-panel-bg-soft)',
+              borderBottom: '1px solid var(--tb-border)',
+              borderLeft: `1px solid ${d.isToday ? '#3DB33D55' : 'var(--tb-border-soft)'}`,
               padding: '8px 4px', textAlign: 'center', opacity: d.isWeekend ? 0.7 : 1,
             }}>
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
-                color: d.isToday ? '#3DB33D' : '#bbb' }}>{DAY_SHORT[i]}</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: d.isToday ? '#3DB33D' : '#383838', lineHeight: 1.1 }}>
+                color: d.isToday ? '#3DB33D' : 'var(--tb-text-faint)' }}>{DAY_SHORT[i]}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: d.isToday ? '#3DB33D' : 'var(--tb-text-primary)', lineHeight: 1.1 }}>
                 {d.date.getDate()}
               </div>
               {d.isToday && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3DB33D', margin: '3px auto 0' }} />}
             </div>
           ))}
-          <div style={{ background: '#f8f7f2', borderBottom: '1px solid #e8e7e0', borderLeft: '1px solid #e0dfd8' }} />
+          <div style={{ background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)', borderLeft: '1px solid var(--tb-border-mid)' }} />
 
           {/* AM row */}
           <GridLabel border>Mattina</GridLabel>
@@ -247,8 +246,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 onDragLeave={() => setDragOver(null)}
                 onDrop={() => handleDrop(i, 'am')}
                 style={{
-                  borderLeft: todayBorderLeft(d), borderBottom: '1px solid #f0efe8',
-                  background: isDropTarget ? '#e8f0ff' : todayBg(d), padding: 4,
+                  borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)',
+                  background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: 4,
                   transition: 'background 0.1s',
                   outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
                 }}>
@@ -264,7 +263,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               </div>
             );
           })}
-          <div style={{ borderLeft: '1px solid #e0dfd8', borderBottom: '1px solid #f0efe8' }} />
+          <div style={{ borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)' }} />
 
           {/* PM row */}
           <GridLabel border>Pomeriggio</GridLabel>
@@ -276,8 +275,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 onDragLeave={() => setDragOver(null)}
                 onDrop={() => handleDrop(i, 'pm')}
                 style={{
-                  borderLeft: todayBorderLeft(d), borderBottom: '1px solid #f0efe8',
-                  background: isDropTarget ? '#e8f0ff' : todayBg(d), padding: 4,
+                  borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)',
+                  background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: 4,
                   transition: 'background 0.1s',
                   outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
                 }}>
@@ -293,43 +292,43 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               </div>
             );
           })}
-          <div style={{ borderLeft: '1px solid #e0dfd8', borderBottom: '1px solid #f0efe8' }} />
+          <div style={{ borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)' }} />
 
           {/* Extra row */}
           <div style={{
-            padding: '8px 14px', borderBottom: '2px solid #e0dfd8', display: 'flex', alignItems: 'center', gap: 5,
-            fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase',
+            padding: '8px 14px', borderBottom: '2px solid var(--tb-border-mid)', display: 'flex', alignItems: 'center', gap: 5,
+            fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
           }}>
             <span>Extra</span>
             <span style={{ fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 3,
-              background: '#f0efe8', color: '#bbb', letterSpacing: '0.06em' }}>non pian.</span>
+              background: 'var(--tb-panel-bg-subtle)', color: 'var(--tb-text-faint)', letterSpacing: '0.06em' }}>non pian.</span>
           </div>
           {days.map((d, i) => (
-            <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '2px solid #e0dfd8', background: todayBg(d), padding: 4 }}>
+            <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '2px solid var(--tb-border-mid)', background: todayBg(d), padding: 4 }}>
               <ExtraCell blocks={d.extraBlocks} clients={clients} isToday={d.isToday} />
             </div>
           ))}
-          <div style={{ borderLeft: '1px solid #e0dfd8', borderBottom: '2px solid #e0dfd8' }} />
+          <div style={{ borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '2px solid var(--tb-border-mid)' }} />
 
           {/* Timesheet header */}
           <GridLabel header>Ore per progetto</GridLabel>
           {days.map((d, i) => (
             <div key={i} style={{
               padding: '9px 4px', textAlign: 'center',
-              background: d.isToday ? '#e8f5e8' : '#f8f7f2',
-              borderLeft: `1px solid ${d.isToday ? '#3DB33D55' : '#f0efe8'}`,
-              borderBottom: '1px solid #e8e7e0', opacity: d.isWeekend ? 0.7 : 1,
+              background: d.isToday ? 'var(--tb-cell-today-header)' : 'var(--tb-panel-bg-soft)',
+              borderLeft: `1px solid ${d.isToday ? '#3DB33D55' : 'var(--tb-border-soft)'}`,
+              borderBottom: '1px solid var(--tb-border)', opacity: d.isWeekend ? 0.7 : 1,
             }}>
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
-                color: d.isToday ? '#3DB33D' : '#bbb' }}>{DAY_SHORT[i]}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: d.isToday ? '#3DB33D' : '#888' }}>{d.date.getDate()}</div>
+                color: d.isToday ? '#3DB33D' : 'var(--tb-text-faint)' }}>{DAY_SHORT[i]}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: d.isToday ? '#3DB33D' : 'var(--tb-text-secondary)' }}>{d.date.getDate()}</div>
             </div>
           ))}
           <div style={{
-            padding: '9px 4px', background: '#f8f7f2',
-            borderLeft: '1px solid #e0dfd8', borderBottom: '1px solid #e8e7e0',
+            padding: '9px 4px', background: 'var(--tb-panel-bg-soft)',
+            borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#bbb',
+            fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
           }}>Tot</div>
 
           {/* Project rows */}
@@ -339,28 +338,28 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 const e = weekEntries.find(e2 => e2.projectId === project.id && e2.date === d.dateStr);
                 return s + (e?.hours ?? 0);
               }, 0);
-              const topBorder = pi === 0 ? '2px solid #e8e7e0' : 'none';
+              const topBorder = pi === 0 ? '2px solid var(--tb-border)' : 'none';
               return (
                 <React.Fragment key={project.id}>
                   <div style={{
                     padding: '0 14px', display: 'flex', alignItems: 'center', gap: 7,
-                    borderRight: '1px solid #f0efe8', borderBottom: '1px solid #f0efe8',
+                    borderRight: '1px solid var(--tb-border-soft)', borderBottom: '1px solid var(--tb-border-soft)',
                     borderTop: topBorder, minHeight: 44,
                   }}>
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#383838', lineHeight: 1.2,
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)', lineHeight: 1.2,
                         maxWidth: 155, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {project.name}
                       </div>
-                      <div style={{ fontSize: 9, color: '#bbb', fontWeight: 600 }}>{client.name}</div>
+                      <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>{client.name}</div>
                     </div>
                   </div>
                   {days.map((d, i) => {
                     const entry = weekEntries.find(e => e.projectId === project.id && e.date === d.dateStr);
                     return (
                       <div key={i} style={{
-                        borderLeft: todayBorderLeft(d), borderBottom: '1px solid #f0efe8', borderTop: topBorder,
+                        borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)', borderTop: topBorder,
                         background: todayBg(d),
                       }}>
                         <TimeCell
@@ -374,10 +373,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   })}
                   <div style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    borderLeft: '1px solid #e0dfd8', borderBottom: '1px solid #f0efe8', borderTop: topBorder,
+                    borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)', borderTop: topBorder,
                     padding: '0 8px',
                   }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: weekTotal > 0 ? '#383838' : '#ddd' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: weekTotal > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>
                       {weekTotal > 0 ? fmtH(weekTotal) : '—'}
                     </span>
                   </div>
@@ -388,18 +387,18 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
           {/* Day totals */}
           <div style={{
-            padding: '10px 14px', background: '#f8f7f2', borderTop: '2px solid #e0dfd8',
-            fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#bbb',
+            padding: '10px 14px', background: 'var(--tb-panel-bg-soft)', borderTop: '2px solid var(--tb-border-mid)',
+            fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
             display: 'flex', alignItems: 'center',
           }}>Totale</div>
           {days.map((d, i) => (
             <div key={i} style={{
               padding: '10px 4px', textAlign: 'center',
-              background: d.isToday ? '#e8f5e8' : '#f8f7f2',
-              borderLeft: `1px solid ${d.isToday ? '#3DB33D55' : '#e8e7e0'}`,
-              borderTop: '2px solid #e0dfd8', opacity: d.isWeekend ? 0.7 : 1,
+              background: d.isToday ? 'var(--tb-cell-today-header)' : 'var(--tb-panel-bg-soft)',
+              borderLeft: `1px solid ${d.isToday ? '#3DB33D55' : 'var(--tb-border)'}`,
+              borderTop: '2px solid var(--tb-border-mid)', opacity: d.isWeekend ? 0.7 : 1,
             }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: d.dayHours > 0 ? '#383838' : '#ddd' }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: d.dayHours > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>
                 {d.dayHours > 0 ? fmtH(d.dayHours) : '—'}
               </div>
               {d.plannedTotal > 0 && !d.isFuture && (
@@ -410,10 +409,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
             </div>
           ))}
           <div style={{
-            background: '#f8f7f2', borderLeft: '1px solid #e0dfd8', borderTop: '2px solid #e0dfd8',
+            background: 'var(--tb-panel-bg-soft)', borderLeft: '1px solid var(--tb-border-mid)', borderTop: '2px solid var(--tb-border-mid)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px',
           }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: weekActual > 0 ? '#383838' : '#ddd' }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: weekActual > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>
               {weekActual > 0 ? fmtH(weekActual) : '—'}
             </span>
           </div>
@@ -427,10 +426,10 @@ function GridLabel({ children, border, header }) {
   return (
     <div style={{
       padding: '8px 14px',
-      background: header ? '#f8f7f2' : undefined,
-      borderBottom: header ? '1px solid #e8e7e0' : border ? '1px solid #f0efe8' : '1px solid #e8e7e0',
+      background: header ? 'var(--tb-panel-bg-soft)' : undefined,
+      borderBottom: header ? '1px solid var(--tb-border)' : border ? '1px solid var(--tb-border-soft)' : '1px solid var(--tb-border)',
       display: 'flex', alignItems: 'center',
-      fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase',
+      fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
     }}>
       {children}
     </div>
@@ -443,9 +442,10 @@ function NavBtn({ children, onClick, small }) {
     <button onClick={onClick}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{
-        background: hover ? '#eeeee8' : 'white', border: '1px solid #e0dfd8', borderRadius: 6,
+        background: hover ? 'var(--tb-navbtn-hover)' : 'var(--tb-navbtn-bg)',
+        border: '1px solid var(--tb-navbtn-border)', borderRadius: 6,
         padding: small ? '4px 10px' : '4px 12px', cursor: 'pointer',
-        fontSize: small ? 11 : 15, color: '#383838',
+        fontSize: small ? 11 : 15, color: 'var(--tb-navbtn-text)',
         fontFamily: "'Open Sans', sans-serif", fontWeight: small ? 600 : 400,
         lineHeight: 1.5, transition: 'background 0.1s',
       }}>
@@ -458,7 +458,7 @@ function Pill({ label, value, color }) {
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
-        color: '#bbb', marginBottom: 2 }}>{label}</div>
+        color: 'var(--tb-text-faint)', marginBottom: 2 }}>{label}</div>
       <div style={{ fontSize: 15, fontWeight: 800, color }}>{value}</div>
     </div>
   );

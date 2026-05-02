@@ -69,8 +69,8 @@ export default function PlanningCell({
     <div style={{
       minHeight: cellH,
       borderRadius: 6, padding: 6,
-      background: isWeekend ? '#F8F7F2' : 'white',
-      border: `1px solid ${isToday ? '#3DB33D44' : '#E8E7E0'}`,
+      background: isWeekend ? 'var(--tb-cell-weekend)' : 'var(--tb-cell-bg)',
+      border: `1px solid ${isToday ? '#3DB33D44' : 'var(--tb-border)'}`,
       opacity: isWeekend ? 0.5 : 1,
       display: 'flex', flexDirection: 'column', gap: 3,
     }}>
@@ -122,7 +122,7 @@ export default function PlanningCell({
                       style={{
                         width: 38, padding: '1px 3px', borderRadius: 3, border: `1px solid ${cl.color}`,
                         fontSize: 10, fontWeight: 800, color: cl.color, textAlign: 'right',
-                        fontFamily: "'Open Sans', sans-serif", outline: 'none', background: 'white',
+                        fontFamily: "'Open Sans', sans-serif", outline: 'none', background: 'var(--tb-input-bg)',
                       }} />
                   ) : (
                     <span
@@ -183,7 +183,7 @@ export default function PlanningCell({
 
       {visualBlocks.length === 0 && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#e0dfd8', fontSize: 11, minHeight: 40 }}>—</div>
+          color: 'var(--tb-border-mid)', fontSize: 11, minHeight: 40 }}>—</div>
       )}
 
       {editable && (
@@ -192,8 +192,8 @@ export default function PlanningCell({
             <button onClick={() => setAddOpen(true)}
               style={{
                 width: '100%', padding: '3px 0', borderRadius: 4,
-                border: '1px dashed #e0dfd8', background: 'transparent',
-                color: '#ccc', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                border: '1px dashed var(--tb-border-mid)', background: 'transparent',
+                color: 'var(--tb-text-faint)', fontSize: 10, fontWeight: 700, cursor: 'pointer',
                 fontFamily: "'Open Sans', sans-serif",
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
               }}>
@@ -201,25 +201,27 @@ export default function PlanningCell({
             </button>
           ) : (
             <div style={{
-              background: 'white', border: '1px solid #e0dfd8', borderRadius: 6,
+              background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border-mid)', borderRadius: 6,
               padding: 8, display: 'flex', flexDirection: 'column', gap: 5,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.08)', zIndex: 10,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 10,
             }}>
               <select value={addClientId} onChange={e => setAddClientId(e.target.value)}
-                style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd',
-                  fontFamily: "'Open Sans', sans-serif", fontSize: 11, color: '#383838', outline: 'none' }}>
+                style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--tb-input-border)',
+                  fontFamily: "'Open Sans', sans-serif", fontSize: 11, color: 'var(--tb-input-text)',
+                  background: 'var(--tb-input-bg)', outline: 'none' }}>
                 <option value="">Cliente…</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <div style={{ display: 'flex', gap: 4 }}>
                 <input type="text" value={addHoursStr} onChange={e => setAddHoursStr(e.target.value)}
                   placeholder="ore"
-                  style={{ flex: 1, padding: '4px 6px', borderRadius: 4, border: '1px solid #ddd',
-                    fontSize: 11, fontFamily: "'Open Sans', sans-serif", outline: 'none' }} />
+                  style={{ flex: 1, padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-input-border)',
+                    fontSize: 11, fontFamily: "'Open Sans', sans-serif", outline: 'none',
+                    background: 'var(--tb-input-bg)', color: 'var(--tb-input-text)' }} />
                 <button onClick={confirmAdd} disabled={!addClientId}
                   style={{
                     flex: 2, padding: '4px 6px', borderRadius: 4, border: 'none',
-                    background: addClientId ? (clients.find(c => c.id === addClientId)?.color ?? '#3DB33D') : '#ddd',
+                    background: addClientId ? (clients.find(c => c.id === addClientId)?.color ?? '#3DB33D') : 'var(--tb-border)',
                     color: 'white', fontSize: 11, fontWeight: 700,
                     cursor: addClientId ? 'pointer' : 'not-allowed',
                     fontFamily: "'Open Sans', sans-serif",

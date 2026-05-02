@@ -21,7 +21,6 @@ function RepeatIcon()   { return <svg width="15" height="15" viewBox="0 0 15 15"
 function SettingsIcon() { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 1v1.5M7.5 12.5V14M14 7.5h-1.5M2.5 7.5H1M11.7 3.3l-1.1 1.1M4.4 10.6l-1.1 1.1M11.7 11.7l-1.1-1.1M4.4 4.4 3.3 3.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 
 const ACCENT = '#3DB33D';
-const SIDEBAR_BG = '#242424';
 
 export default function App() {
   const [screen, setScreen]     = useState('weekly');
@@ -32,6 +31,31 @@ export default function App() {
   const [loading, setLoading]   = useState(true);
   const [sidebarKey, setSidebarKey] = useState(0);
   const refreshSidebar = useCallback(() => setSidebarKey(k => k + 1), []);
+
+  const [theme, setThemeState] = useState(() => {
+    try { return localStorage.getItem('timebox-theme') || 'dark'; } catch { return 'dark'; }
+  });
+  const [systemDark, setSystemDark] = useState(() =>
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = e => setSystemDark(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const effectiveTheme = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme;
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', effectiveTheme);
+  }, [effectiveTheme]);
+
+  function setTheme(t) {
+    try { localStorage.setItem('timebox-theme', t); } catch {}
+    setThemeState(t);
+  }
 
   useEffect(() => {
     Promise.all([
@@ -46,14 +70,13 @@ export default function App() {
     });
   }, []);
 
-  const monthHours = 0; // placeholder — sidebar footer will receive pre-computed value
-
   const topbarDate = TODAY.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
   if (loading) {
     return (
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center',
-        background: '#F0EFE8', fontFamily: "'Open Sans', sans-serif", color: '#bbb', fontSize: 13 }}>
+        background: 'var(--tb-main-bg)', fontFamily: "'Open Sans', sans-serif",
+        color: 'var(--tb-text-muted)', fontSize: 13 }}>
         Caricamento…
       </div>
     );
@@ -63,10 +86,10 @@ export default function App() {
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Open Sans', sans-serif", overflow: 'hidden' }}>
 
       {/* ── Sidebar ─────────────────────────────────────────────── */}
-      <div style={{ width: 200, background: SIDEBAR_BG, display: 'flex', flexDirection: 'column', flexShrink: 0, userSelect: 'none' }}>
+      <div style={{ width: 200, background: 'var(--tb-sidebar-bg)', display: 'flex', flexDirection: 'column', flexShrink: 0, userSelect: 'none' }}>
 
         {/* Brand */}
-        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid var(--tb-sidebar-border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 28, height: 28, borderRadius: 7, background: ACCENT,
               display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -78,7 +101,7 @@ export default function App() {
               </svg>
             </div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: 'white', letterSpacing: '-0.01em', lineHeight: 1.1 }}>Timebox</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-sidebar-text)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>Timebox</div>
               <div style={{ fontSize: 9, color: ACCENT, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Freelance</div>
             </div>
           </div>
@@ -87,7 +110,7 @@ export default function App() {
         {/* Nav */}
         <nav style={{ flex: 1, padding: '10px 0' }}>
           <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase',
-            color: 'rgba(255,255,255,0.2)', padding: '10px 20px 5px' }}>
+            color: 'var(--tb-sidebar-label)', padding: '10px 20px 5px' }}>
             Menu
           </div>
           {NAV_ITEMS.map(item => {
@@ -99,12 +122,12 @@ export default function App() {
                   display: 'flex', alignItems: 'center', gap: 9, width: '100%',
                   padding: '9px 20px', background: 'transparent',
                   border: 'none', borderLeft: active ? `2px solid ${ACCENT}` : '2px solid transparent',
-                  color: active ? 'white' : 'rgba(255,255,255,0.4)',
+                  color: active ? 'var(--tb-sidebar-nav-active-text)' : 'var(--tb-sidebar-muted)',
                   fontFamily: "'Open Sans', sans-serif", fontSize: 13,
                   fontWeight: active ? 700 : 400, cursor: 'pointer',
                   transition: 'all 0.12s', textAlign: 'left',
                 }}>
-                <span style={{ color: active ? ACCENT : 'rgba(255,255,255,0.3)', flexShrink: 0 }}>
+                <span style={{ color: active ? ACCENT : 'var(--tb-sidebar-faint)', flexShrink: 0 }}>
                   <Icon />
                 </span>
                 {item.label}
@@ -118,19 +141,19 @@ export default function App() {
       </div>
 
       {/* ── Main area ─────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#F0EFE8', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--tb-main-bg)', overflow: 'hidden' }}>
 
         {/* Topbar */}
         <div style={{
           padding: '0 28px', height: 52,
-          borderBottom: '1px solid #e8e7e0',
+          borderBottom: '1px solid var(--tb-topbar-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: '#F8F7F2', flexShrink: 0,
+          background: 'var(--tb-topbar-bg)', flexShrink: 0,
         }}>
-          <h1 style={{ fontSize: 15, fontWeight: 800, color: '#383838', letterSpacing: '-0.01em' }}>
+          <h1 style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-topbar-text)', letterSpacing: '-0.01em' }}>
             {NAV_ITEMS.find(n => n.id === screen)?.label}
           </h1>
-          <div style={{ fontSize: 11, color: '#888', fontWeight: 600 }}>
+          <div style={{ fontSize: 11, color: 'var(--tb-text-secondary)', fontWeight: 600 }}>
             {topbarDate}
           </div>
         </div>
@@ -155,7 +178,7 @@ export default function App() {
             <RecurringScreen
               clients={clients} recurring={recurring} setRecurring={setRecurring} />
           )}
-          {screen === 'settings' && <SettingsScreen />}
+          {screen === 'settings' && <SettingsScreen theme={theme} setTheme={setTheme} />}
         </div>
       </div>
     </div>
@@ -178,9 +201,9 @@ function SidebarFooter({ clients, projects, refreshKey }) {
   const totalH = entries.reduce((s, e) => s + e.hours, 0);
 
   return (
-    <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+    <div style={{ padding: '14px 20px', borderTop: '1px solid var(--tb-sidebar-border)' }}>
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
-        color: 'rgba(255,255,255,0.2)', marginBottom: 8 }}>
+        color: 'var(--tb-sidebar-label)', marginBottom: 8 }}>
         {month} {year} · {fmtH(totalH)}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -194,11 +217,11 @@ function SidebarFooter({ clients, projects, refreshKey }) {
           return (
             <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', flex: 1,
+              <span style={{ fontSize: 10, color: 'var(--tb-sidebar-muted)', flex: 1,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {c.name}
               </span>
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', fontWeight: 600 }}>
+              <span style={{ fontSize: 10, color: 'var(--tb-sidebar-faint)', fontWeight: 600 }}>
                 {fmtH(h)}
               </span>
             </div>

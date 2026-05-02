@@ -4,12 +4,13 @@ const BILLING_OPTIONS = ['hourly', 'fixed', 'budget'];
 const COLORS = ['#4A8FE8', '#E07B3A', '#3DB33D', '#9B59B6', '#E05252', '#1AB8A0', '#E8A834'];
 
 const formLabel = {
-  display: 'block', fontSize: 11, fontWeight: 700, color: '#888',
+  display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)',
   letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4,
 };
 const formInput = {
-  width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd',
-  fontFamily: "'Open Sans', sans-serif", fontSize: 13, color: '#383838', outline: 'none',
+  width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--tb-input-border)',
+  fontFamily: "'Open Sans', sans-serif", fontSize: 13, color: 'var(--tb-input-text)',
+  background: 'var(--tb-input-bg)', outline: 'none',
 };
 
 export default function ClientsScreen({ clients, projects, setClients, setProjects }) {
@@ -66,22 +67,22 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
           <button key={c.id} onClick={() => setSelectedId(c.id)}
             style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 6,
-              background: selectedId === c.id ? 'white' : 'transparent',
-              border: selectedId === c.id ? '1px solid #e8e7e0' : '1px solid transparent',
+              background: selectedId === c.id ? 'var(--tb-panel-bg)' : 'transparent',
+              border: selectedId === c.id ? '1px solid var(--tb-border)' : '1px solid transparent',
               cursor: 'pointer', textAlign: 'left', transition: 'all 0.1s',
             }}>
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div style={{ fontSize: 13, fontWeight: selectedId === c.id ? 700 : 400, color: '#383838',
+              <div style={{ fontSize: 13, fontWeight: selectedId === c.id ? 700 : 400, color: 'var(--tb-text-primary)',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-              <div style={{ fontSize: 10, color: '#bbb' }}>{c.billing} · {c.limitHours}h/{c.limitType === 'weekly' ? 'sett' : 'mese'}</div>
+              <div style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>{c.billing} · {c.limitHours}h/{c.limitType === 'weekly' ? 'sett' : 'mese'}</div>
             </div>
           </button>
         ))}
         <button onClick={addClient}
           style={{
-            marginTop: 8, padding: '8px 12px', borderRadius: 6, border: '1px dashed #ddd',
-            background: 'transparent', color: '#888', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            marginTop: 8, padding: '8px 12px', borderRadius: 6, border: '1px dashed var(--tb-input-border)',
+            background: 'transparent', color: 'var(--tb-text-secondary)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
             fontFamily: "'Open Sans', sans-serif",
           }}>
           + Nuovo cliente
@@ -90,13 +91,13 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
 
       {/* Config panel */}
       {sel && (
-        <div style={{ background: 'white', borderRadius: 8, border: '1px solid #e8e7e0', padding: 24, overflowY: 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingBottom: 20, borderBottom: '1px solid #f0efe8' }}>
+        <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', padding: 24, overflowY: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingBottom: 20, borderBottom: '1px solid var(--tb-border-soft)' }}>
             <div style={{ width: 14, height: 14, borderRadius: '50%', background: sel.color }} />
             <input
               value={sel.name}
               onChange={e => updateClient('name', e.target.value)}
-              style={{ ...formInput, fontSize: 18, fontWeight: 800, border: 'none', padding: 0, flex: 1 }} />
+              style={{ ...formInput, fontSize: 18, fontWeight: 800, border: 'none', padding: 0, flex: 1, background: 'transparent' }} />
           </div>
 
           <SectionLabel>Configurazione</SectionLabel>
@@ -109,9 +110,9 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                   <button key={b} onClick={() => updateClient('billing', b)}
                     style={{
                       flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
-                      border: sel.billing === b ? `2px solid ${sel.color}` : '1px solid #e0dfd8',
+                      border: sel.billing === b ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
                       background: sel.billing === b ? sel.color + '15' : 'transparent',
-                      color: sel.billing === b ? sel.color : '#888', cursor: 'pointer',
+                      color: sel.billing === b ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
                       fontFamily: "'Open Sans', sans-serif",
                     }}>
                     {b}
@@ -133,7 +134,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                   <button key={col} onClick={() => updateClient('color', col)}
                     style={{
                       width: 22, height: 22, borderRadius: '50%', background: col,
-                      border: sel.color === col ? '2px solid #383838' : '2px solid transparent',
+                      border: sel.color === col ? '2px solid var(--tb-text-primary)' : '2px solid transparent',
                       cursor: 'pointer',
                     }} />
                 ))}
@@ -153,9 +154,9 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                   <button key={t} onClick={() => updateClient('limitType', t)}
                     style={{
                       flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
-                      border: sel.limitType === t ? `2px solid ${sel.color}` : '1px solid #e0dfd8',
+                      border: sel.limitType === t ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
                       background: sel.limitType === t ? sel.color + '15' : 'transparent',
-                      color: sel.limitType === t ? sel.color : '#888', cursor: 'pointer',
+                      color: sel.limitType === t ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
                       fontFamily: "'Open Sans', sans-serif",
                     }}>
                     {t === 'weekly' ? 'Sett.' : 'Mese'}
@@ -171,9 +172,9 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                   <button key={String(v)} onClick={() => updateClient('carryover', v)}
                     style={{
                       flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
-                      border: sel.carryover === v ? `2px solid ${sel.color}` : '1px solid #e0dfd8',
+                      border: sel.carryover === v ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
                       background: sel.carryover === v ? sel.color + '15' : 'transparent',
-                      color: sel.carryover === v ? sel.color : '#888', cursor: 'pointer',
+                      color: sel.carryover === v ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
                       fontFamily: "'Open Sans', sans-serif",
                     }}>
                     {v ? 'Sì' : 'No'}
@@ -183,17 +184,17 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
             </div>
           </div>
 
-          <div style={{ borderTop: '1px solid #f0efe8', paddingTop: 20 }}>
+          <div style={{ borderTop: '1px solid var(--tb-border-soft)', paddingTop: 20 }}>
             <SectionLabel>Progetti ({selProjects.length})</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
               {selProjects.map(p => (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                  background: '#f8f7f2', borderRadius: 6 }}>
+                  background: 'var(--tb-panel-bg-soft)', borderRadius: 6 }}>
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: sel.color }} />
                   <input
                     value={p.name}
                     onChange={e => updateProject(p.id, 'name', e.target.value)}
-                    style={{ flex: 1, fontSize: 13, color: '#383838', fontWeight: 600,
+                    style={{ flex: 1, fontSize: 13, color: 'var(--tb-text-primary)', fontWeight: 600,
                       border: 'none', background: 'transparent', outline: 'none',
                       fontFamily: "'Open Sans', sans-serif" }} />
                   <input
@@ -201,16 +202,16 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                     value={p.budgetHours ?? ''}
                     placeholder="budget h"
                     onChange={e => updateProject(p.id, 'budgetHours', e.target.value ? Number(e.target.value) : null)}
-                    style={{ width: 80, fontSize: 11, color: '#bbb', textAlign: 'right',
+                    style={{ width: 80, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
                       border: 'none', background: 'transparent', outline: 'none',
                       fontFamily: "'Open Sans', sans-serif" }} />
-                  {p.budgetHours && <span style={{ fontSize: 11, color: '#bbb' }}>h</span>}
+                  {p.budgetHours && <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>h</span>}
                 </div>
               ))}
               <button onClick={addProject}
                 style={{
-                  padding: '8px 14px', borderRadius: 6, border: '1px dashed #ddd',
-                  background: 'transparent', color: '#888', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  padding: '8px 14px', borderRadius: 6, border: '1px dashed var(--tb-input-border)',
+                  background: 'transparent', color: 'var(--tb-text-secondary)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
                   fontFamily: "'Open Sans', sans-serif", textAlign: 'left', marginTop: 2,
                 }}>
                 + Nuovo progetto
@@ -226,7 +227,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
 function SectionLabel({ children }) {
   return (
     <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
-      color: '#aaa', marginBottom: 8 }}>
+      color: 'var(--tb-text-muted)', marginBottom: 8 }}>
       {children}
     </div>
   );

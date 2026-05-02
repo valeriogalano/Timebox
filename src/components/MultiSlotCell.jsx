@@ -37,8 +37,8 @@ export default function MultiSlotCell({ blocks, clients, onAdd, onUpdate, onRemo
           <button onClick={() => setAddOpen(true)}
             style={{
               width: '100%', padding: '4px 0', borderRadius: 4,
-              border: '1px dashed #e0dfd8', background: 'transparent',
-              color: '#ccc', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+              border: '1px dashed var(--tb-border-mid)', background: 'transparent',
+              color: 'var(--tb-text-faint)', fontSize: 10, fontWeight: 700, cursor: 'pointer',
               fontFamily: "'Open Sans', sans-serif",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
             }}>
@@ -46,25 +46,27 @@ export default function MultiSlotCell({ blocks, clients, onAdd, onUpdate, onRemo
           </button>
         ) : (
           <div style={{
-            background: 'white', border: '1px solid #e0dfd8', borderRadius: 6, padding: 8,
+            background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border-mid)', borderRadius: 6, padding: 8,
             display: 'flex', flexDirection: 'column', gap: 5,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 10, position: 'relative',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 10, position: 'relative',
           }}>
             <select value={addClientId} onChange={e => setAddClientId(e.target.value)}
-              style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd',
-                fontFamily: "'Open Sans', sans-serif", fontSize: 11, color: '#383838', outline: 'none' }}>
+              style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--tb-input-border)',
+                fontFamily: "'Open Sans', sans-serif", fontSize: 11, color: 'var(--tb-input-text)',
+                background: 'var(--tb-input-bg)', outline: 'none' }}>
               <option value="">Cliente…</option>
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <div style={{ display: 'flex', gap: 4 }}>
               <input type="number" value={addHours} min="0.5" step="0.5"
                 onChange={e => setAddHours(parseFloat(e.target.value) || 1)}
-                style={{ flex: 1, padding: '4px 6px', borderRadius: 4, border: '1px solid #ddd',
-                  fontSize: 11, fontFamily: "'Open Sans', sans-serif", outline: 'none' }} />
+                style={{ flex: 1, padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-input-border)',
+                  fontSize: 11, fontFamily: "'Open Sans', sans-serif", outline: 'none',
+                  background: 'var(--tb-input-bg)', color: 'var(--tb-input-text)' }} />
               <button onClick={confirmAdd} disabled={!addClientId}
                 style={{
                   flex: 2, padding: '5px', border: 'none', borderRadius: 5,
-                  background: addClientId ? (clients.find(c => c.id === addClientId)?.color ?? '#3DB33D') : '#ddd',
+                  background: addClientId ? (clients.find(c => c.id === addClientId)?.color ?? '#3DB33D') : 'var(--tb-border)',
                   cursor: addClientId ? 'pointer' : 'not-allowed',
                   fontSize: 11, fontWeight: 700, color: 'white', fontFamily: "'Open Sans', sans-serif",
                 }}>

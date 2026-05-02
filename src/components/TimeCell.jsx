@@ -34,9 +34,9 @@ export default function TimeCell({ hours, billed, isFuture, isToday, clientColor
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        background: editing ? '#fff'
-          : isToday ? '#f8fff8'
-          : hover ? '#fafaf8' : 'white',
+        background: editing ? 'var(--tb-input-bg)'
+          : isToday ? 'var(--tb-cell-today)'
+          : hover ? 'var(--tb-cell-hover)' : 'var(--tb-cell-bg)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         minHeight: 44, cursor: 'pointer',
         position: 'relative',
@@ -72,7 +72,7 @@ export default function TimeCell({ hours, billed, isFuture, isToday, clientColor
         </div>
       ) : (
         <span style={{
-          fontSize: 12, color: hover ? '#ccc' : 'transparent',
+          fontSize: 12, color: hover ? 'var(--tb-text-faint)' : 'transparent',
           fontWeight: 600, transition: 'color 0.1s', letterSpacing: '0.02em',
         }}>
           hh:mm
@@ -85,7 +85,7 @@ export default function TimeCell({ hours, billed, isFuture, isToday, clientColor
           title={billed ? 'Segna come non fatturato' : 'Segna come fatturato'}
           style={{
             position: 'absolute', top: 3, right: 3, background: 'none', border: 'none',
-            cursor: 'pointer', color: billed ? '#3DB33D' : '#ddd', fontSize: 10, padding: 0,
+            cursor: 'pointer', color: billed ? '#3DB33D' : 'var(--tb-border-mid)', fontSize: 10, padding: 0,
             lineHeight: 1, fontWeight: 800,
           }}>
           €

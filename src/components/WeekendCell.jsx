@@ -5,8 +5,8 @@ export default function WeekendCell({ slim }) {
     <div style={{
       minHeight: slim ? 36 : 80,
       borderRadius: 6,
-      background: '#F8F7F2',
-      border: '1px solid #EDECE6',
+      background: 'var(--tb-cell-weekend)',
+      border: '1px solid var(--tb-border-soft)',
       opacity: 0.4,
     }} />
   );

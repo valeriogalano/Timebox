@@ -45,7 +45,7 @@ export default function Dashboard({ clients, projects, screen }) {
       {/* Month navigation */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <NavBtn onClick={() => setMonthOffset(o => o - 1)}>‹</NavBtn>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#383838', minWidth: 110, textAlign: 'center' }}>{monthLabel}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', minWidth: 110, textAlign: 'center' }}>{monthLabel}</span>
         <NavBtn onClick={() => setMonthOffset(o => o + 1)}>›</NavBtn>
         {monthOffset !== 0 && <NavBtn small onClick={() => setMonthOffset(0)}>Oggi</NavBtn>}
       </div>
@@ -61,16 +61,16 @@ export default function Dashboard({ clients, projects, screen }) {
       {/* Right: billing + stats */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <SectionLabel>Billing</SectionLabel>
-        <div style={{ background: 'white', borderRadius: 8, border: '1px solid #e8e7e0', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', overflow: 'hidden' }}>
           {clientStats.map((c, i) => {
             const bEur  = c.billing === 'hourly' && c.rate ? (c.billedH * c.rate).toFixed(0) : null;
             const ubEur = c.billing === 'hourly' && c.rate ? (c.unbilledH * c.rate).toFixed(0) : null;
             return (
-              <div key={c.id} style={{ padding: '12px 16px', borderBottom: i < clientStats.length - 1 ? '1px solid #f0efe8' : 'none' }}>
+              <div key={c.id} style={{ padding: '12px 16px', borderBottom: i < clientStats.length - 1 ? '1px solid var(--tb-border-soft)' : 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#383838', flex: 1 }}>{c.name}</span>
-                  <span style={{ fontSize: 10, color: '#bbb' }}>{c.billing}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', flex: 1 }}>{c.name}</span>
+                  <span style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>{c.billing}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <BillingLine label="Fatturate"    hours={c.billedH}   eur={bEur}  positive />
@@ -79,20 +79,20 @@ export default function Dashboard({ clients, projects, screen }) {
               </div>
             );
           })}
-          <div style={{ padding: '12px 16px', background: '#f8f7f2', display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ padding: '12px 16px', background: 'var(--tb-panel-bg-soft)', display: 'flex', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#bbb', marginBottom: 2 }}>Totale fatturato</div>
+              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginBottom: 2 }}>Totale fatturato</div>
               <div style={{ fontSize: 15, fontWeight: 800, color: '#3DB33D' }}>€{totalBilledEur.toFixed(0)}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#bbb', marginBottom: 2 }}>Da fatturare</div>
+              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginBottom: 2 }}>Da fatturare</div>
               <div style={{ fontSize: 15, fontWeight: 800, color: '#E07B3A' }}>€{totalUnbilledEur.toFixed(0)}</div>
             </div>
           </div>
         </div>
 
         <SectionLabel>{monthLabel}</SectionLabel>
-        <div style={{ background: 'white', borderRadius: 8, border: '1px solid #e8e7e0', padding: 16 }}>
+        <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', padding: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <MonthStat label="Ore tracciate"    value={fmtH(clientStats.reduce((s, c) => s + c.monthH, 0))} />
             <MonthStat label="Ore questa sett." value={fmtH(clientStats.reduce((s, c) => s + c.weekH, 0))} />
@@ -109,9 +109,9 @@ export default function Dashboard({ clients, projects, screen }) {
 function NavBtn({ onClick, children, small }) {
   return (
     <button onClick={onClick} style={{
-      background: 'white', border: '1px solid #e8e7e0', borderRadius: 5,
+      background: 'var(--tb-navbtn-bg)', border: '1px solid var(--tb-navbtn-border)', borderRadius: 5,
       padding: small ? '3px 9px' : '3px 8px', cursor: 'pointer',
-      fontSize: small ? 10 : 14, fontWeight: 700, color: '#555',
+      fontSize: small ? 10 : 14, fontWeight: 700, color: 'var(--tb-navbtn-text)',
       fontFamily: "'Open Sans', sans-serif", lineHeight: 1.4,
     }}>
       {children}
@@ -123,11 +123,11 @@ function ClientCard({ client, totalTracked }) {
   const alertLevel = client.pct >= 90 ? 'high' : client.pct >= 75 ? 'medium' : null;
   const shareOfTotal = totalTracked > 0 ? ((client.weekH / totalTracked) * 100).toFixed(0) : 0;
   return (
-    <div style={{ background: 'white', borderRadius: 8, padding: 16,
-      border: `1px solid ${alertLevel === 'high' ? '#E0525240' : alertLevel === 'medium' ? '#F0A02040' : '#e8e7e0'}` }}>
+    <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, padding: 16,
+      border: `1px solid ${alertLevel === 'high' ? '#E0525240' : alertLevel === 'medium' ? '#F0A02040' : 'var(--tb-panel-border)'}` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <div style={{ width: 10, height: 10, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
-        <span style={{ fontWeight: 700, fontSize: 14, color: '#383838', flex: 1 }}>{client.name}</span>
+        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--tb-text-primary)', flex: 1 }}>{client.name}</span>
         {alertLevel && (
           <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 100,
             color: alertLevel === 'high' ? '#E05252' : '#E07B3A',
@@ -135,23 +135,23 @@ function ClientCard({ client, totalTracked }) {
             {alertLevel === 'high' ? '⚠ Vicino al limite' : '↑ Attenzione'}
           </span>
         )}
-        <span style={{ fontSize: 11, color: '#bbb', fontWeight: 600 }}>
+        <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', fontWeight: 600 }}>
           {client.billing === 'hourly' ? `€${client.rate}/h` : client.billing}
         </span>
       </div>
-      <div style={{ background: '#f0efe8', borderRadius: 4, height: 5, marginBottom: 8, overflow: 'hidden' }}>
+      <div style={{ background: 'var(--tb-panel-bg-subtle)', borderRadius: 4, height: 5, marginBottom: 8, overflow: 'hidden' }}>
         <div style={{ height: 5, borderRadius: 4, transition: 'width 0.5s ease',
           background: alertLevel === 'high' ? '#E05252' : alertLevel === 'medium' ? '#E07B3A' : client.color,
           width: `${client.pct}%` }} />
       </div>
       <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-        <div style={{ fontSize: 11, color: '#888' }}>
+        <div style={{ fontSize: 11, color: 'var(--tb-text-secondary)' }}>
           {client.limitType === 'weekly' ? 'Sett.' : 'Mese'}:{' '}
-          <strong style={{ color: '#383838' }}>{fmtH(client.usedH)}</strong>
-          <span style={{ color: '#bbb' }}> / {fmtH(client.limitHours)}</span>
+          <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(client.usedH)}</strong>
+          <span style={{ color: 'var(--tb-text-faint)' }}> / {fmtH(client.limitHours)}</span>
         </div>
-        <div style={{ fontSize: 11, color: '#888' }}>Settimana: <strong style={{ color: '#383838' }}>{fmtH(client.weekH)}</strong></div>
-        <div style={{ marginLeft: 'auto', fontSize: 11, color: '#bbb', fontWeight: 600 }}>{shareOfTotal}% del tot.</div>
+        <div style={{ fontSize: 11, color: 'var(--tb-text-secondary)' }}>Settimana: <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(client.weekH)}</strong></div>
+        <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--tb-text-faint)', fontWeight: 600 }}>{shareOfTotal}% del tot.</div>
       </div>
     </div>
   );
@@ -161,7 +161,7 @@ function BillingLine({ label, hours, eur, positive }) {
   const color = positive ? '#3DB33D' : '#E07B3A';
   return (
     <div>
-      <div style={{ fontSize: 9, color: '#bbb', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 1 }}>{label}</div>
+      <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 1 }}>{label}</div>
       <div style={{ fontSize: 12, fontWeight: 700, color }}>{fmtH(hours)}{eur ? ` · €${eur}` : ''}</div>
     </div>
   );
@@ -170,15 +170,15 @@ function BillingLine({ label, hours, eur, positive }) {
 function MonthStat({ label, value }) {
   return (
     <div>
-      <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#bbb', marginBottom: 3 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: '#383838' }}>{value}</div>
+      <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{value}</div>
     </div>
   );
 }
 
 function SectionLabel({ children }) {
   return (
-    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#aaa', marginBottom: 0 }}>
+    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-muted)', marginBottom: 0 }}>
       {children}
     </div>
   );

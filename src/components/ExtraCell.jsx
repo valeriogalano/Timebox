@@ -6,11 +6,11 @@ export default function ExtraCell({ blocks, clients, isToday }) {
     return (
       <div style={{
         minHeight: 32, borderRadius: 6, padding: '4px 6px',
-        background: isToday ? '#fffdf8' : '#faf9f5',
-        border: `1px dashed ${isToday ? '#E07B3A33' : '#e8e7e0'}`,
+        background: isToday ? 'var(--tb-cell-extra-today)' : 'var(--tb-cell-extra)',
+        border: `1px dashed ${isToday ? '#E07B3A33' : 'var(--tb-border)'}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <span style={{ fontSize: 10, color: '#ddd' }}>—</span>
+        <span style={{ fontSize: 10, color: 'var(--tb-border-mid)' }}>—</span>
       </div>
     );
   }
@@ -18,8 +18,8 @@ export default function ExtraCell({ blocks, clients, isToday }) {
   return (
     <div style={{
       borderRadius: 6, padding: 6,
-      background: isToday ? '#fffdf8' : '#faf9f5',
-      border: `1px dashed ${isToday ? '#E07B3A55' : '#e0dfd8'}`,
+      background: isToday ? 'var(--tb-cell-extra-today)' : 'var(--tb-cell-extra)',
+      border: `1px dashed ${isToday ? '#E07B3A55' : 'var(--tb-border-mid)'}`,
       display: 'flex', flexDirection: 'column', gap: 3,
     }}>
       {blocks.map(({ clientId, hours }) => {

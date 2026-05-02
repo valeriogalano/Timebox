@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ theme, setTheme }) {
   const [busy, setBusy] = useState(false);
   const [dbPath, setDbPath] = useState('');
 
@@ -34,21 +34,32 @@ export default function SettingsScreen() {
 
   return (
     <div style={{ maxWidth: 560 }}>
+      <Section title="Aspetto">
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--tb-border-soft)' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 6 }}>
+            Tema
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginBottom: 12 }}>
+            Scegli l'aspetto dell'interfaccia. "Sistema" segue le impostazioni del tuo macOS.
+          </div>
+          <ThemeSelector theme={theme} setTheme={setTheme} />
+        </div>
+      </Section>
       <Section title="Database">
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f0efe8' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#383838', marginBottom: 6 }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--tb-border-soft)' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 6 }}>
             File dati
           </div>
           <div style={{
-            fontSize: 11, color: '#888', marginBottom: 12,
-            background: '#f8f7f2', border: '1px solid #e8e7e0',
+            fontSize: 11, color: 'var(--tb-text-secondary)', marginBottom: 12,
+            background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)',
             borderRadius: 5, padding: '7px 10px',
             fontFamily: 'monospace', wordBreak: 'break-all',
             minHeight: 30,
           }}>
             {dbPath || '—'}
           </div>
-          <div style={{ fontSize: 11, color: '#aaa', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginBottom: 12 }}>
             Seleziona un file esistente o crea un nuovo file per cambiare la posizione del database.
             L'app verrà ricaricata automaticamente.
           </div>
@@ -77,6 +88,35 @@ export default function SettingsScreen() {
   );
 }
 
+const THEME_OPTIONS = [
+  { value: 'light',  label: 'Chiaro' },
+  { value: 'dark',   label: 'Scuro'  },
+  { value: 'system', label: 'Sistema' },
+];
+
+function ThemeSelector({ theme, setTheme }) {
+  return (
+    <div style={{ display: 'flex', gap: 6 }}>
+      {THEME_OPTIONS.map(({ value, label }) => {
+        const active = theme === value;
+        return (
+          <button key={value} onClick={() => setTheme(value)}
+            style={{
+              flex: 1, padding: '8px 12px', borderRadius: 7, fontSize: 12, fontWeight: 700,
+              border: active ? '2px solid #3DB33D' : '1px solid var(--tb-border)',
+              background: active ? '#3DB33D18' : 'transparent',
+              color: active ? '#3DB33D' : 'var(--tb-text-secondary)',
+              cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
+              transition: 'all 0.12s',
+            }}>
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function SelectButton({ onClick, disabled }) {
   const [hover, setHover] = useState(false);
   return (
@@ -87,7 +127,7 @@ function SelectButton({ onClick, disabled }) {
       onMouseLeave={() => setHover(false)}
       style={{
         padding: '7px 16px', borderRadius: 6, border: 'none',
-        background: disabled ? '#ddd' : hover ? '#555' : '#666',
+        background: disabled ? 'var(--tb-border)' : hover ? '#555' : '#666',
         color: 'white', fontSize: 12, fontWeight: 700,
         cursor: disabled ? 'not-allowed' : 'pointer',
         fontFamily: "'Open Sans', sans-serif",
@@ -100,11 +140,11 @@ function SelectButton({ onClick, disabled }) {
 
 function Section({ title, children }) {
   return (
-    <div style={{ background: 'white', borderRadius: 8, border: '1px solid #e8e7e0', overflow: 'hidden', marginBottom: 20 }}>
+    <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', overflow: 'hidden', marginBottom: 20 }}>
       <div style={{
         padding: '10px 20px',
-        background: '#f8f7f2', borderBottom: '1px solid #e8e7e0',
-        fontSize: 9, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#bbb',
+        background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)',
+        fontSize: 9, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
       }}>
         {title}
       </div>
@@ -119,11 +159,11 @@ function Row({ label, description, buttonLabel, buttonColor, onClick, disabled }
     <div style={{
       padding: '16px 20px',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20,
-      borderBottom: '1px solid #f0efe8',
+      borderBottom: '1px solid var(--tb-border-soft)',
     }}>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#383838', marginBottom: 3 }}>{label}</div>
-        <div style={{ fontSize: 11, color: '#aaa' }}>{description}</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 3 }}>{label}</div>
+        <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>{description}</div>
       </div>
       <button
         onClick={onClick}
@@ -133,7 +173,7 @@ function Row({ label, description, buttonLabel, buttonColor, onClick, disabled }
         style={{
           flexShrink: 0,
           padding: '7px 16px', borderRadius: 6, border: 'none',
-          background: disabled ? '#ddd' : hover ? buttonColor : buttonColor + 'dd',
+          background: disabled ? 'var(--tb-border)' : hover ? buttonColor : buttonColor + 'dd',
           color: 'white', fontSize: 12, fontWeight: 700,
           cursor: disabled ? 'not-allowed' : 'pointer',
           fontFamily: "'Open Sans', sans-serif",

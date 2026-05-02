@@ -37,6 +37,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove })
             width: 38, padding: '1px 4px', borderRadius: 3, border: `1px solid ${client.color}`,
             fontSize: 11, fontWeight: 800, color: client.color, textAlign: 'right',
             fontFamily: "'Open Sans', sans-serif", outline: 'none',
+            background: 'var(--tb-input-bg)',
           }} />
       ) : (
         <span onClick={startEdit}
