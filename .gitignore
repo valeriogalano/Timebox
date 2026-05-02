@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Electron builder output
+out/
+
+# IDE
+.idea/
+.vscode/
+
+# MCP / tooling
+.playwright-mcp/
+.claude/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local

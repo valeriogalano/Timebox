@@ -1,0 +1,34 @@
+{
+  "name": "timebox",
+  "version": "1.0.0",
+  "description": "Freelance time tracking desktop app",
+  "main": "main.js",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && ELECTRON_START_URL=http://localhost:5173 electron .\"",
+    "build": "vite build",
+    "start": "npm run dev",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "postinstall": "electron-rebuild -f -w better-sqlite3"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^9.1.0",
+    "electron": "^31.7.7",
+    "electron-builder": "^25.1.8",
+    "electron-rebuild": "^3.2.9",
+    "vite": "^5.4.11",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.timebox.app",
+    "productName": "Timebox",
+    "mac": {
+      "category": "public.app-category.productivity"
+    }
+  }
+}
