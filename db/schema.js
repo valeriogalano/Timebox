@@ -72,6 +72,11 @@ function getSeedEntries() {
 function initDb(dbPath) {
   const db = new Database(dbPath);
 
+  // Hold an exclusive lock so iCloud Drive cannot lock the file during writes.
+  // WAL mode avoids journal-file conflicts with iCloud's sync daemon.
+  db.pragma('locking_mode = EXCLUSIVE');
+  db.pragma('journal_mode = WAL');
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS clients (
       id TEXT PRIMARY KEY,

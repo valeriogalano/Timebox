@@ -23,4 +23,7 @@ contextBridge.exposeInMainWorld('api', {
 
   resetAllData:       ()           => ipcRenderer.invoke('db:resetAllData'),
   seedDemoData:       ()           => ipcRenderer.invoke('db:seedDemoData'),
+
+  getDbPath:          ()           => ipcRenderer.invoke('app:getDbPath'),
+  selectDbFile:       ()           => ipcRenderer.invoke('app:selectDbFile'),
 });

@@ -1,7 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function SettingsScreen() {
   const [busy, setBusy] = useState(false);
+  const [dbPath, setDbPath] = useState('');
+
+  useEffect(() => {
+    window.api.getDbPath().then(p => setDbPath(p || ''));
+  }, []);
+
+  async function handleSelectDbFile() {
+    setBusy(true);
+    const newPath = await window.api.selectDbFile();
+    setBusy(false);
+    if (newPath) {
+      setDbPath(newPath);
+      window.location.reload();
+    }
+  }
 
   async function handleSeedData() {
     if (!window.confirm('Caricare i dati di prova?\n\nTutti i dati esistenti verranno eliminati e sostituiti con i dati demo.')) return;
@@ -19,6 +34,27 @@ export default function SettingsScreen() {
 
   return (
     <div style={{ maxWidth: 560 }}>
+      <Section title="Database">
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f0efe8' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#383838', marginBottom: 6 }}>
+            File dati
+          </div>
+          <div style={{
+            fontSize: 11, color: '#888', marginBottom: 12,
+            background: '#f8f7f2', border: '1px solid #e8e7e0',
+            borderRadius: 5, padding: '7px 10px',
+            fontFamily: 'monospace', wordBreak: 'break-all',
+            minHeight: 30,
+          }}>
+            {dbPath || '—'}
+          </div>
+          <div style={{ fontSize: 11, color: '#aaa', marginBottom: 12 }}>
+            Seleziona un file esistente o crea un nuovo file per cambiare la posizione del database.
+            L'app verrà ricaricata automaticamente.
+          </div>
+          <SelectButton onClick={handleSelectDbFile} disabled={busy} />
+        </div>
+      </Section>
       <Section title="Dati">
         <Row
           label="Carica dati di prova"
@@ -38,6 +74,27 @@ export default function SettingsScreen() {
         />
       </Section>
     </div>
+  );
+}
+
+function SelectButton({ onClick, disabled }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        padding: '7px 16px', borderRadius: 6, border: 'none',
+        background: disabled ? '#ddd' : hover ? '#555' : '#666',
+        color: 'white', fontSize: 12, fontWeight: 700,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontFamily: "'Open Sans', sans-serif",
+        transition: 'background 0.12s',
+      }}>
+      Seleziona file…
+    </button>
   );
 }
 
