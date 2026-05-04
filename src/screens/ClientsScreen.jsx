@@ -57,6 +57,11 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
     }));
   }
 
+  function deleteProject(projectId) {
+    window.api.deleteProject(projectId);
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+  }
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16, height: 'calc(100vh - 140px)' }}>
 
@@ -206,6 +211,14 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                       border: 'none', background: 'transparent', outline: 'none',
                       fontFamily: "'Open Sans', sans-serif" }} />
                   {p.budgetHours && <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>h</span>}
+                  <button onClick={() => deleteProject(p.id)}
+                    style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
+                      background: 'transparent', color: 'var(--tb-text-secondary)', fontSize: 12, fontWeight: 600,
+                      cursor: 'pointer', fontFamily: "'Open Sans', sans-serif", transition: 'all 0.2s' }}
+                    onMouseEnter={e => { e.target.style.color = '#d97070'; e.target.style.borderColor = '#d97070'; }}
+                    onMouseLeave={e => { e.target.style.color = 'var(--tb-text-secondary)'; e.target.style.borderColor = 'var(--tb-border-mid)'; }}>
+                    ✕
+                  </button>
                 </div>
               ))}
               <button onClick={addProject}
