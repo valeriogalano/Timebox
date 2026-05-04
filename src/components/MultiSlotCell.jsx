@@ -132,7 +132,7 @@ export default function MultiSlotCell({
               fontFamily: "'Open Sans', sans-serif",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
             }}>
-            <span style={{ fontSize: 12, lineHeight: 1 }}>+</span> blocco
+            +
           </button>
         ) : (
           <div style={{
