@@ -1,11 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import RecurringBlockRow from './RecurringBlockRow';
 
-export default function MultiSlotCell({ blocks, clients, onAdd, onUpdate, onRemove, style }) {
+export default function MultiSlotCell({
+  blocks, clients, onAdd, onUpdate, onRemove, onDuplicate, onReorder,
+  onDragStart, draggingId, isDropTarget, onDragOver, onDragLeave, onDrop,
+  style,
+}) {
   const [addOpen, setAddOpen] = useState(false);
   const [addClientId, setAddClientId] = useState('');
   const [addHours, setAddHours] = useState(2);
+  const [insertIndex, setInsertIndex] = useState(null);
   const addRef = useRef();
+  const blockRefs = useRef([]);
 
   useEffect(() => {
     function onOut(e) { if (addRef.current && !addRef.current.contains(e.target)) setAddOpen(false); }
@@ -21,16 +27,100 @@ export default function MultiSlotCell({ blocks, clients, onAdd, onUpdate, onRemo
     setAddHours(2);
   }
 
+  // Is the dragged block one that lives in this cell?
+  const isInternalDrag = draggingId != null && blocks.some(b => b.id === draggingId);
+
+  function computeInsertIndex(mouseY) {
+    for (let i = 0; i < blockRefs.current.length; i++) {
+      const el = blockRefs.current[i];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (mouseY < rect.top + rect.height / 2) return i;
+    }
+    return blocks.length;
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    if (isInternalDrag) {
+      setInsertIndex(computeInsertIndex(e.clientY));
+    } else {
+      onDragOver?.();
+    }
+  }
+
+  function handleDragLeave(e) {
+    // Only fire if leaving the cell entirely (not entering a child)
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setInsertIndex(null);
+      if (!isInternalDrag) onDragLeave?.();
+    }
+  }
+
+  function handleDrop(e) {
+    if (isInternalDrag && insertIndex !== null) {
+      const srcIdx = blocks.findIndex(b => b.id === draggingId);
+      const filtered = blocks.filter(b => b.id !== draggingId);
+      const adjusted = insertIndex > srcIdx ? insertIndex - 1 : insertIndex;
+      const clamped = Math.max(0, Math.min(adjusted, filtered.length));
+      const newOrder = [
+        ...filtered.slice(0, clamped),
+        blocks[srcIdx],
+        ...filtered.slice(clamped),
+      ];
+      onReorder?.(newOrder);
+    } else {
+      onDrop?.();
+    }
+    setInsertIndex(null);
+  }
+
+  // Visual divider shown at insertIndex position during internal drag
+  const Divider = () => (
+    <div style={{
+      height: 2, borderRadius: 1,
+      background: '#4A8FE8',
+      margin: '1px 2px',
+      flexShrink: 0,
+    }} />
+  );
+
   return (
-    <div style={{ padding: 8, minHeight: 80, display: 'flex', flexDirection: 'column', gap: 4, ...style }}>
-      {blocks.map(block => {
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={{
+        padding: 8, minHeight: 60,
+        display: 'flex', flexDirection: 'column', gap: 4,
+        outline: isDropTarget && !isInternalDrag ? '2px dashed #4A8FE8' : 'none',
+        outlineOffset: -2,
+        background: isDropTarget && !isInternalDrag ? 'var(--tb-drag-over-bg)' : 'transparent',
+        transition: 'background 0.1s',
+        ...style,
+      }}
+    >
+      {blocks.map((block, i) => {
         const cl = clients.find(c => c.id === block.clientId);
         if (!cl) return null;
         return (
-          <RecurringBlockRow key={block.id} block={block} client={cl}
-            onUpdate={h => onUpdate(block.id, h)} onRemove={() => onRemove(block.id)} />
+          <React.Fragment key={block.id}>
+            {isInternalDrag && insertIndex === i && <Divider />}
+            <div ref={el => { blockRefs.current[i] = el; }}>
+              <RecurringBlockRow
+                block={block}
+                client={cl}
+                onUpdate={h => onUpdate(block.id, h)}
+                onRemove={() => onRemove(block.id)}
+                onDuplicate={() => onDuplicate?.(block.id)}
+                onDragStart={(bid, cid, h) => onDragStart?.(bid, cid, h)}
+                isDragging={draggingId === block.id}
+              />
+            </div>
+          </React.Fragment>
         );
       })}
+      {isInternalDrag && insertIndex === blocks.length && <Divider />}
 
       <div ref={addRef} style={{ marginTop: 'auto' }}>
         {!addOpen ? (

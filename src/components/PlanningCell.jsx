@@ -4,10 +4,21 @@ import { toHHMM, parseHHMM } from '../utils';
 const PX_PER_H = 34;
 const MIN_H = 60;
 
+function Divider() {
+  return (
+    <div style={{
+      height: 2, borderRadius: 1,
+      background: '#4A8FE8',
+      margin: '1px 0',
+      flexShrink: 0,
+    }} />
+  );
+}
+
 export default function PlanningCell({
   slot, dayIndex, blocks, clients, projects, slotEntries,
   isToday, isFuture, isWeekend, editable,
-  onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, draggingId,
+  onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onReorder, draggingId,
 }) {
   const loggedByClient = {};
   slotEntries.forEach(e => {
@@ -31,6 +42,52 @@ export default function PlanningCell({
     MIN_H,
     visualBlocks.reduce((s, vb) => s + vb.blockH + (vb.overH > 0 ? vb.overH + 2 : 0) + 4, 0) + (editable ? 28 : 8)
   );
+
+  const blockRefs = useRef([]);
+  const [insertIndex, setInsertIndex] = useState(null);
+
+  const isInternalDrag = draggingId != null && visualBlocks.some(vb => vb.block.id === draggingId);
+
+  useEffect(() => { if (!isInternalDrag) setInsertIndex(null); }, [isInternalDrag]);
+
+  function computeInsertIndex(mouseY) {
+    for (let i = 0; i < blockRefs.current.length; i++) {
+      const el = blockRefs.current[i];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (mouseY < rect.top + rect.height / 2) return i;
+    }
+    return visualBlocks.length;
+  }
+
+  function handleContainerDragOver(e) {
+    if (isInternalDrag) {
+      e.preventDefault();
+      e.stopPropagation();
+      setInsertIndex(computeInsertIndex(e.clientY));
+    }
+  }
+
+  function handleContainerDragLeave(e) {
+    if (isInternalDrag && !e.currentTarget.contains(e.relatedTarget)) {
+      setInsertIndex(null);
+    }
+  }
+
+  function handleContainerDrop(e) {
+    if (isInternalDrag && insertIndex !== null) {
+      e.stopPropagation();
+      const srcIdx = visualBlocks.findIndex(vb => vb.block.id === draggingId);
+      const orderedBlocks = visualBlocks.map(vb => vb.block);
+      const draggingBlock = orderedBlocks[srcIdx];
+      const filtered = orderedBlocks.filter(b => b.id !== draggingId);
+      const adjusted = insertIndex > srcIdx ? insertIndex - 1 : insertIndex;
+      const clamped = Math.max(0, Math.min(adjusted, filtered.length));
+      const newOrder = [...filtered.slice(0, clamped), draggingBlock, ...filtered.slice(clamped)];
+      onReorder?.(newOrder);
+      setInsertIndex(null);
+    }
+  }
 
   // Add-block UI
   const [addOpen, setAddOpen] = useState(false);
@@ -66,18 +123,24 @@ export default function PlanningCell({
   }
 
   return (
-    <div style={{
-      minHeight: cellH,
-      borderRadius: 6, padding: 6,
-      background: isWeekend ? 'var(--tb-cell-weekend)' : 'var(--tb-cell-bg)',
-      border: `1px solid ${isToday ? '#3DB33D44' : 'var(--tb-border)'}`,
-      opacity: isWeekend ? 0.5 : 1,
-      display: 'flex', flexDirection: 'column', gap: 3,
-    }}>
-      {visualBlocks.map(({ block, cl, blockH, fillPct, delta, logged, overH }) => {
+    <div
+      onDragOver={handleContainerDragOver}
+      onDragLeave={handleContainerDragLeave}
+      onDrop={handleContainerDrop}
+      style={{
+        minHeight: cellH,
+        borderRadius: 6, padding: 6,
+        background: isWeekend ? 'var(--tb-cell-weekend)' : 'var(--tb-cell-bg)',
+        border: `1px solid ${isToday ? '#3DB33D44' : 'var(--tb-border)'}`,
+        opacity: isWeekend ? 0.5 : 1,
+        display: 'flex', flexDirection: 'column', gap: 3,
+      }}>
+      {visualBlocks.map(({ block, cl, blockH, fillPct, delta, logged, overH }, i) => {
         const isDraggingThis = draggingId === block.id;
         return (
-          <div key={block.id} style={{ position: 'relative', flexShrink: 0, opacity: isDraggingThis ? 0.35 : 1, transition: 'opacity 0.15s' }}>
+          <React.Fragment key={block.id}>
+            {isInternalDrag && insertIndex === i && <Divider />}
+          <div ref={el => { blockRefs.current[i] = el; }} style={{ position: 'relative', flexShrink: 0, opacity: isDraggingThis ? 0.35 : 1, transition: 'opacity 0.15s' }}>
             <div
               draggable={editable}
               onDragStart={e => {
@@ -178,8 +241,10 @@ export default function PlanningCell({
               </div>
             )}
           </div>
+          </React.Fragment>
         );
       })}
+      {isInternalDrag && insertIndex === visualBlocks.length && <Divider />}
 
       {visualBlocks.length === 0 && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',

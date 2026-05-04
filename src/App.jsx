@@ -10,14 +10,14 @@ const NAV_ITEMS = [
   { id: 'weekly',    label: 'Settimana',    icon: WeekIcon     },
   { id: 'dashboard', label: 'Dashboard',    icon: ChartIcon    },
   { id: 'clients',   label: 'Clienti',      icon: ClientsIcon  },
-  { id: 'recurring', label: 'Ricorrenti',   icon: RepeatIcon   },
+  { id: 'recurring', label: 'Pianificazione', icon: RepeatIcon   },
   { id: 'settings',  label: 'Impostazioni', icon: SettingsIcon },
 ];
 
 function WeekIcon()     { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="3" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M1 6h13" stroke="currentColor" strokeWidth="1.4"/><path d="M5 1v2M10 1v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function ChartIcon()    { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="8" width="3" height="6" rx="1" fill="currentColor"/><rect x="6" y="5" width="3" height="9" rx="1" fill="currentColor"/><rect x="11" y="2" width="3" height="12" rx="1" fill="currentColor"/></svg>; }
 function ClientsIcon()  { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="5.5" cy="5" r="3" stroke="currentColor" strokeWidth="1.4"/><path d="M1 13c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="11" cy="4" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M13.5 11c0-1.7-1.1-3-2.5-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>; }
-function RepeatIcon()   { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 5h9a2 2 0 0 1 2 2v1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M13 10H4a2 2 0 0 1-2-2V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M10 2l3 3-3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 13l-3-3 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
+function RepeatIcon()   { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="1" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 5h13M1 9h13" stroke="currentColor" strokeWidth="1.2"/><path d="M5 5v9M10 5v9" stroke="currentColor" strokeWidth="1.2"/></svg>; }
 function SettingsIcon() { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 1v1.5M7.5 12.5V14M14 7.5h-1.5M2.5 7.5H1M11.7 3.3l-1.1 1.1M4.4 10.6l-1.1 1.1M11.7 11.7l-1.1-1.1M4.4 4.4 3.3 3.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 
 const ACCENT = '#3DB33D';

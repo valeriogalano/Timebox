@@ -50,17 +50,17 @@ function deleteProject(id) {
 
 // ── Recurring ──────────────────────────────────────────────────────────────────
 function getRecurring() {
-  return db.prepare('SELECT * FROM recurring').all();
+  return db.prepare('SELECT * FROM recurring ORDER BY day, slot, position').all();
 }
 
 function saveRecurring(r) {
   db.prepare(`
-    INSERT INTO recurring (id,clientId,slot,day,hours)
-    VALUES (@id,@clientId,@slot,@day,@hours)
+    INSERT INTO recurring (id,clientId,slot,day,hours,position)
+    VALUES (@id,@clientId,@slot,@day,@hours,@position)
     ON CONFLICT(id) DO UPDATE SET
       clientId=excluded.clientId, slot=excluded.slot,
-      day=excluded.day, hours=excluded.hours
-  `).run(r);
+      day=excluded.day, hours=excluded.hours, position=excluded.position
+  `).run({ position: 0, ...r });
 }
 
 function deleteRecurring(id) {
@@ -131,7 +131,7 @@ function seedDemoData() {
   resetAllData();
   const insertClient   = db.prepare('INSERT INTO clients (id,name,color,billing,rate,limitType,limitHours,carryover) VALUES (?,?,?,?,?,?,?,?)');
   const insertProject  = db.prepare('INSERT INTO projects (id,clientId,name,budgetHours) VALUES (?,?,?,?)');
-  const insertRecurring = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours) VALUES (?,?,?,?,?)');
+  const insertRecurring = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours,position) VALUES (?,?,?,?,?,?)');
   const insertEntry    = db.prepare('INSERT INTO entries (id,projectId,date,hours,slot,billed) VALUES (?,?,?,?,?,?)');
 
   db.transaction(() => {
@@ -140,7 +140,7 @@ function seedDemoData() {
     for (const p of INIT_PROJECTS)
       insertProject.run(p.id, p.clientId, p.name, p.budgetHours);
     for (const r of INIT_RECURRING)
-      insertRecurring.run(r.id, r.clientId, r.slot, r.day, r.hours);
+      insertRecurring.run(r.id, r.clientId, r.slot, r.day, r.hours, r.position ?? 0);
     for (const e of getSeedEntries())
       insertEntry.run(e.id, e.projectId, e.date, e.hours, e.slot, e.billed);
   })();

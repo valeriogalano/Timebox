@@ -1,11 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { DAY_SHORT, fmtH } from '../utils';
 import MultiSlotCell from '../components/MultiSlotCell';
 
 export default function RecurringScreen({ clients, recurring, setRecurring }) {
+  const [dragging, setDragging] = useState(null); // { blockId, fromDay, fromSlot, clientId, hours }
+  const [dragOver, setDragOver] = useState(null); // { day, slot }
+
+  useEffect(() => {
+    function onDragEnd() { setDragging(null); setDragOver(null); }
+    document.addEventListener('dragend', onDragEnd);
+    return () => document.removeEventListener('dragend', onDragEnd);
+  }, []);
+
   function addBlock(day, slot, clientId, hours) {
     if (!clientId) return;
-    const r = { id: `r-${crypto.randomUUID()}`, clientId, slot, day, hours };
+    const position = recurring.filter(r => r.day === day && r.slot === slot).length;
+    const r = { id: `r-${crypto.randomUUID()}`, clientId, slot, day, hours, position };
     window.api.saveRecurring(r);
     setRecurring(prev => [...prev, r]);
   }
@@ -22,6 +32,39 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
   function removeBlock(id) {
     window.api.deleteRecurring(id);
     setRecurring(prev => prev.filter(r => r.id !== id));
+  }
+
+  function duplicateBlock(sourceId) {
+    const src = recurring.find(r => r.id === sourceId);
+    if (!src) return;
+    const position = recurring.filter(r => r.day === src.day && r.slot === src.slot).length;
+    const newBlock = { id: `r-${crypto.randomUUID()}`, clientId: src.clientId, slot: src.slot, day: src.day, hours: src.hours, position };
+    window.api.saveRecurring(newBlock);
+    setRecurring(prev => [...prev, newBlock]);
+  }
+
+  // Called by MultiSlotCell when blocks are reordered within the same slot/day
+  function reorderBlocks(reorderedBlocks) {
+    const withPositions = reorderedBlocks.map((b, i) => ({ ...b, position: i }));
+    setRecurring(prev => {
+      const map = new Map(withPositions.map(b => [b.id, b]));
+      return prev.map(r => map.get(r.id) ?? r);
+    });
+    withPositions.forEach(b => window.api.saveRecurring(b));
+  }
+
+  // Called when a block is dropped onto a different slot/day
+  function handleDrop(toDay, toSlot) {
+    if (!dragging) return;
+    const { blockId, fromDay, fromSlot, clientId, hours } = dragging;
+    if (fromDay === toDay && fromSlot === toSlot) { setDragging(null); setDragOver(null); return; }
+    window.api.deleteRecurring(blockId);
+    const position = recurring.filter(r => r.day === toDay && r.slot === toSlot).length;
+    const newBlock = { id: `r-${crypto.randomUUID()}`, clientId, slot: toSlot, day: toDay, hours, position };
+    window.api.saveRecurring(newBlock);
+    setRecurring(prev => [...prev.filter(r => r.id !== blockId), newBlock]);
+    setDragging(null);
+    setDragOver(null);
   }
 
   const totalPerDay = Array.from({ length: 5 }, (_, i) =>
@@ -55,12 +98,26 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
             <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', paddingTop: 4 }}>Mattina</div>
           </div>
           {Array.from({ length: 5 }, (_, i) => {
-            const blocks = recurring.filter(r => r.day === i && r.slot === 'am');
+            const blocks = recurring.filter(r => r.day === i && r.slot === 'am').sort((a, b) => a.position - b.position);
+            const isDropTarget = dragOver?.day === i && dragOver?.slot === 'am';
             return (
-              <MultiSlotCell key={i} blocks={blocks} clients={clients}
+              <MultiSlotCell
+                key={i}
+                blocks={blocks}
+                clients={clients}
                 onAdd={(cid, h) => addBlock(i, 'am', cid, h)}
-                onUpdate={updateBlock} onRemove={removeBlock}
-                style={{ borderLeft: '1px solid var(--tb-border-soft)', borderBottom: '2px solid var(--tb-border)' }} />
+                onUpdate={updateBlock}
+                onRemove={removeBlock}
+                onDuplicate={duplicateBlock}
+                onReorder={reorderBlocks}
+                onDragStart={(blockId, cid, h) => setDragging({ blockId, fromDay: i, fromSlot: 'am', clientId: cid, hours: h })}
+                draggingId={dragging?.blockId}
+                isDropTarget={isDropTarget}
+                onDragOver={() => setDragOver({ day: i, slot: 'am' })}
+                onDragLeave={() => setDragOver(null)}
+                onDrop={() => handleDrop(i, 'am')}
+                style={{ borderLeft: '1px solid var(--tb-border-soft)', borderBottom: '2px solid var(--tb-border)' }}
+              />
             );
           })}
 
@@ -69,12 +126,26 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
             <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', paddingTop: 4 }}>Pomeriggio</div>
           </div>
           {Array.from({ length: 5 }, (_, i) => {
-            const blocks = recurring.filter(r => r.day === i && r.slot === 'pm');
+            const blocks = recurring.filter(r => r.day === i && r.slot === 'pm').sort((a, b) => a.position - b.position);
+            const isDropTarget = dragOver?.day === i && dragOver?.slot === 'pm';
             return (
-              <MultiSlotCell key={i} blocks={blocks} clients={clients}
+              <MultiSlotCell
+                key={i}
+                blocks={blocks}
+                clients={clients}
                 onAdd={(cid, h) => addBlock(i, 'pm', cid, h)}
-                onUpdate={updateBlock} onRemove={removeBlock}
-                style={{ borderLeft: '1px solid var(--tb-border-soft)' }} />
+                onUpdate={updateBlock}
+                onRemove={removeBlock}
+                onDuplicate={duplicateBlock}
+                onReorder={reorderBlocks}
+                onDragStart={(blockId, cid, h) => setDragging({ blockId, fromDay: i, fromSlot: 'pm', clientId: cid, hours: h })}
+                draggingId={dragging?.blockId}
+                isDropTarget={isDropTarget}
+                onDragOver={() => setDragOver({ day: i, slot: 'pm' })}
+                onDragLeave={() => setDragOver(null)}
+                onDrop={() => handleDrop(i, 'pm')}
+                style={{ borderLeft: '1px solid var(--tb-border-soft)' }}
+              />
             );
           })}
         </div>

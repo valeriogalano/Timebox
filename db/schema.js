@@ -17,19 +17,19 @@ const INIT_PROJECTS = [
 ];
 
 const INIT_RECURRING = [
-  { id: 'r1',  clientId: 'c1', slot: 'am', day: 0, hours: 2   },
-  { id: 'r11', clientId: 'c3', slot: 'am', day: 0, hours: 1.5 },
-  { id: 'r2',  clientId: 'c1', slot: 'am', day: 1, hours: 3.5 },
-  { id: 'r3',  clientId: 'c3', slot: 'am', day: 2, hours: 3.5 },
-  { id: 'r4',  clientId: 'c3', slot: 'am', day: 3, hours: 2   },
-  { id: 'r12', clientId: 'c1', slot: 'am', day: 3, hours: 1.5 },
-  { id: 'r5',  clientId: 'c1', slot: 'am', day: 4, hours: 3.5 },
-  { id: 'r6',  clientId: 'c2', slot: 'pm', day: 0, hours: 2.5 },
-  { id: 'r7',  clientId: 'c2', slot: 'pm', day: 1, hours: 1.5 },
-  { id: 'r13', clientId: 'c4', slot: 'pm', day: 1, hours: 1   },
-  { id: 'r8',  clientId: 'c4', slot: 'pm', day: 2, hours: 2   },
-  { id: 'r9',  clientId: 'c4', slot: 'pm', day: 3, hours: 2   },
-  { id: 'r10', clientId: 'c2', slot: 'pm', day: 4, hours: 2.5 },
+  { id: 'r1',  clientId: 'c1', slot: 'am', day: 0, hours: 2,   position: 0 },
+  { id: 'r11', clientId: 'c3', slot: 'am', day: 0, hours: 1.5, position: 1 },
+  { id: 'r2',  clientId: 'c1', slot: 'am', day: 1, hours: 3.5, position: 0 },
+  { id: 'r3',  clientId: 'c3', slot: 'am', day: 2, hours: 3.5, position: 0 },
+  { id: 'r4',  clientId: 'c3', slot: 'am', day: 3, hours: 2,   position: 0 },
+  { id: 'r12', clientId: 'c1', slot: 'am', day: 3, hours: 1.5, position: 1 },
+  { id: 'r5',  clientId: 'c1', slot: 'am', day: 4, hours: 3.5, position: 0 },
+  { id: 'r6',  clientId: 'c2', slot: 'pm', day: 0, hours: 2.5, position: 0 },
+  { id: 'r7',  clientId: 'c2', slot: 'pm', day: 1, hours: 1.5, position: 0 },
+  { id: 'r13', clientId: 'c4', slot: 'pm', day: 1, hours: 1,   position: 1 },
+  { id: 'r8',  clientId: 'c4', slot: 'pm', day: 2, hours: 2,   position: 0 },
+  { id: 'r9',  clientId: 'c4', slot: 'pm', day: 3, hours: 2,   position: 0 },
+  { id: 'r10', clientId: 'c2', slot: 'pm', day: 4, hours: 2.5, position: 0 },
 ];
 
 function getSeedEntries() {
@@ -99,7 +99,8 @@ function initDb(dbPath) {
       clientId TEXT,
       slot TEXT,
       day INTEGER,
-      hours REAL
+      hours REAL,
+      position INTEGER DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS entries (
       id TEXT PRIMARY KEY,
@@ -119,6 +120,11 @@ function initDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(date);
     CREATE INDEX IF NOT EXISTS idx_overrides_weekkey ON week_overrides(weekKey);
   `);
+
+  // Migration: add position column to recurring if it doesn't exist yet
+  try {
+    db.exec('ALTER TABLE recurring ADD COLUMN position INTEGER DEFAULT 0');
+  } catch (_) {}
 
   return db;
 }

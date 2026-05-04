@@ -258,6 +258,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'am', cid, h)}
                   onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'am', bid, h)}
                   onRemoveBlock={bid => removeBlockFromSlot(i, 'am', bid)}
+                  onReorder={newBlocks => setSlotOverride(i, 'am', newBlocks)}
                   onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'am', cid, h)}
                   draggingId={dragging?.blockId} />
               </div>
@@ -287,6 +288,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'pm', cid, h)}
                   onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'pm', bid, h)}
                   onRemoveBlock={bid => removeBlockFromSlot(i, 'pm', bid)}
+                  onReorder={newBlocks => setSlotOverride(i, 'pm', newBlocks)}
                   onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'pm', cid, h)}
                   draggingId={dragging?.blockId} />
               </div>
