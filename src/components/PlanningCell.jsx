@@ -129,6 +129,7 @@ export default function PlanningCell({
       onDrop={handleContainerDrop}
       style={{
         minHeight: cellH,
+        flex: 1,
         borderRadius: 6, padding: 6,
         background: isWeekend ? 'var(--tb-cell-weekend)' : 'var(--tb-cell-bg)',
         border: `1px solid ${isToday ? '#3DB33D44' : 'var(--tb-border)'}`,

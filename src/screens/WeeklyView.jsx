@@ -270,6 +270,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: 4,
                   transition: 'background 0.1s',
                   outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
+                  display: 'flex',
                 }}>
                 <PlanningCell slot="am" dayIndex={i} blocks={d.amBlocks}
                   clients={clients} projects={projects}
@@ -300,6 +301,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: 4,
                   transition: 'background 0.1s',
                   outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
+                  display: 'flex',
                 }}>
                 <PlanningCell slot="pm" dayIndex={i} blocks={d.pmBlocks}
                   clients={clients} projects={projects}
