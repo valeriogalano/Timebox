@@ -172,6 +172,36 @@ function setupIpc() {
     openDatabase(filePaths[0]);
     return filePaths[0];
   });
+
+  ipcMain.handle('app:saveDbCopy', async () => {
+    if (!_dbPath) return null;
+    const defaultDir = path.dirname(_dbPath);
+    const baseName = path.basename(_dbPath, '.db');
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Salva una copia del database',
+      defaultPath: path.join(defaultDir, `${baseName}-copia.db`),
+      filters: [{ name: 'Database SQLite', extensions: ['db'] }],
+      properties: ['createDirectory'],
+    });
+    if (canceled || !filePath) return null;
+    const finalPath = filePath.endsWith('.db') ? filePath : filePath + '.db';
+    fs.copyFileSync(_dbPath, finalPath);
+    return finalPath;
+  });
+
+  ipcMain.handle('app:createNewDb', async () => {
+    const defaultDir = _dbPath ? path.dirname(_dbPath) : app.getPath('documents');
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Crea nuovo database',
+      defaultPath: path.join(defaultDir, 'timebox.db'),
+      filters: [{ name: 'Database SQLite', extensions: ['db'] }],
+      properties: ['createDirectory'],
+    });
+    if (canceled || !filePath) return null;
+    const finalPath = filePath.endsWith('.db') ? filePath : filePath + '.db';
+    openDatabase(finalPath);
+    return finalPath;
+  });
 }
 
 process.on('uncaughtException', (err) => {

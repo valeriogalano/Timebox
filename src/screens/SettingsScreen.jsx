@@ -18,6 +18,25 @@ export default function SettingsScreen({ theme, setTheme }) {
     }
   }
 
+  async function handleSaveDbCopy() {
+    setBusy(true);
+    const copyPath = await window.api.saveDbCopy();
+    setBusy(false);
+    if (copyPath) {
+      window.alert(`Copia salvata in:\n${copyPath}`);
+    }
+  }
+
+  async function handleCreateNewDb() {
+    setBusy(true);
+    const newPath = await window.api.createNewDb();
+    setBusy(false);
+    if (newPath) {
+      setDbPath(newPath);
+      window.location.reload();
+    }
+  }
+
   async function handleSeedData() {
     if (!window.confirm('Caricare i dati di prova?\n\nTutti i dati esistenti verranno eliminati e sostituiti con i dati demo.')) return;
     setBusy(true);
@@ -63,7 +82,11 @@ export default function SettingsScreen({ theme, setTheme }) {
             Seleziona un file esistente o crea un nuovo file per cambiare la posizione del database.
             L'app verrà ricaricata automaticamente.
           </div>
-          <SelectButton onClick={handleSelectDbFile} disabled={busy} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <SelectButton onClick={handleSelectDbFile} disabled={busy} />
+            <CreateButton onClick={handleCreateNewDb} disabled={busy} />
+            <CopyButton onClick={handleSaveDbCopy} disabled={busy} />
+          </div>
         </div>
       </Section>
       <Section title="Dati">
@@ -114,6 +137,48 @@ function ThemeSelector({ theme, setTheme }) {
         );
       })}
     </div>
+  );
+}
+
+function CopyButton({ onClick, disabled }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        padding: '7px 16px', borderRadius: 6, border: 'none',
+        background: disabled ? 'var(--tb-border)' : hover ? '#7a5fa0' : '#8B6BBF',
+        color: 'white', fontSize: 12, fontWeight: 700,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontFamily: "'Open Sans', sans-serif",
+        transition: 'background 0.12s',
+      }}>
+      Salva copia…
+    </button>
+  );
+}
+
+function CreateButton({ onClick, disabled }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        padding: '7px 16px', borderRadius: 6, border: 'none',
+        background: disabled ? 'var(--tb-border)' : hover ? '#3a8a3a' : '#4A9A4A',
+        color: 'white', fontSize: 12, fontWeight: 700,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontFamily: "'Open Sans', sans-serif",
+        transition: 'background 0.12s',
+      }}>
+      Nuovo database…
+    </button>
   );
 }
 

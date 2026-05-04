@@ -26,4 +26,6 @@ contextBridge.exposeInMainWorld('api', {
 
   getDbPath:          ()           => ipcRenderer.invoke('app:getDbPath'),
   selectDbFile:       ()           => ipcRenderer.invoke('app:selectDbFile'),
+  createNewDb:        ()           => ipcRenderer.invoke('app:createNewDb'),
+  saveDbCopy:         ()           => ipcRenderer.invoke('app:saveDbCopy'),
 });
