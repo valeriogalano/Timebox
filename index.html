@@ -142,10 +142,10 @@
     // Dev-only mock — only active when NOT inside Electron (e.g. Playwright browser test)
     if (!window.api) {
       const CLIENTS = [
-        { id:'c1', name:'Acme Corp',    color:'#4A8FE8', billing:'hourly',  rate:85,   limitType:'weekly',  limitHours:20, carryover:false },
-        { id:'c2', name:'The Blog',     color:'#E07B3A', billing:'fixed',   rate:null, limitType:'monthly', limitHours:40, carryover:true  },
-        { id:'c3', name:'GreenTech SA', color:'#3DB33D', billing:'budget',  rate:70,   limitType:'monthly', limitHours:60, carryover:false },
-        { id:'c4', name:'Studio Nova',  color:'#9B59B6', billing:'hourly',  rate:120,  limitType:'weekly',  limitHours:10, carryover:false },
+        { id:'c1', name:'Acme Corp',    color:'#4A8FE8', billable:true,  billing:'hourly', rate:85,   limitType:'weekly',  limitHours:20 },
+        { id:'c2', name:'The Blog',     color:'#E07B3A', billable:true,  billing:'fixed',  rate:null, limitType:'monthly', limitHours:40 },
+        { id:'c3', name:'GreenTech SA', color:'#3DB33D', billable:true,  billing:'hourly', rate:70,   limitType:'monthly', limitHours:60 },
+        { id:'c4', name:'Studio Nova',  color:'#9B59B6', billable:true,  billing:'hourly', rate:120,  limitType:'weekly',  limitHours:10 },
       ];
       const PROJECTS = [
         { id:'p1', clientId:'c1', name:'Website Redesign',  budgetHours:80   },

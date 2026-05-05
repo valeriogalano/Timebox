@@ -1,10 +1,10 @@
 const Database = require('better-sqlite3');
 
 const INIT_CLIENTS = [
-  { id: 'c1', name: 'Acme Corp',    color: '#4A8FE8', billing: 'hourly',  rate: 85,   limitType: 'weekly',  limitHours: 20, carryover: 0 },
-  { id: 'c2', name: 'The Blog',     color: '#E07B3A', billing: 'fixed',   rate: null, limitType: 'monthly', limitHours: 40, carryover: 1 },
-  { id: 'c3', name: 'GreenTech SA', color: '#3DB33D', billing: 'budget',  rate: 70,   limitType: 'monthly', limitHours: 60, carryover: 0 },
-  { id: 'c4', name: 'Studio Nova',  color: '#9B59B6', billing: 'hourly',  rate: 120,  limitType: 'weekly',  limitHours: 10, carryover: 0 },
+  { id: 'c1', name: 'Acme Corp',    color: '#4A8FE8', billing: 'hourly', rate: 85,   limitType: 'weekly',  limitHours: 20, billable: 1 },
+  { id: 'c2', name: 'The Blog',     color: '#E07B3A', billing: 'fixed',  rate: null, limitType: 'monthly', limitHours: 40, billable: 1 },
+  { id: 'c3', name: 'GreenTech SA', color: '#3DB33D', billing: 'hourly', rate: 70,   limitType: 'monthly', limitHours: 60, billable: 1 },
+  { id: 'c4', name: 'Studio Nova',  color: '#9B59B6', billing: 'hourly', rate: 120,  limitType: 'weekly',  limitHours: 10, billable: 1 },
 ];
 
 const INIT_PROJECTS = [
@@ -82,11 +82,11 @@ function initDb(dbPath) {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       color TEXT,
+      billable INTEGER DEFAULT 1,
       billing TEXT,
       rate REAL,
       limitType TEXT,
-      limitHours REAL,
-      carryover INTEGER DEFAULT 0
+      limitHours REAL
     );
     CREATE TABLE IF NOT EXISTS projects (
       id TEXT PRIMARY KEY,
@@ -121,10 +121,9 @@ function initDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_overrides_weekkey ON week_overrides(weekKey);
   `);
 
-  // Migration: add position column to recurring if it doesn't exist yet
-  try {
-    db.exec('ALTER TABLE recurring ADD COLUMN position INTEGER DEFAULT 0');
-  } catch (_) {}
+  // Migrations
+  try { db.exec('ALTER TABLE recurring ADD COLUMN position INTEGER DEFAULT 0'); } catch (_) {}
+  try { db.exec('ALTER TABLE clients ADD COLUMN billable INTEGER DEFAULT 1'); } catch (_) {}
 
   return db;
 }

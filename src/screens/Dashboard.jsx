@@ -35,9 +35,10 @@ export default function Dashboard({ clients, projects, screen }) {
     return { ...client, weekH, monthH, billedH, unbilledH, usedH, pct };
   });
 
+  const billableStats    = clientStats.filter(c => c.billable);
   const totalTracked     = entries.reduce((s, e) => s + e.hours, 0);
-  const totalBilledEur   = clientStats.reduce((s, c) => s + (c.billing === 'hourly' && c.rate ? c.billedH * c.rate : 0), 0);
-  const totalUnbilledEur = clientStats.reduce((s, c) => s + (c.billing === 'hourly' && c.rate ? c.unbilledH * c.rate : 0), 0);
+  const totalBilledEur   = billableStats.reduce((s, c) => s + (c.billing === 'hourly' && c.rate ? c.billedH * c.rate : 0), 0);
+  const totalUnbilledEur = billableStats.reduce((s, c) => s + (c.billing === 'hourly' && c.rate ? c.unbilledH * c.rate : 0), 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -52,9 +53,9 @@ export default function Dashboard({ clients, projects, screen }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }}>
 
-      {/* Left: client utilization */}
+      {/* Left: area utilization */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <SectionLabel>Utilizzo ore per cliente</SectionLabel>
+        <SectionLabel>Utilizzo ore per area</SectionLabel>
         {clientStats.map(c => <ClientCard key={c.id} client={c} totalTracked={totalTracked} />)}
       </div>
 
@@ -62,15 +63,20 @@ export default function Dashboard({ clients, projects, screen }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <SectionLabel>Billing</SectionLabel>
         <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', overflow: 'hidden' }}>
-          {clientStats.map((c, i) => {
+          {billableStats.length === 0 && (
+            <div style={{ padding: '16px', fontSize: 12, color: 'var(--tb-text-faint)', textAlign: 'center' }}>
+              Nessuna area fatturabile
+            </div>
+          )}
+          {billableStats.map((c, i) => {
             const bEur  = c.billing === 'hourly' && c.rate ? (c.billedH * c.rate).toFixed(0) : null;
             const ubEur = c.billing === 'hourly' && c.rate ? (c.unbilledH * c.rate).toFixed(0) : null;
             return (
-              <div key={c.id} style={{ padding: '12px 16px', borderBottom: i < clientStats.length - 1 ? '1px solid var(--tb-border-soft)' : 'none' }}>
+              <div key={c.id} style={{ padding: '12px 16px', borderBottom: i < billableStats.length - 1 ? '1px solid var(--tb-border-soft)' : 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
                   <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', flex: 1 }}>{c.name}</span>
-                  <span style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>{c.billing}</span>
+                  <span style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>{c.billing === 'hourly' ? 'A ore' : 'Fisso'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <BillingLine label="Fatturate"    hours={c.billedH}   eur={bEur}  positive />
@@ -96,7 +102,7 @@ export default function Dashboard({ clients, projects, screen }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <MonthStat label="Ore tracciate"    value={fmtH(clientStats.reduce((s, c) => s + c.monthH, 0))} />
             <MonthStat label="Ore questa sett." value={fmtH(clientStats.reduce((s, c) => s + c.weekH, 0))} />
-            <MonthStat label="Clienti attivi"   value={clientStats.filter(c => c.monthH > 0).length} />
+            <MonthStat label="Aree attive"       value={clientStats.filter(c => c.monthH > 0).length} />
             <MonthStat label="Progetti aperti"  value={projects.length} />
           </div>
         </div>

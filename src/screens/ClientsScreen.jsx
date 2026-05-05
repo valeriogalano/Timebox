@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const BILLING_OPTIONS = ['hourly', 'fixed', 'budget'];
+const BILLING_OPTIONS = ['hourly', 'fixed'];
 const COLORS = ['#4A8FE8', '#E07B3A', '#3DB33D', '#9B59B6', '#E05252', '#1AB8A0', '#E8A834'];
 
 const formLabel = {
@@ -30,8 +30,8 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
   function addClient() {
     const id = crypto.randomUUID();
     const newClient = {
-      id, name: 'Nuovo cliente', color: COLORS[clients.length % COLORS.length],
-      billing: 'hourly', rate: null, limitType: 'monthly', limitHours: 40, carryover: false,
+      id, name: 'Nuova area', color: COLORS[clients.length % COLORS.length],
+      billable: false, billing: 'hourly', rate: null, limitType: 'monthly', limitHours: null,
     };
     window.api.saveClient(newClient);
     setClients(prev => [...prev, newClient]);
@@ -65,9 +65,9 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16, height: 'calc(100vh - 140px)' }}>
 
-      {/* Client list */}
+      {/* Area list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <SectionLabel>Clienti ({clients.length})</SectionLabel>
+        <SectionLabel>Aree ({clients.length})</SectionLabel>
         {clients.map(c => (
           <button key={c.id} onClick={() => setSelectedId(c.id)}
             style={{
@@ -80,7 +80,11 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <div style={{ fontSize: 13, fontWeight: selectedId === c.id ? 700 : 400, color: 'var(--tb-text-primary)',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-              <div style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>{c.billing} · {c.limitHours}h/{c.limitType === 'weekly' ? 'sett' : 'mese'}</div>
+              <div style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>
+                {c.billable
+                  ? `${c.billing} · ${c.limitHours ? `${c.limitHours}h/${c.limitType === 'weekly' ? 'sett' : 'mese'}` : 'no limite'}`
+                  : 'non fatturabile'}
+              </div>
             </div>
           </button>
         ))}
@@ -90,7 +94,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
             background: 'transparent', color: 'var(--tb-text-secondary)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
             fontFamily: "'Open Sans', sans-serif",
           }}>
-          + Nuovo cliente
+          + Nuova area
         </button>
       </div>
 
@@ -105,33 +109,8 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
               style={{ ...formInput, fontSize: 18, fontWeight: 800, border: 'none', padding: 0, flex: 1, background: 'transparent' }} />
           </div>
 
-          <SectionLabel>Configurazione</SectionLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 8, marginBottom: 24 }}>
-
-            <div>
-              <label style={formLabel}>Tipo billing</label>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {BILLING_OPTIONS.map(b => (
-                  <button key={b} onClick={() => updateClient('billing', b)}
-                    style={{
-                      flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
-                      border: sel.billing === b ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
-                      background: sel.billing === b ? sel.color + '15' : 'transparent',
-                      color: sel.billing === b ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
-                      fontFamily: "'Open Sans', sans-serif",
-                    }}>
-                    {b}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label style={formLabel}>Tariffa oraria (€)</label>
-              <input type="number" style={formInput} value={sel.rate ?? ''} placeholder="—"
-                onChange={e => updateClient('rate', e.target.value ? Number(e.target.value) : null)} />
-            </div>
-
+          {/* Colore + Billable toggle */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
             <div>
               <label style={formLabel}>Colore</label>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -147,47 +126,82 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
             </div>
 
             <div>
-              <label style={formLabel}>Limite ore</label>
-              <input type="number" style={formInput} value={sel.limitHours}
-                onChange={e => updateClient('limitHours', Number(e.target.value))} />
-            </div>
-
-            <div>
-              <label style={formLabel}>Periodo limite</label>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {['weekly', 'monthly'].map(t => (
-                  <button key={t} onClick={() => updateClient('limitType', t)}
-                    style={{
-                      flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
-                      border: sel.limitType === t ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
-                      background: sel.limitType === t ? sel.color + '15' : 'transparent',
-                      color: sel.limitType === t ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
-                      fontFamily: "'Open Sans', sans-serif",
-                    }}>
-                    {t === 'weekly' ? 'Sett.' : 'Mese'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label style={formLabel}>Carry-over ore</label>
+              <label style={formLabel}>Fatturazione</label>
               <div style={{ display: 'flex', gap: 4 }}>
                 {[true, false].map(v => (
-                  <button key={String(v)} onClick={() => updateClient('carryover', v)}
+                  <button key={String(v)} onClick={() => updateClient('billable', v)}
                     style={{
-                      flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
-                      border: sel.carryover === v ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
-                      background: sel.carryover === v ? sel.color + '15' : 'transparent',
-                      color: sel.carryover === v ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
+                      flex: 1, padding: '7px 4px', borderRadius: 5, fontSize: 11, fontWeight: 700,
+                      border: sel.billable === v ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
+                      background: sel.billable === v ? sel.color + '15' : 'transparent',
+                      color: sel.billable === v ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
                       fontFamily: "'Open Sans', sans-serif",
                     }}>
-                    {v ? 'Sì' : 'No'}
+                    {v ? 'Fatturabile' : 'Non fatturabile'}
                   </button>
                 ))}
               </div>
             </div>
           </div>
+
+          {/* Billing config — solo per aree fatturabili */}
+          {sel.billable && (
+            <>
+              <SectionLabel>Configurazione billing</SectionLabel>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 8, marginBottom: 24 }}>
+
+                <div>
+                  <label style={formLabel}>Tipo billing</label>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {BILLING_OPTIONS.map(b => (
+                      <button key={b} onClick={() => updateClient('billing', b)}
+                        style={{
+                          flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
+                          border: sel.billing === b ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
+                          background: sel.billing === b ? sel.color + '15' : 'transparent',
+                          color: sel.billing === b ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
+                          fontFamily: "'Open Sans', sans-serif",
+                        }}>
+                        {b === 'hourly' ? 'A ore' : 'Fisso'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label style={formLabel}>Tariffa oraria (€)</label>
+                  <input type="number" style={formInput} value={sel.rate ?? ''} placeholder="—"
+                    onChange={e => updateClient('rate', e.target.value ? Number(e.target.value) : null)}
+                    disabled={sel.billing !== 'hourly'}
+                  />
+                </div>
+
+                <div>
+                  <label style={formLabel}>Limite ore</label>
+                  <input type="number" style={formInput} value={sel.limitHours ?? ''} placeholder="—"
+                    onChange={e => updateClient('limitHours', e.target.value ? Number(e.target.value) : null)} />
+                </div>
+
+                <div>
+                  <label style={formLabel}>Periodo limite</label>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {['weekly', 'monthly'].map(t => (
+                      <button key={t} onClick={() => updateClient('limitType', t)}
+                        style={{
+                          flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
+                          border: sel.limitType === t ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
+                          background: sel.limitType === t ? sel.color + '15' : 'transparent',
+                          color: sel.limitType === t ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
+                          fontFamily: "'Open Sans', sans-serif",
+                        }}>
+                        {t === 'weekly' ? 'Settimana' : 'Mese'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
           <div style={{ borderTop: '1px solid var(--tb-border-soft)', paddingTop: 20 }}>
             <SectionLabel>Progetti ({selProjects.length})</SectionLabel>

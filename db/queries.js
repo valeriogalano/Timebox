@@ -13,13 +13,13 @@ function getClients() {
 
 function saveClient(client) {
   db.prepare(`
-    INSERT INTO clients (id,name,color,billing,rate,limitType,limitHours,carryover)
-    VALUES (@id,@name,@color,@billing,@rate,@limitType,@limitHours,@carryover)
+    INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours)
+    VALUES (@id,@name,@color,@billable,@billing,@rate,@limitType,@limitHours)
     ON CONFLICT(id) DO UPDATE SET
-      name=excluded.name, color=excluded.color, billing=excluded.billing,
-      rate=excluded.rate, limitType=excluded.limitType,
-      limitHours=excluded.limitHours, carryover=excluded.carryover
-  `).run({ ...client, carryover: client.carryover ? 1 : 0 });
+      name=excluded.name, color=excluded.color, billable=excluded.billable,
+      billing=excluded.billing, rate=excluded.rate,
+      limitType=excluded.limitType, limitHours=excluded.limitHours
+  `).run({ ...client, billable: client.billable ? 1 : 0 });
 }
 
 function deleteClient(id) {
@@ -27,7 +27,7 @@ function deleteClient(id) {
 }
 
 function normalizeClient(row) {
-  return { ...row, carryover: row.carryover === 1 };
+  return { ...row, billable: row.billable === 1 };
 }
 
 // ── Projects ───────────────────────────────────────────────────────────────────
@@ -129,14 +129,14 @@ function resetAllData() {
 
 function seedDemoData() {
   resetAllData();
-  const insertClient   = db.prepare('INSERT INTO clients (id,name,color,billing,rate,limitType,limitHours,carryover) VALUES (?,?,?,?,?,?,?,?)');
+  const insertClient   = db.prepare('INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours) VALUES (?,?,?,?,?,?,?,?)');
   const insertProject  = db.prepare('INSERT INTO projects (id,clientId,name,budgetHours) VALUES (?,?,?,?)');
   const insertRecurring = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours,position) VALUES (?,?,?,?,?,?)');
   const insertEntry    = db.prepare('INSERT INTO entries (id,projectId,date,hours,slot,billed) VALUES (?,?,?,?,?,?)');
 
   db.transaction(() => {
     for (const c of INIT_CLIENTS)
-      insertClient.run(c.id, c.name, c.color, c.billing, c.rate, c.limitType, c.limitHours, c.carryover);
+      insertClient.run(c.id, c.name, c.color, c.billable ?? 1, c.billing, c.rate, c.limitType, c.limitHours);
     for (const p of INIT_PROJECTS)
       insertProject.run(p.id, p.clientId, p.name, p.budgetHours);
     for (const r of INIT_RECURRING)
