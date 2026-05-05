@@ -12,15 +12,17 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
     return () => document.removeEventListener('dragend', onDragEnd);
   }, []);
 
-  function addBlock(day, slot, clientId, hours) {
+  async function addBlock(day, slot, clientId, hours) {
     if (!clientId) return;
+    await window.api.freezeWeeksBeforeRecurringChange(recurring);
     const position = recurring.filter(r => r.day === day && r.slot === slot).length;
     const r = { id: `r-${crypto.randomUUID()}`, clientId, slot, day, hours, position };
     window.api.saveRecurring(r);
     setRecurring(prev => [...prev, r]);
   }
 
-  function updateBlock(id, hours) {
+  async function updateBlock(id, hours) {
+    await window.api.freezeWeeksBeforeRecurringChange(recurring);
     setRecurring(prev => prev.map(r => {
       if (r.id !== id) return r;
       const updated = { ...r, hours };
@@ -29,14 +31,16 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
     }));
   }
 
-  function removeBlock(id) {
+  async function removeBlock(id) {
+    await window.api.freezeWeeksBeforeRecurringChange(recurring);
     window.api.deleteRecurring(id);
     setRecurring(prev => prev.filter(r => r.id !== id));
   }
 
-  function duplicateBlock(sourceId) {
+  async function duplicateBlock(sourceId) {
     const src = recurring.find(r => r.id === sourceId);
     if (!src) return;
+    await window.api.freezeWeeksBeforeRecurringChange(recurring);
     const position = recurring.filter(r => r.day === src.day && r.slot === src.slot).length;
     const newBlock = { id: `r-${crypto.randomUUID()}`, clientId: src.clientId, slot: src.slot, day: src.day, hours: src.hours, position };
     window.api.saveRecurring(newBlock);
@@ -44,7 +48,8 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
   }
 
   // Called by MultiSlotCell when blocks are reordered within the same slot/day
-  function reorderBlocks(reorderedBlocks) {
+  async function reorderBlocks(reorderedBlocks) {
+    await window.api.freezeWeeksBeforeRecurringChange(recurring);
     const withPositions = reorderedBlocks.map((b, i) => ({ ...b, position: i }));
     setRecurring(prev => {
       const map = new Map(withPositions.map(b => [b.id, b]));
@@ -54,10 +59,11 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
   }
 
   // Called when a block is dropped onto a different slot/day
-  function handleDrop(toDay, toSlot) {
+  async function handleDrop(toDay, toSlot) {
     if (!dragging) return;
     const { blockId, fromDay, fromSlot, clientId, hours } = dragging;
     if (fromDay === toDay && fromSlot === toSlot) { setDragging(null); setDragOver(null); return; }
+    await window.api.freezeWeeksBeforeRecurringChange(recurring);
     window.api.deleteRecurring(blockId);
     const position = recurring.filter(r => r.day === toDay && r.slot === toSlot).length;
     const newBlock = { id: `r-${crypto.randomUUID()}`, clientId, slot: toSlot, day: toDay, hours, position };

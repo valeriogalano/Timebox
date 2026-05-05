@@ -35,7 +35,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       });
       setWeekOverrides(prev => ({ ...prev, [weekKey]: map }));
     });
-  }, [weekKey]);
+  }, [weekKey, recurring]);
 
   function effectiveBlocks(dayIndex, slot) {
     return getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, slot);

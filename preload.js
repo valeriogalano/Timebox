@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('api', {
   getWeekOverrides:   (wk)         => ipcRenderer.invoke('db:getWeekOverrides', wk),
   saveWeekOverride:   (o)          => ipcRenderer.invoke('db:saveWeekOverride', o),
   deleteWeekOverride: (wk, di, sl) => ipcRenderer.invoke('db:deleteWeekOverride', wk, di, sl),
+  freezeWeeksBeforeRecurringChange: (r) => ipcRenderer.invoke('db:freezeWeeksBeforeRecurringChange', r),
 
   resetAllData:       ()           => ipcRenderer.invoke('db:resetAllData'),
   seedDemoData:       ()           => ipcRenderer.invoke('db:seedDemoData'),

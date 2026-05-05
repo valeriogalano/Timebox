@@ -118,6 +118,42 @@ function deleteWeekOverride(weekKey, dayIndex, slot) {
   db.prepare('DELETE FROM week_overrides WHERE id=?').run(id);
 }
 
+function freezeWeeksBeforeRecurringChange(currentRecurring) {
+  const dates = db.prepare('SELECT DISTINCT date FROM entries').all().map(r => r.date);
+  if (!dates.length) return;
+
+  function toMonday(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const day = d.getDay();
+    d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+  }
+
+  const weekKeys = [...new Set(dates.map(toMonday))];
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO week_overrides (id, weekKey, dayIndex, slot, blocksJson)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  db.transaction(() => {
+    for (const weekKey of weekKeys) {
+      for (let dayIndex = 0; dayIndex < 5; dayIndex++) {
+        for (const slot of ['am', 'pm']) {
+          const id = `${weekKey}-${dayIndex}-${slot}`;
+          const blocks = currentRecurring
+            .filter(r => r.day === dayIndex && r.slot === slot)
+            .sort((a, b) => a.position - b.position)
+            .map(r => ({ id: r.id, clientId: r.clientId, hours: r.hours }));
+          insert.run(id, weekKey, dayIndex, slot, JSON.stringify(blocks));
+        }
+      }
+    }
+  })();
+}
+
 // ── Data management ────────────────────────────────────────────────────────────
 function resetAllData() {
   db.exec(`
@@ -154,6 +190,6 @@ module.exports = {
   getProjects, saveProject, deleteProject,
   getRecurring, saveRecurring, deleteRecurring,
   getEntries, saveEntry, deleteEntry,
-  getWeekOverrides, saveWeekOverride, deleteWeekOverride,
+  getWeekOverrides, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,
   resetAllData, seedDemoData,
 };

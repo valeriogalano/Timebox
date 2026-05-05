@@ -155,6 +155,7 @@ function setupIpc() {
   ipcMain.handle('db:getWeekOverrides',    (_, wk)         => q.getWeekOverrides(wk));
   ipcMain.handle('db:saveWeekOverride',    (_, o)          => q.saveWeekOverride(o));
   ipcMain.handle('db:deleteWeekOverride',  (_, wk, di, sl) => q.deleteWeekOverride(wk, di, sl));
+  ipcMain.handle('db:freezeWeeksBeforeRecurringChange', (_, r) => q.freezeWeeksBeforeRecurringChange(r));
 
   ipcMain.handle('db:resetAllData',        ()              => q.resetAllData());
   ipcMain.handle('db:seedDemoData',        ()              => q.seedDemoData());
