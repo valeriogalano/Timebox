@@ -82,61 +82,14 @@ function PlanningBlock({
         flexShrink: 0,
       }}
     >
-      {/* Header: client name + done/planned readout */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6, minWidth: 0 }}>
+      {/* Header: client name only */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', minWidth: 0 }}>
         <span style={{
           fontSize: 10, fontWeight: 700, color: cl.color,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           letterSpacing: '0.01em', flex: 1, minWidth: 0,
         }}>{cl.name}</span>
-
-        {editing ? (
-          <input ref={editRef} value={editDraft}
-            onChange={e => setEditDraft(e.target.value)}
-            onBlur={commitEdit}
-            onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') onCancelEdit(); }}
-            onClick={e => e.stopPropagation()}
-            style={{
-              width: 48, padding: '1px 4px', borderRadius: 3, border: `1px solid ${cl.color}`,
-              fontSize: 11, fontWeight: 800, color: cl.color, textAlign: 'right',
-              fontFamily: "'Open Sans', sans-serif", outline: 'none',
-              background: 'var(--tb-input-bg)',
-            }} />
-        ) : (
-          <div
-            onClick={editable ? (e) => { e.stopPropagation(); onStartEdit(); } : undefined}
-            title={editable ? 'Modifica durata pianificata' : undefined}
-            style={{
-              display: 'flex', alignItems: 'baseline', gap: 2,
-              fontFamily: "'Open Sans', sans-serif", lineHeight: 1,
-              cursor: editable ? 'text' : 'default', flexShrink: 0,
-            }}>
-            {logged > 0 && (
-              <>
-                <span style={{ fontSize: 11, fontWeight: 800, color: readoutColor }}>
-                  {toHHMM(logged)}
-                </span>
-                <span style={{ fontSize: 9, color: cl.color + '66', fontWeight: 600 }}>/</span>
-              </>
-            )}
-            <span style={{
-              fontSize: logged > 0 ? 9 : 11,
-              fontWeight: logged > 0 ? 600 : 800,
-              color: logged > 0 ? cl.color + '88' : cl.color,
-            }}>{toHHMM(block.hours)}</span>
-          </div>
-        )}
       </div>
-
-      {/* Status dot: only when complete or overflow */}
-      {!isFuture && (complete || overflow) && (
-        <div style={{
-          position: 'absolute', top: 5, right: editable && hover ? 22 : 8,
-          width: 7, height: 7, borderRadius: '50%',
-          background: overflow ? '#E05252' : cl.color,
-          transition: 'right 0.12s',
-        }} />
-      )}
 
       {/* Progress bar */}
       <div style={{
@@ -159,17 +112,55 @@ function PlanningBlock({
         )}
       </div>
 
-      {/* Delta text */}
-      {!isFuture && (overflow || (partial && delta < 0)) && (
-        <div style={{
-          fontSize: 9, fontWeight: 700,
-          color: overflow ? '#E05252' : 'var(--tb-text-muted)',
-          letterSpacing: '0.02em',
-          marginTop: 2,
-        }}>
-          {overflow ? `+${toHHMM(delta)} oltre` : `${toHHMM(delta)}`}
-        </div>
-      )}
+      {/* Done/planned readout + delta */}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 2 }}>
+        {editing ? (
+          <input ref={editRef} value={editDraft}
+            onChange={e => setEditDraft(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') onCancelEdit(); }}
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: 48, padding: '1px 4px', borderRadius: 3, border: `1px solid ${cl.color}`,
+              fontSize: 11, fontWeight: 800, color: cl.color, textAlign: 'right',
+              fontFamily: "'Open Sans', sans-serif", outline: 'none',
+              background: 'var(--tb-input-bg)',
+            }} />
+        ) : (
+          <div
+            onClick={editable ? (e) => { e.stopPropagation(); onStartEdit(); } : undefined}
+            title={editable ? 'Modifica durata pianificata' : undefined}
+            style={{
+              display: 'flex', alignItems: 'baseline', gap: 2,
+              fontFamily: "'Open Sans', sans-serif", lineHeight: 1,
+              cursor: editable ? 'text' : 'default',
+            }}>
+            {logged > 0 && (
+              <>
+                <span style={{ fontSize: 11, fontWeight: 800, color: readoutColor }}>
+                  {toHHMM(logged)}
+                </span>
+                <span style={{ fontSize: 9, color: cl.color + '66', fontWeight: 600 }}>/</span>
+              </>
+            )}
+            <span style={{
+              fontSize: logged > 0 ? 9 : 11,
+              fontWeight: logged > 0 ? 600 : 800,
+              color: logged > 0 ? cl.color + '88' : cl.color,
+            }}>{toHHMM(block.hours)}</span>
+          </div>
+        )}
+
+        {!isFuture && (overflow || (partial && delta < 0)) && (
+          <span style={{
+            fontSize: 9, fontWeight: 700,
+            color: overflow ? '#E05252' : 'var(--tb-text-muted)',
+            letterSpacing: '0.02em',
+          }}>
+            {overflow ? `+${toHHMM(delta)} oltre` : `${toHHMM(delta)}`}
+          </span>
+        )}
+      </div>
 
       {/* Delete — hover-only */}
       {editable && hover && !editing && (
