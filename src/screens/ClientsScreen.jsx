@@ -84,6 +84,23 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
     }));
   }
 
+  function deleteClient(id) {
+    const area = clients.find(c => c.id === id);
+    const areaProjects = projects.filter(p => p.clientId === id);
+    const msg = areaProjects.length > 0
+      ? `Eliminare l'area "${area?.name}" e i suoi ${areaProjects.length} progetti?`
+      : `Eliminare l'area "${area?.name}"?`;
+    if (!window.confirm(msg)) return;
+    areaProjects.forEach(p => window.api.deleteProject(p.id));
+    window.api.deleteClient(id);
+    setProjects(prev => prev.filter(p => p.clientId !== id));
+    setClients(prev => {
+      const next = prev.filter(c => c.id !== id);
+      setSelectedId(next[0]?.id ?? null);
+      return next;
+    });
+  }
+
   function addClient() {
     const maxPos = clients.reduce((max, c) => Math.max(max, c.position ?? 0), -1);
     const id = crypto.randomUUID();
@@ -282,6 +299,15 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
               value={sel.name}
               onChange={e => updateClient('name', e.target.value)}
               style={{ ...formInput, fontSize: 18, fontWeight: 800, border: 'none', padding: 0, flex: 1, background: 'transparent' }} />
+            <button onClick={() => deleteClient(sel.id)}
+              title="Elimina area"
+              style={{ padding: '5px 10px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
+                background: 'transparent', color: 'var(--tb-text-secondary)', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', fontFamily: "'Open Sans', sans-serif", transition: 'all 0.2s', flexShrink: 0 }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#d97070'; e.currentTarget.style.borderColor = '#d97070'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--tb-text-secondary)'; e.currentTarget.style.borderColor = 'var(--tb-border-mid)'; }}>
+              ✕
+            </button>
           </div>
 
           {/* Colore + Billable */}
