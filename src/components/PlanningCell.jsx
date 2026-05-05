@@ -14,37 +14,6 @@ function Divider() {
   );
 }
 
-function SlotSummary({ planned, done, extra }) {
-  const hasExtra = extra > 0.01;
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 6,
-      padding: '3px 6px',
-      borderTop: '1px dashed var(--tb-border-soft)',
-      marginTop: 1,
-      fontFamily: "'Open Sans', sans-serif",
-      fontSize: 9, fontWeight: 700, letterSpacing: '0.02em',
-      color: 'var(--tb-text-muted)',
-      flexWrap: 'wrap',
-    }}>
-      {planned > 0 && (
-        <span title="Pianificato">
-          <span style={{ color: 'var(--tb-text-secondary)', fontWeight: 800 }}>{done > 0 ? toHHMM(done) : '0:00'}</span>
-          <span style={{ opacity: 0.6 }}> / {toHHMM(planned)}</span>
-        </span>
-      )}
-      {hasExtra && (
-        <span style={{
-          padding: '1px 5px', borderRadius: 3,
-          background: '#E07B3A18', color: '#E07B3A',
-          fontWeight: 800, marginLeft: 'auto',
-        }}>
-          + {toHHMM(extra)} extra
-        </span>
-      )}
-    </div>
-  );
-}
 
 function PlanningBlock({
   block, cl, blockH, fillPct, delta, logged, overflow,
@@ -204,18 +173,6 @@ export default function PlanningCell({
     return { block, cl, blockH, fillPct, delta, logged, overflow };
   }).filter(Boolean);
 
-  // Slot summary data
-  const plannedClientIds = new Set(blocks.map(b => b.clientId));
-  const slotPlanned = blocks.reduce((s, b) => s + b.hours, 0);
-  const slotDone = visualBlocks.reduce((s, vb) => s + Math.min(vb.logged, vb.block.hours), 0);
-  const slotExtraOnPlanned = visualBlocks.reduce((s, vb) => s + (vb.overflow ? vb.delta : 0), 0);
-  const slotExtraUnplanned = slotEntries.reduce((s, e) => {
-    const p = projects.find(p2 => p2.id === e.projectId);
-    if (!p) return s;
-    return plannedClientIds.has(p.clientId) ? s : s + e.hours;
-  }, 0);
-  const slotExtra = slotExtraOnPlanned + slotExtraUnplanned;
-
   const blockRefs = useRef([]);
   const [insertIndex, setInsertIndex] = useState(null);
 
@@ -339,12 +296,7 @@ export default function PlanningCell({
           color: 'var(--tb-border-mid)', fontSize: 11, minHeight: 40 }}>—</div>
       )}
 
-      <div style={{ marginTop: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {/* Slot summary footer */}
-        {(slotPlanned > 0 || slotExtra > 0) && !isFuture && (
-          <SlotSummary planned={slotPlanned} done={slotDone + slotExtraOnPlanned} extra={slotExtra} />
-        )}
-
+      <div style={{ marginTop: 'auto', flexShrink: 0 }}>
       {editable && (
         <div ref={addRef} style={{ position: 'relative', flexShrink: 0 }}>
           {!addOpen ? (

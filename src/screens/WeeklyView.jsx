@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TODAY, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH } from '../utils';
+import { TODAY, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM } from '../utils';
 import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
 import TimeCell from '../components/TimeCell';
@@ -320,7 +320,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
           {/* Extra row */}
           <div style={{
-            padding: '8px 14px', borderBottom: '2px solid var(--tb-border-mid)', display: 'flex', alignItems: 'center', gap: 5,
+            padding: '8px 14px', borderBottom: '1px solid var(--tb-border-soft)', display: 'flex', alignItems: 'center', gap: 5,
             fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
           }}>
             <span>Extra</span>
@@ -328,10 +328,50 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               background: 'var(--tb-panel-bg-subtle)', color: 'var(--tb-text-faint)', letterSpacing: '0.06em' }}>non pian.</span>
           </div>
           {days.map((d, i) => (
-            <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '2px solid var(--tb-border-mid)', background: todayBg(d), padding: 4 }}>
+            <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)', background: todayBg(d), padding: 4 }}>
               <ExtraCell blocks={d.extraBlocks} clients={clients} isToday={d.isToday} />
             </div>
           ))}
+          <div style={{ borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)' }} />
+
+          {/* Day summary row */}
+          <div style={{
+            padding: '6px 14px', borderBottom: '2px solid var(--tb-border-mid)',
+            display: 'flex', alignItems: 'center',
+            fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
+          }}>Giorno</div>
+          {days.map((d, i) => {
+            if (d.isWeekend) return (
+              <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border)', background: todayBg(d), opacity: 0.4 }} />
+            );
+            const hasData = d.plannedTotal > 0 || d.dayHours > 0;
+            const deltaPositive = d.delta > 0;
+            const deltaZero = d.delta === 0;
+            return (
+              <div key={i} style={{
+                borderLeft: todayBorderLeft(d), borderBottom: '2px solid var(--tb-border-mid)',
+                background: todayBg(d), padding: '5px 6px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+              }}>
+                {hasData && !d.isFuture ? (
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{toHHMM(d.dayHours) || '0:00'}</span>
+                    {d.plannedTotal > 0 && (
+                      <>
+                        <span style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>/</span>
+                        <span style={{ fontSize: 9, color: 'var(--tb-text-muted)', fontWeight: 600 }}>{toHHMM(d.plannedTotal)}</span>
+                      </>
+                    )}
+                    {d.delta > 0 && (
+                      <span style={{ fontSize: 9, fontWeight: 800, color: '#E07B3A', background: '#E07B3A18', padding: '1px 5px', borderRadius: 3 }}>+{toHHMM(d.delta)} extra</span>
+                    )}
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>—</span>
+                )}
+              </div>
+            );
+          })}
           <div style={{ borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '2px solid var(--tb-border-mid)' }} />
 
           {/* Timesheet header */}
