@@ -424,7 +424,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                       display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
                       background: 'var(--tb-panel-bg-soft)', borderRadius: 6,
                       border: '1px solid transparent',
-                      opacity: draggingProjectId === p.id ? 0.35 : 1,
+                      opacity: draggingProjectId === p.id ? 0.35 : (p.archived ? 0.5 : 1),
                       transition: 'opacity 0.1s',
                     }}>
                     <DragHandle />
@@ -435,7 +435,8 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                       onMouseDown={e => e.stopPropagation()}
                       style={{ flex: 1, fontSize: 13, color: 'var(--tb-text-primary)', fontWeight: 600,
                         border: 'none', background: 'transparent', outline: 'none',
-                        fontFamily: "'Open Sans', sans-serif" }} />
+                        fontFamily: "'Open Sans', sans-serif",
+                        textDecoration: p.archived ? 'line-through' : 'none' }} />
                     <input
                       type="number"
                       value={p.budgetHours ?? ''}
@@ -462,6 +463,15 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
+
+                    <button onClick={() => updateProject(p.id, 'archived', !p.archived)}
+                      title={p.archived ? "Ripristina progetto" : "Archivia progetto"}
+                      style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
+                        background: p.archived ? 'var(--tb-border-mid)' : 'transparent',
+                        color: p.archived ? '#fff' : 'var(--tb-text-secondary)', fontSize: 12, fontWeight: 600,
+                        cursor: 'pointer', fontFamily: "'Open Sans', sans-serif", transition: 'all 0.2s' }}>
+                      {p.archived ? '⤴' : '⬇'}
+                    </button>
 
                     <button onClick={() => deleteProject(p.id)}
                       style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',

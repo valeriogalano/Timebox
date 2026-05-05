@@ -99,11 +99,11 @@ export default function Dashboard({ clients, projects, screen }) {
 
         <SectionLabel>{monthLabel}</SectionLabel>
         <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', padding: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ gridTemplateColumns: '1fr 1fr', display: 'grid', gap: 12 }}>
             <MonthStat label="Ore tracciate"    value={fmtH(clientStats.reduce((s, c) => s + c.monthH, 0))} />
             <MonthStat label="Ore questa sett." value={fmtH(clientStats.reduce((s, c) => s + c.weekH, 0))} />
             <MonthStat label="Aree attive"       value={clientStats.filter(c => c.monthH > 0).length} />
-            <MonthStat label="Progetti aperti"  value={projects.length} />
+            <MonthStat label="Progetti aperti"  value={projects.filter(p => !p.archived).length} />
           </div>
         </div>
       </div>

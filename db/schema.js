@@ -94,7 +94,8 @@ function initDb(dbPath) {
       clientId TEXT,
       name TEXT,
       budgetHours REAL,
-      position INTEGER DEFAULT 0
+      position INTEGER DEFAULT 0,
+      archived INTEGER DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS recurring (
       id TEXT PRIMARY KEY,
@@ -136,6 +137,7 @@ function initDb(dbPath) {
     const projectRows = db.prepare('SELECT id FROM projects ORDER BY rowid').all();
     projectRows.forEach((row, i) => db.prepare('UPDATE projects SET position=? WHERE id=?').run(i, row.id));
   } catch (_) {}
+  try { db.exec('ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0'); } catch (_) {}
 
   return db;
 }

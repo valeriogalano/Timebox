@@ -33,21 +33,26 @@ function normalizeClient(row) {
 
 // ── Projects ───────────────────────────────────────────────────────────────────
 function getProjects() {
-  return db.prepare('SELECT * FROM projects ORDER BY position').all();
+  return db.prepare('SELECT * FROM projects ORDER BY position').all().map(normalizeProject);
 }
 
 function saveProject(project) {
   db.prepare(`
-    INSERT INTO projects (id,clientId,name,budgetHours,position)
-    VALUES (@id,@clientId,@name,@budgetHours,@position)
+    INSERT INTO projects (id,clientId,name,budgetHours,position,archived)
+    VALUES (@id,@clientId,@name,@budgetHours,@position,@archived)
     ON CONFLICT(id) DO UPDATE SET
       clientId=excluded.clientId, name=excluded.name,
-      budgetHours=excluded.budgetHours, position=excluded.position
-  `).run({ position: 0, ...project });
+      budgetHours=excluded.budgetHours, position=excluded.position,
+      archived=excluded.archived
+  `).run({ position: 0, archived: 0, ...project, archived: project.archived ? 1 : 0 });
 }
 
 function deleteProject(id) {
   db.prepare('DELETE FROM projects WHERE id=?').run(id);
+}
+
+function normalizeProject(row) {
+  return { ...row, archived: row.archived === 1 };
 }
 
 // ── Recurring ──────────────────────────────────────────────────────────────────

@@ -197,7 +197,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   const weekDateStrs = days.map(d => d.dateStr);
   const clientsWithProjects = clients.map(c => ({
-    ...c, projects: projects.filter(p => p.clientId === c.id),
+    ...c, projects: projects.filter(p => p.clientId === c.id && !p.archived),
   })).filter(c => c.projects.length > 0);
 
   const COL = '200px repeat(7, 1fr) 72px';

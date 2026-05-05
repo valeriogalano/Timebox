@@ -139,7 +139,11 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
                             style={selectStyle}>
                             {projects.map(p => {
                               const c = clients.find(c2 => c2.id === p.clientId);
-                              return <option key={p.id} value={p.id}>{c ? `${c.name} / ` : ''}{p.name}</option>;
+                              return (
+                                <option key={p.id} value={p.id}>
+                                  {c ? `${c.name} / ` : ''}{p.name}{p.archived ? ' (archiviato)' : ''}
+                                </option>
+                              );
                             })}
                           </select>
                         : <span style={{ color: 'var(--tb-text-primary)' }}>{project?.name ?? '—'}</span>
