@@ -22,6 +22,8 @@ function ClientsIcon()  { return <svg width="15" height="15" viewBox="0 0 15 15"
 function RepeatIcon()   { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="1" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 5h13M1 9h13" stroke="currentColor" strokeWidth="1.2"/><path d="M5 5v9M10 5v9" stroke="currentColor" strokeWidth="1.2"/></svg>; }
 function SettingsIcon() { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 1v1.5M7.5 12.5V14M14 7.5h-1.5M2.5 7.5H1M11.7 3.3l-1.1 1.1M4.4 10.6l-1.1 1.1M11.7 11.7l-1.1-1.1M4.4 4.4 3.3 3.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function ListIcon()     { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M3 4h9M3 7.5h9M3 11h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
+function CollapseIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
+function ExpandIcon()   { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 
 const ACCENT = '#3DB33D';
 
@@ -33,6 +35,9 @@ export default function App() {
   const [recurring, setRecurring] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [sidebarKey, setSidebarKey] = useState(0);
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('timebox-sidebar-collapsed') === 'true'; } catch { return false; }
+  });
   const refreshSidebar = useCallback(() => setSidebarKey(k => k + 1), []);
 
   const [theme, setThemeState] = useState(() => {
@@ -58,6 +63,14 @@ export default function App() {
   function setTheme(t) {
     try { localStorage.setItem('timebox-theme', t); } catch {}
     setThemeState(t);
+  }
+
+  function toggleSidebar() {
+    setCollapsed(prev => {
+      const newVal = !prev;
+      try { localStorage.setItem('timebox-sidebar-collapsed', String(newVal)); } catch {}
+      return newVal;
+    });
   }
 
   useEffect(() => {
@@ -89,11 +102,20 @@ export default function App() {
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Open Sans', sans-serif", overflow: 'hidden' }}>
 
       {/* ── Sidebar ─────────────────────────────────────────────── */}
-      <div style={{ width: 200, background: 'var(--tb-sidebar-bg)', display: 'flex', flexDirection: 'column', flexShrink: 0, userSelect: 'none' }}>
+      <div style={{
+        width: collapsed ? 64 : 200,
+        background: 'var(--tb-sidebar-bg)',
+        display: 'flex',
+        flexDirection: 'column',
+        flexShrink: 0,
+        userSelect: 'none',
+        transition: 'width 0.2s ease-in-out',
+        overflow: 'hidden'
+      }}>
 
         {/* Brand */}
-        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid var(--tb-sidebar-border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ padding: collapsed ? '20px 0' : '20px 20px 16px', borderBottom: '1px solid var(--tb-sidebar-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: collapsed ? 'center' : 'flex-start' }}>
             <div style={{ width: 28, height: 28, borderRadius: 7, background: ACCENT,
               display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -103,44 +125,53 @@ export default function App() {
                 <rect x="8" y="8" width="5" height="5" rx="1" fill="white" opacity="0.9"/>
               </svg>
             </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-sidebar-text)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>Timebox</div>
-              <div style={{ fontSize: 9, color: ACCENT, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Freelance</div>
-            </div>
+            {!collapsed && (
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-sidebar-text)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>Timebox</div>
+                <div style={{ fontSize: 9, color: ACCENT, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Freelance</div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: '10px 0' }}>
-          <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase',
-            color: 'var(--tb-sidebar-label)', padding: '10px 20px 5px' }}>
-            Menu
-          </div>
+          {!collapsed && (
+            <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase',
+              color: 'var(--tb-sidebar-label)', padding: '10px 20px 5px' }}>
+              Menu
+            </div>
+          )}
           {NAV_ITEMS.map(item => {
             const active = screen === item.id;
             const Icon = item.icon;
             return (
               <button key={item.id} onClick={() => setScreen(item.id)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 9, width: '100%',
-                  padding: '9px 20px', background: 'transparent',
-                  border: 'none', borderLeft: active ? `2px solid ${ACCENT}` : '2px solid transparent',
+                  display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 9, width: '100%',
+                  padding: collapsed ? '12px 0' : '9px 20px', background: 'transparent',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  border: 'none', borderLeft: !collapsed && active ? `2px solid ${ACCENT}` : '2px solid transparent',
                   color: active ? 'var(--tb-sidebar-nav-active-text)' : 'var(--tb-sidebar-muted)',
                   fontFamily: "'Open Sans', sans-serif", fontSize: 13,
                   fontWeight: active ? 700 : 400, cursor: 'pointer',
                   transition: 'all 0.12s', textAlign: 'left',
+                  position: 'relative'
                 }}>
-                <span style={{ color: active ? ACCENT : 'var(--tb-sidebar-faint)', flexShrink: 0 }}>
+                {collapsed && active && (
+                  <div style={{ position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 3, background: ACCENT, borderRadius: '0 2px 2px 0' }} />
+                )}
+                <span style={{ color: active ? ACCENT : 'var(--tb-sidebar-faint)', flexShrink: 0, display: 'flex' }}>
                   <Icon />
                 </span>
-                {item.label}
+                {!collapsed && item.label}
               </button>
             );
           })}
         </nav>
 
         {/* Footer: ore mese per area */}
-        <SidebarFooter clients={clients} projects={projects} refreshKey={sidebarKey} />
+        <SidebarFooter clients={clients} projects={projects} refreshKey={sidebarKey} collapsed={collapsed} />
       </div>
 
       {/* ── Main area ─────────────────────────────────────────────── */}
@@ -153,9 +184,19 @@ export default function App() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           background: 'var(--tb-topbar-bg)', flexShrink: 0,
         }}>
-          <h1 style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-topbar-text)', letterSpacing: '-0.01em' }}>
-            {NAV_ITEMS.find(n => n.id === screen)?.label}
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <button onClick={toggleSidebar} style={{
+              background: 'transparent', border: 'none', color: 'var(--tb-sidebar-muted)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '8px',
+              marginLeft: -12, borderRadius: 4, transition: 'background 0.2s'
+            }} onMouseOver={e => e.currentTarget.style.background = 'var(--tb-sidebar-border)'}
+               onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+              {collapsed ? <ExpandIcon /> : <CollapseIcon />}
+            </button>
+            <h1 style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-topbar-text)', letterSpacing: '-0.01em' }}>
+              {NAV_ITEMS.find(n => n.id === screen)?.label}
+            </h1>
+          </div>
           <div style={{ fontSize: 11, color: 'var(--tb-text-secondary)', fontWeight: 600 }}>
             {topbarDate}
           </div>
@@ -191,16 +232,19 @@ export default function App() {
   );
 }
 
-function SidebarFooter({ clients, projects, refreshKey }) {
+function SidebarFooter({ clients, projects, refreshKey, collapsed }) {
   const [entries, setEntries] = useState([]);
 
   useEffect(() => {
+    if (collapsed) return;
     const now = new Date();
     const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const to = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${lastDay}`;
     window.api.getEntries(from, to).then(setEntries);
-  }, [refreshKey]);
+  }, [refreshKey, collapsed]);
+
+  if (collapsed) return null;
 
   const month = MONTHS_IT[TODAY.getMonth()];
   const year = TODAY.getFullYear();
