@@ -26,7 +26,7 @@
   },
   "build": {
     "appId": "com.timebox.app",
-    "productName": "TimeBox",
+    "productName": "Timebox",
     "directories": {
       "output": "release"
     },

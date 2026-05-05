@@ -1,6 +1,6 @@
-# TimeBox - Build e Packaging
+# Timebox - Build e Packaging
 
-Questa guida spiega come compilare TimeBox (Electron + Vite + React) e generare pacchetti installabili su macOS, Windows e Linux.
+Questa guida spiega come compilare Timebox (Electron + Vite + React) e generare pacchetti installabili su macOS, Windows e Linux.
 
 ## Prerequisiti
 
@@ -44,7 +44,7 @@ npm run build
 npx electron-builder --mac dmg
 ```
 
-Output: `release/TimeBox-<version>-arm64.dmg` (o x64 in base alla macchina)
+Output: `release/Timebox-<version>-arm64.dmg` (o x64 in base alla macchina)
 
 ### Windows (.exe / nsis)
 
@@ -53,7 +53,7 @@ npm run build
 npx electron-builder --win nsis
 ```
 
-Output tipico: `release/TimeBox Setup <version>.exe`
+Output tipico: `release/Timebox Setup <version>.exe`
 
 ### Linux (.AppImage)
 
@@ -62,7 +62,7 @@ npm run build
 npx electron-builder --linux AppImage
 ```
 
-Output tipico: `release/TimeBox-<version>.AppImage`
+Output tipico: `release/Timebox-<version>.AppImage`
 
 ## Build per tutte le piattaforme supportate
 
@@ -85,7 +85,7 @@ La configurazione attuale genera pacchetti locali; firma/notarizzazione dipendon
 
 - Renderer web: `renderer-dist/`
 - Artifact installer: `release/`
-- Log runtime app installata (macOS): `~/Library/Application Support/TimeBox/logs/timebox.log`
+- Log runtime app installata (macOS): `~/Library/Application Support/Timebox/logs/timebox.log`
 
 ## Troubleshooting rapido
 

@@ -32,7 +32,7 @@ function createLogger() {
   };
 }
 
-app.name = 'TimeBox';
+app.name = 'Timebox';
 
 const isDev = !!process.env.ELECTRON_START_URL;
 const logger = createLogger();
@@ -225,14 +225,14 @@ app.whenReady().then(() => {
   });
 
   const config = loadConfig();
-  const defaultDbPath = path.join(app.getPath('documents'), 'TimeBox', 'timebox.db');
+  const defaultDbPath = path.join(app.getPath('documents'), 'Timebox', 'timebox.db');
   try {
     openDatabase(config.dbPath || defaultDbPath);
   } catch (err) {
     logger.error('openDatabase failed', { message: err.message });
     dialog.showErrorBox(
       'Impossibile aprire il database',
-      `Il file dati è bloccato da un altro processo o non è accessibile.\n\n${err.message}\n\nChiudi eventuali altre istanze di TimeBox e riavvia l'app.`
+      `Il file dati è bloccato da un altro processo o non è accessibile.\n\n${err.message}\n\nChiudi eventuali altre istanze di Timebox e riavvia l'app.`
     );
     app.quit();
     return;
