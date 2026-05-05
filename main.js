@@ -225,7 +225,17 @@ app.whenReady().then(() => {
 
   const config = loadConfig();
   const defaultDbPath = path.join(app.getPath('documents'), 'TimeBox', 'timebox.db');
-  openDatabase(config.dbPath || defaultDbPath);
+  try {
+    openDatabase(config.dbPath || defaultDbPath);
+  } catch (err) {
+    logger.error('openDatabase failed', { message: err.message });
+    dialog.showErrorBox(
+      'Impossibile aprire il database',
+      `Il file dati è bloccato da un altro processo o non è accessibile.\n\n${err.message}\n\nChiudi eventuali altre istanze di TimeBox e riavvia l'app.`
+    );
+    app.quit();
+    return;
+  }
   setupIpc();
 
   if (process.platform === 'darwin') {
