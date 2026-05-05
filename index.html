@@ -142,18 +142,18 @@
     // Dev-only mock — only active when NOT inside Electron (e.g. Playwright browser test)
     if (!window.api) {
       const CLIENTS = [
-        { id:'c1', name:'Acme Corp',    color:'#4A8FE8', billable:true,  billing:'hourly', rate:85,   limitType:'weekly',  limitHours:20 },
-        { id:'c2', name:'The Blog',     color:'#E07B3A', billable:true,  billing:'fixed',  rate:null, limitType:'monthly', limitHours:40 },
-        { id:'c3', name:'GreenTech SA', color:'#3DB33D', billable:true,  billing:'hourly', rate:70,   limitType:'monthly', limitHours:60 },
-        { id:'c4', name:'Studio Nova',  color:'#9B59B6', billable:true,  billing:'hourly', rate:120,  limitType:'weekly',  limitHours:10 },
+        { id:'c1', name:'Acme Corp',    color:'#4A8FE8', billable:true,  billing:'hourly', rate:85,   limitType:'weekly',  limitHours:20, position:0 },
+        { id:'c2', name:'The Blog',     color:'#E07B3A', billable:true,  billing:'fixed',  rate:null, limitType:'monthly', limitHours:40, position:1 },
+        { id:'c3', name:'GreenTech SA', color:'#3DB33D', billable:true,  billing:'hourly', rate:70,   limitType:'monthly', limitHours:60, position:2 },
+        { id:'c4', name:'Studio Nova',  color:'#9B59B6', billable:true,  billing:'hourly', rate:120,  limitType:'weekly',  limitHours:10, position:3 },
       ];
       const PROJECTS = [
-        { id:'p1', clientId:'c1', name:'Website Redesign',  budgetHours:80   },
-        { id:'p2', clientId:'c1', name:'API Integration',   budgetHours:40   },
-        { id:'p3', clientId:'c2', name:'Monthly Articles',  budgetHours:null },
-        { id:'p4', clientId:'c3', name:'Dashboard MVP',     budgetHours:120  },
-        { id:'p5', clientId:'c3', name:'Mobile App',        budgetHours:60   },
-        { id:'p6', clientId:'c4', name:'Brand Identity',    budgetHours:30   },
+        { id:'p1', clientId:'c1', name:'Website Redesign',  budgetHours:80,   position:0 },
+        { id:'p2', clientId:'c1', name:'API Integration',   budgetHours:40,   position:1 },
+        { id:'p3', clientId:'c2', name:'Monthly Articles',  budgetHours:null, position:0 },
+        { id:'p4', clientId:'c3', name:'Dashboard MVP',     budgetHours:120,  position:0 },
+        { id:'p5', clientId:'c3', name:'Mobile App',        budgetHours:60,   position:1 },
+        { id:'p6', clientId:'c4', name:'Brand Identity',    budgetHours:30,   position:0 },
       ];
       const RECURRING = [
         { id:'r1', clientId:'c1', slot:'am', day:0, hours:2,   position:0 }, { id:'r11', clientId:'c3', slot:'am', day:0, hours:1.5, position:1 },

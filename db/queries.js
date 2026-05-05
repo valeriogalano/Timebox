@@ -8,18 +8,19 @@ function init(database) {
 
 // ── Clients ────────────────────────────────────────────────────────────────────
 function getClients() {
-  return db.prepare('SELECT * FROM clients').all().map(normalizeClient);
+  return db.prepare('SELECT * FROM clients ORDER BY position').all().map(normalizeClient);
 }
 
 function saveClient(client) {
   db.prepare(`
-    INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours)
-    VALUES (@id,@name,@color,@billable,@billing,@rate,@limitType,@limitHours)
+    INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position)
+    VALUES (@id,@name,@color,@billable,@billing,@rate,@limitType,@limitHours,@position)
     ON CONFLICT(id) DO UPDATE SET
       name=excluded.name, color=excluded.color, billable=excluded.billable,
       billing=excluded.billing, rate=excluded.rate,
-      limitType=excluded.limitType, limitHours=excluded.limitHours
-  `).run({ ...client, billable: client.billable ? 1 : 0 });
+      limitType=excluded.limitType, limitHours=excluded.limitHours,
+      position=excluded.position
+  `).run({ position: 0, ...client, billable: client.billable ? 1 : 0 });
 }
 
 function deleteClient(id) {
@@ -32,16 +33,17 @@ function normalizeClient(row) {
 
 // ── Projects ───────────────────────────────────────────────────────────────────
 function getProjects() {
-  return db.prepare('SELECT * FROM projects').all();
+  return db.prepare('SELECT * FROM projects ORDER BY position').all();
 }
 
 function saveProject(project) {
   db.prepare(`
-    INSERT INTO projects (id,clientId,name,budgetHours)
-    VALUES (@id,@clientId,@name,@budgetHours)
+    INSERT INTO projects (id,clientId,name,budgetHours,position)
+    VALUES (@id,@clientId,@name,@budgetHours,@position)
     ON CONFLICT(id) DO UPDATE SET
-      clientId=excluded.clientId, name=excluded.name, budgetHours=excluded.budgetHours
-  `).run(project);
+      clientId=excluded.clientId, name=excluded.name,
+      budgetHours=excluded.budgetHours, position=excluded.position
+  `).run({ position: 0, ...project });
 }
 
 function deleteProject(id) {
@@ -130,15 +132,15 @@ function resetAllData() {
 function seedDemoData() {
   resetAllData();
   const insertClient   = db.prepare('INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours) VALUES (?,?,?,?,?,?,?,?)');
-  const insertProject  = db.prepare('INSERT INTO projects (id,clientId,name,budgetHours) VALUES (?,?,?,?)');
+  const insertProject  = db.prepare('INSERT INTO projects (id,clientId,name,budgetHours,position) VALUES (?,?,?,?,?)');
   const insertRecurring = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours,position) VALUES (?,?,?,?,?,?)');
   const insertEntry    = db.prepare('INSERT INTO entries (id,projectId,date,hours,slot,billed) VALUES (?,?,?,?,?,?)');
 
   db.transaction(() => {
     for (const c of INIT_CLIENTS)
-      insertClient.run(c.id, c.name, c.color, c.billable ?? 1, c.billing, c.rate, c.limitType, c.limitHours);
+      insertClient.run(c.id, c.name, c.color, c.billable ?? 1, c.billing, c.rate, c.limitType, c.limitHours, c.position ?? 0);
     for (const p of INIT_PROJECTS)
-      insertProject.run(p.id, p.clientId, p.name, p.budgetHours);
+      insertProject.run(p.id, p.clientId, p.name, p.budgetHours, p.position ?? 0);
     for (const r of INIT_RECURRING)
       insertRecurring.run(r.id, r.clientId, r.slot, r.day, r.hours, r.position ?? 0);
     for (const e of getSeedEntries())

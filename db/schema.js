@@ -1,19 +1,19 @@
 const Database = require('better-sqlite3');
 
 const INIT_CLIENTS = [
-  { id: 'c1', name: 'Acme Corp',    color: '#4A8FE8', billing: 'hourly', rate: 85,   limitType: 'weekly',  limitHours: 20, billable: 1 },
-  { id: 'c2', name: 'The Blog',     color: '#E07B3A', billing: 'fixed',  rate: null, limitType: 'monthly', limitHours: 40, billable: 1 },
-  { id: 'c3', name: 'GreenTech SA', color: '#3DB33D', billing: 'hourly', rate: 70,   limitType: 'monthly', limitHours: 60, billable: 1 },
-  { id: 'c4', name: 'Studio Nova',  color: '#9B59B6', billing: 'hourly', rate: 120,  limitType: 'weekly',  limitHours: 10, billable: 1 },
+  { id: 'c1', name: 'Acme Corp',    color: '#4A8FE8', billing: 'hourly', rate: 85,   limitType: 'weekly',  limitHours: 20, billable: 1, position: 0 },
+  { id: 'c2', name: 'The Blog',     color: '#E07B3A', billing: 'fixed',  rate: null, limitType: 'monthly', limitHours: 40, billable: 1, position: 1 },
+  { id: 'c3', name: 'GreenTech SA', color: '#3DB33D', billing: 'hourly', rate: 70,   limitType: 'monthly', limitHours: 60, billable: 1, position: 2 },
+  { id: 'c4', name: 'Studio Nova',  color: '#9B59B6', billing: 'hourly', rate: 120,  limitType: 'weekly',  limitHours: 10, billable: 1, position: 3 },
 ];
 
 const INIT_PROJECTS = [
-  { id: 'p1', clientId: 'c1', name: 'Website Redesign',  budgetHours: 80   },
-  { id: 'p2', clientId: 'c1', name: 'API Integration',   budgetHours: 40   },
-  { id: 'p3', clientId: 'c2', name: 'Monthly Articles',  budgetHours: null },
-  { id: 'p4', clientId: 'c3', name: 'Dashboard MVP',     budgetHours: 120  },
-  { id: 'p5', clientId: 'c3', name: 'Mobile App',        budgetHours: 60   },
-  { id: 'p6', clientId: 'c4', name: 'Brand Identity',    budgetHours: 30   },
+  { id: 'p1', clientId: 'c1', name: 'Website Redesign',  budgetHours: 80,   position: 0 },
+  { id: 'p2', clientId: 'c1', name: 'API Integration',   budgetHours: 40,   position: 1 },
+  { id: 'p3', clientId: 'c2', name: 'Monthly Articles',  budgetHours: null, position: 0 },
+  { id: 'p4', clientId: 'c3', name: 'Dashboard MVP',     budgetHours: 120,  position: 0 },
+  { id: 'p5', clientId: 'c3', name: 'Mobile App',        budgetHours: 60,   position: 1 },
+  { id: 'p6', clientId: 'c4', name: 'Brand Identity',    budgetHours: 30,   position: 0 },
 ];
 
 const INIT_RECURRING = [
@@ -86,13 +86,15 @@ function initDb(dbPath) {
       billing TEXT,
       rate REAL,
       limitType TEXT,
-      limitHours REAL
+      limitHours REAL,
+      position INTEGER DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS projects (
       id TEXT PRIMARY KEY,
       clientId TEXT,
       name TEXT,
-      budgetHours REAL
+      budgetHours REAL,
+      position INTEGER DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS recurring (
       id TEXT PRIMARY KEY,
@@ -124,6 +126,16 @@ function initDb(dbPath) {
   // Migrations
   try { db.exec('ALTER TABLE recurring ADD COLUMN position INTEGER DEFAULT 0'); } catch (_) {}
   try { db.exec('ALTER TABLE clients ADD COLUMN billable INTEGER DEFAULT 1'); } catch (_) {}
+  try {
+    db.exec('ALTER TABLE clients ADD COLUMN position INTEGER DEFAULT 0');
+    const clientRows = db.prepare('SELECT id FROM clients ORDER BY rowid').all();
+    clientRows.forEach((row, i) => db.prepare('UPDATE clients SET position=? WHERE id=?').run(i, row.id));
+  } catch (_) {}
+  try {
+    db.exec('ALTER TABLE projects ADD COLUMN position INTEGER DEFAULT 0');
+    const projectRows = db.prepare('SELECT id FROM projects ORDER BY rowid').all();
+    projectRows.forEach((row, i) => db.prepare('UPDATE projects SET position=? WHERE id=?').run(i, row.id));
+  } catch (_) {}
 
   return db;
 }
