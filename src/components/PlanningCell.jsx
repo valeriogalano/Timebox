@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toHHMM, parseHHMM } from '../utils';
 
-const PX_PER_H = 34;
-const MIN_H = 60;
+const PX_PER_H = 30;
 
 function Divider() {
   return (
@@ -12,6 +11,182 @@ function Divider() {
       margin: '1px 0',
       flexShrink: 0,
     }} />
+  );
+}
+
+function SlotSummary({ planned, done, extra }) {
+  const hasExtra = extra > 0.01;
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 6,
+      padding: '3px 6px',
+      borderTop: '1px dashed var(--tb-border-soft)',
+      marginTop: 1,
+      fontFamily: "'Open Sans', sans-serif",
+      fontSize: 9, fontWeight: 700, letterSpacing: '0.02em',
+      color: 'var(--tb-text-muted)',
+      flexWrap: 'wrap',
+    }}>
+      {planned > 0 && (
+        <span title="Pianificato">
+          <span style={{ color: 'var(--tb-text-secondary)', fontWeight: 800 }}>{done > 0 ? toHHMM(done) : '0:00'}</span>
+          <span style={{ opacity: 0.6 }}> / {toHHMM(planned)}</span>
+        </span>
+      )}
+      {hasExtra && (
+        <span style={{
+          padding: '1px 5px', borderRadius: 3,
+          background: '#E07B3A18', color: '#E07B3A',
+          fontWeight: 800, marginLeft: 'auto',
+        }}>
+          + {toHHMM(extra)} extra
+        </span>
+      )}
+    </div>
+  );
+}
+
+function PlanningBlock({
+  block, cl, blockH, fillPct, delta, logged, overflow,
+  isFuture, editable, isDragging,
+  editing, editDraft, setEditDraft, editRef, commitEdit, onStartEdit, onCancelEdit,
+  onRemove, onDragStart,
+}) {
+  const [hover, setHover] = useState(false);
+  const complete = !overflow && logged >= block.hours && block.hours > 0;
+  const partial  = !overflow && !complete && logged > 0;
+
+  const barColor = overflow ? '#E05252' : cl.color;
+  const barBg    = cl.color + '1f';
+  const readoutColor = logged === 0 ? cl.color + 'aa' : (overflow ? '#E05252' : cl.color);
+
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      draggable={editable && !editing}
+      onDragStart={onDragStart}
+      style={{
+        position: 'relative',
+        height: blockH,
+        background: cl.color + '10',
+        border: `1px solid ${overflow ? '#E0525244' : cl.color + '30'}`,
+        borderLeft: `3px solid ${cl.color}`,
+        borderRadius: 4,
+        padding: '5px 8px 7px',
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        cursor: editable && !editing ? 'grab' : 'default',
+        opacity: isDragging ? 0.35 : 1,
+        transition: 'opacity 0.15s, border-color 0.15s',
+        overflow: 'hidden',
+        flexShrink: 0,
+      }}
+    >
+      {/* Header: client name + done/planned readout */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6, minWidth: 0 }}>
+        <span style={{
+          fontSize: 10, fontWeight: 700, color: cl.color,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          letterSpacing: '0.01em', flex: 1, minWidth: 0,
+        }}>{cl.name}</span>
+
+        {editing ? (
+          <input ref={editRef} value={editDraft}
+            onChange={e => setEditDraft(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') onCancelEdit(); }}
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: 48, padding: '1px 4px', borderRadius: 3, border: `1px solid ${cl.color}`,
+              fontSize: 11, fontWeight: 800, color: cl.color, textAlign: 'right',
+              fontFamily: "'Open Sans', sans-serif", outline: 'none',
+              background: 'var(--tb-input-bg)',
+            }} />
+        ) : (
+          <div
+            onClick={editable ? (e) => { e.stopPropagation(); onStartEdit(); } : undefined}
+            title={editable ? 'Modifica durata pianificata' : undefined}
+            style={{
+              display: 'flex', alignItems: 'baseline', gap: 2,
+              fontFamily: "'Open Sans', sans-serif", lineHeight: 1,
+              cursor: editable ? 'text' : 'default', flexShrink: 0,
+            }}>
+            {logged > 0 && (
+              <>
+                <span style={{ fontSize: 11, fontWeight: 800, color: readoutColor }}>
+                  {toHHMM(logged)}
+                </span>
+                <span style={{ fontSize: 9, color: cl.color + '66', fontWeight: 600 }}>/</span>
+              </>
+            )}
+            <span style={{
+              fontSize: logged > 0 ? 9 : 11,
+              fontWeight: logged > 0 ? 600 : 800,
+              color: logged > 0 ? cl.color + '88' : cl.color,
+            }}>{toHHMM(block.hours)}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Status dot: only when complete or overflow */}
+      {!isFuture && (complete || overflow) && (
+        <div style={{
+          position: 'absolute', top: 5, right: editable && hover ? 22 : 8,
+          width: 7, height: 7, borderRadius: '50%',
+          background: overflow ? '#E05252' : cl.color,
+          transition: 'right 0.12s',
+        }} />
+      )}
+
+      {/* Progress bar */}
+      <div style={{
+        height: 5, borderRadius: 3,
+        background: barBg,
+        overflow: 'hidden', position: 'relative', marginTop: 4,
+      }}>
+        {overflow ? (
+          <div style={{
+            position: 'absolute', left: 0, top: 0, bottom: 0, right: 0,
+            background: `linear-gradient(90deg, ${cl.color} 0%, ${cl.color} 70%, #E05252 70%, #E05252 100%)`,
+          }} />
+        ) : (
+          <div style={{
+            position: 'absolute', left: 0, top: 0, bottom: 0,
+            width: `${Math.min(100, fillPct * 100)}%`,
+            background: complete ? cl.color : (partial ? cl.color + 'aa' : 'transparent'),
+            transition: 'width 0.4s ease, background 0.2s',
+          }} />
+        )}
+      </div>
+
+      {/* Delta text */}
+      {!isFuture && (overflow || (partial && delta < 0)) && (
+        <div style={{
+          fontSize: 9, fontWeight: 700,
+          color: overflow ? '#E05252' : 'var(--tb-text-muted)',
+          letterSpacing: '0.02em',
+          marginTop: 2,
+        }}>
+          {overflow ? `+${toHHMM(delta)} oltre` : `${toHHMM(delta)}`}
+        </div>
+      )}
+
+      {/* Delete — hover-only */}
+      {editable && hover && !editing && (
+        <button onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          title="Rimuovi blocco"
+          style={{
+            position: 'absolute', top: 3, right: 3, zIndex: 3,
+            width: 16, height: 16, borderRadius: 3,
+            background: 'var(--tb-panel-bg)',
+            border: `1px solid ${cl.color}44`,
+            cursor: 'pointer',
+            color: cl.color, fontSize: 11, lineHeight: 1, padding: 0,
+            fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>×</button>
+      )}
+    </div>
   );
 }
 
@@ -31,17 +206,24 @@ export default function PlanningCell({
     const cl = clients.find(c => c.id === block.clientId);
     if (!cl) return null;
     const logged  = loggedByClient[block.clientId] ?? 0;
-    const blockH  = Math.max(28, block.hours * PX_PER_H);
+    const blockH  = Math.max(46, Math.round(block.hours * PX_PER_H));
     const fillPct = block.hours > 0 ? Math.min(1, logged / block.hours) : 0;
     const delta   = logged - block.hours;
-    const overH   = delta > 0 ? Math.round(delta * PX_PER_H) : 0;
-    return { block, cl, blockH, fillPct, delta, logged, overH };
+    const overflow = delta > 0;
+    return { block, cl, blockH, fillPct, delta, logged, overflow };
   }).filter(Boolean);
 
-  const cellH = Math.max(
-    MIN_H,
-    visualBlocks.reduce((s, vb) => s + vb.blockH + (vb.overH > 0 ? vb.overH + 2 : 0) + 4, 0) + (editable ? 28 : 8)
-  );
+  // Slot summary data
+  const plannedClientIds = new Set(blocks.map(b => b.clientId));
+  const slotPlanned = blocks.reduce((s, b) => s + b.hours, 0);
+  const slotDone = visualBlocks.reduce((s, vb) => s + Math.min(vb.logged, vb.block.hours), 0);
+  const slotExtraOnPlanned = visualBlocks.reduce((s, vb) => s + (vb.overflow ? vb.delta : 0), 0);
+  const slotExtraUnplanned = slotEntries.reduce((s, e) => {
+    const p = projects.find(p2 => p2.id === e.projectId);
+    if (!p) return s;
+    return plannedClientIds.has(p.clientId) ? s : s + e.hours;
+  }, 0);
+  const slotExtra = slotExtraOnPlanned + slotExtraUnplanned;
 
   const blockRefs = useRef([]);
   const [insertIndex, setInsertIndex] = useState(null);
@@ -128,123 +310,37 @@ export default function PlanningCell({
       onDragLeave={handleContainerDragLeave}
       onDrop={handleContainerDrop}
       style={{
-        minHeight: cellH,
+        minHeight: 60,
         flex: 1,
-        borderRadius: 6, padding: 6,
+        borderRadius: 6, padding: 5,
         background: isWeekend ? 'var(--tb-cell-weekend)' : 'var(--tb-cell-bg)',
         border: `1px solid ${isToday ? '#3DB33D44' : 'var(--tb-border)'}`,
         opacity: isWeekend ? 0.5 : 1,
-        display: 'flex', flexDirection: 'column', gap: 3,
+        display: 'flex', flexDirection: 'column', gap: 4,
       }}>
-      {visualBlocks.map(({ block, cl, blockH, fillPct, delta, logged, overH }, i) => {
-        const isDraggingThis = draggingId === block.id;
-        return (
-          <React.Fragment key={block.id}>
-            {isInternalDrag && insertIndex === i && <Divider />}
-          <div ref={el => { blockRefs.current[i] = el; }} style={{ position: 'relative', flexShrink: 0, opacity: isDraggingThis ? 0.35 : 1, transition: 'opacity 0.15s' }}>
-            <div
-              draggable={editable}
-              onDragStart={e => {
+      {visualBlocks.map(({ block, cl, blockH, fillPct, delta, logged, overflow }, i) => (
+        <React.Fragment key={block.id}>
+          {isInternalDrag && insertIndex === i && <Divider />}
+          <div ref={el => { blockRefs.current[i] = el; }}>
+            <PlanningBlock
+              block={block} cl={cl} blockH={blockH}
+              fillPct={fillPct} delta={delta} logged={logged} overflow={overflow}
+              isFuture={isFuture} editable={editable}
+              isDragging={draggingId === block.id}
+              editing={editId === block.id} editDraft={editDraft}
+              setEditDraft={setEditDraft} editRef={editRef} commitEdit={commitEdit}
+              onStartEdit={() => { setEditId(block.id); setEditDraft(String(block.hours)); }}
+              onCancelEdit={() => setEditId(null)}
+              onRemove={() => onRemoveBlock(block.id)}
+              onDragStart={(e) => {
                 e.dataTransfer.effectAllowed = 'move';
                 e.dataTransfer.setData('text/plain', block.id);
                 onDragStart && onDragStart(block.id, block.clientId, block.hours);
               }}
-              style={{
-                height: blockH,
-                background: cl.color + '14',
-                border: `1px solid ${cl.color}28`,
-                borderLeft: `3px solid ${cl.color}66`,
-                borderRadius: 4, overflow: 'hidden', position: 'relative',
-                cursor: editable ? 'grab' : 'default',
-              }}>
-              {fillPct > 0 && (
-                <div style={{
-                  position: 'absolute', bottom: 0, left: 0, right: 0,
-                  height: `${fillPct * 100}%`,
-                  background: cl.color + (delta > 0 ? '55' : '30'),
-                  transition: 'height 0.4s ease',
-                }} />
-              )}
-              <div style={{
-                position: 'relative', zIndex: 1,
-                padding: '4px 7px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-                height: '100%',
-              }}>
-                <span style={{
-                  fontSize: 10, fontWeight: 700, color: cl.color + 'bb',
-                  maxWidth: 74, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {cl.name}
-                </span>
-                <div style={{ textAlign: 'right', flexShrink: 0, lineHeight: 1.3, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
-                  {editable && editId === block.id ? (
-                    <input ref={editRef} value={editDraft}
-                      onChange={e => setEditDraft(e.target.value)}
-                      onBlur={commitEdit}
-                      onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditId(null); }}
-                      style={{
-                        width: 38, padding: '1px 3px', borderRadius: 3, border: `1px solid ${cl.color}`,
-                        fontSize: 10, fontWeight: 800, color: cl.color, textAlign: 'right',
-                        fontFamily: "'Open Sans', sans-serif", outline: 'none', background: 'var(--tb-input-bg)',
-                      }} />
-                  ) : (
-                    <span
-                      onClick={editable ? () => { setEditId(block.id); setEditDraft(String(block.hours)); } : undefined}
-                      style={{
-                        fontSize: 9, color: cl.color + '88',
-                        cursor: editable ? 'text' : 'default',
-                        borderBottom: editable ? `1px dashed ${cl.color}44` : 'none',
-                      }}>
-                      {toHHMM(block.hours)}
-                    </span>
-                  )}
-                  {logged > 0 && (
-                    <span style={{ fontSize: 11, fontWeight: 800, color: cl.color }}>
-                      {toHHMM(logged)}
-                    </span>
-                  )}
-                </div>
-              </div>
-              {!isFuture && logged > 0 && blockH > 40 && (
-                <div style={{
-                  position: 'absolute', bottom: 3, left: 7, zIndex: 1,
-                  fontSize: 9, fontWeight: 800,
-                  color: delta >= 0 ? '#3DB33D' : '#E05252',
-                }}>
-                  {delta >= 0 ? '+' : ''}{toHHMM(Math.abs(delta))}
-                </div>
-              )}
-              {editable && (
-                <button onClick={() => onRemoveBlock(block.id)}
-                  style={{
-                    position: 'absolute', top: 2, right: 2, zIndex: 2,
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: cl.color + '55', fontSize: 10, lineHeight: 1, padding: 1,
-                    fontWeight: 700, opacity: 0.7,
-                  }}>×</button>
-              )}
-            </div>
-
-            {overH > 0 && (
-              <div style={{
-                height: overH + 2,
-                background: cl.color + '30',
-                borderLeft: `3px solid ${cl.color}`,
-                borderBottomLeftRadius: 4, borderBottomRightRadius: 4,
-                marginTop: 1,
-                display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 7,
-                overflow: 'hidden',
-              }}>
-                <span style={{ fontSize: 9, fontWeight: 800, color: cl.color }}>
-                  +{toHHMM(delta)} extra
-                </span>
-              </div>
-            )}
+            />
           </div>
-          </React.Fragment>
-        );
-      })}
+        </React.Fragment>
+      ))}
       {isInternalDrag && insertIndex === visualBlocks.length && <Divider />}
 
       {visualBlocks.length === 0 && (
@@ -252,8 +348,14 @@ export default function PlanningCell({
           color: 'var(--tb-border-mid)', fontSize: 11, minHeight: 40 }}>—</div>
       )}
 
+      <div style={{ marginTop: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {/* Slot summary footer */}
+        {(slotPlanned > 0 || slotExtra > 0) && !isFuture && (
+          <SlotSummary planned={slotPlanned} done={slotDone + slotExtraOnPlanned} extra={slotExtra} />
+        )}
+
       {editable && (
-        <div ref={addRef} style={{ position: 'relative', marginTop: 'auto', flexShrink: 0 }}>
+        <div ref={addRef} style={{ position: 'relative', flexShrink: 0 }}>
           {!addOpen ? (
             <button onClick={() => setAddOpen(true)}
               style={{
@@ -299,6 +401,7 @@ export default function PlanningCell({
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }
