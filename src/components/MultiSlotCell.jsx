@@ -156,7 +156,7 @@ export default function MultiSlotCell({
               <button onClick={confirmAdd} disabled={!addClientId}
                 style={{
                   flex: 2, padding: '5px', border: 'none', borderRadius: 5,
-                  background: addClientId ? (clients.find(c => c.id === addClientId)?.color ?? '#3DB33D') : 'var(--tb-border)',
+                  background: addClientId ? (clients.find(c => c.id === addClientId)?.color ?? '#3B82F6') : 'var(--tb-border)',
                   cursor: addClientId ? 'pointer' : 'not-allowed',
                   fontSize: 11, fontWeight: 700, color: 'white', fontFamily: "'Open Sans', sans-serif",
                 }}>

@@ -61,7 +61,7 @@ function PlanningBlock({
       </div>
 
       {/* Done/planned readout + delta */}
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 'auto', marginBottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', marginBottom: 4 }}>
         {editing ? (
           <input ref={editRef} value={editDraft}
             onChange={e => setEditDraft(e.target.value)}
@@ -101,23 +101,33 @@ function PlanningBlock({
 
       </div>
 
-      {/* Progress bar */}
-      <div style={{
-        height: 5, borderRadius: 3,
-        background: barBg,
-        overflow: 'hidden', position: 'relative',
-      }}>
-        {overflow ? (
+      {/* Progress bar + overflow triangle */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{
+          flex: 1, height: 5, borderRadius: 3,
+          background: barBg,
+          overflow: 'hidden', position: 'relative',
+        }}>
+          {overflow ? (
+            <div style={{
+              position: 'absolute', left: 0, top: 0, bottom: 0, right: 0,
+              background: `linear-gradient(90deg, ${cl.color} 0%, ${cl.color} 70%, #E05252 70%, #E05252 100%)`,
+            }} />
+          ) : (
+            <div style={{
+              position: 'absolute', left: 0, top: 0, bottom: 0,
+              width: `${Math.min(100, fillPct * 100)}%`,
+              background: complete ? cl.color : (partial ? cl.color + 'aa' : 'transparent'),
+              transition: 'width 0.4s ease, background 0.2s',
+            }} />
+          )}
+        </div>
+        {overflow && (
           <div style={{
-            position: 'absolute', left: 0, top: 0, bottom: 0, right: 0,
-            background: `linear-gradient(90deg, ${cl.color} 0%, ${cl.color} 70%, #E05252 70%, #E05252 100%)`,
-          }} />
-        ) : (
-          <div style={{
-            position: 'absolute', left: 0, top: 0, bottom: 0,
-            width: `${Math.min(100, fillPct * 100)}%`,
-            background: complete ? cl.color : (partial ? cl.color + 'aa' : 'transparent'),
-            transition: 'width 0.4s ease, background 0.2s',
+            width: 0, height: 0, flexShrink: 0,
+            borderLeft: '4px solid transparent',
+            borderRight: '4px solid transparent',
+            borderBottom: '7px solid #E05252',
           }} />
         )}
       </div>
@@ -323,7 +333,7 @@ export default function PlanningCell({
                 <button onClick={confirmAdd} disabled={!addClientId}
                   style={{
                     flex: 2, padding: '4px 6px', borderRadius: 4, border: 'none',
-                    background: addClientId ? (clients.find(c => c.id === addClientId)?.color ?? '#3DB33D') : 'var(--tb-border)',
+                    background: addClientId ? (clients.find(c => c.id === addClientId)?.color ?? '#3B82F6') : 'var(--tb-border)',
                     color: 'white', fontSize: 11, fontWeight: 700,
                     cursor: addClientId ? 'pointer' : 'not-allowed',
                     fontFamily: "'Open Sans', sans-serif",

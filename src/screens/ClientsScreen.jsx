@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 const BILLING_OPTIONS = ['hourly', 'fixed'];
-const COLORS = ['#4A8FE8', '#E07B3A', '#3DB33D', '#9B59B6', '#E05252', '#1AB8A0', '#E8A834'];
+const COLORS = ['#3B82F6', '#F97316', '#8B5CF6', '#EAB308', '#06B6D4', '#EC4899', '#B45309'];
 
 const formLabel = {
   display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)',
