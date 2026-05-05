@@ -13,9 +13,10 @@ const formInput = {
   background: 'var(--tb-input-bg)', outline: 'none',
 };
 
-function DragHandle({ style }) {
+function DragHandle() {
   return (
-    <svg width="8" height="12" viewBox="0 0 8 12" fill="currentColor" style={{ flexShrink: 0, ...style }}>
+    <svg width="8" height="12" viewBox="0 0 8 12" fill="currentColor"
+      style={{ flexShrink: 0, color: 'var(--tb-text-faint)', cursor: 'grab' }}>
       <circle cx="2" cy="2" r="1.2"/><circle cx="6" cy="2" r="1.2"/>
       <circle cx="2" cy="6" r="1.2"/><circle cx="6" cy="6" r="1.2"/>
       <circle cx="2" cy="10" r="1.2"/><circle cx="6" cy="10" r="1.2"/>
@@ -23,14 +24,24 @@ function DragHandle({ style }) {
   );
 }
 
-function reorder(list, fromId, toId) {
-  const fromIdx = list.findIndex(item => item.id === fromId);
-  const toIdx   = list.findIndex(item => item.id === toId);
-  if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return list;
-  const result = [...list];
-  const [removed] = result.splice(fromIdx, 1);
-  result.splice(toIdx, 0, removed);
-  return result;
+function Divider() {
+  return (
+    <div style={{
+      height: 2, borderRadius: 1,
+      background: '#4A8FE8',
+      margin: '1px 0',
+      flexShrink: 0,
+    }} />
+  );
+}
+
+function SectionLabel({ children }) {
+  return (
+    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
+      color: 'var(--tb-text-muted)', marginBottom: 8 }}>
+      {children}
+    </div>
+  );
 }
 
 export default function ClientsScreen({ clients, projects, setClients, setProjects }) {
@@ -41,14 +52,28 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
   // Area DnD
-  const [draggingAreaId, setDraggingAreaId]   = useState(null);
-  const [dragOverAreaId, setDragOverAreaId]   = useState(null);
+  const [draggingAreaId, setDraggingAreaId]     = useState(null);
+  const [areaInsertIdx, setAreaInsertIdx]       = useState(null);
 
   // Project DnD
   const [draggingProjectId, setDraggingProjectId] = useState(null);
-  const [dragOverProjectId, setDragOverProjectId] = useState(null);
+  const [projectInsertIdx, setProjectInsertIdx]   = useState(null);
 
-  // ── Area handlers ────────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  function insertReorder(list, fromId, insertAt) {
+    const fromIdx = list.findIndex(item => item.id === fromId);
+    if (fromIdx === -1) return list;
+    let at = insertAt;
+    if (fromIdx < at) at--;
+    if (at === fromIdx) return list;
+    const result = [...list];
+    const [removed] = result.splice(fromIdx, 1);
+    result.splice(at, 0, removed);
+    return result;
+  }
+
+  // ── Area handlers ─────────────────────────────────────────────────────────
 
   function updateClient(field, value) {
     setClients(prev => prev.map(c => {
@@ -77,33 +102,36 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
     e.dataTransfer.effectAllowed = 'move';
   }
 
-  function handleAreaDragOver(e, id) {
+  function handleAreaDragOver(e, itemIdx, itemId) {
+    if (itemId === draggingAreaId) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    if (id !== dragOverAreaId) setDragOverAreaId(id);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const idx = e.clientY < rect.top + rect.height / 2 ? itemIdx : itemIdx + 1;
+    if (idx !== areaInsertIdx) setAreaInsertIdx(idx);
   }
 
-  function handleAreaDrop(e, targetId) {
+  function handleAreaDrop(e) {
     e.preventDefault();
-    if (!draggingAreaId || draggingAreaId === targetId) {
+    if (areaInsertIdx === null || !draggingAreaId) {
       setDraggingAreaId(null);
-      setDragOverAreaId(null);
+      setAreaInsertIdx(null);
       return;
     }
-    const newOrder = reorder(clients, draggingAreaId, targetId);
+    const newOrder = insertReorder(clients, draggingAreaId, areaInsertIdx);
     const updated = newOrder.map((c, i) => ({ ...c, position: i }));
     setClients(updated);
     updated.forEach(c => window.api.saveClient(c));
     setDraggingAreaId(null);
-    setDragOverAreaId(null);
+    setAreaInsertIdx(null);
   }
 
   function handleAreaDragEnd() {
     setDraggingAreaId(null);
-    setDragOverAreaId(null);
+    setAreaInsertIdx(null);
   }
 
-  // ── Project handlers ─────────────────────────────────────────────────────────
+  // ── Project handlers ────────────────────────────────────────────────────────
 
   function addProject() {
     if (!selectedId) return;
@@ -150,39 +178,40 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
     e.stopPropagation();
   }
 
-  function handleProjectDragOver(e, id) {
+  function handleProjectDragOver(e, itemIdx, itemId) {
+    if (itemId === draggingProjectId) return;
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
-    if (id !== dragOverProjectId) setDragOverProjectId(id);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const idx = e.clientY < rect.top + rect.height / 2 ? itemIdx : itemIdx + 1;
+    if (idx !== projectInsertIdx) setProjectInsertIdx(idx);
   }
 
-  function handleProjectDrop(e, targetId) {
+  function handleProjectDrop(e) {
     e.preventDefault();
     e.stopPropagation();
-    if (!draggingProjectId || draggingProjectId === targetId) {
+    if (projectInsertIdx === null || !draggingProjectId) {
       setDraggingProjectId(null);
-      setDragOverProjectId(null);
+      setProjectInsertIdx(null);
       return;
     }
-    const areaProjects = projects
-      .filter(p => p.clientId === selectedId)
-      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    const areaProjects = [...selProjects];
     const otherProjects = projects.filter(p => p.clientId !== selectedId);
-    const newOrder = reorder(areaProjects, draggingProjectId, targetId);
+    const newOrder = insertReorder(areaProjects, draggingProjectId, projectInsertIdx);
     const updated = newOrder.map((p, i) => ({ ...p, position: i }));
     setProjects([...otherProjects, ...updated]);
     updated.forEach(p => window.api.saveProject(p));
     setDraggingProjectId(null);
-    setDragOverProjectId(null);
+    setProjectInsertIdx(null);
   }
 
   function handleProjectDragEnd() {
     setDraggingProjectId(null);
-    setDragOverProjectId(null);
+    setProjectInsertIdx(null);
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16, height: 'calc(100vh - 140px)' }}>
@@ -190,49 +219,55 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
       {/* Area list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <SectionLabel>Aree ({clients.length})</SectionLabel>
-        {clients.map(c => {
-          const isOver    = dragOverAreaId === c.id && draggingAreaId !== c.id;
-          const isDragging = draggingAreaId === c.id;
-          return (
-            <div
-              key={c.id}
-              draggable
-              onDragStart={e => handleAreaDragStart(e, c.id)}
-              onDragOver={e => handleAreaDragOver(e, c.id)}
-              onDrop={e => handleAreaDrop(e, c.id)}
-              onDragEnd={handleAreaDragEnd}
-              onClick={() => setSelectedId(c.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 6,
-                background: selectedId === c.id ? 'var(--tb-panel-bg)' : 'transparent',
-                border: isOver
-                  ? '1px solid var(--tb-accent)'
-                  : selectedId === c.id
-                    ? '1px solid var(--tb-border)'
-                    : '1px solid transparent',
-                cursor: 'pointer', textAlign: 'left', transition: 'all 0.1s',
-                opacity: isDragging ? 0.4 : 1,
-                userSelect: 'none',
-              }}>
-              <DragHandle style={{ color: 'var(--tb-text-faint)', cursor: 'grab' }} />
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
-              <div style={{ flex: 1, overflow: 'hidden' }}>
-                <div style={{ fontSize: 13, fontWeight: selectedId === c.id ? 700 : 400, color: 'var(--tb-text-primary)',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-                <div style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>
-                  {c.billable
-                    ? `${c.billing === 'hourly' ? 'A ore' : 'Fisso'} · ${c.limitHours ? `${c.limitHours}h/${c.limitType === 'weekly' ? 'sett' : 'mese'}` : 'no limite'}`
-                    : 'non fatturabile'}
+
+        {/* Droppable list */}
+        <div
+          onDrop={handleAreaDrop}
+          onDragOver={e => e.preventDefault()}
+          onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setAreaInsertIdx(null); }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
+          {clients.map((c, i) => (
+            <React.Fragment key={c.id}>
+              {areaInsertIdx === i && <Divider />}
+              <div
+                draggable
+                onDragStart={e => handleAreaDragStart(e, c.id)}
+                onDragOver={e => handleAreaDragOver(e, i, c.id)}
+                onDragEnd={handleAreaDragEnd}
+                onClick={() => setSelectedId(c.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 6,
+                  background: selectedId === c.id ? 'var(--tb-panel-bg)' : 'transparent',
+                  border: selectedId === c.id ? '1px solid var(--tb-border)' : '1px solid transparent',
+                  cursor: 'pointer', textAlign: 'left', transition: 'background 0.1s, border-color 0.1s',
+                  opacity: draggingAreaId === c.id ? 0.35 : 1,
+                  userSelect: 'none',
+                }}>
+                <DragHandle />
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <div style={{ fontSize: 13, fontWeight: selectedId === c.id ? 700 : 400,
+                    color: 'var(--tb-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {c.name}
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>
+                    {c.billable
+                      ? `${c.billing === 'hourly' ? 'A ore' : 'Fisso'} · ${c.limitHours ? `${c.limitHours}h/${c.limitType === 'weekly' ? 'sett' : 'mese'}` : 'no limite'}`
+                      : 'non fatturabile'}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            </React.Fragment>
+          ))}
+          {areaInsertIdx === clients.length && <Divider />}
+        </div>
+
         <button onClick={addClient}
           style={{
             marginTop: 8, padding: '8px 12px', borderRadius: 6, border: '1px dashed var(--tb-input-border)',
-            background: 'transparent', color: 'var(--tb-text-secondary)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            fontFamily: "'Open Sans', sans-serif",
+            background: 'transparent', color: 'var(--tb-text-secondary)', fontSize: 12, fontWeight: 600,
+            cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
           }}>
           + Nuova area
         </button>
@@ -249,7 +284,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
               style={{ ...formInput, fontSize: 18, fontWeight: 800, border: 'none', padding: 0, flex: 1, background: 'transparent' }} />
           </div>
 
-          {/* Colore + Billable toggle */}
+          {/* Colore + Billable */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
             <div>
               <label style={formLabel}>Colore</label>
@@ -284,7 +319,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
             </div>
           </div>
 
-          {/* Billing config — solo per aree fatturabili */}
+          {/* Billing config */}
           {sel.billable && (
             <>
               <SectionLabel>Configurazione billing</SectionLabel>
@@ -311,8 +346,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                   <label style={formLabel}>Tariffa oraria (€)</label>
                   <input type="number" style={formInput} value={sel.rate ?? ''} placeholder="—"
                     onChange={e => updateClient('rate', e.target.value ? Number(e.target.value) : null)}
-                    disabled={sel.billing !== 'hourly'}
-                  />
+                    disabled={sel.billing !== 'hourly'} />
                 </div>
 
                 <div>
@@ -345,25 +379,29 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
           {/* Projects */}
           <div style={{ borderTop: '1px solid var(--tb-border-soft)', paddingTop: 20 }}>
             <SectionLabel>Progetti ({selProjects.length})</SectionLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-              {selProjects.map(p => {
-                const isProjOver    = dragOverProjectId === p.id && draggingProjectId !== p.id;
-                const isProjDragging = draggingProjectId === p.id;
-                return (
-                  <div key={p.id}
+
+            <div
+              onDrop={handleProjectDrop}
+              onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+              onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setProjectInsertIdx(null); }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}
+            >
+              {selProjects.map((p, i) => (
+                <React.Fragment key={p.id}>
+                  {projectInsertIdx === i && <Divider />}
+                  <div
                     draggable
                     onDragStart={e => handleProjectDragStart(e, p.id)}
-                    onDragOver={e => handleProjectDragOver(e, p.id)}
-                    onDrop={e => handleProjectDrop(e, p.id)}
+                    onDragOver={e => handleProjectDragOver(e, i, p.id)}
                     onDragEnd={handleProjectDragEnd}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
                       background: 'var(--tb-panel-bg-soft)', borderRadius: 6,
-                      border: isProjOver ? '1px solid var(--tb-accent)' : '1px solid transparent',
-                      opacity: isProjDragging ? 0.4 : 1,
-                      transition: 'opacity 0.1s, border-color 0.1s',
+                      border: '1px solid transparent',
+                      opacity: draggingProjectId === p.id ? 0.35 : 1,
+                      transition: 'opacity 0.1s',
                     }}>
-                    <DragHandle style={{ color: 'var(--tb-text-faint)', cursor: 'grab' }} />
+                    <DragHandle />
                     <div style={{ width: 6, height: 6, borderRadius: '50%', background: sel.color, flexShrink: 0 }} />
                     <input
                       value={p.name}
@@ -383,7 +421,6 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                         fontFamily: "'Open Sans', sans-serif" }} />
                     {p.budgetHours && <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>h</span>}
 
-                    {/* Selettore area */}
                     <select
                       value={p.clientId}
                       onChange={e => moveProject(p.id, e.target.value)}
@@ -409,29 +446,22 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                       ✕
                     </button>
                   </div>
-                );
-              })}
-              <button onClick={addProject}
-                style={{
-                  padding: '8px 14px', borderRadius: 6, border: '1px dashed var(--tb-input-border)',
-                  background: 'transparent', color: 'var(--tb-text-secondary)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                  fontFamily: "'Open Sans', sans-serif", textAlign: 'left', marginTop: 2,
-                }}>
-                + Nuovo progetto
-              </button>
+                </React.Fragment>
+              ))}
+              {projectInsertIdx === selProjects.length && <Divider />}
             </div>
+
+            <button onClick={addProject}
+              style={{
+                padding: '8px 14px', borderRadius: 6, border: '1px dashed var(--tb-input-border)',
+                background: 'transparent', color: 'var(--tb-text-secondary)', fontSize: 12, fontWeight: 600,
+                cursor: 'pointer', fontFamily: "'Open Sans', sans-serif", textAlign: 'left', marginTop: 8,
+              }}>
+              + Nuovo progetto
+            </button>
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function SectionLabel({ children }) {
-  return (
-    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
-      color: 'var(--tb-text-muted)', marginBottom: 8 }}>
-      {children}
     </div>
   );
 }
