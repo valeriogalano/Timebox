@@ -248,7 +248,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
             }}>
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
                 color: d.isToday ? '#3DB33D' : 'var(--tb-text-faint)' }}>{DAY_SHORT[i]}</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: d.isToday ? '#3DB33D' : 'var(--tb-text-primary)', lineHeight: 1.1 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: d.isToday ? '#3DB33D' : 'var(--tb-text-secondary)', lineHeight: 1.1 }}>
                 {d.date.getDate()}
               </div>
               {d.isToday && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3DB33D', margin: '3px auto 0' }} />}
