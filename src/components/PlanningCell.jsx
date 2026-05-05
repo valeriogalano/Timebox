@@ -60,29 +60,8 @@ function PlanningBlock({
         }}>{cl.name}</span>
       </div>
 
-      {/* Progress bar */}
-      <div style={{
-        height: 5, borderRadius: 3,
-        background: barBg,
-        overflow: 'hidden', position: 'relative', marginTop: 4,
-      }}>
-        {overflow ? (
-          <div style={{
-            position: 'absolute', left: 0, top: 0, bottom: 0, right: 0,
-            background: `linear-gradient(90deg, ${cl.color} 0%, ${cl.color} 70%, #E05252 70%, #E05252 100%)`,
-          }} />
-        ) : (
-          <div style={{
-            position: 'absolute', left: 0, top: 0, bottom: 0,
-            width: `${Math.min(100, fillPct * 100)}%`,
-            background: complete ? cl.color : (partial ? cl.color + 'aa' : 'transparent'),
-            transition: 'width 0.4s ease, background 0.2s',
-          }} />
-        )}
-      </div>
-
       {/* Done/planned readout + delta */}
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 'auto', marginBottom: 4 }}>
         {editing ? (
           <input ref={editRef} value={editDraft}
             onChange={e => setEditDraft(e.target.value)}
@@ -106,28 +85,40 @@ function PlanningBlock({
             }}>
             {logged > 0 && (
               <>
-                <span style={{ fontSize: 11, fontWeight: 800, color: readoutColor }}>
+                <span style={{ fontSize: 11, fontWeight: overflow ? 800 : 400, color: readoutColor }}>
                   {toHHMM(logged)}
                 </span>
-                <span style={{ fontSize: 9, color: cl.color + '66', fontWeight: 600 }}>/</span>
+                <span style={{ fontSize: 9, color: cl.color + '66', fontWeight: 400 }}>/</span>
               </>
             )}
             <span style={{
               fontSize: logged > 0 ? 9 : 11,
-              fontWeight: logged > 0 ? 600 : 800,
-              color: logged > 0 ? cl.color + '88' : cl.color,
+              fontWeight: 400,
+              color: logged > 0 ? cl.color + 'bb' : cl.color,
             }}>{toHHMM(block.hours)}</span>
           </div>
         )}
 
-        {!isFuture && (overflow || (partial && delta < 0)) && (
-          <span style={{
-            fontSize: 9, fontWeight: 700,
-            color: overflow ? '#E05252' : 'var(--tb-text-muted)',
-            letterSpacing: '0.02em',
-          }}>
-            {overflow ? `+${toHHMM(delta)} oltre` : `${toHHMM(delta)}`}
-          </span>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{
+        height: 5, borderRadius: 3,
+        background: barBg,
+        overflow: 'hidden', position: 'relative',
+      }}>
+        {overflow ? (
+          <div style={{
+            position: 'absolute', left: 0, top: 0, bottom: 0, right: 0,
+            background: `linear-gradient(90deg, ${cl.color} 0%, ${cl.color} 70%, #E05252 70%, #E05252 100%)`,
+          }} />
+        ) : (
+          <div style={{
+            position: 'absolute', left: 0, top: 0, bottom: 0,
+            width: `${Math.min(100, fillPct * 100)}%`,
+            background: complete ? cl.color : (partial ? cl.color + 'aa' : 'transparent'),
+            transition: 'width 0.4s ease, background 0.2s',
+          }} />
         )}
       </div>
 
