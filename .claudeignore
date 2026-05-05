@@ -1,0 +1,25 @@
+# Build output
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Screenshots, exports, temp files
+*.png
+*.jpg
+*.jpeg
+*.csv
+handsoff/
+handsoff-2/
+timebox/
