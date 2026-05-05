@@ -5,12 +5,14 @@ import Dashboard from './screens/Dashboard';
 import ClientsScreen from './screens/ClientsScreen';
 import RecurringScreen from './screens/RecurringScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import EntriesScreen from './screens/EntriesScreen';
 
 const NAV_ITEMS = [
   { id: 'weekly',    label: 'Settimana',    icon: WeekIcon     },
   { id: 'dashboard', label: 'Dashboard',    icon: ChartIcon    },
   { id: 'clients',   label: 'Aree',         icon: ClientsIcon  },
   { id: 'recurring', label: 'Pianificazione', icon: RepeatIcon   },
+  { id: 'entries',   label: 'Registrazioni',         icon: ListIcon     },
   { id: 'settings',  label: 'Impostazioni', icon: SettingsIcon },
 ];
 
@@ -19,6 +21,7 @@ function ChartIcon()    { return <svg width="15" height="15" viewBox="0 0 15 15"
 function ClientsIcon()  { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="5.5" cy="5" r="3" stroke="currentColor" strokeWidth="1.4"/><path d="M1 13c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="11" cy="4" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M13.5 11c0-1.7-1.1-3-2.5-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>; }
 function RepeatIcon()   { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="1" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 5h13M1 9h13" stroke="currentColor" strokeWidth="1.2"/><path d="M5 5v9M10 5v9" stroke="currentColor" strokeWidth="1.2"/></svg>; }
 function SettingsIcon() { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 1v1.5M7.5 12.5V14M14 7.5h-1.5M2.5 7.5H1M11.7 3.3l-1.1 1.1M4.4 10.6l-1.1 1.1M11.7 11.7l-1.1-1.1M4.4 4.4 3.3 3.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
+function ListIcon()     { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M3 4h9M3 7.5h9M3 11h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 
 const ACCENT = '#3DB33D';
 
@@ -177,6 +180,9 @@ export default function App() {
           {screen === 'recurring' && (
             <RecurringScreen
               clients={clients} recurring={recurring} setRecurring={setRecurring} />
+          )}
+          {screen === 'entries' && (
+            <EntriesScreen clients={clients} projects={projects} onEntryChange={refreshSidebar} />
           )}
           {screen === 'settings' && <SettingsScreen theme={theme} setTheme={setTheme} />}
         </div>
