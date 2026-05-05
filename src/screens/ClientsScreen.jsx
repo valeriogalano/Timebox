@@ -323,7 +323,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
           {sel.billable && (
             <>
               <SectionLabel>Configurazione billing</SectionLabel>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 8, marginBottom: 24 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 8, marginBottom: 24 }}>
                 <div>
                   <label style={formLabel}>Tipo billing</label>
                   <div style={{ display: 'flex', gap: 4 }}>
@@ -350,12 +350,6 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                 </div>
 
                 <div>
-                  <label style={formLabel}>Limite ore</label>
-                  <input type="number" style={formInput} value={sel.limitHours ?? ''} placeholder="—"
-                    onChange={e => updateClient('limitHours', e.target.value ? Number(e.target.value) : null)} />
-                </div>
-
-                <div>
                   <label style={formLabel}>Periodo limite</label>
                   <div style={{ display: 'flex', gap: 4 }}>
                     {['weekly', 'monthly'].map(t => (
@@ -371,6 +365,12 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                       </button>
                     ))}
                   </div>
+                </div>
+
+                <div>
+                  <label style={formLabel}>Limite ore</label>
+                  <input type="number" style={formInput} value={sel.limitHours ?? ''} placeholder="—"
+                    onChange={e => updateClient('limitHours', e.target.value ? Number(e.target.value) : null)} />
                 </div>
               </div>
             </>
