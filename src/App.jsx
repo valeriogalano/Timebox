@@ -9,7 +9,7 @@ import SettingsScreen from './screens/SettingsScreen';
 const NAV_ITEMS = [
   { id: 'weekly',    label: 'Settimana',    icon: WeekIcon     },
   { id: 'dashboard', label: 'Dashboard',    icon: ChartIcon    },
-  { id: 'clients',   label: 'Clienti',      icon: ClientsIcon  },
+  { id: 'clients',   label: 'Aree',         icon: ClientsIcon  },
   { id: 'recurring', label: 'Pianificazione', icon: RepeatIcon   },
   { id: 'settings',  label: 'Impostazioni', icon: SettingsIcon },
 ];
@@ -136,7 +136,7 @@ export default function App() {
           })}
         </nav>
 
-        {/* Footer: ore mese per cliente */}
+        {/* Footer: ore mese per area */}
         <SidebarFooter clients={clients} projects={projects} refreshKey={sidebarKey} />
       </div>
 
