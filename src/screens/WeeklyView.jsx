@@ -470,6 +470,14 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 return s + (e?.hours ?? 0);
               }, 0);
               const topBorder = pi === 0 ? '2px solid var(--tb-border)' : 'none';
+
+              const weeklyOver = project.weeklyHours > 0 && weekTotal > project.weeklyHours;
+              const weeklyWarn = project.weeklyHours > 0 && !weeklyOver && weekTotal / project.weeklyHours >= 0.8;
+              const budgetPct  = project.budgetHours > 0 ? (projectTotals[project.id] ?? 0) / project.budgetHours : null;
+              const budgetOver = budgetPct != null && budgetPct >= 1;
+              const budgetWarn = budgetPct != null && !budgetOver && budgetPct >= 0.8;
+              const alertColor = (weeklyOver || budgetOver) ? '#E05252' : (weeklyWarn || budgetWarn) ? '#E07B3A' : null;
+
               return (
                 <React.Fragment key={project.id}>
                   <div style={{
@@ -478,13 +486,28 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                     borderTop: topBorder, minHeight: 44,
                   }}>
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
-                    <div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)', lineHeight: 1.2,
                         maxWidth: 155, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {project.name}
                       </div>
-                      <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>{client.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>{client.name}</span>
+                        {project.weeklyHours > 0 && (
+                          <span style={{ fontSize: 9, color: alertColor ?? 'var(--tb-text-faint)', fontWeight: 600 }}>
+                            · {fmtH(weekTotal)}/{fmtH(project.weeklyHours)}/s
+                          </span>
+                        )}
+                        {project.budgetHours > 0 && (
+                          <span style={{ fontSize: 9, color: budgetOver ? '#E05252' : budgetWarn ? '#E07B3A' : 'var(--tb-text-faint)', fontWeight: 600 }}>
+                            · {Math.round((budgetPct ?? 0) * 100)}% bdg
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    {alertColor && (
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: alertColor, flexShrink: 0 }} />
+                    )}
                   </div>
                   {days.map((d, i) => {
                     const entry = weekEntries.find(e => e.projectId === project.id && e.date === d.dateStr);
@@ -508,7 +531,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                     borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)', borderTop: topBorder,
                     padding: '0 8px',
                   }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: weekTotal > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: alertColor ?? (weekTotal > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)') }}>
                       {weekTotal > 0 ? fmtH(weekTotal) : '—'}
                     </span>
                   </div>
