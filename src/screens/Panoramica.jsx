@@ -40,6 +40,13 @@ export default function Panoramica({ clients, projects, screen }) {
     return Math.max(1, weeks.size);
   }
 
+  // Total hours per client across all time (for global limit)
+  const clientGlobalHours = clients.reduce((acc, client) => {
+    const pids = clientPids(client);
+    acc[client.id] = pids.reduce((s, pid) => s + (projectTotals[pid] ?? 0), 0);
+    return acc;
+  }, {});
+
   const clientStats = clients.map(client => {
     const pids    = clientPids(client);
     const all     = entries.filter(e => pids.includes(e.projectId));
@@ -48,13 +55,14 @@ export default function Panoramica({ clients, projects, screen }) {
     const monthH  = all.reduce((s, e) => s + e.hours, 0);
     const weeksEl = weeksElapsedInMonth(pids);
     const avgWeekH = monthH / weeksEl;
-    return { ...client, weekH, monthH, avgWeekH, weeksEl };
+    const globalH  = clientGlobalHours[client.id] ?? 0;
+    return { ...client, weekH, monthH, avgWeekH, weeksEl, globalH };
   });
 
   const billableClients = clientStats.filter(c => c.billable && c.billing === 'hourly' && c.rate);
   const totalBillable = billableClients.reduce((s, c) => s + c.monthH * c.rate, 0);
 
-  const activeProjects = projects.filter(p => !p.archived && p.budgetHours > 0);
+  const activeProjects = projects.filter(p => !p.archived && (p.budgetHours > 0 || p.weeklyHours > 0));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -112,37 +120,71 @@ export default function Panoramica({ clients, projects, screen }) {
                   </div>
                   {cProjects.map((p, i) => {
                     const logged = projectTotals[p.id] ?? 0;
-                    const pct = Math.min(1, logged / p.budgetHours);
-                    const pctNum = Math.round(pct * 100);
-                    const alertLevel = pct >= 1 ? 3 : pct >= 0.8 ? 2 : pct >= 0.5 ? 1 : 0;
-                    const barColor = alertLevel === 3 ? '#E05252' : alertLevel === 2 ? '#E07B3A' : alertLevel === 1 ? '#E0C020' : client.color;
                     const isLast = i === cProjects.length - 1;
+
+                    // Global budget row
+                    const budgetPct = p.budgetHours > 0 ? Math.min(1, logged / p.budgetHours) : null;
+                    const budgetPctNum = budgetPct != null ? Math.round(budgetPct * 100) : null;
+                    const budgetAlert = budgetPct != null ? (budgetPct >= 1 ? 3 : budgetPct >= 0.8 ? 2 : budgetPct >= 0.5 ? 1 : 0) : 0;
+                    const budgetBarColor = budgetAlert === 3 ? '#E05252' : budgetAlert === 2 ? '#E07B3A' : budgetAlert === 1 ? '#E0C020' : client.color;
+
+                    // Weekly limit row
+                    const startOfWeek = getMondayOfWeek(getToday());
+                    const weeklyLogged = entries
+                      .filter(e => e.projectId === p.id && new Date(e.date + 'T00:00:00') >= startOfWeek)
+                      .reduce((s, e) => s + e.hours, 0);
+                    const weeklyPct = p.weeklyHours > 0 ? Math.min(1, weeklyLogged / p.weeklyHours) : null;
+                    const weeklyPctNum = weeklyPct != null ? Math.round(weeklyPct * 100) : null;
+                    const weeklyAlert = weeklyPct != null ? (weeklyPct >= 1 ? 3 : weeklyPct >= 0.8 ? 2 : weeklyPct >= 0.5 ? 1 : 0) : 0;
+                    const weeklyBarColor = weeklyAlert === 3 ? '#E05252' : weeklyAlert === 2 ? '#E07B3A' : weeklyAlert === 1 ? '#E0C020' : client.color;
+
                     return (
                       <div key={p.id} style={{
                         padding: '8px 16px 10px 28px',
                         borderBottom: isLast ? '1px solid var(--tb-border-soft)' : 'none',
+                        display: 'flex', flexDirection: 'column', gap: 6,
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                          <span style={{ fontSize: 12, color: 'var(--tb-text-primary)', flex: 1 }}>{p.name}</span>
-                          {alertLevel > 0 && (
-                            <span style={{
-                              fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 100,
-                              color: barColor, background: barColor + '18',
-                            }}>
-                              {alertLevel === 3 ? 'Esaurito' : alertLevel === 2 ? 'Attenzione' : 'Metà budget'}
-                            </span>
-                          )}
-                          <span style={{ fontSize: 11, color: 'var(--tb-text-secondary)', whiteSpace: 'nowrap' }}>
-                            {fmtH(logged)} / {fmtH(p.budgetHours)}
-                          </span>
-                          <span style={{ fontSize: 10, color: 'var(--tb-text-faint)', minWidth: 28, textAlign: 'right' }}>{pctNum}%</span>
-                        </div>
-                        <div style={{ background: client.color + '1f', borderRadius: 3, height: 4, overflow: 'hidden' }}>
-                          <div style={{
-                            height: 4, borderRadius: 3, background: barColor,
-                            width: `${pctNum}%`, transition: 'width 0.5s ease',
-                          }} />
-                        </div>
+                        <span style={{ fontSize: 12, color: 'var(--tb-text-primary)', fontWeight: 600 }}>{p.name}</span>
+
+                        {budgetPct != null && (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                              <span style={{ fontSize: 10, color: 'var(--tb-text-faint)', flex: 1 }}>Budget globale</span>
+                              {budgetAlert > 0 && (
+                                <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 100, color: budgetBarColor, background: budgetBarColor + '18' }}>
+                                  {budgetAlert === 3 ? 'Esaurito' : budgetAlert === 2 ? 'Attenzione' : 'Metà budget'}
+                                </span>
+                              )}
+                              <span style={{ fontSize: 11, color: 'var(--tb-text-secondary)', whiteSpace: 'nowrap' }}>
+                                {fmtH(logged)} / {fmtH(p.budgetHours)}
+                              </span>
+                              <span style={{ fontSize: 10, color: 'var(--tb-text-faint)', minWidth: 28, textAlign: 'right' }}>{budgetPctNum}%</span>
+                            </div>
+                            <div style={{ background: client.color + '1f', borderRadius: 3, height: 4, overflow: 'hidden' }}>
+                              <div style={{ height: 4, borderRadius: 3, background: budgetBarColor, width: `${budgetPctNum}%`, transition: 'width 0.5s ease' }} />
+                            </div>
+                          </div>
+                        )}
+
+                        {weeklyPct != null && (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                              <span style={{ fontSize: 10, color: 'var(--tb-text-faint)', flex: 1 }}>Questa settimana</span>
+                              {weeklyAlert > 0 && (
+                                <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 100, color: weeklyBarColor, background: weeklyBarColor + '18' }}>
+                                  {weeklyAlert === 3 ? 'Superato' : weeklyAlert === 2 ? 'Attenzione' : 'Al 50%'}
+                                </span>
+                              )}
+                              <span style={{ fontSize: 11, color: 'var(--tb-text-secondary)', whiteSpace: 'nowrap' }}>
+                                {fmtH(weeklyLogged)} / {fmtH(p.weeklyHours)}
+                              </span>
+                              <span style={{ fontSize: 10, color: 'var(--tb-text-faint)', minWidth: 28, textAlign: 'right' }}>{weeklyPctNum}%</span>
+                            </div>
+                            <div style={{ background: client.color + '1f', borderRadius: 3, height: 4, overflow: 'hidden' }}>
+                              <div style={{ height: 4, borderRadius: 3, background: weeklyBarColor, width: `${weeklyPctNum}%`, transition: 'width 0.5s ease' }} />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -157,8 +199,15 @@ export default function Panoramica({ clients, projects, screen }) {
 }
 
 function AreaCard({ client }) {
-  const weekPct = client.limitHours > 0 ? Math.min(100, (client.weekH / client.limitHours) * 100) : null;
-  const avgPct  = client.limitHours > 0 ? Math.min(100, (client.avgWeekH / client.limitHours) * 100) : null;
+  const isWeekly = client.limitType === 'weekly';
+  const isGlobal = client.limitType === 'global';
+  const hasLimit = client.limitHours > 0 && (isWeekly || isGlobal);
+
+  const weekPct   = isWeekly && hasLimit ? Math.min(100, (client.weekH / client.limitHours) * 100) : null;
+  const avgPct    = isWeekly && hasLimit ? Math.min(100, (client.avgWeekH / client.limitHours) * 100) : null;
+  const globalPct = isGlobal && hasLimit ? Math.min(100, (client.globalH / client.limitHours) * 100) : null;
+
+  const topPct = globalPct ?? weekPct;
 
   function alertColor(pct) {
     if (pct == null) return client.color;
@@ -171,17 +220,34 @@ function AreaCard({ client }) {
   return (
     <div style={{
       background: 'var(--tb-panel-bg)', borderRadius: 8, padding: '12px 16px',
-      border: `1px solid ${weekPct >= 100 ? '#E0525240' : weekPct >= 80 ? '#E07B3A40' : 'var(--tb-panel-border)'}`,
+      border: `1px solid ${topPct >= 100 ? '#E0525240' : topPct >= 80 ? '#E07B3A40' : 'var(--tb-panel-border)'}`,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: client.limitHours > 0 ? 10 : 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: hasLimit ? 10 : 0 }}>
         <div style={{ width: 10, height: 10, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
         <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--tb-text-primary)', flex: 1 }}>{client.name}</span>
+        {isGlobal && hasLimit && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Globale
+          </span>
+        )}
         <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>
           {client.monthH > 0 ? `${fmtH(client.monthH)} questo mese` : 'Nessuna ora'}
         </span>
       </div>
 
-      {client.limitHours > 0 && (
+      {hasLimit && isGlobal && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <BarRow
+            label={`Totale storico`}
+            hours={client.globalH}
+            limit={client.limitHours}
+            pct={globalPct}
+            color={alertColor(globalPct)}
+          />
+        </div>
+      )}
+
+      {hasLimit && isWeekly && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <BarRow
             label="Questa settimana"

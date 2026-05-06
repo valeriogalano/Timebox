@@ -21,6 +21,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const [weekEntries, setWeekEntries] = useState([]);
   const [weekOverrides, setWeekOverrides] = useState({});
   const [projectTotals, setProjectTotals] = useState({});
+  const [alertDismissed, setAlertDismissed] = useState(false);
   const [dragging, setDragging] = useState(null);
   const [dragOver, setDragOver] = useState(null);
 
@@ -38,6 +39,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     document.addEventListener('keydown', onGlobalTab);
     return () => document.removeEventListener('keydown', onGlobalTab);
   }, []);
+
+  // Reset dismiss state when week changes
+  useEffect(() => { setAlertDismissed(false); }, [weekKey]);
 
   // Load entries, overrides, and project totals when week changes
   useEffect(() => {
@@ -235,8 +239,42 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const todayBorderLeft = d => `1px solid ${d.isToday ? '#3DB33D28' : 'var(--tb-border-soft)'}`;
   const todayBg = (d, base) => d.isToday ? 'var(--tb-cell-today)' : (base || 'transparent');
 
+  // Weekly hours per project (for alert dot + banner)
+  const weekProjectHours = weekEntries.reduce((acc, e) => {
+    acc[e.projectId] = (acc[e.projectId] ?? 0) + e.hours;
+    return acc;
+  }, {});
+
+  // Projects exceeding weekly limit this week
+  const weeklyOverProjects = projects.filter(p =>
+    p.weeklyHours > 0 && (weekProjectHours[p.id] ?? 0) > p.weeklyHours
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Weekly project limit alert banner */}
+      {!alertDismissed && weeklyOverProjects.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 14px', borderRadius: 7,
+          background: '#E0525210', border: '1px solid #E0525240',
+        }}>
+          <span style={{ fontSize: 12, color: '#E05252', flex: 1 }}>
+            <strong>Limite settimanale superato:</strong>{' '}
+            {weeklyOverProjects.map(p => {
+              const h = weekProjectHours[p.id] ?? 0;
+              return `${p.name} (${fmtH(h)} / ${fmtH(p.weeklyHours)})`;
+            }).join(' · ')}
+          </span>
+          <button onClick={() => setAlertDismissed(true)}
+            style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: '#E05252', fontSize: 14, lineHeight: 1, padding: '0 2px',
+              fontFamily: "'Open Sans', sans-serif", fontWeight: 700,
+            }}>×</button>
+        </div>
+      )}
 
       {/* Week nav + summary */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -304,7 +342,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   display: 'flex',
                 }}>
                 <PlanningCell slot="am" dayIndex={i} blocks={d.amBlocks}
-                  clients={clients} projects={projects} projectTotals={projectTotals}
+                  clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
                   slotEntries={d.dayEntries.filter(e => (e.slot ?? 'am') === 'am')}
                   isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'am', cid, h)}
@@ -335,7 +373,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   display: 'flex',
                 }}>
                 <PlanningCell slot="pm" dayIndex={i} blocks={d.pmBlocks}
-                  clients={clients} projects={projects} projectTotals={projectTotals}
+                  clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
                   slotEntries={d.dayEntries.filter(e => (e.slot ?? 'pm') === 'pm')}
                   isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'pm', cid, h)}
