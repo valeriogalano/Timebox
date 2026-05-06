@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toHHMM, parseHHMM } from '../utils';
 
-export default function TimeCell({ hours, billed, isFuture, isToday, clientColor, onSave, onToggleBilled }) {
+export default function TimeCell({ hours, billed, isFuture, isToday, clientColor, colIndex, onSave, onToggleBilled }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [hover, setHover] = useState(false);
@@ -24,13 +24,29 @@ export default function TimeCell({ hours, billed, isFuture, isToday, clientColor
   function onKeyDown(e) {
     if (e.key === 'Enter') commit();
     if (e.key === 'Escape') setEditing(false);
-    if (e.key === 'Tab') { e.preventDefault(); commit(); }
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      commit();
+      const col = inputRef.current.closest('[data-timecell]')?.dataset.col;
+      const all = Array.from(document.querySelectorAll(`[data-timecell][data-col="${col}"]`));
+      const idx = all.indexOf(inputRef.current.closest('[data-timecell]'));
+      const target = all[idx + (e.shiftKey ? -1 : 1)];
+      if (target) target.click();
+    }
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      const current = parseHHMM(draft);
+      const next = Math.max(0, current + (e.key === 'ArrowUp' ? 0.25 : -0.25));
+      setDraft(next > 0 ? toHHMM(next) : '');
+    }
   }
 
   const hasHours = hours > 0;
 
   return (
     <div
+      data-timecell
+      data-col={colIndex}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{

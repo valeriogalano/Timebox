@@ -441,6 +441,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                           hours={entry?.hours ?? 0} billed={entry?.billed ?? false}
                           isFuture={d.isFuture} isToday={d.isToday}
                           clientColor={client.color}
+                          colIndex={i}
                           onSave={h => saveEntry(project.id, d.dateStr, h, entry?.slot)}
                           onToggleBilled={() => toggleBilled(project.id, d.dateStr)} />
                       </div>
