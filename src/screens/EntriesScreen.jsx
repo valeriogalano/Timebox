@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { TODAY, fmt, fmtH, parseHHMM, toHHMM } from '../utils';
+import { getToday, fmt, fmtH, parseHHMM, toHHMM } from '../utils';
 
 function defaultFrom() {
-  const d = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+  const d = new Date(getToday().getFullYear(), getToday().getMonth(), 1);
   return fmt(d);
 }
 function defaultTo() {
-  return fmt(TODAY);
+  return fmt(getToday());
 }
 
 export default function EntriesScreen({ clients, projects, onEntryChange }) {

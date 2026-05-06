@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { TODAY, MONTHS_IT, fmtH, fmt } from './utils';
+import { getToday, MONTHS_IT, fmtH, fmt } from './utils';
 import WeeklyView from './screens/WeeklyView';
 import Dashboard from './screens/Dashboard';
 import ClientsScreen from './screens/ClientsScreen';
@@ -86,7 +86,7 @@ export default function App() {
     });
   }, []);
 
-  const topbarDate = TODAY.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const topbarDate = getToday().toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
   if (loading) {
     return (
@@ -246,8 +246,8 @@ function SidebarFooter({ clients, projects, refreshKey, collapsed }) {
 
   if (collapsed) return null;
 
-  const month = MONTHS_IT[TODAY.getMonth()];
-  const year = TODAY.getFullYear();
+  const month = MONTHS_IT[getToday().getMonth()];
+  const year = getToday().getFullYear();
   const totalH = entries.reduce((s, e) => s + e.hours, 0);
 
   return (

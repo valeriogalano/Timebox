@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TODAY, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM } from '../utils';
+import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM } from '../utils';
 import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
 import TimeCell from '../components/TimeCell';
@@ -15,13 +15,28 @@ function getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, slot) {
 }
 
 export default function WeeklyView({ clients, projects, recurring, weekOffset, setWeekOffset, onEntryChange }) {
-  const monday = addDays(getMondayOfWeek(TODAY), weekOffset * 7);
+  const monday = addDays(getMondayOfWeek(getToday()), weekOffset * 7);
   const weekKey = getWeekKey(monday);
 
   const [weekEntries, setWeekEntries] = useState([]);
   const [weekOverrides, setWeekOverrides] = useState({});
   const [dragging, setDragging] = useState(null);
   const [dragOver, setDragOver] = useState(null);
+
+  useEffect(() => {
+    function onGlobalTab(e) {
+      if (e.key !== 'Tab') return;
+      if (document.activeElement?.closest('[data-timecell]')) return;
+      e.preventDefault();
+      const todayCol = document.querySelector('[data-timecell][data-today]')?.dataset.col;
+      if (todayCol == null) return;
+      const colCells = Array.from(document.querySelectorAll(`[data-timecell][data-col="${todayCol}"]`));
+      const target = e.shiftKey ? colCells[colCells.length - 1] : colCells[0];
+      if (target) { target.click(); target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+    }
+    document.addEventListener('keydown', onGlobalTab);
+    return () => document.removeEventListener('keydown', onGlobalTab);
+  }, []);
 
   // Load entries and overrides when week changes
   useEffect(() => {
@@ -165,8 +180,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const days = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(monday, i);
     const dateStr = fmt(date);
-    const isToday = dateStr === fmt(TODAY);
-    const isFuture = date > TODAY;
+    const isToday = dateStr === fmt(getToday());
+    const isFuture = date > getToday();
     const isWeekend = i >= 5;
     const dayEntries = weekEntries.filter(e => e.date === dateStr);
     const dayHours = dayEntries.reduce((s, e) => s + e.hours, 0);

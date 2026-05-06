@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { TODAY, MONTHS_IT, getMondayOfWeek, fmtH } from '../utils';
+import { getToday, MONTHS_IT, getMondayOfWeek, fmtH } from '../utils';
 
 export default function Dashboard({ clients, projects, screen }) {
   const [entries, setEntries] = useState([]);
   const [monthOffset, setMonthOffset] = useState(0);
 
-  const selectedDate = new Date(TODAY.getFullYear(), TODAY.getMonth() + monthOffset, 1);
+  const selectedDate = new Date(getToday().getFullYear(), getToday().getMonth() + monthOffset, 1);
   const selectedYear = selectedDate.getFullYear();
   const selectedMonthIdx = selectedDate.getMonth();
   const monthLabel = `${MONTHS_IT[selectedMonthIdx]} ${selectedYear}`;
@@ -18,7 +18,7 @@ export default function Dashboard({ clients, projects, screen }) {
     window.api.getEntries(from, to).then(setEntries);
   }, [screen, from, to]);
 
-  const startOfWeek  = getMondayOfWeek(TODAY);
+  const startOfWeek  = getMondayOfWeek(getToday());
   const startOfMonth = new Date(selectedYear, selectedMonthIdx, 1);
 
   const clientStats = clients.map(client => {

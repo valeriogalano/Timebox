@@ -27,11 +27,25 @@ export default function TimeCell({ hours, billed, isFuture, isToday, clientColor
     if (e.key === 'Tab') {
       e.preventDefault();
       commit();
-      const col = inputRef.current.closest('[data-timecell]')?.dataset.col;
-      const all = Array.from(document.querySelectorAll(`[data-timecell][data-col="${col}"]`));
-      const idx = all.indexOf(inputRef.current.closest('[data-timecell]'));
-      const target = all[idx + (e.shiftKey ? -1 : 1)];
-      if (target) target.click();
+      const currentCell = inputRef.current.closest('[data-timecell]');
+      const col = currentCell?.dataset.col;
+      const allCells = Array.from(document.querySelectorAll('[data-timecell]'));
+      const allCols = [...new Set(allCells.map(el => +el.dataset.col))].sort((a, b) => a - b);
+      const colCells = allCells.filter(el => el.dataset.col === col);
+      const cellIdx = colCells.indexOf(currentCell);
+      const colIdx = allCols.indexOf(+col);
+      let target;
+      if (!e.shiftKey) {
+        if (cellIdx < colCells.length - 1) target = colCells[cellIdx + 1];
+        else if (colIdx < allCols.length - 1) target = allCells.find(el => +el.dataset.col === allCols[colIdx + 1]);
+      } else {
+        if (cellIdx > 0) target = colCells[cellIdx - 1];
+        else if (colIdx > 0) {
+          const prevColCells = allCells.filter(el => +el.dataset.col === allCols[colIdx - 1]);
+          target = prevColCells[prevColCells.length - 1];
+        }
+      }
+      if (target) { target.click(); requestAnimationFrame(() => target.scrollIntoView({ behavior: 'smooth', block: 'nearest' })); }
     }
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
@@ -47,6 +61,7 @@ export default function TimeCell({ hours, billed, isFuture, isToday, clientColor
     <div
       data-timecell
       data-col={colIndex}
+      data-today={isToday ? 'true' : undefined}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{

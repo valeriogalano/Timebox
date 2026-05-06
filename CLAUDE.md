@@ -41,7 +41,7 @@ TimeBox/
   src/
     main.jsx        ← ReactDOM.createRoot
     App.jsx         ← shell: sidebar + topbar + routing + carica clients/projects/recurring
-    utils.js        ← fmtH, toHHMM, parseHHMM, date utils, TODAY, DAY_SHORT, MONTHS_IT
+    utils.js        ← fmtH, toHHMM, parseHHMM, date utils, getToday(), DAY_SHORT, MONTHS_IT
     screens/
       WeeklyView.jsx
       Dashboard.jsx
@@ -175,7 +175,7 @@ che togola e salva.
 | `getMondayOfWeek(date)` | lunedì della settimana contenente `date` (ISO: lun = 1) |
 | `addDays(date, n)` | restituisce un nuovo `Date` |
 | `fmt(date)` | `date.toISOString().slice(0,10)` → `"2026-04-27"` |
-| `TODAY` | `new Date()` con ora azzerata — calcolato **una volta** al caricamento del modulo |
+| `getToday()` | `new Date()` con ora azzerata — calcolato ad ogni chiamata, sempre aggiornato |
 
 ---
 
@@ -240,10 +240,6 @@ Non rimuovere il mock: serve per:
 ---
 
 ## Gotcha noti
-
-- **`TODAY` è immutabile a runtime**: viene calcolato al caricamento di `utils.js`.
-  Se l'app rimane aperta a cavallo della mezzanotte, la data non si aggiorna senza
-  riavvio. Comportamento intenzionale per semplicità.
 
 - **`carryover` nel DB è `INTEGER` (0/1)**, non `BOOLEAN`. `queries.js` normalizza
   in `normalizeClient()` → `boolean`. Non salvare `true/false` direttamente via SQL.
