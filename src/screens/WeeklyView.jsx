@@ -175,7 +175,20 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const plannedTotal = [...amBlocks, ...pmBlocks].reduce((s, b) => s + b.hours, 0);
     const delta = dayHours - plannedTotal;
 
-    const plannedClientIds = new Set([...amBlocks, ...pmBlocks].map(b => b.clientId));
+    const clientPlanned = {};
+    for (const b of [...amBlocks, ...pmBlocks]) {
+      clientPlanned[b.clientId] = (clientPlanned[b.clientId] || 0) + b.hours;
+    }
+    const clientLogged = {};
+    dayEntries.forEach(e => {
+      const p = projects.find(p2 => p2.id === e.projectId);
+      if (p) clientLogged[p.clientId] = (clientLogged[p.clientId] || 0) + e.hours;
+    });
+    const loggedInPlan = Object.entries(clientPlanned).reduce((s, [cid, planned]) =>
+      s + Math.min(clientLogged[cid] || 0, planned), 0);
+    const bilancioExtra = dayHours - loggedInPlan;
+
+    const plannedClientIds = new Set(Object.keys(clientPlanned));
     const extraByClient = {};
     dayEntries.forEach(e => {
       const p = projects.find(p2 => p2.id === e.projectId);
@@ -186,7 +199,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     });
     const extraBlocks = Object.entries(extraByClient).map(([clientId, hours]) => ({ clientId, hours }));
 
-    return { date, dateStr, isToday, isFuture, isWeekend, dayHours, plannedTotal, delta, amBlocks, pmBlocks, extraBlocks, dayEntries };
+    return { date, dateStr, isToday, isFuture, isWeekend, dayHours, plannedTotal, delta, loggedInPlan, bilancioExtra, amBlocks, pmBlocks, extraBlocks, dayEntries };
   });
 
   const weekPlanned = days.reduce((s, d) => s + d.plannedTotal, 0);
@@ -339,14 +352,12 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
             padding: '6px 14px', borderBottom: '2px solid var(--tb-border-mid)',
             display: 'flex', alignItems: 'center',
             fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
-          }}>Giorno</div>
+          }}>Bilancio</div>
           {days.map((d, i) => {
             if (d.isWeekend) return (
               <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border)', background: todayBg(d), opacity: 0.4 }} />
             );
             const hasData = d.plannedTotal > 0 || d.dayHours > 0;
-            const deltaPositive = d.delta > 0;
-            const deltaZero = d.delta === 0;
             return (
               <div key={i} style={{
                 borderLeft: todayBorderLeft(d), borderBottom: '2px solid var(--tb-border-mid)',
@@ -355,15 +366,15 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               }}>
                 {hasData && !d.isFuture ? (
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{toHHMM(d.dayHours) || '0:00'}</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{toHHMM(d.loggedInPlan) || '0:00'}</span>
                     {d.plannedTotal > 0 && (
                       <>
                         <span style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>/</span>
                         <span style={{ fontSize: 9, color: 'var(--tb-text-muted)', fontWeight: 600 }}>{toHHMM(d.plannedTotal)}</span>
                       </>
                     )}
-                    {d.delta > 0 && (
-                      <span style={{ fontSize: 9, fontWeight: 800, color: '#E07B3A', background: '#E07B3A18', padding: '1px 5px', borderRadius: 3 }}>+{toHHMM(d.delta)} extra</span>
+                    {d.bilancioExtra > 0 && (
+                      <span style={{ fontSize: 9, fontWeight: 800, color: '#E07B3A', background: '#E07B3A18', padding: '1px 5px', borderRadius: 3 }}>+{toHHMM(d.bilancioExtra)} extra</span>
                     )}
                   </div>
                 ) : (

@@ -109,6 +109,15 @@ function getWeekOverrides(weekKey) {
   }));
 }
 
+function getWeekOverridesRange(fromWeekKey, toWeekKey) {
+  return db.prepare(
+    'SELECT * FROM week_overrides WHERE weekKey >= ? AND weekKey <= ?'
+  ).all(fromWeekKey, toWeekKey).map(row => ({
+    ...row,
+    blocks: JSON.parse(row.blocksJson),
+  }));
+}
+
 function saveWeekOverride(override) {
   const id = `${override.weekKey}-${override.dayIndex}-${override.slot}`;
   db.prepare(`
@@ -195,6 +204,6 @@ module.exports = {
   getProjects, saveProject, deleteProject,
   getRecurring, saveRecurring, deleteRecurring,
   getEntries, saveEntry, deleteEntry,
-  getWeekOverrides, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,
+  getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,
   resetAllData, seedDemoData,
 };
