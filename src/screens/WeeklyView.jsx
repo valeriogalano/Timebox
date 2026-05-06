@@ -491,22 +491,15 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                         maxWidth: 155, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {project.name}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>{client.name}</span>
-                        {project.weeklyHours > 0 && (
-                          <span style={{ fontSize: 9, color: alertColor ?? 'var(--tb-text-faint)', fontWeight: 600 }}>
-                            · {fmtH(weekTotal)}/{fmtH(project.weeklyHours)}/s
-                          </span>
-                        )}
-                        {project.budgetHours > 0 && (
-                          <span style={{ fontSize: 9, color: budgetOver ? '#E05252' : budgetWarn ? '#E07B3A' : 'var(--tb-text-faint)', fontWeight: 600 }}>
-                            · {Math.round((budgetPct ?? 0) * 100)}% bdg
-                          </span>
-                        )}
-                      </div>
+                      <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>{client.name}</div>
                     </div>
                     {alertColor && (
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: alertColor, flexShrink: 0 }} />
+                      <div style={{
+                        width: 0, height: 0, flexShrink: 0,
+                        borderLeft: '5px solid transparent',
+                        borderRight: '5px solid transparent',
+                        borderBottom: `9px solid ${alertColor}`,
+                      }} />
                     )}
                   </div>
                   {days.map((d, i) => {
