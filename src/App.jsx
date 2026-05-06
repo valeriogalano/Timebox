@@ -278,6 +278,9 @@ function SidebarFooter({ clients, projects, refreshKey, collapsed }) {
           );
         })}
       </div>
+      <div style={{ marginTop: 10, fontSize: 9, color: 'var(--tb-sidebar-faint)', letterSpacing: '0.05em' }}>
+        v{__APP_VERSION__}
+      </div>
     </div>
   );
 }
