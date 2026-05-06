@@ -1,10 +1,10 @@
 const Database = require('better-sqlite3');
 
 const INIT_CLIENTS = [
-  { id: 'c1', name: 'Acme Corp',    color: '#3B82F6', billing: 'hourly', rate: 85,   limitType: 'weekly',  limitHours: 20, billable: 1, position: 0 },
-  { id: 'c2', name: 'The Blog',     color: '#F97316', billing: 'fixed',  rate: null, limitType: 'monthly', limitHours: 40, billable: 1, position: 1 },
-  { id: 'c3', name: 'GreenTech SA', color: '#06B6D4', billing: 'hourly', rate: 70,   limitType: 'monthly', limitHours: 60, billable: 1, position: 2 },
-  { id: 'c4', name: 'Studio Nova',  color: '#8B5CF6', billing: 'hourly', rate: 120,  limitType: 'weekly',  limitHours: 10, billable: 1, position: 3 },
+  { id: 'c1', name: 'Acme Corp',    color: '#3B82F6', billing: 'hourly', rate: 85,   limitHours: 20, billable: 1, position: 0 },
+  { id: 'c2', name: 'The Blog',     color: '#F97316', billing: 'fixed',  rate: null, limitHours: 10, billable: 1, position: 1 },
+  { id: 'c3', name: 'GreenTech SA', color: '#06B6D4', billing: 'hourly', rate: 70,   limitHours: 15, billable: 1, position: 2 },
+  { id: 'c4', name: 'Studio Nova',  color: '#8B5CF6', billing: 'hourly', rate: 120,  limitHours: 10, billable: 1, position: 3 },
 ];
 
 const INIT_PROJECTS = [

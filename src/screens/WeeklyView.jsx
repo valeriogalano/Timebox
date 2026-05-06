@@ -20,6 +20,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   const [weekEntries, setWeekEntries] = useState([]);
   const [weekOverrides, setWeekOverrides] = useState({});
+  const [projectTotals, setProjectTotals] = useState({});
   const [dragging, setDragging] = useState(null);
   const [dragOver, setDragOver] = useState(null);
 
@@ -38,8 +39,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     return () => document.removeEventListener('keydown', onGlobalTab);
   }, []);
 
-  // Load entries and overrides when week changes
+  // Load entries, overrides, and project totals when week changes
   useEffect(() => {
+    window.api.getProjectTotals().then(setProjectTotals);
     const sunday = addDays(monday, 6);
     window.api.getEntries(fmt(monday), fmt(sunday)).then(setWeekEntries);
     window.api.getWeekOverrides(weekKey).then(rows => {
@@ -162,6 +164,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           : [...prev, entry]
       );
       await window.api.saveEntry(entry);
+      window.api.getProjectTotals().then(setProjectTotals);
     }
     onEntryChange?.();
   }
@@ -301,7 +304,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   display: 'flex',
                 }}>
                 <PlanningCell slot="am" dayIndex={i} blocks={d.amBlocks}
-                  clients={clients} projects={projects}
+                  clients={clients} projects={projects} projectTotals={projectTotals}
                   slotEntries={d.dayEntries.filter(e => (e.slot ?? 'am') === 'am')}
                   isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'am', cid, h)}
@@ -332,7 +335,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   display: 'flex',
                 }}>
                 <PlanningCell slot="pm" dayIndex={i} blocks={d.pmBlocks}
-                  clients={clients} projects={projects}
+                  clients={clients} projects={projects} projectTotals={projectTotals}
                   slotEntries={d.dayEntries.filter(e => (e.slot ?? 'pm') === 'pm')}
                   isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'pm', cid, h)}

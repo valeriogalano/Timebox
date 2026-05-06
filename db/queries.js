@@ -13,13 +13,12 @@ function getClients() {
 
 function saveClient(client) {
   db.prepare(`
-    INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position)
-    VALUES (@id,@name,@color,@billable,@billing,@rate,@limitType,@limitHours,@position)
+    INSERT INTO clients (id,name,color,billable,billing,rate,limitHours,position)
+    VALUES (@id,@name,@color,@billable,@billing,@rate,@limitHours,@position)
     ON CONFLICT(id) DO UPDATE SET
       name=excluded.name, color=excluded.color, billable=excluded.billable,
       billing=excluded.billing, rate=excluded.rate,
-      limitType=excluded.limitType, limitHours=excluded.limitHours,
-      position=excluded.position
+      limitHours=excluded.limitHours, position=excluded.position
   `).run({ position: 0, ...client, billable: client.billable ? 1 : 0 });
 }
 
@@ -75,6 +74,12 @@ function deleteRecurring(id) {
 }
 
 // ── Entries ────────────────────────────────────────────────────────────────────
+function getProjectTotals() {
+  return db.prepare(
+    'SELECT projectId, SUM(hours) as totalHours FROM entries GROUP BY projectId'
+  ).all().reduce((acc, row) => { acc[row.projectId] = row.totalHours; return acc; }, {});
+}
+
 function getEntries(dateFrom, dateTo) {
   return db.prepare(
     'SELECT * FROM entries WHERE date BETWEEN ? AND ? ORDER BY date'
@@ -181,14 +186,14 @@ function resetAllData() {
 
 function seedDemoData() {
   resetAllData();
-  const insertClient   = db.prepare('INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours) VALUES (?,?,?,?,?,?,?,?)');
+  const insertClient   = db.prepare('INSERT INTO clients (id,name,color,billable,billing,rate,limitHours,position) VALUES (?,?,?,?,?,?,?,?)');
   const insertProject  = db.prepare('INSERT INTO projects (id,clientId,name,budgetHours,position) VALUES (?,?,?,?,?)');
   const insertRecurring = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours,position) VALUES (?,?,?,?,?,?)');
   const insertEntry    = db.prepare('INSERT INTO entries (id,projectId,date,hours,slot,billed) VALUES (?,?,?,?,?,?)');
 
   db.transaction(() => {
     for (const c of INIT_CLIENTS)
-      insertClient.run(c.id, c.name, c.color, c.billable ?? 1, c.billing, c.rate, c.limitType, c.limitHours, c.position ?? 0);
+      insertClient.run(c.id, c.name, c.color, c.billable ?? 1, c.billing, c.rate, c.limitHours, c.position ?? 0);
     for (const p of INIT_PROJECTS)
       insertProject.run(p.id, p.clientId, p.name, p.budgetHours, p.position ?? 0);
     for (const r of INIT_RECURRING)
@@ -203,7 +208,7 @@ module.exports = {
   getClients, saveClient, deleteClient,
   getProjects, saveProject, deleteProject,
   getRecurring, saveRecurring, deleteRecurring,
-  getEntries, saveEntry, deleteEntry,
+  getEntries, getProjectTotals, saveEntry, deleteEntry,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,
   resetAllData, seedDemoData,
 };

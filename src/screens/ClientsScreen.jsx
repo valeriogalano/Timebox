@@ -106,7 +106,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
     const id = crypto.randomUUID();
     const newClient = {
       id, name: 'Nuova area', color: COLORS[clients.length % COLORS.length],
-      billable: false, billing: 'hourly', rate: null, limitType: 'monthly', limitHours: null,
+      billable: false, billing: 'hourly', rate: null, limitHours: null,
       position: maxPos + 1,
     };
     window.api.saveClient(newClient);
@@ -270,7 +270,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>
                     {c.billable
-                      ? `${c.billing === 'hourly' ? 'A ore' : 'Fisso'} · ${c.limitHours ? `${c.limitHours}h/${c.limitType === 'weekly' ? 'sett' : 'mese'}` : 'no limite'}`
+                      ? `${c.billing === 'hourly' ? 'A ore' : 'Fisso'} · ${c.limitHours ? `${c.limitHours}h/sett` : 'no limite'}`
                       : 'non fatturabile'}
                   </div>
                 </div>
@@ -375,23 +375,6 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                     disabled={sel.billing !== 'hourly'} />
                 </div>
 
-                <div>
-                  <label style={formLabel}>Periodo limite</label>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {['weekly', 'monthly'].map(t => (
-                      <button key={t} onClick={() => updateClient('limitType', t)}
-                        style={{
-                          flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
-                          border: sel.limitType === t ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
-                          background: sel.limitType === t ? sel.color + '15' : 'transparent',
-                          color: sel.limitType === t ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
-                          fontFamily: "'Open Sans', sans-serif",
-                        }}>
-                        {t === 'weekly' ? 'Settimana' : 'Mese'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
                 <div>
                   <label style={formLabel}>Limite ore</label>

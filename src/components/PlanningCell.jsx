@@ -20,9 +20,17 @@ function PlanningBlock({
   isFuture, editable, isDragging,
   editing, editDraft, setEditDraft, editRef, commitEdit, onStartEdit, onCancelEdit,
   onRemove, onDragStart,
+  projects, projectTotals,
 }) {
   const [hover, setHover] = useState(false);
   const complete = !overflow && logged >= block.hours && block.hours > 0;
+
+  const clientProjects = (projects || []).filter(p => p.clientId === block.clientId && p.budgetHours > 0 && !p.archived);
+  const budgetAlertLevel = clientProjects.reduce((maxLevel, p) => {
+    const pct = ((projectTotals || {})[p.id] ?? 0) / p.budgetHours;
+    const level = pct >= 1 ? 3 : pct >= 0.8 ? 2 : pct >= 0.5 ? 1 : 0;
+    return Math.max(maxLevel, level);
+  }, 0);
   const partial  = !overflow && !complete && logged > 0;
 
   const barColor = overflow ? '#E05252' : cl.color;
@@ -51,13 +59,22 @@ function PlanningBlock({
         flexShrink: 0,
       }}
     >
-      {/* Header: client name only */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', minWidth: 0 }}>
+      {/* Header: client name + budget alert dot */}
+      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: 3 }}>
         <span style={{
           fontSize: 10, fontWeight: 700, color: cl.color,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           letterSpacing: '0.01em', flex: 1, minWidth: 0,
         }}>{cl.name}</span>
+        {budgetAlertLevel > 0 && (
+          <div
+            title={budgetAlertLevel === 3 ? 'Budget esaurito' : budgetAlertLevel === 2 ? 'Budget all\'80%+' : 'Budget al 50%+'}
+            style={{
+              width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+              background: budgetAlertLevel === 3 ? '#E05252' : budgetAlertLevel === 2 ? '#E07B3A' : '#E0C020',
+            }}
+          />
+        )}
       </div>
 
       {/* Done/planned readout + delta */}
@@ -152,7 +169,7 @@ function PlanningBlock({
 }
 
 export default function PlanningCell({
-  slot, dayIndex, blocks, clients, projects, slotEntries,
+  slot, dayIndex, blocks, clients, projects, projectTotals, slotEntries,
   isToday, isFuture, isWeekend, editable,
   onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onReorder, draggingId,
 }) {
@@ -286,6 +303,7 @@ export default function PlanningCell({
                 e.dataTransfer.setData('text/plain', block.id);
                 onDragStart && onDragStart(block.id, block.clientId, block.hours);
               }}
+              projects={projects} projectTotals={projectTotals}
             />
           </div>
         </React.Fragment>
