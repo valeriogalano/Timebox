@@ -235,7 +235,25 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     ...c, projects: projects.filter(p => p.clientId === c.id && !p.archived),
   })).filter(c => c.projects.length > 0);
 
-  const COL = '200px repeat(7, 1fr) 72px';
+  // Weekly summaries per client (unified AM + PM + Extra)
+  const weekTotalSummary = {};
+
+  days.forEach(d => {
+    // Planned: AM + PM blocks
+    [...d.amBlocks, ...d.pmBlocks].forEach(b => {
+      if (!weekTotalSummary[b.clientId]) weekTotalSummary[b.clientId] = { planned: 0, actual: 0 };
+      weekTotalSummary[b.clientId].planned += b.hours;
+    });
+    // Actual: All entries (planned + extra)
+    d.dayEntries.forEach(e => {
+      const p = projects.find(p2 => p2.id === e.projectId);
+      if (!p) return;
+      if (!weekTotalSummary[p.clientId]) weekTotalSummary[p.clientId] = { planned: 0, actual: 0 };
+      weekTotalSummary[p.clientId].actual += e.hours;
+    });
+  });
+
+  const COL = '200px repeat(7, 1fr) 85px';
   const todayBorderLeft = d => `1px solid ${d.isToday ? '#3DB33D28' : 'var(--tb-border-soft)'}`;
   const todayBg = (d, base) => d.isToday ? 'var(--tb-cell-today)' : (base || 'transparent');
 
@@ -323,7 +341,11 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               {d.isToday && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3DB33D', margin: '3px auto 0' }} />}
             </div>
           ))}
-          <div style={{ background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)', borderLeft: '1px solid var(--tb-border-mid)' }} />
+          <div style={{
+            background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)', borderLeft: '1px solid var(--tb-border-mid)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
+          }}>Tot</div>
 
           {/* AM row */}
           <GridLabel border>Mattina</GridLabel>
@@ -354,7 +376,12 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               </div>
             );
           })}
-          <div style={{ borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)' }} />
+          <div style={{
+            borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)',
+            background: 'var(--tb-panel-bg-soft)', gridRow: 'span 3',
+          }}>
+            <SlotSummary summary={weekTotalSummary} clients={clients} />
+          </div>
 
           {/* PM row */}
           <GridLabel border>Pomeriggio</GridLabel>
@@ -385,7 +412,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               </div>
             );
           })}
-          <div style={{ borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)' }} />
 
           {/* Extra row */}
           <div style={{
@@ -401,7 +427,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               <ExtraCell blocks={d.extraBlocks} clients={clients} isToday={d.isToday} />
             </div>
           ))}
-          <div style={{ borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)' }} />
 
           {/* Day summary row */}
           <div style={{
@@ -608,6 +633,43 @@ function Pill({ label, value, color }) {
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
         color: 'var(--tb-text-faint)', marginBottom: 2 }}>{label}</div>
       <div style={{ fontSize: 15, fontWeight: 800, color }}>{value}</div>
+    </div>
+  );
+}
+
+function SlotSummary({ summary, clients }) {
+  const items = Object.entries(summary)
+    .filter(([_, data]) => (data.planned || 0) > 0 || (data.actual || 0) > 0)
+    .sort((a, b) => (b[1].planned || 0) - (a[1].planned || 0) || (b[1].actual || 0) - (a[1].actual || 0));
+
+  if (items.length === 0) return null;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '10px 6px' }}>
+      {items.map(([clientId, data]) => {
+        const cl = clients.find(c => c.id === clientId);
+        if (!cl) return null;
+        const planned = data.planned || 0;
+        const actual = data.actual || 0;
+        return (
+          <div key={clientId} style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+            <div style={{ fontSize: 8, fontWeight: 700, color: cl.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 77 }}>
+              {cl.name}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
+              {data.planned !== undefined ? (
+                <>
+                  <span style={{ color: actual > planned ? '#E05252' : 'inherit' }}>{toHHMM(actual) || '0:00'}</span>
+                  <span style={{ color: 'var(--tb-text-faint)', fontWeight: 400, margin: '0 1px' }}>/</span>
+                  <span style={{ color: 'var(--tb-text-muted)', fontWeight: 600 }}>{toHHMM(planned)}</span>
+                </>
+              ) : (
+                <span style={{ color: '#E07B3A' }}>{toHHMM(actual)}</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
