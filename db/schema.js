@@ -1,19 +1,19 @@
 const Database = require('better-sqlite3');
 
 const INIT_CLIENTS = [
-  { id: 'c1', name: 'Acme Corp',    color: '#3B82F6', billing: 'hourly', rate: 85,   limitType: 'weekly',  limitHours: 20, billable: 1, position: 0 },
-  { id: 'c2', name: 'The Blog',     color: '#F97316', billing: 'fixed',  rate: null, limitType: 'monthly', limitHours: 40, billable: 1, position: 1 },
-  { id: 'c3', name: 'GreenTech SA', color: '#06B6D4', billing: 'hourly', rate: 70,   limitType: 'monthly', limitHours: 60, billable: 1, position: 2 },
-  { id: 'c4', name: 'Studio Nova',  color: '#8B5CF6', billing: 'hourly', rate: 120,  limitType: 'weekly',  limitHours: 10, billable: 1, position: 3 },
+  { id: 'c1', name: 'Acme Corp',    color: '#3B82F6', billing: 'hourly', rate: 85,   limitType: 'weekly', limitHours: 20, billable: 1, position: 0 },
+  { id: 'c2', name: 'The Blog',     color: '#F97316', billing: 'fixed',  rate: null, limitType: 'weekly', limitHours: 10, billable: 1, position: 1 },
+  { id: 'c3', name: 'GreenTech SA', color: '#06B6D4', billing: 'hourly', rate: 70,   limitType: 'global', limitHours: 200, billable: 1, position: 2 },
+  { id: 'c4', name: 'Studio Nova',  color: '#8B5CF6', billing: 'hourly', rate: 120,  limitType: 'global', limitHours: 80,  billable: 1, position: 3 },
 ];
 
 const INIT_PROJECTS = [
-  { id: 'p1', clientId: 'c1', name: 'Website Redesign',  budgetHours: 80,   position: 0 },
-  { id: 'p2', clientId: 'c1', name: 'API Integration',   budgetHours: 40,   position: 1 },
-  { id: 'p3', clientId: 'c2', name: 'Monthly Articles',  budgetHours: null, position: 0 },
-  { id: 'p4', clientId: 'c3', name: 'Dashboard MVP',     budgetHours: 120,  position: 0 },
-  { id: 'p5', clientId: 'c3', name: 'Mobile App',        budgetHours: 60,   position: 1 },
-  { id: 'p6', clientId: 'c4', name: 'Brand Identity',    budgetHours: 30,   position: 0 },
+  { id: 'p1', clientId: 'c1', name: 'Website Redesign',  budgetHours: 80,   weeklyHours: 10,  position: 0 },
+  { id: 'p2', clientId: 'c1', name: 'API Integration',   budgetHours: 40,   weeklyHours: null, position: 1 },
+  { id: 'p3', clientId: 'c2', name: 'Monthly Articles',  budgetHours: null, weeklyHours: 5,   position: 0 },
+  { id: 'p4', clientId: 'c3', name: 'Dashboard MVP',     budgetHours: 120,  weeklyHours: null, position: 0 },
+  { id: 'p5', clientId: 'c3', name: 'Mobile App',        budgetHours: 60,   weeklyHours: null, position: 1 },
+  { id: 'p6', clientId: 'c4', name: 'Brand Identity',    budgetHours: 30,   weeklyHours: null, position: 0 },
 ];
 
 const INIT_RECURRING = [
@@ -138,6 +138,7 @@ function initDb(dbPath) {
     projectRows.forEach((row, i) => db.prepare('UPDATE projects SET position=? WHERE id=?').run(i, row.id));
   } catch (_) {}
   try { db.exec('ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0'); } catch (_) {}
+  try { db.exec('ALTER TABLE projects ADD COLUMN weeklyHours REAL'); } catch (_) {}
 
   return db;
 }

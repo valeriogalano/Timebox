@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getToday, MONTHS_IT, fmtH, fmt } from './utils';
 import WeeklyView from './screens/WeeklyView';
-import Dashboard from './screens/Dashboard';
+import Panoramica from './screens/Panoramica';
+import BillingScreen from './screens/BillingScreen';
 import ClientsScreen from './screens/ClientsScreen';
 import RecurringScreen from './screens/RecurringScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import EntriesScreen from './screens/EntriesScreen';
 
 const NAV_ITEMS = [
-  { id: 'weekly',    label: 'Settimana',    icon: WeekIcon     },
-  { id: 'dashboard', label: 'Dashboard',    icon: ChartIcon    },
-  { id: 'clients',   label: 'Aree',         icon: ClientsIcon  },
-  { id: 'recurring', label: 'Pianificazione', icon: RepeatIcon   },
-  { id: 'entries',   label: 'Registrazioni',         icon: ListIcon     },
-  { id: 'settings',  label: 'Impostazioni', icon: SettingsIcon },
+  { id: 'weekly',     label: 'Settimana',      icon: WeekIcon      },
+  { id: 'panoramica', label: 'Panoramica',      icon: ChartIcon     },
+  { id: 'billing',    label: 'Billing',         icon: BillingIcon   },
+  { id: 'clients',    label: 'Aree',            icon: ClientsIcon   },
+  { id: 'recurring',  label: 'Pianificazione',  icon: RepeatIcon    },
+  { id: 'entries',    label: 'Registrazioni',   icon: ListIcon      },
+  { id: 'settings',   label: 'Impostazioni',    icon: SettingsIcon  },
 ];
 
 function WeekIcon()     { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="3" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M1 6h13" stroke="currentColor" strokeWidth="1.4"/><path d="M5 1v2M10 1v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
@@ -22,6 +24,7 @@ function ClientsIcon()  { return <svg width="15" height="15" viewBox="0 0 15 15"
 function RepeatIcon()   { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="1" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 5h13M1 9h13" stroke="currentColor" strokeWidth="1.2"/><path d="M5 5v9M10 5v9" stroke="currentColor" strokeWidth="1.2"/></svg>; }
 function SettingsIcon() { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 1v1.5M7.5 12.5V14M14 7.5h-1.5M2.5 7.5H1M11.7 3.3l-1.1 1.1M4.4 10.6l-1.1 1.1M11.7 11.7l-1.1-1.1M4.4 4.4 3.3 3.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function ListIcon()     { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M3 4h9M3 7.5h9M3 11h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
+function BillingIcon()  { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="2" width="13" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 5.5h13" stroke="currentColor" strokeWidth="1.2"/><path d="M4 9h2M9 9h2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function CollapseIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function ExpandIcon()   { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 
@@ -210,8 +213,11 @@ export default function App() {
               weekOffset={weekOffset} setWeekOffset={setWeekOffset}
               onEntryChange={refreshSidebar} />
           )}
-          {screen === 'dashboard' && (
-            <Dashboard clients={clients} projects={projects} screen={screen} />
+          {screen === 'panoramica' && (
+            <Panoramica clients={clients} projects={projects} screen={screen} />
+          )}
+          {screen === 'billing' && (
+            <BillingScreen clients={clients} projects={projects} screen={screen} />
           )}
           {screen === 'clients' && (
             <ClientsScreen

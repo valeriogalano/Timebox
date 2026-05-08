@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('api', {
   deleteRecurring:    (id)         => ipcRenderer.invoke('db:deleteRecurring', id),
 
   getEntries:         (from, to)   => ipcRenderer.invoke('db:getEntries', from, to),
+  getProjectTotals:   ()           => ipcRenderer.invoke('db:getProjectTotals'),
   saveEntry:          (e)          => ipcRenderer.invoke('db:saveEntry', e),
   deleteEntry:        (id)         => ipcRenderer.invoke('db:deleteEntry', id),
 

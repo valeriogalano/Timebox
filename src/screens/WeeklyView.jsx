@@ -20,6 +20,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   const [weekEntries, setWeekEntries] = useState([]);
   const [weekOverrides, setWeekOverrides] = useState({});
+  const [projectTotals, setProjectTotals] = useState({});
+  const [alertDismissed, setAlertDismissed] = useState(false);
   const [dragging, setDragging] = useState(null);
   const [dragOver, setDragOver] = useState(null);
 
@@ -38,8 +40,12 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     return () => document.removeEventListener('keydown', onGlobalTab);
   }, []);
 
-  // Load entries and overrides when week changes
+  // Reset dismiss state when week changes
+  useEffect(() => { setAlertDismissed(false); }, [weekKey]);
+
+  // Load entries, overrides, and project totals when week changes
   useEffect(() => {
+    window.api.getProjectTotals().then(setProjectTotals);
     const sunday = addDays(monday, 6);
     window.api.getEntries(fmt(monday), fmt(sunday)).then(setWeekEntries);
     window.api.getWeekOverrides(weekKey).then(rows => {
@@ -162,6 +168,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           : [...prev, entry]
       );
       await window.api.saveEntry(entry);
+      window.api.getProjectTotals().then(setProjectTotals);
     }
     onEntryChange?.();
   }
@@ -228,12 +235,64 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     ...c, projects: projects.filter(p => p.clientId === c.id && !p.archived),
   })).filter(c => c.projects.length > 0);
 
-  const COL = '200px repeat(7, 1fr) 72px';
+  // Weekly summaries per client (unified AM + PM + Extra)
+  const weekTotalSummary = {};
+
+  days.forEach(d => {
+    // Planned: AM + PM blocks
+    [...d.amBlocks, ...d.pmBlocks].forEach(b => {
+      if (!weekTotalSummary[b.clientId]) weekTotalSummary[b.clientId] = { planned: 0, actual: 0 };
+      weekTotalSummary[b.clientId].planned += b.hours;
+    });
+    // Actual: All entries (planned + extra)
+    d.dayEntries.forEach(e => {
+      const p = projects.find(p2 => p2.id === e.projectId);
+      if (!p) return;
+      if (!weekTotalSummary[p.clientId]) weekTotalSummary[p.clientId] = { planned: 0, actual: 0 };
+      weekTotalSummary[p.clientId].actual += e.hours;
+    });
+  });
+
+  const COL = '200px repeat(7, 1fr) 85px';
   const todayBorderLeft = d => `1px solid ${d.isToday ? '#3DB33D28' : 'var(--tb-border-soft)'}`;
   const todayBg = (d, base) => d.isToday ? 'var(--tb-cell-today)' : (base || 'transparent');
 
+  // Weekly hours per project (for alert dot + banner)
+  const weekProjectHours = weekEntries.reduce((acc, e) => {
+    acc[e.projectId] = (acc[e.projectId] ?? 0) + e.hours;
+    return acc;
+  }, {});
+
+  // Projects exceeding weekly limit this week
+  const weeklyOverProjects = projects.filter(p =>
+    p.weeklyHours > 0 && (weekProjectHours[p.id] ?? 0) > p.weeklyHours
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Weekly project limit alert banner */}
+      {!alertDismissed && weeklyOverProjects.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 14px', borderRadius: 7,
+          background: '#E0525210', border: '1px solid #E0525240',
+        }}>
+          <span style={{ fontSize: 12, color: '#E05252', flex: 1 }}>
+            <strong>Limite settimanale superato:</strong>{' '}
+            {weeklyOverProjects.map(p => {
+              const h = weekProjectHours[p.id] ?? 0;
+              return `${p.name} (${fmtH(h)} / ${fmtH(p.weeklyHours)})`;
+            }).join(' · ')}
+          </span>
+          <button onClick={() => setAlertDismissed(true)}
+            style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: '#E05252', fontSize: 14, lineHeight: 1, padding: '0 2px',
+              fontFamily: "'Open Sans', sans-serif", fontWeight: 700,
+            }}>×</button>
+        </div>
+      )}
 
       {/* Week nav + summary */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -282,7 +341,11 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               {d.isToday && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3DB33D', margin: '3px auto 0' }} />}
             </div>
           ))}
-          <div style={{ background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)', borderLeft: '1px solid var(--tb-border-mid)' }} />
+          <div style={{
+            background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)', borderLeft: '1px solid var(--tb-border-mid)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
+          }}>Tot</div>
 
           {/* AM row */}
           <GridLabel border>Mattina</GridLabel>
@@ -301,7 +364,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   display: 'flex',
                 }}>
                 <PlanningCell slot="am" dayIndex={i} blocks={d.amBlocks}
-                  clients={clients} projects={projects}
+                  clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
                   slotEntries={d.dayEntries.filter(e => (e.slot ?? 'am') === 'am')}
                   isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'am', cid, h)}
@@ -313,7 +376,12 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               </div>
             );
           })}
-          <div style={{ borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)' }} />
+          <div style={{
+            borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)',
+            background: 'var(--tb-panel-bg-soft)', gridRow: 'span 3',
+          }}>
+            <SlotSummary summary={weekTotalSummary} clients={clients} />
+          </div>
 
           {/* PM row */}
           <GridLabel border>Pomeriggio</GridLabel>
@@ -332,7 +400,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   display: 'flex',
                 }}>
                 <PlanningCell slot="pm" dayIndex={i} blocks={d.pmBlocks}
-                  clients={clients} projects={projects}
+                  clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
                   slotEntries={d.dayEntries.filter(e => (e.slot ?? 'pm') === 'pm')}
                   isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'pm', cid, h)}
@@ -344,7 +412,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               </div>
             );
           })}
-          <div style={{ borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)' }} />
 
           {/* Extra row */}
           <div style={{
@@ -360,7 +427,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               <ExtraCell blocks={d.extraBlocks} clients={clients} isToday={d.isToday} />
             </div>
           ))}
-          <div style={{ borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)' }} />
 
           {/* Day summary row */}
           <div style={{
@@ -429,6 +495,14 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 return s + (e?.hours ?? 0);
               }, 0);
               const topBorder = pi === 0 ? '2px solid var(--tb-border)' : 'none';
+
+              const weeklyOver = project.weeklyHours > 0 && weekTotal > project.weeklyHours;
+              const weeklyWarn = project.weeklyHours > 0 && !weeklyOver && weekTotal / project.weeklyHours >= 0.8;
+              const budgetPct  = project.budgetHours > 0 ? (projectTotals[project.id] ?? 0) / project.budgetHours : null;
+              const budgetOver = budgetPct != null && budgetPct >= 1;
+              const budgetWarn = budgetPct != null && !budgetOver && budgetPct >= 0.8;
+              const alertColor = (weeklyOver || budgetOver) ? '#E05252' : (weeklyWarn || budgetWarn) ? '#E07B3A' : null;
+
               return (
                 <React.Fragment key={project.id}>
                   <div style={{
@@ -437,13 +511,21 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                     borderTop: topBorder, minHeight: 44,
                   }}>
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
-                    <div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)', lineHeight: 1.2,
                         maxWidth: 155, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {project.name}
                       </div>
                       <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>{client.name}</div>
                     </div>
+                    {alertColor && (
+                      <div style={{
+                        width: 0, height: 0, flexShrink: 0,
+                        borderLeft: '5px solid transparent',
+                        borderRight: '5px solid transparent',
+                        borderBottom: `9px solid ${alertColor}`,
+                      }} />
+                    )}
                   </div>
                   {days.map((d, i) => {
                     const entry = weekEntries.find(e => e.projectId === project.id && e.date === d.dateStr);
@@ -467,7 +549,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                     borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)', borderTop: topBorder,
                     padding: '0 8px',
                   }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: weekTotal > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: alertColor ?? (weekTotal > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)') }}>
                       {weekTotal > 0 ? fmtH(weekTotal) : '—'}
                     </span>
                   </div>
@@ -551,6 +633,43 @@ function Pill({ label, value, color }) {
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
         color: 'var(--tb-text-faint)', marginBottom: 2 }}>{label}</div>
       <div style={{ fontSize: 15, fontWeight: 800, color }}>{value}</div>
+    </div>
+  );
+}
+
+function SlotSummary({ summary, clients }) {
+  const items = Object.entries(summary)
+    .filter(([_, data]) => (data.planned || 0) > 0 || (data.actual || 0) > 0)
+    .sort((a, b) => (b[1].planned || 0) - (a[1].planned || 0) || (b[1].actual || 0) - (a[1].actual || 0));
+
+  if (items.length === 0) return null;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '10px 6px' }}>
+      {items.map(([clientId, data]) => {
+        const cl = clients.find(c => c.id === clientId);
+        if (!cl) return null;
+        const planned = data.planned || 0;
+        const actual = data.actual || 0;
+        return (
+          <div key={clientId} style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+            <div style={{ fontSize: 8, fontWeight: 700, color: cl.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 77 }}>
+              {cl.name}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
+              {data.planned !== undefined ? (
+                <>
+                  <span style={{ color: actual > planned ? '#E05252' : 'inherit' }}>{toHHMM(actual) || '0:00'}</span>
+                  <span style={{ color: 'var(--tb-text-faint)', fontWeight: 400, margin: '0 1px' }}>/</span>
+                  <span style={{ color: 'var(--tb-text-muted)', fontWeight: 600 }}>{toHHMM(planned)}</span>
+                </>
+              ) : (
+                <span style={{ color: '#E07B3A' }}>{toHHMM(actual)}</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

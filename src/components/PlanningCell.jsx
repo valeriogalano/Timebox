@@ -20,9 +20,26 @@ function PlanningBlock({
   isFuture, editable, isDragging,
   editing, editDraft, setEditDraft, editRef, commitEdit, onStartEdit, onCancelEdit,
   onRemove, onDragStart,
+  projects, projectTotals, weekProjectHours,
 }) {
   const [hover, setHover] = useState(false);
   const complete = !overflow && logged >= block.hours && block.hours > 0;
+
+  const clientProjects = (projects || []).filter(p => p.clientId === block.clientId && !p.archived);
+
+  const budgetAlertLevel = clientProjects.reduce((maxLevel, p) => {
+    if (!p.budgetHours) return maxLevel;
+    const pct = ((projectTotals || {})[p.id] ?? 0) / p.budgetHours;
+    return Math.max(maxLevel, pct >= 1 ? 3 : pct >= 0.8 ? 2 : pct >= 0.5 ? 1 : 0);
+  }, 0);
+
+  const weeklyAlertLevel = clientProjects.reduce((maxLevel, p) => {
+    if (!p.weeklyHours) return maxLevel;
+    const pct = ((weekProjectHours || {})[p.id] ?? 0) / p.weeklyHours;
+    return Math.max(maxLevel, pct >= 1 ? 3 : pct >= 0.8 ? 2 : pct >= 0.5 ? 1 : 0);
+  }, 0);
+
+  const budgetAlertLevel_combined = Math.max(budgetAlertLevel, weeklyAlertLevel);
   const partial  = !overflow && !complete && logged > 0;
 
   const barColor = overflow ? '#E05252' : cl.color;
@@ -51,13 +68,22 @@ function PlanningBlock({
         flexShrink: 0,
       }}
     >
-      {/* Header: client name only */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', minWidth: 0 }}>
+      {/* Header: client name + budget alert dot */}
+      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: 3 }}>
         <span style={{
           fontSize: 10, fontWeight: 700, color: cl.color,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           letterSpacing: '0.01em', flex: 1, minWidth: 0,
         }}>{cl.name}</span>
+        {budgetAlertLevel_combined > 0 && (
+          <div
+            title={budgetAlertLevel_combined === 3 ? 'Limite superato' : budgetAlertLevel_combined === 2 ? 'Limite all\'80%+' : 'Limite al 50%+'}
+            style={{
+              width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+              background: budgetAlertLevel_combined === 3 ? '#E05252' : budgetAlertLevel_combined === 2 ? '#E07B3A' : '#E0C020',
+            }}
+          />
+        )}
       </div>
 
       {/* Done/planned readout + delta */}
@@ -152,7 +178,7 @@ function PlanningBlock({
 }
 
 export default function PlanningCell({
-  slot, dayIndex, blocks, clients, projects, slotEntries,
+  slot, dayIndex, blocks, clients, projects, projectTotals, weekProjectHours, slotEntries,
   isToday, isFuture, isWeekend, editable,
   onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onReorder, draggingId,
 }) {
@@ -286,6 +312,7 @@ export default function PlanningCell({
                 e.dataTransfer.setData('text/plain', block.id);
                 onDragStart && onDragStart(block.id, block.clientId, block.hours);
               }}
+              projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
             />
           </div>
         </React.Fragment>

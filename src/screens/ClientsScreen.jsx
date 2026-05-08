@@ -106,7 +106,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
     const id = crypto.randomUUID();
     const newClient = {
       id, name: 'Nuova area', color: COLORS[clients.length % COLORS.length],
-      billable: false, billing: 'hourly', rate: null, limitType: 'monthly', limitHours: null,
+      billable: false, billing: 'hourly', rate: null, limitType: 'weekly', limitHours: null,
       position: maxPos + 1,
     };
     window.api.saveClient(newClient);
@@ -157,7 +157,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
       .reduce((max, p) => Math.max(max, p.position ?? 0), -1);
     const newProject = {
       id: crypto.randomUUID(), clientId: selectedId,
-      name: 'Nuovo progetto', budgetHours: null, position: maxPos + 1,
+      name: 'Nuovo progetto', budgetHours: null, weeklyHours: null, position: maxPos + 1,
     };
     window.api.saveProject(newProject);
     setProjects(prev => [...prev, newProject]);
@@ -270,7 +270,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>
                     {c.billable
-                      ? `${c.billing === 'hourly' ? 'A ore' : 'Fisso'} · ${c.limitHours ? `${c.limitHours}h/${c.limitType === 'weekly' ? 'sett' : 'mese'}` : 'no limite'}`
+                      ? `${c.billing === 'hourly' ? 'A ore' : 'Fisso'} · ${c.limitHours ? `${c.limitHours}h/${c.limitType === 'global' ? 'tot' : 'sett'}` : 'no limite'}`
                       : 'non fatturabile'}
                   </div>
                 </div>
@@ -375,10 +375,11 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                     disabled={sel.billing !== 'hourly'} />
                 </div>
 
+
                 <div>
-                  <label style={formLabel}>Periodo limite</label>
+                  <label style={formLabel}>Tipo limite ore</label>
                   <div style={{ display: 'flex', gap: 4 }}>
-                    {['weekly', 'monthly'].map(t => (
+                    {[['weekly', 'Settimanale'], ['global', 'Globale']].map(([t, label]) => (
                       <button key={t} onClick={() => updateClient('limitType', t)}
                         style={{
                           flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
@@ -387,12 +388,11 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                           color: sel.limitType === t ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
                           fontFamily: "'Open Sans', sans-serif",
                         }}>
-                        {t === 'weekly' ? 'Settimana' : 'Mese'}
+                        {label}
                       </button>
                     ))}
                   </div>
                 </div>
-
                 <div>
                   <label style={formLabel}>Limite ore</label>
                   <input type="number" style={formInput} value={sel.limitHours ?? ''} placeholder="—"
@@ -441,12 +441,24 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                       type="number"
                       value={p.budgetHours ?? ''}
                       placeholder="budget h"
+                      title="Budget totale progetto (ore globali)"
                       onChange={e => updateProject(p.id, 'budgetHours', e.target.value ? Number(e.target.value) : null)}
                       onMouseDown={e => e.stopPropagation()}
-                      style={{ width: 72, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
+                      style={{ width: 68, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
                         border: 'none', background: 'transparent', outline: 'none',
                         fontFamily: "'Open Sans', sans-serif" }} />
                     {p.budgetHours && <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>h</span>}
+                    <input
+                      type="number"
+                      value={p.weeklyHours ?? ''}
+                      placeholder="sett h"
+                      title="Limite settimanale progetto (ore/settimana)"
+                      onChange={e => updateProject(p.id, 'weeklyHours', e.target.value ? Number(e.target.value) : null)}
+                      onMouseDown={e => e.stopPropagation()}
+                      style={{ width: 56, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
+                        border: 'none', background: 'transparent', outline: 'none',
+                        fontFamily: "'Open Sans', sans-serif" }} />
+                    {p.weeklyHours && <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>h/s</span>}
 
                     <select
                       value={p.clientId}
