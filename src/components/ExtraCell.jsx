@@ -45,7 +45,8 @@ export default function ExtraCell({ blocks, orphanTodoist, clients, isToday }) {
           </div>
         );
       })}
-      {hasOrphans && orphanTodoist.map(({ clientId, hours }) => {
+      {hasOrphans && orphanTodoist.map((orphan) => {
+        const { clientId, hours } = orphan;
         const cl = clients.find(c => c.id === clientId);
         if (!cl) return null;
         return (
@@ -64,7 +65,7 @@ export default function ExtraCell({ blocks, orphanTodoist, clients, isToday }) {
             <span style={{
               fontSize: 9, fontWeight: 700, color: cl.color, opacity: 0.7, flexShrink: 0,
               textTransform: 'uppercase', letterSpacing: '0.06em',
-            }}>todoist</span>
+            }}>{orphan.slot === 'pm' ? 'PM' : 'AM'}</span>
             <span style={{ fontSize: 11, fontWeight: 800, color: cl.color, flexShrink: 0 }}>
               {toHHMM(hours)}
             </span>
