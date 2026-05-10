@@ -23,7 +23,7 @@ function PlanningBlock({
   projects, projectTotals, weekProjectHours,
 }) {
   const [hover, setHover] = useState(false);
-  const complete = !overflow && logged >= block.hours && block.hours > 0;
+  const complete = logged >= block.hours && block.hours > 0;
 
   const clientProjects = (projects || []).filter(p => p.clientId === block.clientId && !p.archived);
 
@@ -40,11 +40,10 @@ function PlanningBlock({
   }, 0);
 
   const budgetAlertLevel_combined = Math.max(budgetAlertLevel, weeklyAlertLevel);
-  const partial  = !overflow && !complete && logged > 0;
+  const partial = !complete && logged > 0;
 
-  const barColor = overflow ? '#E05252' : cl.color;
-  const barBg    = cl.color + '1f';
-  const readoutColor = logged === 0 ? cl.color + 'aa' : (overflow ? '#E05252' : cl.color);
+  const barBg = cl.color + '1f';
+  const readoutColor = logged === 0 ? cl.color + 'aa' : cl.color;
 
   return (
     <div
@@ -56,7 +55,7 @@ function PlanningBlock({
         position: 'relative',
         height: blockH,
         background: cl.color + '10',
-        border: `1px solid ${overflow ? '#E0525244' : cl.color + '30'}`,
+        border: `1px solid ${cl.color + '30'}`,
         borderLeft: `3px solid ${cl.color}`,
         borderRadius: 4,
         padding: '5px 8px 7px',
@@ -111,7 +110,7 @@ function PlanningBlock({
             }}>
             {logged > 0 && (
               <>
-                <span style={{ fontSize: 11, fontWeight: overflow ? 800 : 400, color: readoutColor }}>
+                <span style={{ fontSize: 11, fontWeight: 400, color: readoutColor }}>
                   {toHHMM(logged)}
                 </span>
                 <span style={{ fontSize: 9, color: cl.color + '66', fontWeight: 400 }}>/</span>
@@ -127,26 +126,19 @@ function PlanningBlock({
 
       </div>
 
-      {/* Progress bar + overflow triangle */}
+      {/* Progress bar + extra warning triangle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <div style={{
           flex: 1, height: 5, borderRadius: 3,
           background: barBg,
           overflow: 'hidden', position: 'relative',
         }}>
-          {overflow ? (
-            <div style={{
-              position: 'absolute', left: 0, top: 0, bottom: 0, right: 0,
-              background: `linear-gradient(90deg, ${cl.color} 0%, ${cl.color} 70%, #E05252 70%, #E05252 100%)`,
-            }} />
-          ) : (
-            <div style={{
-              position: 'absolute', left: 0, top: 0, bottom: 0,
-              width: `${Math.min(100, fillPct * 100)}%`,
-              background: complete ? cl.color : (partial ? cl.color + 'aa' : 'transparent'),
-              transition: 'width 0.4s ease, background 0.2s',
-            }} />
-          )}
+          <div style={{
+            position: 'absolute', left: 0, top: 0, bottom: 0,
+            width: `${Math.min(100, fillPct * 100)}%`,
+            background: complete ? cl.color : (partial ? cl.color + 'aa' : 'transparent'),
+            transition: 'width 0.4s ease, background 0.2s',
+          }} />
         </div>
         {overflow && (
           <div style={{
