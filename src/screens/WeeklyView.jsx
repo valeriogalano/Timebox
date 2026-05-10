@@ -267,14 +267,18 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     });
     const lastSync = todoistSync[dateStr] ?? null;
 
-    const amClientIds = new Set(amBlocks.map(b => b.clientId));
-    const pmClientIds = new Set(pmBlocks.map(b => b.clientId));
+    const amPlanned = {};
+    amBlocks.forEach(b => { amPlanned[b.clientId] = (amPlanned[b.clientId] ?? 0) + b.hours; });
+    const pmPlanned = {};
+    pmBlocks.forEach(b => { pmPlanned[b.clientId] = (pmPlanned[b.clientId] ?? 0) + b.hours; });
     const orphanTodoist = [];
     Object.entries(todoistByCS.am).forEach(([cid, h]) => {
-      if (!amClientIds.has(cid)) orphanTodoist.push({ clientId: cid, hours: h, slot: 'am' });
+      const remaining = h - (amPlanned[cid] ?? 0);
+      if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'am' });
     });
     Object.entries(todoistByCS.pm).forEach(([cid, h]) => {
-      if (!pmClientIds.has(cid)) orphanTodoist.push({ clientId: cid, hours: h, slot: 'pm' });
+      const remaining = h - (pmPlanned[cid] ?? 0);
+      if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'pm' });
     });
 
     return { date, dateStr, isToday, isFuture, isWeekend, dayHours, plannedTotal, delta, loggedInPlan, bilancioExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill, todoistByCS, lastSync, orphanTodoist };
