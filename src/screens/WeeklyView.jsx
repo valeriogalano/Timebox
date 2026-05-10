@@ -123,8 +123,12 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const dstBlocks = [...effectiveBlocks(toDay, toSlot), { id: blockId, clientId, hours }];
     setWeekOverrides(prev => {
       const weekData = prev[weekKey] ?? {};
-      const srcDay   = weekData[fromDay] ?? {};
-      const dstDay   = weekData[toDay]   ?? {};
+      if (fromDay === toDay) {
+        const day = weekData[fromDay] ?? {};
+        return { ...prev, [weekKey]: { ...weekData, [fromDay]: { ...day, [fromSlot]: srcBlocks, [toSlot]: dstBlocks } } };
+      }
+      const srcDay = weekData[fromDay] ?? {};
+      const dstDay = weekData[toDay]   ?? {};
       return { ...prev, [weekKey]: { ...weekData, [fromDay]: { ...srcDay, [fromSlot]: srcBlocks }, [toDay]: { ...dstDay, [toSlot]: dstBlocks } } };
     });
     window.api.saveWeekOverride({ weekKey, dayIndex: fromDay, slot: fromSlot, blocks: srcBlocks });
