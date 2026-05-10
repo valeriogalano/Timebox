@@ -711,70 +711,15 @@ function TodoistSyncButton({ days, todoistSync, setTodoistSync, todoistTasks, se
   async function refresh() {
     setBusy(true);
     try {
-      const token = await window.api.getTodoistToken();
-      if (!token) {
+      const result = await window.api.syncTodoist(projects, refreshable.map(d => d.dateStr));
+      if (result.error === 'no_token') {
         alert('Token Todoist non configurato. Vai in Impostazioni → Todoist per inserirlo.');
         setBusy(false);
         return;
       }
 
       const now = new Date().toISOString();
-
-      // Fetch open tasks for today
-      const openRes = await fetch('https://api.todoist.com/rest/v2/tasks?filter=today', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const openTasks = openRes.ok ? await openRes.json() : [];
-
-      // Fetch completed tasks for last 24h
-      const since = new Date(Date.now() - 86400000).toISOString();
-      const doneRes = await fetch(`https://api.todoist.com/sync/v9/items/get_completed?since=${since}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const doneData = doneRes.ok ? await doneRes.json() : {};
-      const doneTasks = doneData.items ?? [];
-
-      // Fetch all Todoist projects to match by name
-      const projRes = await fetch('https://api.todoist.com/rest/v2/projects', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const todoistProjects = projRes.ok ? await projRes.json() : [];
-
-      function matchProject(todoistProjectId) {
-        const tp = todoistProjects.find(p => p.id === todoistProjectId);
-        if (!tp) return null;
-        return projects.find(p => p.name === tp.name) ?? null;
-      }
-
-      function taskSlot(due) {
-        if (!due?.datetime) return 'am';
-        const h = new Date(due.datetime).getHours();
-        return h < 13 ? 'am' : 'pm';
-      }
-
-      function taskDate(due) {
-        return due?.date ?? null;
-      }
-
-      // Group by date and per day build task list
-      const byDate = {};
-      for (const t of openTasks) {
-        const date = taskDate(t.due);
-        if (!date) continue;
-        const proj = matchProject(t.project_id);
-        if (!proj) continue;
-        if (!byDate[date]) byDate[date] = [];
-        byDate[date].push({ id: t.id, projectId: proj.id, hours: (t.duration?.amount ?? 60) / 60, slot: taskSlot(t.due), completed: false });
-      }
-      for (const t of doneTasks) {
-        const date = t.completed_at?.slice(0, 10) ?? null;
-        if (!date) continue;
-        const proj = matchProject(t.project_id);
-        if (!proj) continue;
-        if (!byDate[date]) byDate[date] = [];
-        byDate[date].push({ id: t.id, projectId: proj.id, hours: (t.duration?.amount ?? 60) / 60, slot: 'am', completed: true });
-      }
-
+      const { byDate } = result;
       const newTasks = { ...todoistTasks };
       const newSync = { ...todoistSync };
       for (const d of refreshable) {

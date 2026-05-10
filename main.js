@@ -177,6 +177,68 @@ function setupIpc() {
   ipcMain.handle('db:getTodoistCache',     (_, dates)               => q.getTodoistCache(dates));
   ipcMain.handle('db:setTodoistCache',     (_, dateStr, tasks, syncedAt) => q.setTodoistCache(dateStr, tasks, syncedAt));
 
+  ipcMain.handle('todoist:sync', async (_, timboxProjects, dates) => {
+    const enc = q.getSetting('todoist_token_enc');
+    if (!enc || !safeStorage.isEncryptionAvailable()) return { error: 'no_token' };
+    let token;
+    try { token = safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch { return { error: 'no_token' }; }
+
+    const headers = { Authorization: `Bearer ${token}` };
+
+    // Build date range filter for the refreshable dates
+    const sortedDates = [...dates].sort();
+    const from = sortedDates[0];
+    const to   = sortedDates[sortedDates.length - 1];
+    const dayAfterTo = new Date(to); dayAfterTo.setDate(dayAfterTo.getDate() + 1);
+    const toExclusive = dayAfterTo.toISOString().slice(0, 10);
+    const filter = encodeURIComponent(`due after: ${from} & due before: ${toExclusive}`);
+
+    // For completed tasks, look back from the start of the range
+    const since = new Date(from + 'T00:00:00').toISOString();
+
+    const [openRes, doneRes, projRes] = await Promise.all([
+      fetch(`https://api.todoist.com/rest/v2/tasks?filter=${filter}`, { headers }),
+      fetch(`https://api.todoist.com/sync/v9/items/get_completed?since=${since}`, { headers }),
+      fetch('https://api.todoist.com/rest/v2/projects', { headers }),
+    ]);
+
+    const openTasks      = openRes.ok  ? await openRes.json()  : [];
+    const doneData       = doneRes.ok  ? await doneRes.json()  : {};
+    const doneTasks      = doneData.items ?? [];
+    const todoistProjects = projRes.ok  ? await projRes.json() : [];
+
+    function matchProject(todoistProjectId) {
+      const tp = todoistProjects.find(p => p.id === todoistProjectId);
+      if (!tp) return null;
+      return timboxProjects.find(p => p.name === tp.name) ?? null;
+    }
+
+    function taskSlot(due) {
+      if (!due?.datetime) return 'am';
+      return new Date(due.datetime).getHours() < 13 ? 'am' : 'pm';
+    }
+
+    const byDate = {};
+    for (const t of openTasks) {
+      const date = t.due?.date ?? null;
+      if (!date) continue;
+      const proj = matchProject(t.project_id);
+      if (!proj) continue;
+      if (!byDate[date]) byDate[date] = [];
+      byDate[date].push({ id: t.id, projectId: proj.id, hours: (t.duration?.amount ?? 60) / 60, slot: taskSlot(t.due), completed: false });
+    }
+    for (const t of doneTasks) {
+      const date = t.completed_at?.slice(0, 10) ?? null;
+      if (!date) continue;
+      const proj = matchProject(t.project_id);
+      if (!proj) continue;
+      if (!byDate[date]) byDate[date] = [];
+      byDate[date].push({ id: t.id, projectId: proj.id, hours: (t.duration?.amount ?? 60) / 60, slot: 'am', completed: true });
+    }
+
+    return { byDate };
+  });
+
   ipcMain.handle('app:getDbPath', () => _dbPath);
 
   ipcMain.handle('app:selectDbFile', async () => {
