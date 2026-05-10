@@ -213,6 +213,15 @@ function setupIpc() {
       return timboxProjects.find(p => p.name === tp.name) ?? null;
     }
 
+    function parseDurationHours(duration) {
+      if (!duration) return 1;
+      if (typeof duration === 'object') return (duration.amount ?? 60) / 60;
+      // String format: "2h", "30m", "1h15m", "1h 30m"
+      const h = duration.match(/(\d+)\s*h/);
+      const m = duration.match(/(\d+)\s*m/);
+      return (h ? parseInt(h[1]) : 0) + (m ? parseInt(m[1]) / 60 : 0) || 1;
+    }
+
     function taskSlot(due) {
       if (!due?.datetime) return 'am';
       return new Date(due.datetime).getHours() < 13 ? 'am' : 'pm';
@@ -227,7 +236,7 @@ function setupIpc() {
       const proj = matchProject(t.project_id);
       if (!proj) continue;
       if (!byDate[date]) byDate[date] = [];
-      byDate[date].push({ id: t.id, projectId: proj.id, hours: (t.duration?.amount ?? 60) / 60, slot: taskSlot(t.due), completed: false });
+      byDate[date].push({ id: t.id, projectId: proj.id, hours: parseDurationHours(t.duration), slot: taskSlot(t.due), completed: false });
     }
     for (const t of doneTasks) {
       const date = t.completed_at?.slice(0, 10) ?? null;
@@ -235,7 +244,7 @@ function setupIpc() {
       const proj = matchProject(t.project_id);
       if (!proj) continue;
       if (!byDate[date]) byDate[date] = [];
-      byDate[date].push({ id: t.id, projectId: proj.id, hours: (t.duration?.amount ?? 60) / 60, slot: 'am', completed: true });
+      byDate[date].push({ id: t.id, projectId: proj.id, hours: parseDurationHours(t.duration), slot: 'am', completed: true });
     }
 
     logger.info('todoist:sync byDate', { dates: Object.keys(byDate), counts: Object.fromEntries(Object.entries(byDate).map(([d, ts]) => [d, ts.length])) });
