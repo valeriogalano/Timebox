@@ -16,7 +16,7 @@ function Divider() {
 
 
 function PlanningBlock({
-  block, cl, blockH, fillPct, delta, logged, overflow,
+  block, cl, blockH, fillPct, delta, logged, overflow, todoistH, hasTodoistSync,
   isFuture, editable, isDragging,
   editing, editDraft, setEditDraft, editRef, commitEdit, onStartEdit, onCancelEdit,
   onRemove, onDragStart,
@@ -133,6 +133,14 @@ function PlanningBlock({
           background: barBg,
           overflow: 'hidden', position: 'relative',
         }}>
+          {hasTodoistSync && todoistH > 0 && (
+            <div style={{
+              position: 'absolute', left: 0, top: 0, bottom: 0,
+              width: `${Math.min(100, (todoistH / block.hours) * 100)}%`,
+              backgroundImage: `repeating-linear-gradient(135deg, ${cl.color}80 0 3px, transparent 3px 6px)`,
+              backgroundColor: cl.color + '14',
+            }} title={`Coperto da task Todoist: ${toHHMM(todoistH)}`} />
+          )}
           <div style={{
             position: 'absolute', left: 0, top: 0, bottom: 0,
             width: `${Math.min(100, fillPct * 100)}%`,
@@ -171,6 +179,7 @@ function PlanningBlock({
 
 export default function PlanningCell({
   slot, dayIndex, blocks, clients, projects, projectTotals, weekProjectHours, blockFill,
+  todoistByClient, hasTodoistSync,
   isToday, isFuture, isWeekend, editable,
   onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onReorder, draggingId,
 }) {
@@ -183,7 +192,8 @@ export default function PlanningCell({
     const fillPct = block.hours > 0 ? Math.min(1, logged / block.hours) : 0;
     const delta   = logged - block.hours;
     const overflow = fill.hasExtra;
-    return { block, cl, blockH, fillPct, delta, logged, overflow };
+    const todoistH = (todoistByClient && todoistByClient[block.clientId]) ?? 0;
+    return { block, cl, blockH, fillPct, delta, logged, overflow, todoistH };
   }).filter(Boolean);
 
   const blockRefs = useRef([]);
@@ -279,13 +289,14 @@ export default function PlanningCell({
         opacity: isWeekend ? 0.5 : 1,
         display: 'flex', flexDirection: 'column', gap: 4,
       }}>
-      {visualBlocks.map(({ block, cl, blockH, fillPct, delta, logged, overflow }, i) => (
+      {visualBlocks.map(({ block, cl, blockH, fillPct, delta, logged, overflow, todoistH }, i) => (
         <React.Fragment key={block.id}>
           {isInternalDrag && insertIndex === i && <Divider />}
           <div ref={el => { blockRefs.current[i] = el; }}>
             <PlanningBlock
               block={block} cl={cl} blockH={blockH}
               fillPct={fillPct} delta={delta} logged={logged} overflow={overflow}
+              todoistH={todoistH} hasTodoistSync={hasTodoistSync}
               isFuture={isFuture} editable={editable}
               isDragging={draggingId === block.id}
               editing={editId === block.id} editDraft={editDraft}

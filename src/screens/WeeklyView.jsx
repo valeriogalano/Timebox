@@ -24,6 +24,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [dragging, setDragging] = useState(null);
   const [dragOver, setDragOver] = useState(null);
+  const [todoistTasks, setTodoistTasks] = useState({});
+  const [todoistSync, setTodoistSync] = useState({});
 
   useEffect(() => {
     function onGlobalTab(e) {
@@ -55,6 +57,17 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
         map[r.dayIndex][r.slot] = r.blocks;
       });
       setWeekOverrides(prev => ({ ...prev, [weekKey]: map }));
+    });
+
+    const dates = Array.from({ length: 7 }, (_, i) => {
+      const d = addDays(monday, i);
+      return fmt(d);
+    });
+    window.api.getTodoistCache(dates).then(rows => {
+      const tasks = {}, sync = {};
+      rows.forEach(r => { tasks[r.dateStr] = r.tasks; sync[r.dateStr] = r.syncedAt; });
+      setTodoistTasks(tasks);
+      setTodoistSync(sync);
     });
   }, [weekKey, recurring]);
 
@@ -110,8 +123,12 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const dstBlocks = [...effectiveBlocks(toDay, toSlot), { id: blockId, clientId, hours }];
     setWeekOverrides(prev => {
       const weekData = prev[weekKey] ?? {};
-      const srcDay   = weekData[fromDay] ?? {};
-      const dstDay   = weekData[toDay]   ?? {};
+      if (fromDay === toDay) {
+        const day = weekData[fromDay] ?? {};
+        return { ...prev, [weekKey]: { ...weekData, [fromDay]: { ...day, [fromSlot]: srcBlocks, [toSlot]: dstBlocks } } };
+      }
+      const srcDay = weekData[fromDay] ?? {};
+      const dstDay = weekData[toDay]   ?? {};
       return { ...prev, [weekKey]: { ...weekData, [fromDay]: { ...srcDay, [fromSlot]: srcBlocks }, [toDay]: { ...dstDay, [toSlot]: dstBlocks } } };
     });
     window.api.saveWeekOverride({ weekKey, dayIndex: fromDay, slot: fromSlot, blocks: srcBlocks });
@@ -239,7 +256,32 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       blockFill[block.id] = { logged, hasExtra };
     }
 
-    return { date, dateStr, isToday, isFuture, isWeekend, dayHours, plannedTotal, delta, loggedInPlan, bilancioExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill };
+    // Todoist coverage per slot per clientId
+    const dayTodoist = todoistTasks[dateStr] ?? [];
+    const todoistByCS = { am: {}, pm: {} };
+    dayTodoist.forEach(t => {
+      const proj = projects.find(p => p.id === t.projectId);
+      if (!proj) return;
+      const s = t.slot || 'am';
+      todoistByCS[s][proj.clientId] = (todoistByCS[s][proj.clientId] ?? 0) + t.hours;
+    });
+    const lastSync = todoistSync[dateStr] ?? null;
+
+    const amPlanned = {};
+    amBlocks.forEach(b => { amPlanned[b.clientId] = (amPlanned[b.clientId] ?? 0) + b.hours; });
+    const pmPlanned = {};
+    pmBlocks.forEach(b => { pmPlanned[b.clientId] = (pmPlanned[b.clientId] ?? 0) + b.hours; });
+    const orphanTodoist = [];
+    Object.entries(todoistByCS.am).forEach(([cid, h]) => {
+      const remaining = h - (amPlanned[cid] ?? 0);
+      if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'am' });
+    });
+    Object.entries(todoistByCS.pm).forEach(([cid, h]) => {
+      const remaining = h - (pmPlanned[cid] ?? 0);
+      if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'pm' });
+    });
+
+    return { date, dateStr, isToday, isFuture, isWeekend, dayHours, plannedTotal, delta, loggedInPlan, bilancioExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill, todoistByCS, lastSync, orphanTodoist };
   });
 
   const weekPlanned = days.reduce((s, d) => s + d.plannedTotal, 0);
@@ -329,6 +371,11 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               ↩ Ripristina template
             </button>
           )}
+          <TodoistSyncButton
+            days={days}
+            todoistSync={todoistSync} setTodoistSync={setTodoistSync}
+            todoistTasks={todoistTasks} setTodoistTasks={setTodoistTasks}
+            projects={projects} />
         </div>
         <div style={{ display: 'flex', gap: 28 }}>
           <Pill label="Pianificate" value={fmtH(weekPlanned)} color="var(--tb-text-muted)" />
@@ -384,6 +431,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 <PlanningCell slot="am" dayIndex={i} blocks={d.amBlocks}
                   clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
                   blockFill={d.blockFill}
+                  todoistByClient={d.todoistByCS.am} hasTodoistSync={!!d.lastSync}
                   isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'am', cid, h)}
                   onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'am', bid, h)}
@@ -420,6 +468,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 <PlanningCell slot="pm" dayIndex={i} blocks={d.pmBlocks}
                   clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
                   blockFill={d.blockFill}
+                  todoistByClient={d.todoistByCS.pm} hasTodoistSync={!!d.lastSync}
                   isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'pm', cid, h)}
                   onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'pm', bid, h)}
@@ -442,7 +491,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           </div>
           {days.map((d, i) => (
             <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)', background: todayBg(d), padding: 4 }}>
-              <ExtraCell blocks={d.extraBlocks} clients={clients} isToday={d.isToday} />
+              <ExtraCell blocks={d.extraBlocks} orphanTodoist={d.isWeekend ? [] : d.orphanTodoist} clients={clients} isToday={d.isToday} />
             </div>
           ))}
 
@@ -652,6 +701,68 @@ function Pill({ label, value, color }) {
         color: 'var(--tb-text-faint)', marginBottom: 2 }}>{label}</div>
       <div style={{ fontSize: 15, fontWeight: 800, color }}>{value}</div>
     </div>
+  );
+}
+
+function TodoistSyncButton({ days, todoistSync, setTodoistSync, todoistTasks, setTodoistTasks, projects }) {
+  const [busy, setBusy] = useState(false);
+
+  const refreshable = days.filter(d => d.isToday || d.isFuture);
+  const lastSync = refreshable.reduce((acc, d) => {
+    const t = todoistSync?.[d.dateStr];
+    return t && (!acc || t > acc) ? t : acc;
+  }, null);
+  const lastSyncLabel = lastSync
+    ? new Date(lastSync).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  async function refresh() {
+    setBusy(true);
+    try {
+      const debug = localStorage.getItem('timebox-todoist-debug') === 'true';
+      const result = await window.api.syncTodoist(projects, refreshable.map(d => d.dateStr), debug);
+      if (result.error === 'no_token') {
+        alert('Token Todoist non configurato. Vai in Impostazioni → Todoist per inserirlo.');
+        setBusy(false);
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const { byDate } = result;
+      const newTasks = { ...todoistTasks };
+      const newSync = { ...todoistSync };
+      for (const d of refreshable) {
+        const tasks = byDate[d.dateStr] ?? [];
+        newTasks[d.dateStr] = tasks;
+        newSync[d.dateStr] = now;
+        await window.api.setTodoistCache(d.dateStr, tasks, now);
+      }
+      setTodoistTasks(newTasks);
+      setTodoistSync(newSync);
+    } catch (err) {
+      alert(`Errore sincronizzazione Todoist: ${err.message}`);
+    }
+    setBusy(false);
+  }
+
+  return (
+    <button onClick={refresh} disabled={busy}
+      title="Aggiorna i task da Todoist per oggi e i giorni futuri"
+      style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        fontSize: 10, fontWeight: 700, padding: '4px 9px', borderRadius: 5,
+        background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border)', color: 'var(--tb-text-secondary)',
+        cursor: busy ? 'wait' : 'pointer', fontFamily: "'Open Sans', sans-serif",
+        opacity: busy ? 0.6 : 1, transition: 'opacity 0.15s',
+      }}>
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
+        style={{ animation: busy ? 'tbspin 0.8s linear infinite' : 'none', flexShrink: 0 }}>
+        <path d="M9 5a4 4 0 1 1-1.2-2.8M9 1.5V3.5H7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      </svg>
+      <span>Aggiorna da Todoist</span>
+      {lastSyncLabel && <span style={{ color: 'var(--tb-text-faint)', fontWeight: 600 }}>· {lastSyncLabel}</span>}
+      <style>{`@keyframes tbspin { to { transform: rotate(360deg); } }`}</style>
+    </button>
   );
 }
 

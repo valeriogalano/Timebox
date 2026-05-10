@@ -31,4 +31,10 @@ contextBridge.exposeInMainWorld('api', {
   selectDbFile:       ()           => ipcRenderer.invoke('app:selectDbFile'),
   createNewDb:        ()           => ipcRenderer.invoke('app:createNewDb'),
   saveDbCopy:         ()           => ipcRenderer.invoke('app:saveDbCopy'),
+
+  getTodoistToken:    ()                          => ipcRenderer.invoke('settings:getTodoistToken'),
+  setTodoistToken:    (token)                     => ipcRenderer.invoke('settings:setTodoistToken', token),
+  getTodoistCache:    (dates)                     => ipcRenderer.invoke('db:getTodoistCache', dates),
+  setTodoistCache:    (dateStr, tasks, syncedAt)  => ipcRenderer.invoke('db:setTodoistCache', dateStr, tasks, syncedAt),
+  syncTodoist:        (projects, dates, debug)      => ipcRenderer.invoke('todoist:sync', projects, dates, debug),
 });

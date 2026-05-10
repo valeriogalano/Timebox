@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, nativeImage, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeImage, dialog, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { initDb } = require('./db/schema');
@@ -161,6 +161,89 @@ function setupIpc() {
 
   ipcMain.handle('db:resetAllData',        ()              => q.resetAllData());
   ipcMain.handle('db:seedDemoData',        ()              => q.seedDemoData());
+
+  ipcMain.handle('settings:getTodoistToken', () => {
+    const enc = q.getSetting('todoist_token_enc');
+    if (!enc || !safeStorage.isEncryptionAvailable()) return '';
+    try { return safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch { return ''; }
+  });
+
+  ipcMain.handle('settings:setTodoistToken', (_, token) => {
+    if (!safeStorage.isEncryptionAvailable()) return;
+    const enc = safeStorage.encryptString(token);
+    q.setSetting('todoist_token_enc', enc.toString('base64'));
+  });
+
+  ipcMain.handle('db:getTodoistCache',     (_, dates)               => q.getTodoistCache(dates));
+  ipcMain.handle('db:setTodoistCache',     (_, dateStr, tasks, syncedAt) => q.setTodoistCache(dateStr, tasks, syncedAt));
+
+  ipcMain.handle('todoist:sync', async (_, timboxProjects, dates, debug) => {
+    const enc = q.getSetting('todoist_token_enc');
+    if (!enc || !safeStorage.isEncryptionAvailable()) return { error: 'no_token' };
+    let token;
+    try { token = safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch { return { error: 'no_token' }; }
+
+    const headers = { Authorization: `Bearer ${token}` };
+    const dateSet = new Set(dates);
+
+    logger.info('todoist:sync token_len', { len: token.length });
+    logger.info('todoist:sync dates', { dates });
+
+    // Fetch all open tasks with pagination
+    const openTasks = [];
+    let cursor = null;
+    do {
+      const url = 'https://api.todoist.com/api/v1/tasks?limit=200' + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
+      const res = await fetch(url, { headers });
+      if (!res.ok) { logger.info('todoist:sync open_error', { status: res.status }); break; }
+      const data = await res.json();
+      openTasks.push(...(data.results ?? data.tasks ?? []));
+      cursor = data.next_cursor ?? null;
+    } while (cursor);
+
+    // Fetch projects (single page)
+    const projRes = await fetch('https://api.todoist.com/api/v1/projects?limit=200', { headers });
+    const projData = projRes.ok ? await projRes.json() : {};
+    const todoistProjects = projData.results ?? projData.projects ?? [];
+
+    logger.info('todoist:sync tasks', { open: openTasks.length, projects: todoistProjects.length });
+
+    function matchProject(todoistProjectId) {
+      const tp = todoistProjects.find(p => p.id === todoistProjectId);
+      if (!tp) return null;
+      return timboxProjects.find(p => p.name === tp.name) ?? null;
+    }
+
+    function parseDurationHours(duration) {
+      if (!duration) return null;
+      if (typeof duration === 'object') return (duration.amount ?? 60) / 60;
+      const h = duration.match(/(\d+)\s*h/);
+      const m = duration.match(/(\d+)\s*m/);
+      return (h ? parseInt(h[1]) : 0) + (m ? parseInt(m[1]) / 60 : 0) || null;
+    }
+
+    function taskSlot(due) {
+      if (!due?.date) return 'am';
+      const dt = due.date.length > 10 ? new Date(due.date) : null;
+      return dt && dt.getHours() < 13 ? 'am' : 'pm';
+    }
+
+    const byDate = {};
+    for (const t of openTasks) {
+      const date = t.due?.date?.slice(0, 10) ?? null;
+      if (debug) logger.info('todoist:task', { content: t.content, date, project_id: t.project_id, inDateSet: date ? dateSet.has(date) : false });
+      if (!date || !dateSet.has(date)) continue;
+      const proj = matchProject(t.project_id);
+      if (debug) logger.info('todoist:match', { content: t.content, date, matched: proj?.name ?? null });
+      if (!proj) continue;
+      const hours = parseDurationHours(t.duration);
+      if (!hours) continue;
+      if (!byDate[date]) byDate[date] = [];
+      byDate[date].push({ id: t.id, projectId: proj.id, hours, slot: taskSlot(t.due), completed: false });
+    }
+    logger.info('todoist:sync byDate', { dates: Object.keys(byDate), counts: Object.fromEntries(Object.entries(byDate).map(([d, ts]) => [d, ts.length])) });
+    return { byDate };
+  });
 
   ipcMain.handle('app:getDbPath', () => _dbPath);
 

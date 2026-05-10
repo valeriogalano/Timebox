@@ -190,6 +190,11 @@
         selectDbFile: async () => null,
         createNewDb: async () => null,
         saveDbCopy: async () => null,
+        getTodoistToken: async () => '',
+        setTodoistToken: async () => {},
+        getTodoistCache: async (dates) => dates.map(d => ({ dateStr: d, tasks: [], syncedAt: null })),
+        setTodoistCache: async () => {},
+        syncTodoist: async () => ({ byDate: {} }),
       };
     }
   </script>
