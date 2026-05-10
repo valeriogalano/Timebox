@@ -202,9 +202,10 @@ function setupIpc() {
     const openData        = openRes.ok  ? await openRes.json()  : {};
     const doneData        = doneRes.ok  ? await doneRes.json()  : {};
     const projData        = projRes.ok  ? await projRes.json()  : {};
-    const openTasks       = openData.tasks ?? openData ?? [];
-    const doneTasks       = doneData.tasks ?? doneData.items ?? [];
-    const todoistProjects = projData.projects ?? projData ?? [];
+    logger.info('todoist:sync keys', { open: Object.keys(openData), proj: Object.keys(projData) });
+    const openTasks       = openData.tasks ?? openData.results ?? (Array.isArray(openData) ? openData : []);
+    const doneTasks       = doneData.tasks ?? doneData.results ?? doneData.items ?? (Array.isArray(doneData) ? doneData : []);
+    const todoistProjects = projData.projects ?? projData.results ?? (Array.isArray(projData) ? projData : []);
 
     function matchProject(todoistProjectId) {
       const tp = todoistProjects.find(p => p.id === todoistProjectId);
