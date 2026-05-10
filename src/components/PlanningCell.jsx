@@ -178,25 +178,19 @@ function PlanningBlock({
 }
 
 export default function PlanningCell({
-  slot, dayIndex, blocks, clients, projects, projectTotals, weekProjectHours, slotEntries,
+  slot, dayIndex, blocks, clients, projects, projectTotals, weekProjectHours, blockFill,
   isToday, isFuture, isWeekend, editable,
   onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onReorder, draggingId,
 }) {
-  const loggedByClient = {};
-  slotEntries.forEach(e => {
-    const p = projects.find(p2 => p2.id === e.projectId);
-    if (!p) return;
-    loggedByClient[p.clientId] = (loggedByClient[p.clientId] ?? 0) + e.hours;
-  });
-
   const visualBlocks = blocks.map(block => {
     const cl = clients.find(c => c.id === block.clientId);
     if (!cl) return null;
-    const logged  = loggedByClient[block.clientId] ?? 0;
+    const fill    = blockFill?.[block.id] ?? { logged: 0, hasExtra: false };
+    const logged  = fill.logged;
     const blockH  = Math.max(46, Math.round(block.hours * PX_PER_H));
     const fillPct = block.hours > 0 ? Math.min(1, logged / block.hours) : 0;
     const delta   = logged - block.hours;
-    const overflow = delta > 0;
+    const overflow = fill.hasExtra;
     return { block, cl, blockH, fillPct, delta, logged, overflow };
   }).filter(Boolean);
 

@@ -222,7 +222,19 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     });
     const extraBlocks = Object.entries(extraByClient).map(([clientId, hours]) => ({ clientId, hours }));
 
-    return { date, dateStr, isToday, isFuture, isWeekend, dayHours, plannedTotal, delta, loggedInPlan, bilancioExtra, amBlocks, pmBlocks, extraBlocks, dayEntries };
+    // Sequential fill: AM blocks first, then PM blocks, per client in order
+    const blockFill = {};
+    const clientRemainder = { ...clientLogged };
+    for (const block of [...amBlocks, ...pmBlocks]) {
+      const cid = block.clientId;
+      const hasExtra = (clientLogged[cid] ?? 0) > (clientPlanned[cid] ?? 0);
+      const remaining = clientRemainder[cid] ?? 0;
+      const logged = Math.min(remaining, block.hours);
+      clientRemainder[cid] = Math.max(0, remaining - block.hours);
+      blockFill[block.id] = { logged, hasExtra };
+    }
+
+    return { date, dateStr, isToday, isFuture, isWeekend, dayHours, plannedTotal, delta, loggedInPlan, bilancioExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill };
   });
 
   const weekPlanned = days.reduce((s, d) => s + d.plannedTotal, 0);
@@ -366,7 +378,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 }}>
                 <PlanningCell slot="am" dayIndex={i} blocks={d.amBlocks}
                   clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
-                  slotEntries={d.dayEntries.filter(e => (e.slot ?? 'am') === 'am')}
+                  blockFill={d.blockFill}
                   isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'am', cid, h)}
                   onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'am', bid, h)}
@@ -402,7 +414,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 }}>
                 <PlanningCell slot="pm" dayIndex={i} blocks={d.pmBlocks}
                   clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
-                  slotEntries={d.dayEntries.filter(e => (e.slot ?? 'pm') === 'pm')}
+                  blockFill={d.blockFill}
                   isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'pm', cid, h)}
                   onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'pm', bid, h)}
