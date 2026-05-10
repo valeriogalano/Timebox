@@ -228,7 +228,7 @@ export default function App() {
               onEntryChange={refreshSidebar} />
           )}
           {screen === 'panoramica' && (
-            <Panoramica clients={clients} projects={projects} screen={screen} />
+            <Panoramica clients={clients} projects={projects} recurring={recurring} screen={screen} />
           )}
           {screen === 'billing' && (
             <BillingScreen clients={clients} projects={projects} screen={screen} />

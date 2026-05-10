@@ -287,6 +287,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const weekPlanned = days.reduce((s, d) => s + d.plannedTotal, 0);
   const weekActual  = days.reduce((s, d) => s + d.dayHours, 0);
   const weekDelta   = weekActual - weekPlanned;
+  const weekExtra   = days.reduce((s, d) => s + Math.max(0, d.bilancioExtra), 0);
   const endSun = addDays(monday, 6);
   const weekLabel = `${monday.getDate()} ${MONTHS_IT[monday.getMonth()]} – ${endSun.getDate()} ${MONTHS_IT[endSun.getMonth()]} ${endSun.getFullYear()}`;
 
@@ -382,6 +383,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           <Pill label="Tracciate"   value={fmtH(weekActual)}  color="var(--tb-text-primary)" />
           <Pill label="Delta"       value={(weekDelta >= 0 ? '+' : '') + fmtH(weekDelta)}
             color={weekDelta === 0 ? 'var(--tb-text-secondary)' : weekDelta > 0 ? '#3DB33D' : '#E05252'} />
+          {weekExtra > 0 && (
+            <Pill label="Extra" value={fmtH(weekExtra)} color="#E07B3A" />
+          )}
         </div>
       </div>
 
