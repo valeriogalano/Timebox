@@ -190,17 +190,21 @@ function setupIpc() {
     const since = new Date(sortedDates[0] + 'T00:00:00').toISOString();
 
     const [openRes, doneRes, projRes] = await Promise.all([
-      fetch('https://api.todoist.com/rest/v2/tasks', { headers }),
-      fetch(`https://api.todoist.com/sync/v9/items/get_completed?since=${since}`, { headers }),
-      fetch('https://api.todoist.com/rest/v2/projects', { headers }),
+      fetch('https://api.todoist.com/api/v1/tasks', { headers }),
+      fetch(`https://api.todoist.com/api/v1/tasks/completed_by_due_date?since=${encodeURIComponent(since)}`, { headers }),
+      fetch('https://api.todoist.com/api/v1/projects', { headers }),
     ]);
 
+    logger.info('todoist:sync token_len', { len: token.length });
     logger.info('todoist:sync status', { open: openRes.status, done: doneRes.status, proj: projRes.status });
+    if (!openRes.ok) logger.info('todoist:sync open_body', { body: await openRes.text() });
 
-    const openTasks      = openRes.ok  ? await openRes.json()  : [];
-    const doneData       = doneRes.ok  ? await doneRes.json()  : {};
-    const doneTasks      = doneData.items ?? [];
-    const todoistProjects = projRes.ok  ? await projRes.json() : [];
+    const openData        = openRes.ok  ? await openRes.json()  : {};
+    const doneData        = doneRes.ok  ? await doneRes.json()  : {};
+    const projData        = projRes.ok  ? await projRes.json()  : {};
+    const openTasks       = openData.tasks ?? openData ?? [];
+    const doneTasks       = doneData.tasks ?? doneData.items ?? [];
+    const todoistProjects = projData.projects ?? projData ?? [];
 
     function matchProject(todoistProjectId) {
       const tp = todoistProjects.find(p => p.id === todoistProjectId);
