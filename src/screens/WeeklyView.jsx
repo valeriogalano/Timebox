@@ -220,6 +220,11 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
         extraByClient[p.clientId] = (extraByClient[p.clientId] ?? 0) + e.hours;
       }
     });
+    // Also add overflow for planned clients (logged > planned)
+    for (const [cid, planned] of Object.entries(clientPlanned)) {
+      const logged = clientLogged[cid] ?? 0;
+      if (logged > planned) extraByClient[cid] = (extraByClient[cid] ?? 0) + (logged - planned);
+    }
     const extraBlocks = Object.entries(extraByClient).map(([clientId, hours]) => ({ clientId, hours }));
 
     // Sequential fill: AM blocks first, then PM blocks, per client in order
