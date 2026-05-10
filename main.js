@@ -184,23 +184,18 @@ function setupIpc() {
     try { token = safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch { return { error: 'no_token' }; }
 
     const headers = { Authorization: `Bearer ${token}` };
+    const dateSet = new Set(dates);
 
-    // Build date range filter for the refreshable dates
     const sortedDates = [...dates].sort();
-    const from = sortedDates[0];
-    const to   = sortedDates[sortedDates.length - 1];
-    const dayAfterTo = new Date(to); dayAfterTo.setDate(dayAfterTo.getDate() + 1);
-    const toExclusive = dayAfterTo.toISOString().slice(0, 10);
-    const filter = encodeURIComponent(`due after: ${from} & due before: ${toExclusive}`);
-
-    // For completed tasks, look back from the start of the range
-    const since = new Date(from + 'T00:00:00').toISOString();
+    const since = new Date(sortedDates[0] + 'T00:00:00').toISOString();
 
     const [openRes, doneRes, projRes] = await Promise.all([
-      fetch(`https://api.todoist.com/rest/v2/tasks?filter=${filter}`, { headers }),
+      fetch('https://api.todoist.com/rest/v2/tasks', { headers }),
       fetch(`https://api.todoist.com/sync/v9/items/get_completed?since=${since}`, { headers }),
       fetch('https://api.todoist.com/rest/v2/projects', { headers }),
     ]);
+
+    logger.info('todoist:sync status', { open: openRes.status, done: doneRes.status, proj: projRes.status });
 
     const openTasks      = openRes.ok  ? await openRes.json()  : [];
     const doneData       = doneRes.ok  ? await doneRes.json()  : {};
@@ -218,10 +213,12 @@ function setupIpc() {
       return new Date(due.datetime).getHours() < 13 ? 'am' : 'pm';
     }
 
+    logger.info('todoist:sync tasks', { open: openTasks.length, done: doneTasks.length, projects: todoistProjects.length });
+
     const byDate = {};
     for (const t of openTasks) {
       const date = t.due?.date ?? null;
-      if (!date) continue;
+      if (!date || !dateSet.has(date)) continue;
       const proj = matchProject(t.project_id);
       if (!proj) continue;
       if (!byDate[date]) byDate[date] = [];
@@ -229,13 +226,14 @@ function setupIpc() {
     }
     for (const t of doneTasks) {
       const date = t.completed_at?.slice(0, 10) ?? null;
-      if (!date) continue;
+      if (!date || !dateSet.has(date)) continue;
       const proj = matchProject(t.project_id);
       if (!proj) continue;
       if (!byDate[date]) byDate[date] = [];
       byDate[date].push({ id: t.id, projectId: proj.id, hours: (t.duration?.amount ?? 60) / 60, slot: 'am', completed: true });
     }
 
+    logger.info('todoist:sync byDate', { dates: Object.keys(byDate), counts: Object.fromEntries(Object.entries(byDate).map(([d, ts]) => [d, ts.length])) });
     return { byDate };
   });
 
