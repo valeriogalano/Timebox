@@ -5,6 +5,17 @@ export default function SettingsScreen({ theme, setTheme }) {
   const [dbPath, setDbPath] = useState('');
   const [todoistToken, setTodoistTokenState] = useState('');
   const [tokenSaved, setTokenSaved] = useState(false);
+  const [todoistDebug, setTodoistDebug] = useState(() => {
+    try { return localStorage.getItem('timebox-todoist-debug') === 'true'; } catch { return false; }
+  });
+
+  function toggleTodoistDebug() {
+    setTodoistDebug(prev => {
+      const next = !prev;
+      try { localStorage.setItem('timebox-todoist-debug', String(next)); } catch {}
+      return next;
+    });
+  }
 
   useEffect(() => {
     window.api.getDbPath().then(p => setDbPath(p || ''));
@@ -116,6 +127,27 @@ export default function SettingsScreen({ theme, setTheme }) {
               {tokenSaved ? '✓ Salvato' : 'Salva'}
             </button>
           </div>
+        </div>
+        <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 3 }}>
+              Log di debug
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
+              Registra nel log ogni task recuperato da Todoist e il risultato del match con i progetti
+            </div>
+          </div>
+          <button
+            onClick={toggleTodoistDebug}
+            style={{
+              flexShrink: 0, padding: '5px 14px', borderRadius: 6, border: '1px solid var(--tb-border)',
+              background: todoistDebug ? '#4A8FE8' : 'var(--tb-panel-bg-soft)',
+              color: todoistDebug ? 'white' : 'var(--tb-text-secondary)',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              fontFamily: "'Open Sans', sans-serif", transition: 'all 0.15s',
+            }}>
+            {todoistDebug ? 'Attivo' : 'Disattivo'}
+          </button>
         </div>
       </Section>
       <Section title="Database">

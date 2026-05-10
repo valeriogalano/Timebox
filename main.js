@@ -177,7 +177,7 @@ function setupIpc() {
   ipcMain.handle('db:getTodoistCache',     (_, dates)               => q.getTodoistCache(dates));
   ipcMain.handle('db:setTodoistCache',     (_, dateStr, tasks, syncedAt) => q.setTodoistCache(dateStr, tasks, syncedAt));
 
-  ipcMain.handle('todoist:sync', async (_, timboxProjects, dates) => {
+  ipcMain.handle('todoist:sync', async (_, timboxProjects, dates, debug) => {
     const enc = q.getSetting('todoist_token_enc');
     if (!enc || !safeStorage.isEncryptionAvailable()) return { error: 'no_token' };
     let token;
@@ -186,26 +186,27 @@ function setupIpc() {
     const headers = { Authorization: `Bearer ${token}` };
     const dateSet = new Set(dates);
 
-    const sortedDates = [...dates].sort();
-    const since = new Date(sortedDates[0] + 'T00:00:00').toISOString();
-
-    const [openRes, doneRes, projRes] = await Promise.all([
-      fetch('https://api.todoist.com/api/v1/tasks', { headers }),
-      fetch(`https://api.todoist.com/api/v1/tasks/completed_by_due_date?since=${encodeURIComponent(since)}`, { headers }),
-      fetch('https://api.todoist.com/api/v1/projects', { headers }),
-    ]);
-
     logger.info('todoist:sync token_len', { len: token.length });
-    logger.info('todoist:sync status', { open: openRes.status, done: doneRes.status, proj: projRes.status });
-    if (!openRes.ok) logger.info('todoist:sync open_body', { body: await openRes.text() });
+    logger.info('todoist:sync dates', { dates });
 
-    const openData        = openRes.ok  ? await openRes.json()  : {};
-    const doneData        = doneRes.ok  ? await doneRes.json()  : {};
-    const projData        = projRes.ok  ? await projRes.json()  : {};
-    logger.info('todoist:sync keys', { open: Object.keys(openData), proj: Object.keys(projData) });
-    const openTasks       = openData.tasks ?? openData.results ?? (Array.isArray(openData) ? openData : []);
-    const doneTasks       = doneData.tasks ?? doneData.results ?? doneData.items ?? (Array.isArray(doneData) ? doneData : []);
-    const todoistProjects = projData.projects ?? projData.results ?? (Array.isArray(projData) ? projData : []);
+    // Fetch all open tasks with pagination
+    const openTasks = [];
+    let cursor = null;
+    do {
+      const url = 'https://api.todoist.com/api/v1/tasks?limit=200' + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
+      const res = await fetch(url, { headers });
+      if (!res.ok) { logger.info('todoist:sync open_error', { status: res.status }); break; }
+      const data = await res.json();
+      openTasks.push(...(data.results ?? data.tasks ?? []));
+      cursor = data.next_cursor ?? null;
+    } while (cursor);
+
+    // Fetch projects (single page)
+    const projRes = await fetch('https://api.todoist.com/api/v1/projects?limit=200', { headers });
+    const projData = projRes.ok ? await projRes.json() : {};
+    const todoistProjects = projData.results ?? projData.projects ?? [];
+
+    logger.info('todoist:sync tasks', { open: openTasks.length, projects: todoistProjects.length });
 
     function matchProject(todoistProjectId) {
       const tp = todoistProjects.find(p => p.id === todoistProjectId);
@@ -214,39 +215,32 @@ function setupIpc() {
     }
 
     function parseDurationHours(duration) {
-      if (!duration) return 1;
+      if (!duration) return null;
       if (typeof duration === 'object') return (duration.amount ?? 60) / 60;
-      // String format: "2h", "30m", "1h15m", "1h 30m"
       const h = duration.match(/(\d+)\s*h/);
       const m = duration.match(/(\d+)\s*m/);
-      return (h ? parseInt(h[1]) : 0) + (m ? parseInt(m[1]) / 60 : 0) || 1;
+      return (h ? parseInt(h[1]) : 0) + (m ? parseInt(m[1]) / 60 : 0) || null;
     }
 
     function taskSlot(due) {
-      if (!due?.datetime) return 'am';
-      return new Date(due.datetime).getHours() < 13 ? 'am' : 'pm';
+      if (!due?.date) return 'am';
+      const dt = due.date.length > 10 ? new Date(due.date) : null;
+      return dt && dt.getHours() < 13 ? 'am' : 'pm';
     }
-
-    logger.info('todoist:sync tasks', { open: openTasks.length, done: doneTasks.length, projects: todoistProjects.length });
 
     const byDate = {};
     for (const t of openTasks) {
-      const date = t.due?.date ?? null;
+      const date = t.due?.date?.slice(0, 10) ?? null;
+      if (debug) logger.info('todoist:task', { content: t.content, date, project_id: t.project_id, inDateSet: date ? dateSet.has(date) : false });
       if (!date || !dateSet.has(date)) continue;
       const proj = matchProject(t.project_id);
+      if (debug) logger.info('todoist:match', { content: t.content, date, matched: proj?.name ?? null });
       if (!proj) continue;
+      const hours = parseDurationHours(t.duration);
+      if (!hours) continue;
       if (!byDate[date]) byDate[date] = [];
-      byDate[date].push({ id: t.id, projectId: proj.id, hours: parseDurationHours(t.duration), slot: taskSlot(t.due), completed: false });
+      byDate[date].push({ id: t.id, projectId: proj.id, hours, slot: taskSlot(t.due), completed: false });
     }
-    for (const t of doneTasks) {
-      const date = t.completed_at?.slice(0, 10) ?? null;
-      if (!date || !dateSet.has(date)) continue;
-      const proj = matchProject(t.project_id);
-      if (!proj) continue;
-      if (!byDate[date]) byDate[date] = [];
-      byDate[date].push({ id: t.id, projectId: proj.id, hours: parseDurationHours(t.duration), slot: 'am', completed: true });
-    }
-
     logger.info('todoist:sync byDate', { dates: Object.keys(byDate), counts: Object.fromEntries(Object.entries(byDate).map(([d, ts]) => [d, ts.length])) });
     return { byDate };
   });

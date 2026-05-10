@@ -483,7 +483,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           </div>
           {days.map((d, i) => (
             <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)', background: todayBg(d), padding: 4 }}>
-              <ExtraCell blocks={d.extraBlocks} orphanTodoist={d.orphanTodoist} clients={clients} isToday={d.isToday} />
+              <ExtraCell blocks={d.extraBlocks} orphanTodoist={d.isWeekend ? [] : d.orphanTodoist} clients={clients} isToday={d.isToday} />
             </div>
           ))}
 
@@ -711,7 +711,8 @@ function TodoistSyncButton({ days, todoistSync, setTodoistSync, todoistTasks, se
   async function refresh() {
     setBusy(true);
     try {
-      const result = await window.api.syncTodoist(projects, refreshable.map(d => d.dateStr));
+      const debug = localStorage.getItem('timebox-todoist-debug') === 'true';
+      const result = await window.api.syncTodoist(projects, refreshable.map(d => d.dateStr), debug);
       if (result.error === 'no_token') {
         alert('Token Todoist non configurato. Vai in Impostazioni → Todoist per inserirlo.');
         setBusy(false);
