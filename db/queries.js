@@ -173,6 +173,28 @@ function freezeWeeksBeforeRecurringChange(currentRecurring) {
   })();
 }
 
+// ── Settings ───────────────────────────────────────────────────────────────────
+function getSetting(key) {
+  const row = db.prepare('SELECT value FROM settings WHERE key=?').get(key);
+  return row ? row.value : null;
+}
+
+function setSetting(key, value) {
+  db.prepare('INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)').run(key, value);
+}
+
+// ── Todoist cache ──────────────────────────────────────────────────────────────
+function getTodoistCache(dates) {
+  if (!dates || dates.length === 0) return [];
+  const placeholders = dates.map(() => '?').join(',');
+  return db.prepare(`SELECT dateStr, tasksJson, syncedAt FROM todoist_cache WHERE dateStr IN (${placeholders})`).all(...dates)
+    .map(row => ({ dateStr: row.dateStr, tasks: JSON.parse(row.tasksJson), syncedAt: row.syncedAt }));
+}
+
+function setTodoistCache(dateStr, tasks, syncedAt) {
+  db.prepare('INSERT OR REPLACE INTO todoist_cache (dateStr,tasksJson,syncedAt) VALUES (?,?,?)').run(dateStr, JSON.stringify(tasks), syncedAt);
+}
+
 // ── Data management ────────────────────────────────────────────────────────────
 function resetAllData() {
   db.exec(`
@@ -210,5 +232,7 @@ module.exports = {
   getRecurring, saveRecurring, deleteRecurring,
   getEntries, getProjectTotals, saveEntry, deleteEntry,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,
+  getSetting, setSetting,
+  getTodoistCache, setTodoistCache,
   resetAllData, seedDemoData,
 };

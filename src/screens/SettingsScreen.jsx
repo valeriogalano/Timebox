@@ -3,9 +3,12 @@ import React, { useState, useEffect } from 'react';
 export default function SettingsScreen({ theme, setTheme }) {
   const [busy, setBusy] = useState(false);
   const [dbPath, setDbPath] = useState('');
+  const [todoistToken, setTodoistTokenState] = useState('');
+  const [tokenSaved, setTokenSaved] = useState(false);
 
   useEffect(() => {
     window.api.getDbPath().then(p => setDbPath(p || ''));
+    window.api.getTodoistToken().then(t => setTodoistTokenState(t || ''));
   }, []);
 
   async function handleSelectDbFile() {
@@ -44,6 +47,14 @@ export default function SettingsScreen({ theme, setTheme }) {
     window.location.reload();
   }
 
+  async function handleSaveTodoistToken() {
+    setBusy(true);
+    await window.api.setTodoistToken(todoistToken.trim());
+    setBusy(false);
+    setTokenSaved(true);
+    setTimeout(() => setTokenSaved(false), 2000);
+  }
+
   async function handleResetData() {
     if (!window.confirm('Cancellare tutti i dati?\n\nQuesta operazione elimina definitivamente clienti, progetti, ore e pianificazione.')) return;
     setBusy(true);
@@ -62,6 +73,49 @@ export default function SettingsScreen({ theme, setTheme }) {
             Scegli l'aspetto dell'interfaccia. "Sistema" segue le impostazioni del tuo macOS.
           </div>
           <ThemeSelector theme={theme} setTheme={setTheme} />
+        </div>
+      </Section>
+      <Section title="Todoist">
+        <div style={{ padding: '16px 20px' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 6 }}>
+            Token API
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginBottom: 12 }}>
+            Inserisci il tuo token personale Todoist. Puoi trovarlo in{' '}
+            <a href="https://todoist.com/app/settings/integrations/developer"
+              target="_blank" rel="noreferrer"
+              style={{ color: '#4A8FE8', textDecoration: 'none' }}>
+              Impostazioni → Integrazioni → Developer
+            </a>.
+            Il token viene salvato cifrato con il Keychain di macOS.
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="password"
+              value={todoistToken}
+              onChange={e => { setTodoistTokenState(e.target.value); setTokenSaved(false); }}
+              placeholder="Incolla il token Todoist…"
+              style={{
+                flex: 1, padding: '7px 10px', borderRadius: 6, fontSize: 12,
+                border: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg-soft)',
+                color: 'var(--tb-text-primary)', fontFamily: "'Open Sans', sans-serif",
+                outline: 'none',
+              }}
+            />
+            <button
+              onClick={handleSaveTodoistToken}
+              disabled={busy}
+              style={{
+                flexShrink: 0, padding: '7px 16px', borderRadius: 6, border: 'none',
+                background: tokenSaved ? '#3DB33D' : '#4A8FE8',
+                color: 'white', fontSize: 12, fontWeight: 700,
+                cursor: busy ? 'not-allowed' : 'pointer',
+                fontFamily: "'Open Sans', sans-serif",
+                transition: 'background 0.2s',
+              }}>
+              {tokenSaved ? '✓ Salvato' : 'Salva'}
+            </button>
+          </div>
         </div>
       </Section>
       <Section title="Database">

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, nativeImage, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeImage, dialog, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { initDb } = require('./db/schema');
@@ -161,6 +161,21 @@ function setupIpc() {
 
   ipcMain.handle('db:resetAllData',        ()              => q.resetAllData());
   ipcMain.handle('db:seedDemoData',        ()              => q.seedDemoData());
+
+  ipcMain.handle('settings:getTodoistToken', () => {
+    const enc = q.getSetting('todoist_token_enc');
+    if (!enc || !safeStorage.isEncryptionAvailable()) return '';
+    try { return safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch { return ''; }
+  });
+
+  ipcMain.handle('settings:setTodoistToken', (_, token) => {
+    if (!safeStorage.isEncryptionAvailable()) return;
+    const enc = safeStorage.encryptString(token);
+    q.setSetting('todoist_token_enc', enc.toString('base64'));
+  });
+
+  ipcMain.handle('db:getTodoistCache',     (_, dates)               => q.getTodoistCache(dates));
+  ipcMain.handle('db:setTodoistCache',     (_, dateStr, tasks, syncedAt) => q.setTodoistCache(dateStr, tasks, syncedAt));
 
   ipcMain.handle('app:getDbPath', () => _dbPath);
 

@@ -120,6 +120,15 @@ function initDb(dbPath) {
       slot TEXT NOT NULL,
       blocksJson TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+    CREATE TABLE IF NOT EXISTS todoist_cache (
+      dateStr TEXT PRIMARY KEY,
+      tasksJson TEXT NOT NULL DEFAULT '[]',
+      syncedAt TEXT
+    );
     CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(date);
     CREATE INDEX IF NOT EXISTS idx_overrides_weekkey ON week_overrides(weekKey);
   `);
