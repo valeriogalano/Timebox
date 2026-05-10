@@ -117,24 +117,46 @@ export default function App() {
       }}>
 
         {/* Brand */}
-        <div style={{ padding: collapsed ? '20px 0' : '20px 20px 16px', borderBottom: '1px solid var(--tb-sidebar-border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: collapsed ? 'center' : 'flex-start' }}>
-            <div style={{ width: 28, height: 28, borderRadius: 7, background: ACCENT,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <rect x="1" y="1" width="5" height="5" rx="1" fill="white" opacity="0.9"/>
-                <rect x="8" y="1" width="5" height="5" rx="1" fill="white" opacity="0.6"/>
-                <rect x="1" y="8" width="5" height="5" rx="1" fill="white" opacity="0.6"/>
-                <rect x="8" y="8" width="5" height="5" rx="1" fill="white" opacity="0.9"/>
-              </svg>
-            </div>
-            {!collapsed && (
+        <div style={{
+          padding: collapsed ? '20px 0' : '20px 20px 16px',
+          borderBottom: '1px solid var(--tb-sidebar-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: collapsed ? 'center' : 'space-between'
+        }}>
+          {!collapsed && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 7, background: ACCENT,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <rect x="1" y="1" width="5" height="5" rx="1" fill="white" opacity="0.9"/>
+                  <rect x="8" y="1" width="5" height="5" rx="1" fill="white" opacity="0.6"/>
+                  <rect x="1" y="8" width="5" height="5" rx="1" fill="white" opacity="0.6"/>
+                  <rect x="8" y="8" width="5" height="5" rx="1" fill="white" opacity="0.9"/>
+                </svg>
+              </div>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-sidebar-text)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>Timebox</div>
                 <div style={{ fontSize: 9, color: ACCENT, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Freelance</div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          <button onClick={toggleSidebar} style={{
+            background: 'transparent', border: 'none', color: 'var(--tb-sidebar-faint)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px',
+            borderRadius: 4, transition: 'all 0.2s',
+            marginRight: collapsed ? 0 : -4,
+            flexShrink: 0
+          }} onMouseOver={e => {
+            e.currentTarget.style.background = 'var(--tb-sidebar-border)';
+            e.currentTarget.style.color = 'var(--tb-sidebar-text)';
+          }} onMouseOut={e => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = 'var(--tb-sidebar-faint)';
+          }}>
+            {collapsed ? <ExpandIcon /> : <CollapseIcon />}
+          </button>
         </div>
 
         {/* Nav */}
@@ -188,14 +210,6 @@ export default function App() {
           background: 'var(--tb-topbar-bg)', flexShrink: 0,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <button onClick={toggleSidebar} style={{
-              background: 'transparent', border: 'none', color: 'var(--tb-sidebar-muted)',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '8px',
-              marginLeft: -12, borderRadius: 4, transition: 'background 0.2s'
-            }} onMouseOver={e => e.currentTarget.style.background = 'var(--tb-sidebar-border)'}
-               onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
-              {collapsed ? <ExpandIcon /> : <CollapseIcon />}
-            </button>
             <h1 style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-topbar-text)', letterSpacing: '-0.01em' }}>
               {NAV_ITEMS.find(n => n.id === screen)?.label}
             </h1>
