@@ -121,6 +121,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   }
 
   function resetWeekToTemplate() {
+    if (!window.confirm("Sei sicuro di voler ripristinare il template per questa settimana? Tutte le modifiche personalizzate andranno perse.")) return;
     setWeekOverrides(prev => {
       const next = { ...prev };
       delete next[weekKey];
