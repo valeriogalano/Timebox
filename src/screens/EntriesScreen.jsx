@@ -12,6 +12,8 @@ function defaultTo() {
 export default function EntriesScreen({ clients, projects, onEntryChange }) {
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo]     = useState(defaultTo);
+  const [filterClientId, setFilterClientId] = useState('');
+  const [filterProjectId, setFilterProjectId] = useState('');
   const [entries, setEntries] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editState, setEditState] = useState({});
@@ -68,7 +70,20 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
     onEntryChange?.();
   }
 
-  const sorted = [...entries].sort((a, b) => {
+  const projectsForFilter = filterClientId
+    ? projects.filter(p => p.clientId === filterClientId)
+    : projects;
+
+  const filtered = entries.filter(e => {
+    if (filterClientId) {
+      const p = projects.find(p2 => p2.id === e.projectId);
+      if (!p || p.clientId !== filterClientId) return false;
+    }
+    if (filterProjectId && e.projectId !== filterProjectId) return false;
+    return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
     if (b.date !== a.date) return b.date.localeCompare(a.date);
     return (a.slot || '').localeCompare(b.slot || '');
   });
@@ -82,8 +97,27 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
         <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={inputStyle} />
         <label style={labelStyle}>al</label>
         <input type="date" value={to} onChange={e => setTo(e.target.value)} style={inputStyle} />
+
+        <select value={filterClientId}
+          onChange={e => { setFilterClientId(e.target.value); setFilterProjectId(''); }}
+          style={selectStyle}>
+          <option value="">Tutte le aree</option>
+          {clients.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+
+        <select value={filterProjectId}
+          onChange={e => setFilterProjectId(e.target.value)}
+          style={selectStyle}>
+          <option value="">Tutti i progetti</option>
+          {projectsForFilter.map(p => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+
         <span style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginLeft: 4 }}>
-          {entries.length} entr{entries.length === 1 ? 'y' : 'ies'} · {fmtH(entries.reduce((s, e) => s + e.hours, 0))}
+          {filtered.length} entr{filtered.length === 1 ? 'y' : 'ies'} · {fmtH(filtered.reduce((s, e) => s + e.hours, 0))}
         </span>
       </div>
 
@@ -141,14 +175,23 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
                         ? <select value={editState.projectId}
                             onChange={e => setEditState(s => ({ ...s, projectId: e.target.value }))}
                             style={selectStyle}>
-                            {projects.map(p => {
-                              const c = clients.find(c2 => c2.id === p.clientId);
-                              return (
-                                <option key={p.id} value={p.id}>
-                                  {c ? `${c.name} / ` : ''}{p.name}{p.archived ? ' (archiviato)' : ''}
-                                </option>
-                              );
-                            })}
+                            {[...projects]
+                              .sort((a, b) => {
+                                const ca = clients.find(c2 => c2.id === a.clientId);
+                                const cb = clients.find(c2 => c2.id === b.clientId);
+                                const posA = ca?.position ?? 0;
+                                const posB = cb?.position ?? 0;
+                                if (posA !== posB) return posA - posB;
+                                return (a.position ?? 0) - (b.position ?? 0);
+                              })
+                              .map(p => {
+                                const c = clients.find(c2 => c2.id === p.clientId);
+                                return (
+                                  <option key={p.id} value={p.id}>
+                                    {c ? `${c.name} / ` : ''}{p.name}{p.archived ? ' (archiviato)' : ''}
+                                  </option>
+                                );
+                              })}
                           </select>
                         : <span style={{ color: 'var(--tb-text-primary)' }}>{project?.name ?? '—'}</span>
                       }

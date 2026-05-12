@@ -11,9 +11,9 @@ import EntriesScreen from './screens/EntriesScreen';
 const NAV_ITEMS = [
   { id: 'weekly',     label: 'Settimana',      icon: WeekIcon      },
   { id: 'panoramica', label: 'Panoramica',      icon: ChartIcon     },
-  { id: 'billing',    label: 'Billing',         icon: BillingIcon   },
+  { id: 'billing',    label: 'Fatturazione',    icon: BillingIcon   },
   { id: 'clients',    label: 'Aree',            icon: ClientsIcon   },
-  { id: 'recurring',  label: 'Pianificazione',  icon: RepeatIcon    },
+  { id: 'recurring',  label: 'Ricorrenza',      icon: RepeatIcon    },
   { id: 'entries',    label: 'Registrazioni',   icon: ListIcon      },
   { id: 'settings',   label: 'Impostazioni',    icon: SettingsIcon  },
 ];
