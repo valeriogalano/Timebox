@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toHHMM, parseHHMM } from '../utils';
 
-export default function TimeCell({ hours, billed, isFuture, isToday, clientColor, colIndex, onSave, onToggleBilled }) {
+export default function TimeCell({ hours, billed, isBillable, isFuture, isToday, clientColor, colIndex, onSave }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [hover, setHover] = useState(false);
@@ -94,7 +94,7 @@ export default function TimeCell({ hours, billed, isFuture, isToday, clientColor
           <span style={{ fontSize: 13, fontWeight: 800, color: clientColor, letterSpacing: '-0.01em' }}>
             {toHHMM(hours)}
           </span>
-          {billed && (
+          {isBillable && billed && (
             <span style={{ fontSize: 8, fontWeight: 800, color: '#3DB33D',
               border: '1px solid #3DB33D', padding: '0 3px', borderRadius: 2, lineHeight: 1.5 }}>
               €
@@ -110,18 +110,6 @@ export default function TimeCell({ hours, billed, isFuture, isToday, clientColor
         </span>
       )}
 
-      {hasHours && !editing && hover && (
-        <button
-          onClick={e => { e.stopPropagation(); onToggleBilled(); }}
-          title={billed ? 'Segna come non fatturato' : 'Segna come fatturato'}
-          style={{
-            position: 'absolute', top: 3, right: 3, background: 'none', border: 'none',
-            cursor: 'pointer', color: billed ? '#3DB33D' : 'var(--tb-border-mid)', fontSize: 10, padding: 0,
-            lineHeight: 1, fontWeight: 800,
-          }}>
-          €
-        </button>
-      )}
     </div>
   );
 }

@@ -25,7 +25,9 @@ export default function BillingScreen({ clients, projects, screen }) {
   }
 
   const billableClients = clients.filter(c => c.billable);
-  const grandTotalH = entries.reduce((s, e) => s + e.hours, 0);
+  const billablePids = new Set(projects.filter(p => billableClients.some(c => c.id === p.clientId)).map(p => p.id));
+  const billableEntries = entries.filter(e => billablePids.has(e.projectId));
+  const grandTotalH = billableEntries.reduce((s, e) => s + e.hours, 0);
   const grandTotalEur = billableClients.reduce((s, client) => {
     if (client.billing !== 'hourly' || !client.rate) return s;
     const pids = projects.filter(p => p.clientId === client.id).map(p => p.id);
@@ -51,7 +53,7 @@ export default function BillingScreen({ clients, projects, screen }) {
       </div>
 
       {/* Per-client sections */}
-      {clients.map(client => {
+      {billableClients.map(client => {
         const pids = projects.filter(p => p.clientId === client.id).map(p => p.id);
         const clientEntries = entries
           .filter(e => pids.includes(e.projectId))

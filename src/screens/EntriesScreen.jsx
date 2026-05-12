@@ -44,12 +44,16 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
   async function commitEdit(entry) {
     const parsed = parseHHMM(editState.hours);
     if (isNaN(parsed) || parsed < 0) return;
+    const entryClient = clients.find(c => {
+      const p = projects.find(p2 => p2.id === editState.projectId);
+      return p && c.id === p.clientId;
+    });
     const updated = {
       ...entry,
       date: editState.date,
       hours: parsed,
       projectId: editState.projectId,
-      billed: editState.billed,
+      billed: entryClient?.billable ? editState.billed : false,
     };
     await window.api.saveEntry(updated);
     setEditingId(null);
@@ -166,12 +170,14 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
 
                     {/* Billed */}
                     <td style={{ ...tdStyle, textAlign: 'center' }}>
-                      {isEditing
-                        ? <input type="checkbox" checked={editState.billed}
-                            onChange={e => setEditState(s => ({ ...s, billed: e.target.checked }))} />
-                        : entry.billed
-                          ? <span style={{ color: '#3DB33D', fontWeight: 700, fontSize: 11 }}>€</span>
-                          : <span style={{ color: 'var(--tb-text-muted)', fontSize: 11 }}>–</span>
+                      {client?.billable
+                        ? isEditing
+                          ? <input type="checkbox" checked={editState.billed}
+                              onChange={e => setEditState(s => ({ ...s, billed: e.target.checked }))} />
+                          : entry.billed
+                            ? <span style={{ color: '#3DB33D', fontWeight: 700, fontSize: 11 }}>€</span>
+                            : <span style={{ color: 'var(--tb-text-muted)', fontSize: 11 }}>–</span>
+                        : <span style={{ color: 'var(--tb-text-muted)', fontSize: 11 }}>n/a</span>
                       }
                     </td>
 
