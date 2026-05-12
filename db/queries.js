@@ -1,4 +1,5 @@
 const { INIT_CLIENTS, INIT_PROJECTS, INIT_RECURRING, getSeedEntries } = require('./schema');
+const { randomUUID } = require('crypto');
 
 let db;
 
@@ -48,6 +49,35 @@ function saveProject(project) {
 
 function deleteProject(id) {
   db.prepare('DELETE FROM projects WHERE id=?').run(id);
+}
+
+const TODOIST_CLIENT_ID = 'todoist-imported';
+
+function importTodoistProjects(todoistProjects) {
+  const existing = db.prepare('SELECT name FROM projects').all().map(r => r.name);
+  const existingSet = new Set(existing);
+
+  let client = db.prepare('SELECT * FROM clients WHERE id=?').get(TODOIST_CLIENT_ID);
+  if (!client) {
+    const maxPos = db.prepare('SELECT MAX(position) as m FROM clients').get().m ?? 0;
+    db.prepare(`
+      INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position)
+      VALUES (?,?,?,?,?,?,?,?,?)
+    `).run(TODOIST_CLIENT_ID, 'Todoist', '#E44332', 0, 'none', 0, 'none', null, maxPos + 1);
+    client = { id: TODOIST_CLIENT_ID };
+  }
+
+  const maxProjPos = db.prepare('SELECT MAX(position) as m FROM projects').get().m ?? 0;
+  let added = 0;
+  todoistProjects.forEach((tp, i) => {
+    if (existingSet.has(tp.name)) return;
+    db.prepare(`
+      INSERT INTO projects (id,clientId,name,budgetHours,weeklyHours,position,archived)
+      VALUES (?,?,?,?,?,?,?)
+    `).run(randomUUID(), TODOIST_CLIENT_ID, tp.name, null, null, maxProjPos + 1 + i, 0);
+    added++;
+  });
+  return { added };
 }
 
 function normalizeProject(row) {
@@ -234,5 +264,6 @@ module.exports = {
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,
   getSetting, setSetting,
   getTodoistCache, setTodoistCache,
+  importTodoistProjects,
   resetAllData, seedDemoData,
 };

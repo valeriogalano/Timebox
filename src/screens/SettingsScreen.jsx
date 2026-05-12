@@ -5,6 +5,7 @@ export default function SettingsScreen({ theme, setTheme }) {
   const [dbPath, setDbPath] = useState('');
   const [todoistToken, setTodoistTokenState] = useState('');
   const [tokenSaved, setTokenSaved] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   const [todoistDebug, setTodoistDebug] = useState(() => {
     try { return localStorage.getItem('timebox-todoist-debug') === 'true'; } catch { return false; }
   });
@@ -56,6 +57,21 @@ export default function SettingsScreen({ theme, setTheme }) {
     setBusy(true);
     await window.api.seedDemoData();
     window.location.reload();
+  }
+
+  async function handleImportTodoistProjects() {
+    setBusy(true);
+    setImportResult(null);
+    const result = await window.api.importTodoistProjects();
+    setBusy(false);
+    if (result.error === 'no_token') {
+      setImportResult({ error: 'Token non configurato.' });
+    } else if (result.error) {
+      setImportResult({ error: `Errore API Todoist (${result.status ?? result.error}).` });
+    } else {
+      setImportResult({ added: result.added });
+      if (result.added > 0) setTimeout(() => window.location.reload(), 1200);
+    }
   }
 
   async function handleSaveTodoistToken() {
@@ -147,6 +163,38 @@ export default function SettingsScreen({ theme, setTheme }) {
               fontFamily: "'Open Sans', sans-serif", transition: 'all 0.15s',
             }}>
             {todoistDebug ? 'Attivo' : 'Disattivo'}
+          </button>
+        </div>
+        <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 3 }}>
+              Importa progetti
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
+              Aggiunge sotto il client "Todoist" tutti i progetti Todoist non ancora presenti in Timebox
+            </div>
+            {importResult && (
+              <div style={{ fontSize: 11, marginTop: 6, color: importResult.error ? '#E05252' : '#3DB33D', fontWeight: 700 }}>
+                {importResult.error
+                  ? importResult.error
+                  : importResult.added === 0
+                    ? 'Nessun nuovo progetto da importare.'
+                    : `${importResult.added} progett${importResult.added === 1 ? 'o importato' : 'i importati'}, ricarico…`}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleImportTodoistProjects}
+            disabled={busy}
+            style={{
+              flexShrink: 0, padding: '7px 16px', borderRadius: 6, border: 'none',
+              background: busy ? 'var(--tb-border)' : '#4A8FE8',
+              color: 'white', fontSize: 12, fontWeight: 700,
+              cursor: busy ? 'not-allowed' : 'pointer',
+              fontFamily: "'Open Sans', sans-serif",
+              transition: 'background 0.12s',
+            }}>
+            Importa
           </button>
         </div>
       </Section>

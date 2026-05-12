@@ -245,6 +245,21 @@ function setupIpc() {
     return { byDate };
   });
 
+  ipcMain.handle('todoist:importProjects', async () => {
+    const enc = q.getSetting('todoist_token_enc');
+    if (!enc || !safeStorage.isEncryptionAvailable()) return { error: 'no_token' };
+    let token;
+    try { token = safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch { return { error: 'no_token' }; }
+
+    const headers = { Authorization: `Bearer ${token}` };
+    const projRes = await fetch('https://api.todoist.com/api/v1/projects?limit=200', { headers });
+    if (!projRes.ok) return { error: 'api_error', status: projRes.status };
+    const projData = await projRes.json();
+    const todoistProjects = projData.results ?? projData.projects ?? [];
+
+    return q.importTodoistProjects(todoistProjects);
+  });
+
   ipcMain.handle('app:getDbPath', () => _dbPath);
 
   ipcMain.handle('app:selectDbFile', async () => {

@@ -37,4 +37,5 @@ contextBridge.exposeInMainWorld('api', {
   getTodoistCache:    (dates)                     => ipcRenderer.invoke('db:getTodoistCache', dates),
   setTodoistCache:    (dateStr, tasks, syncedAt)  => ipcRenderer.invoke('db:setTodoistCache', dateStr, tasks, syncedAt),
   syncTodoist:        (projects, dates, debug)      => ipcRenderer.invoke('todoist:sync', projects, dates, debug),
+  importTodoistProjects: ()                         => ipcRenderer.invoke('todoist:importProjects'),
 });
