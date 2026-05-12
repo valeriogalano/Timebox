@@ -185,6 +185,8 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
   }
 
   function deleteProject(projectId) {
+    const proj = projects.find(p => p.id === projectId);
+    if (!window.confirm(`Eliminare il progetto "${proj?.name}"?`)) return;
     window.api.deleteProject(projectId);
     setProjects(prev => prev.filter(p => p.id !== projectId));
   }

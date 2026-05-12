@@ -32,6 +32,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
   }
 
   async function removeBlock(id) {
+    if (!window.confirm('Eliminare questo blocco ricorrente?')) return;
     await window.api.freezeWeeksBeforeRecurringChange(recurring);
     window.api.deleteRecurring(id);
     setRecurring(prev => prev.filter(r => r.id !== id));
