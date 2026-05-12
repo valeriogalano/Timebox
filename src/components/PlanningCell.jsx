@@ -16,8 +16,8 @@ function Divider() {
 
 
 function PlanningBlock({
-  block, cl, blockH, fillPct, delta, logged, overflow, todoistH, hasTodoistSync,
-  isFuture, editable, isDragging,
+  block, cl, blockH, fillPct, delta, logged, overflow, todoistH, todoistTasks, hasTodoistSync,
+  isFuture, isToday, editable, isDragging,
   editing, editDraft, setEditDraft, editRef, commitEdit, onStartEdit, onCancelEdit,
   onRemove, onDragStart,
   projects, projectTotals, weekProjectHours,
@@ -63,7 +63,6 @@ function PlanningBlock({
         cursor: editable && !editing ? 'grab' : 'default',
         opacity: isDragging ? 0.35 : 1,
         transition: 'opacity 0.15s, border-color 0.15s',
-        overflow: 'hidden',
         flexShrink: 0,
       }}
     >
@@ -126,6 +125,32 @@ function PlanningBlock({
 
       </div>
 
+      {/* Todoist task tooltip */}
+      {hasTodoistSync && todoistH > 0 && hover && (isToday || isFuture) && todoistTasks && todoistTasks.length > 0 && (
+        <div style={{
+          position: 'absolute', bottom: 'calc(100% + 6px)', left: 0,
+          background: 'var(--tb-panel-bg)',
+          border: '1px solid var(--tb-border-mid)',
+          borderRadius: 6, padding: '6px 8px',
+          boxShadow: '0 4px 14px rgba(0,0,0,0.22)',
+          zIndex: 100, minWidth: 160, maxWidth: 240,
+          display: 'flex', flexDirection: 'column', gap: 5,
+          pointerEvents: 'none',
+        }}>
+          {todoistTasks.map(t => (
+            <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text)', lineHeight: 1.3, wordBreak: 'break-word' }}>
+                {t.content || '(senza titolo)'}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ fontSize: 9, color: cl.color, fontWeight: 600 }}>{toHHMM(t.hours)}</span>
+                <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>{t.projectName}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Progress bar + extra warning triangle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <div style={{
@@ -139,7 +164,7 @@ function PlanningBlock({
               width: `${Math.min(100, (todoistH / block.hours) * 100)}%`,
               backgroundImage: `repeating-linear-gradient(135deg, ${cl.color}80 0 3px, transparent 3px 6px)`,
               backgroundColor: cl.color + '14',
-            }} title={`Coperto da task Todoist: ${toHHMM(todoistH)}`} />
+            }} />
           )}
           <div style={{
             position: 'absolute', left: 0, top: 0, bottom: 0,
@@ -179,7 +204,7 @@ function PlanningBlock({
 
 export default function PlanningCell({
   slot, dayIndex, blocks, clients, projects, projectTotals, weekProjectHours, blockFill,
-  todoistByClient, hasTodoistSync,
+  todoistByClient, todoistTasksByClient, hasTodoistSync,
   isToday, isFuture, isWeekend, editable,
   onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onReorder, draggingId,
 }) {
@@ -193,7 +218,8 @@ export default function PlanningCell({
     const delta   = logged - block.hours;
     const overflow = fill.hasExtra;
     const todoistH = (todoistByClient && todoistByClient[block.clientId]) ?? 0;
-    return { block, cl, blockH, fillPct, delta, logged, overflow, todoistH };
+    const todoistTasks = (todoistTasksByClient && todoistTasksByClient[block.clientId]) ?? [];
+    return { block, cl, blockH, fillPct, delta, logged, overflow, todoistH, todoistTasks };
   }).filter(Boolean);
 
   const blockRefs = useRef([]);
@@ -289,15 +315,15 @@ export default function PlanningCell({
         opacity: isWeekend ? 0.5 : 1,
         display: 'flex', flexDirection: 'column', gap: 4,
       }}>
-      {visualBlocks.map(({ block, cl, blockH, fillPct, delta, logged, overflow, todoistH }, i) => (
+      {visualBlocks.map(({ block, cl, blockH, fillPct, delta, logged, overflow, todoistH, todoistTasks }, i) => (
         <React.Fragment key={block.id}>
           {isInternalDrag && insertIndex === i && <Divider />}
           <div ref={el => { blockRefs.current[i] = el; }}>
             <PlanningBlock
               block={block} cl={cl} blockH={blockH}
               fillPct={fillPct} delta={delta} logged={logged} overflow={overflow}
-              todoistH={todoistH} hasTodoistSync={hasTodoistSync}
-              isFuture={isFuture} editable={editable}
+              todoistH={todoistH} todoistTasks={todoistTasks} hasTodoistSync={hasTodoistSync}
+              isFuture={isFuture} isToday={isToday} editable={editable}
               isDragging={draggingId === block.id}
               editing={editId === block.id} editDraft={editDraft}
               setEditDraft={setEditDraft} editRef={editRef} commitEdit={commitEdit}

@@ -239,7 +239,7 @@ function setupIpc() {
       const hours = parseDurationHours(t.duration);
       if (!hours) continue;
       if (!byDate[date]) byDate[date] = [];
-      byDate[date].push({ id: t.id, projectId: proj.id, hours, slot: taskSlot(t.due), completed: false });
+      byDate[date].push({ id: t.id, projectId: proj.id, content: t.content ?? '', hours, slot: taskSlot(t.due), completed: false });
     }
     logger.info('todoist:sync byDate', { dates: Object.keys(byDate), counts: Object.fromEntries(Object.entries(byDate).map(([d, ts]) => [d, ts.length])) });
     return { byDate };

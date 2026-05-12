@@ -1,7 +1,62 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { toHHMM } from '../utils';
 
-export default function ExtraCell({ blocks, orphanTodoist, clients, isToday }) {
+function OrphanBlock({ orphan, cl, isToday, isFuture }) {
+  const [hover, setHover] = useState(false);
+  const showTooltip = hover && (isToday || isFuture) && orphan.tasks && orphan.tasks.length > 0;
+  return (
+    <div key={'o-' + orphan.clientId}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      title="Task Todoist senza blocco pianificato"
+      style={{
+        position: 'relative',
+        display: 'flex', alignItems: 'center', gap: 5,
+        borderLeft: `3px solid ${cl.color}aa`,
+        border: `1px dashed ${cl.color}55`,
+        borderRadius: 4, padding: '2px 6px',
+        backgroundImage: `repeating-linear-gradient(135deg, ${cl.color}10 0 4px, transparent 4px 8px)`,
+      }}>
+      {showTooltip && (
+        <div style={{
+          position: 'absolute', bottom: 'calc(100% + 6px)', left: 0,
+          background: 'var(--tb-panel-bg)',
+          border: '1px solid var(--tb-border-mid)',
+          borderRadius: 6, padding: '6px 8px',
+          boxShadow: '0 4px 14px rgba(0,0,0,0.22)',
+          zIndex: 100, minWidth: 160, maxWidth: 240,
+          display: 'flex', flexDirection: 'column', gap: 5,
+          pointerEvents: 'none',
+        }}>
+          {orphan.tasks.map(t => (
+            <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text)', lineHeight: 1.3, wordBreak: 'break-word' }}>
+                {t.content || '(senza titolo)'}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ fontSize: 9, color: cl.color, fontWeight: 600 }}>{toHHMM(t.hours)}</span>
+                <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>{t.projectName}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <span style={{
+        fontSize: 10, fontWeight: 700, color: cl.color, flex: 1, opacity: 0.85,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>{cl.name}</span>
+      <span style={{
+        fontSize: 9, fontWeight: 700, color: cl.color, opacity: 0.7, flexShrink: 0,
+        textTransform: 'uppercase', letterSpacing: '0.06em',
+      }}>{orphan.slot === 'pm' ? 'PM' : 'AM'}</span>
+      <span style={{ fontSize: 11, fontWeight: 800, color: cl.color, flexShrink: 0 }}>
+        {toHHMM(orphan.hours)}
+      </span>
+    </div>
+  );
+}
+
+export default function ExtraCell({ blocks, orphanTodoist, clients, isToday, isFuture }) {
   const hasOrphans = orphanTodoist && orphanTodoist.length > 0;
   if ((!blocks || blocks.length === 0) && !hasOrphans) {
     return (
@@ -46,31 +101,9 @@ export default function ExtraCell({ blocks, orphanTodoist, clients, isToday }) {
         );
       })}
       {hasOrphans && orphanTodoist.map((orphan) => {
-        const { clientId, hours } = orphan;
-        const cl = clients.find(c => c.id === clientId);
+        const cl = clients.find(c => c.id === orphan.clientId);
         if (!cl) return null;
-        return (
-          <div key={'o-' + clientId} title="Task Todoist senza blocco pianificato"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              borderLeft: `3px solid ${cl.color}aa`,
-              border: `1px dashed ${cl.color}55`,
-              borderRadius: 4, padding: '2px 6px',
-              backgroundImage: `repeating-linear-gradient(135deg, ${cl.color}10 0 4px, transparent 4px 8px)`,
-            }}>
-            <span style={{
-              fontSize: 10, fontWeight: 700, color: cl.color, flex: 1, opacity: 0.85,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>{cl.name}</span>
-            <span style={{
-              fontSize: 9, fontWeight: 700, color: cl.color, opacity: 0.7, flexShrink: 0,
-              textTransform: 'uppercase', letterSpacing: '0.06em',
-            }}>{orphan.slot === 'pm' ? 'PM' : 'AM'}</span>
-            <span style={{ fontSize: 11, fontWeight: 800, color: cl.color, flexShrink: 0 }}>
-              {toHHMM(hours)}
-            </span>
-          </div>
-        );
+        return <OrphanBlock key={'o-' + orphan.clientId + orphan.slot} orphan={orphan} cl={cl} isToday={isToday} isFuture={isFuture} />;
       })}
     </div>
   );

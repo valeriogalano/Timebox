@@ -259,11 +259,14 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     // Todoist coverage per slot per clientId
     const dayTodoist = todoistTasks[dateStr] ?? [];
     const todoistByCS = { am: {}, pm: {} };
+    const todoistTasksByCS = { am: {}, pm: {} };
     dayTodoist.forEach(t => {
       const proj = projects.find(p => p.id === t.projectId);
       if (!proj) return;
       const s = t.slot || 'am';
       todoistByCS[s][proj.clientId] = (todoistByCS[s][proj.clientId] ?? 0) + t.hours;
+      if (!todoistTasksByCS[s][proj.clientId]) todoistTasksByCS[s][proj.clientId] = [];
+      todoistTasksByCS[s][proj.clientId].push({ ...t, projectName: proj.name });
     });
     const lastSync = todoistSync[dateStr] ?? null;
 
@@ -274,14 +277,14 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const orphanTodoist = [];
     Object.entries(todoistByCS.am).forEach(([cid, h]) => {
       const remaining = h - (amPlanned[cid] ?? 0);
-      if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'am' });
+      if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'am', tasks: todoistTasksByCS.am[cid] ?? [] });
     });
     Object.entries(todoistByCS.pm).forEach(([cid, h]) => {
       const remaining = h - (pmPlanned[cid] ?? 0);
-      if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'pm' });
+      if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'pm', tasks: todoistTasksByCS.pm[cid] ?? [] });
     });
 
-    return { date, dateStr, isToday, isFuture, isWeekend, dayHours, plannedTotal, delta, loggedInPlan, bilancioExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill, todoistByCS, lastSync, orphanTodoist };
+    return { date, dateStr, isToday, isFuture, isWeekend, dayHours, plannedTotal, delta, loggedInPlan, bilancioExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill, todoistByCS, todoistTasksByCS, lastSync, orphanTodoist };
   });
 
   const weekPlanned = days.reduce((s, d) => s + d.plannedTotal, 0);
@@ -435,7 +438,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 <PlanningCell slot="am" dayIndex={i} blocks={d.amBlocks}
                   clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
                   blockFill={d.blockFill}
-                  todoistByClient={d.todoistByCS.am} hasTodoistSync={!!d.lastSync}
+                  todoistByClient={d.todoistByCS.am} todoistTasksByClient={d.todoistTasksByCS.am} hasTodoistSync={!!d.lastSync}
                   isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'am', cid, h)}
                   onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'am', bid, h)}
@@ -472,7 +475,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 <PlanningCell slot="pm" dayIndex={i} blocks={d.pmBlocks}
                   clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
                   blockFill={d.blockFill}
-                  todoistByClient={d.todoistByCS.pm} hasTodoistSync={!!d.lastSync}
+                  todoistByClient={d.todoistByCS.pm} todoistTasksByClient={d.todoistTasksByCS.pm} hasTodoistSync={!!d.lastSync}
                   isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
                   onAddBlock={(cid, h) => addBlockToSlot(i, 'pm', cid, h)}
                   onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'pm', bid, h)}
@@ -495,7 +498,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           </div>
           {days.map((d, i) => (
             <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)', background: todayBg(d), padding: 4 }}>
-              <ExtraCell blocks={d.extraBlocks} orphanTodoist={d.isWeekend ? [] : d.orphanTodoist} clients={clients} isToday={d.isToday} />
+              <ExtraCell blocks={d.extraBlocks} orphanTodoist={d.isWeekend ? [] : d.orphanTodoist} clients={clients} isToday={d.isToday} isFuture={d.isFuture} />
             </div>
           ))}
 
