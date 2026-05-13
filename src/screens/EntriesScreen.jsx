@@ -55,7 +55,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
       date: editState.date,
       hours: parsed,
       projectId: editState.projectId,
-      billed: entryClient?.billable ? editState.billed : false,
+      billed: entryClient?.billing !== 'none' ? editState.billed : false,
     };
     await window.api.saveEntry(updated);
     setEditingId(null);
@@ -213,7 +213,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
 
                     {/* Billed */}
                     <td style={{ ...tdStyle, textAlign: 'center' }}>
-                      {client?.billable
+                      {client?.billing !== 'none'
                         ? isEditing
                           ? <input type="checkbox" checked={editState.billed}
                               onChange={e => setEditState(s => ({ ...s, billed: e.target.checked }))} />

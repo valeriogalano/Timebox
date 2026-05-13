@@ -28,7 +28,7 @@ function clientWeeklyCapacity(clientId, recurring) {
 }
 
 function isBillableClient(client) {
-  return client.billable && client.billing === 'hourly' && client.rate > 0;
+  return client.billing === 'hourly' && client.rate > 0;
 }
 
 // Returns the monday and sunday (as fmt strings) for a week at offset from current
@@ -647,9 +647,9 @@ function Bar({ value, max, color, thin }) {
 }
 
 function TypeBadge({ client }) {
-  const nonBillable = !client.billable || client.rate === 0;
+  const nonBillable = client.billing === 'none' || client.rate === 0;
   const isFixed = client.billing === 'fixed';
-  const text = nonBillable ? 'Non fatturabile' : isFixed ? 'Canone' : 'Tariffa oraria';
+  const text = nonBillable ? 'Nessun compenso' : isFixed ? 'Compenso fisso' : 'Compenso a ore';
   const color = nonBillable ? 'var(--tb-text-muted)' : isFixed ? '#9B59B6' : COL_OK;
   return (
     <span style={{

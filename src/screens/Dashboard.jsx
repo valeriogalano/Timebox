@@ -35,7 +35,7 @@ export default function Dashboard({ clients, projects, screen }) {
     return { ...client, weekH, monthH, billedH, unbilledH, usedH, pct };
   });
 
-  const billableStats    = clientStats.filter(c => c.billable);
+  const billableStats    = clientStats.filter(c => c.billing !== 'none');
   const totalTracked     = entries.reduce((s, e) => s + e.hours, 0);
   const totalBilledEur   = billableStats.reduce((s, c) => s + (c.billing === 'hourly' && c.rate ? c.billedH * c.rate : 0), 0);
   const totalUnbilledEur = billableStats.reduce((s, c) => s + (c.billing === 'hourly' && c.rate ? c.unbilledH * c.rate : 0), 0);
@@ -76,7 +76,7 @@ export default function Dashboard({ clients, projects, screen }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
                   <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', flex: 1 }}>{c.name}</span>
-                  <span style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>{c.billing === 'hourly' ? 'A ore' : 'Fisso'}</span>
+                  <span style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>{c.billing === 'hourly' ? 'Compenso a ore' : 'Compenso fisso'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <BillingLine label="Fatturate"    hours={c.billedH}   eur={bEur}  positive />
@@ -142,7 +142,7 @@ function ClientCard({ client, totalTracked }) {
           </span>
         )}
         <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', fontWeight: 600 }}>
-          {client.billing === 'hourly' ? `€${client.rate}/h` : client.billing}
+          {client.billing === 'hourly' ? `€${client.rate}/h` : client.billing === 'fixed' ? 'Compenso fisso' : ''}
         </span>
       </div>
       <div style={{ background: 'var(--tb-panel-bg-subtle)', borderRadius: 4, height: 5, marginBottom: 8, overflow: 'hidden' }}>
@@ -152,7 +152,7 @@ function ClientCard({ client, totalTracked }) {
       </div>
       <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
         <div style={{ fontSize: 11, color: 'var(--tb-text-secondary)' }}>
-          {client.limitType === 'weekly' ? 'Sett.' : 'Mese'}:{' '}
+          {client.limitType === 'weekly' ? 'Sett.' : client.limitType === 'global' ? 'Tot.' : 'Sett.'}:{' '}
           <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(client.usedH)}</strong>
           <span style={{ color: 'var(--tb-text-faint)' }}> / {fmtH(client.limitHours)}</span>
         </div>

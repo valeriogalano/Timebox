@@ -197,7 +197,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   function toggleBilled(projectId, dateStr) {
     const project = projects.find(p => p.id === projectId);
     const client = project ? clients.find(c => c.id === project.clientId) : null;
-    if (!client?.billable) return;
+    if (!client || client.billing === 'none') return;
     setWeekEntries(prev => prev.map(e => {
       if (e.projectId !== projectId || e.date !== dateStr) return e;
       const updated = { ...e, billed: !e.billed };
@@ -688,7 +688,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                       }}>
                         <TimeCell
                           hours={entry?.hours ?? 0} billed={entry?.billed ?? false}
-                          isBillable={client.billable}
+                          isBillable={client.billing !== 'none'}
                           isFuture={d.isFuture} isToday={d.isToday}
                           clientColor={client.color}
                           colIndex={i}

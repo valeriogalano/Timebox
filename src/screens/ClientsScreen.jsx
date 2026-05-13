@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const BILLING_OPTIONS = ['hourly', 'fixed'];
+const BILLING_OPTIONS = ['none', 'hourly', 'fixed'];
 const COLORS = [
   { hex: '#b8255f', label: 'Rosso ciliegia' },
   { hex: '#db4035', label: 'Rosso' },
@@ -379,9 +379,9 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                     {c.name}
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>
-                    {c.billable
-                      ? `${c.billing === 'hourly' ? 'A ore' : 'Fisso'} · ${c.limitHours ? `${c.limitHours}h/${c.limitType === 'global' ? 'tot' : 'sett'}` : 'no limite'}`
-                      : 'non fatturabile'}
+                    {c.billing === 'none' || !c.billing
+                      ? 'nessun compenso'
+                      : `${c.billing === 'hourly' ? 'Compenso a ore' : 'Compenso fisso'} · ${c.limitHours ? `${c.limitHours}h/${c.limitType === 'global' ? 'tot' : 'sett'}` : 'no limite'}`}
                   </div>
                 </div>
               </div>
@@ -420,77 +420,43 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
             </button>
           </div>
 
-          {/* Colore + Billable */}
+          {/* Aspetto + Limite ore */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
             <div>
-              <label style={formLabel}>Colore</label>
-              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                {COLORS.map(({ hex, label }) => (
-                  <div key={hex} title={label} onClick={() => updateClient('color', hex)}
-                    style={{
-                      width: 22, height: 22, borderRadius: '50%', background: hex,
-                      border: sel.color === hex ? '2px solid var(--tb-text-primary)' : '2px solid transparent',
-                      cursor: 'pointer', flexShrink: 0, boxSizing: 'border-box',
-                    }} />
-                ))}
+              <SectionLabel>Aspetto</SectionLabel>
+              <div style={{ marginTop: 8 }}>
+                <label style={formLabel}>Colore</label>
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  {COLORS.map(({ hex, label }) => (
+                    <div key={hex} title={label} onClick={() => updateClient('color', hex)}
+                      style={{
+                        width: 22, height: 22, borderRadius: '50%', background: hex,
+                        border: sel.color === hex ? '2px solid var(--tb-text-primary)' : '2px solid transparent',
+                        cursor: 'pointer', flexShrink: 0, boxSizing: 'border-box',
+                      }} />
+                  ))}
+                </div>
               </div>
             </div>
-
             <div>
-              <label style={formLabel}>Fatturazione</label>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {[true, false].map(v => (
-                  <button key={String(v)} onClick={() => updateClient('billable', v)}
-                    style={{
-                      flex: 1, padding: '7px 4px', borderRadius: 5, fontSize: 11, fontWeight: 700,
-                      border: sel.billable === v ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
-                      background: sel.billable === v ? sel.color + '15' : 'transparent',
-                      color: sel.billable === v ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
-                      fontFamily: "'Open Sans', sans-serif",
-                    }}>
-                    {v ? 'Fatturabile' : 'Non fatturabile'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Billing config */}
-          {sel.billable && (
-            <>
-              <SectionLabel>Configurazione billing</SectionLabel>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 8, marginBottom: 24 }}>
+              <SectionLabel>Limite ore</SectionLabel>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={formLabel}>Tipo billing</label>
-                  <div style={{ display: 'flex', gap: 4, flex: 1 }}>
-                    {BILLING_OPTIONS.map(b => (
-                      <button key={b} onClick={() => updateClient('billing', b)}
-                        style={{
-                          flex: 1, padding: '8px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
-                          border: sel.billing === b ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
-                          background: sel.billing === b ? sel.color + '15' : 'transparent',
-                          color: sel.billing === b ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
-                          fontFamily: "'Open Sans', sans-serif",
-                        }}>
-                        {b === 'hourly' ? 'A ore' : 'Fisso'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label style={formLabel}>Tariffa oraria (€)</label>
-                  <input type="number" style={formInput} value={sel.rate ?? ''} placeholder="—"
-                    onChange={e => updateClient('rate', e.target.value ? Number(e.target.value) : null)}
-                    disabled={sel.billing !== 'hourly'} />
-                </div>
-
-
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={formLabel}>Tipo limite ore</label>
-                  <div style={{ display: 'flex', gap: 4, flex: 1 }}>
-                    {[['weekly', 'Settimanale'], ['global', 'Globale']].map(([t, label]) => (
-                      <button key={t} onClick={() => updateClient('limitType', t)}
+                  <label style={formLabel}>Cadenza</label>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {[['none', 'Nessuna'], ['weekly', 'Settimanale'], ['global', 'Globale']].map(([t, label]) => (
+                      <button key={t} onClick={() => {
+                        if (t === 'none') {
+                          setClients(prev => prev.map(c => {
+                            if (c.id !== selectedId) return c;
+                            const updated = { ...c, limitType: 'none', limitHours: null };
+                            window.api.saveClient(updated);
+                            return updated;
+                          }));
+                        } else {
+                          updateClient('limitType', t);
+                        }
+                      }}
                         style={{
                           flex: 1, padding: '8px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
                           border: sel.limitType === t ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
@@ -503,14 +469,44 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                     ))}
                   </div>
                 </div>
+                {sel.limitType !== 'none' && (
                 <div>
-                  <label style={formLabel}>Limite ore</label>
+                  <label style={formLabel}>Ore massime</label>
                   <input type="number" style={formInput} value={sel.limitHours ?? ''} placeholder="—"
                     onChange={e => updateClient('limitHours', e.target.value ? Number(e.target.value) : null)} />
                 </div>
+                )}
               </div>
-            </>
-          )}
+            </div>
+          </div>
+
+          {/* Compenso */}
+          <SectionLabel>Compenso</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 8, marginBottom: 24 }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <label style={formLabel}>Tipo di compenso</label>
+              <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+                {BILLING_OPTIONS.map(b => (
+                  <button key={b} onClick={() => updateClient('billing', b)}
+                    style={{
+                      flex: 1, padding: '8px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
+                      border: sel.billing === b ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
+                      background: sel.billing === b ? sel.color + '15' : 'transparent',
+                      color: sel.billing === b ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
+                      fontFamily: "'Open Sans', sans-serif",
+                    }}>
+                    {b === 'none' ? 'Nessuno' : b === 'hourly' ? 'Compenso a ore' : 'Compenso fisso'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={formLabel}>Tariffa oraria (€)</label>
+              <input type="number" style={formInput} value={sel.rate ?? ''} placeholder="—"
+                onChange={e => updateClient('rate', e.target.value ? Number(e.target.value) : null)}
+                disabled={sel.billing !== 'hourly'} />
+            </div>
+          </div>
 
           {/* Projects */}
           <div style={{ borderTop: '1px solid var(--tb-border-soft)', paddingTop: 20 }}>

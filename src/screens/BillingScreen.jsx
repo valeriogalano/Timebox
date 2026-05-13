@@ -76,7 +76,7 @@ export default function BillingScreen({ clients, projects, screen }) {
     }));
   }
 
-  const billableClients = clients.filter(c => c.billable);
+  const billableClients = clients.filter(c => c.billing !== 'none');
   const billablePids = new Set(projects.filter(p => billableClients.some(c => c.id === p.clientId)).map(p => p.id));
   const billableEntries = entries.filter(e => billablePids.has(e.projectId));
   const grandTotalH = billableEntries.reduce((s, e) => s + e.hours, 0);
