@@ -1,7 +1,28 @@
 import React, { useState } from 'react';
 
 const BILLING_OPTIONS = ['hourly', 'fixed'];
-const COLORS = ['#3B82F6', '#F97316', '#8B5CF6', '#EAB308', '#06B6D4', '#EC4899', '#B45309', '#EF4444', '#22C55E'];
+const COLORS = [
+  { hex: '#b8255f', label: 'Rosso ciliegia' },
+  { hex: '#db4035', label: 'Rosso' },
+  { hex: '#ff9933', label: 'Arancione' },
+  { hex: '#fad000', label: 'Giallo' },
+  { hex: '#afb83b', label: 'Verde oliva' },
+  { hex: '#7ecc49', label: 'Verde lime' },
+  { hex: '#299438', label: 'Verde' },
+  { hex: '#6accbc', label: 'Verde menta' },
+  { hex: '#158fad', label: 'Verde acqua' },
+  { hex: '#14aaf5', label: 'Azzurro' },
+  { hex: '#96c3eb', label: 'Blu chiaro' },
+  { hex: '#4073ff', label: 'Blu' },
+  { hex: '#884dff', label: 'Viola uva' },
+  { hex: '#af38eb', label: 'Viola' },
+  { hex: '#eb96eb', label: 'Lavanda' },
+  { hex: '#e05194', label: 'Magenta' },
+  { hex: '#ff8d85', label: 'Salmone' },
+  { hex: '#808080', label: 'Antracite' },
+  { hex: '#b8b8b8', label: 'Grigio' },
+  { hex: '#ccac93', label: 'Talpa' },
+];
 
 const formLabel = {
   display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)',
@@ -105,7 +126,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
     const maxPos = clients.reduce((max, c) => Math.max(max, c.position ?? 0), -1);
     const id = crypto.randomUUID();
     const newClient = {
-      id, name: 'Nuova area', color: COLORS[clients.length % COLORS.length],
+      id, name: 'Nuova area', color: COLORS[clients.length % COLORS.length].hex,
       billable: false, billing: 'hourly', rate: null, limitType: 'weekly', limitHours: null,
       position: maxPos + 1,
     };
@@ -317,12 +338,12 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
             <div>
               <label style={formLabel}>Colore</label>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                {COLORS.map(col => (
-                  <button key={col} onClick={() => updateClient('color', col)}
+                {COLORS.map(({ hex, label }) => (
+                  <div key={hex} title={label} onClick={() => updateClient('color', hex)}
                     style={{
-                      width: 22, height: 22, borderRadius: '50%', background: col,
-                      border: sel.color === col ? '2px solid var(--tb-text-primary)' : '2px solid transparent',
-                      cursor: 'pointer',
+                      width: 22, height: 22, borderRadius: '50%', background: hex,
+                      border: sel.color === hex ? '2px solid var(--tb-text-primary)' : '2px solid transparent',
+                      cursor: 'pointer', flexShrink: 0, boxSizing: 'border-box',
                     }} />
                 ))}
               </div>

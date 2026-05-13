@@ -51,30 +51,66 @@ function deleteProject(id) {
   db.prepare('DELETE FROM projects WHERE id=?').run(id);
 }
 
-const TODOIST_CLIENT_ID = 'todoist-imported';
+const TODOIST_COLORS = {
+  berry_red:   '#b8255f',
+  red:         '#db4035',
+  orange:      '#ff9933',
+  yellow:      '#fad000',
+  olive_green: '#afb83b',
+  lime_green:  '#7ecc49',
+  green:       '#299438',
+  mint_green:  '#6accbc',
+  teal:        '#158fad',
+  sky_blue:    '#14aaf5',
+  light_blue:  '#96c3eb',
+  blue:        '#4073ff',
+  grape:       '#884dff',
+  violet:      '#af38eb',
+  lavender:    '#eb96eb',
+  magenta:     '#e05194',
+  salmon:      '#ff8d85',
+  charcoal:    '#808080',
+  grey:        '#b8b8b8',
+  taupe:       '#ccac93',
+};
+
+function todoistColorLabel(colorKey) {
+  return colorKey
+    .split('_')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function getOrCreateTodoistClient(colorKey) {
+  const clientId = `todoist-${colorKey}`;
+  let client = db.prepare('SELECT * FROM clients WHERE id=?').get(clientId);
+  if (!client) {
+    const maxPos = db.prepare('SELECT MAX(position) as m FROM clients').get().m ?? 0;
+    const color = TODOIST_COLORS[colorKey] ?? '#E44332';
+    const name = `Todoist - ${todoistColorLabel(colorKey)}`;
+    db.prepare(`
+      INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position)
+      VALUES (?,?,?,?,?,?,?,?,?)
+    `).run(clientId, name, color, 0, 'none', 0, 'none', null, maxPos + 1);
+    client = { id: clientId };
+  }
+  return client;
+}
 
 function importTodoistProjects(todoistProjects) {
   const existing = db.prepare('SELECT name FROM projects').all().map(r => r.name);
   const existingSet = new Set(existing);
 
-  let client = db.prepare('SELECT * FROM clients WHERE id=?').get(TODOIST_CLIENT_ID);
-  if (!client) {
-    const maxPos = db.prepare('SELECT MAX(position) as m FROM clients').get().m ?? 0;
-    db.prepare(`
-      INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position)
-      VALUES (?,?,?,?,?,?,?,?,?)
-    `).run(TODOIST_CLIENT_ID, 'Todoist', '#E44332', 0, 'none', 0, 'none', null, maxPos + 1);
-    client = { id: TODOIST_CLIENT_ID };
-  }
-
   const maxProjPos = db.prepare('SELECT MAX(position) as m FROM projects').get().m ?? 0;
   let added = 0;
   todoistProjects.forEach((tp, i) => {
     if (existingSet.has(tp.name)) return;
+    const colorKey = tp.color ?? 'charcoal';
+    const client = getOrCreateTodoistClient(colorKey);
     db.prepare(`
       INSERT INTO projects (id,clientId,name,budgetHours,weeklyHours,position,archived)
       VALUES (?,?,?,?,?,?,?)
-    `).run(randomUUID(), TODOIST_CLIENT_ID, tp.name, null, null, maxProjPos + 1 + i, 0);
+    `).run(randomUUID(), client.id, tp.name, null, null, maxProjPos + 1 + i, 0);
     added++;
   });
   return { added };
