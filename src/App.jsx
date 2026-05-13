@@ -76,8 +76,8 @@ export default function App() {
     });
   }
 
-  useEffect(() => {
-    Promise.all([
+  function refreshData() {
+    return Promise.all([
       window.api.getClients(),
       window.api.getProjects(),
       window.api.getRecurring(),
@@ -85,8 +85,11 @@ export default function App() {
       setClients(c);
       setProjects(p);
       setRecurring(r);
-      setLoading(false);
     });
+  }
+
+  useEffect(() => {
+    refreshData().then(() => setLoading(false));
   }, []);
 
   const topbarDate = getToday().toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
@@ -245,7 +248,7 @@ export default function App() {
           {screen === 'entries' && (
             <EntriesScreen clients={clients} projects={projects} onEntryChange={refreshSidebar} />
           )}
-          {screen === 'settings' && <SettingsScreen theme={theme} setTheme={setTheme} />}
+          {screen === 'settings' && <SettingsScreen theme={theme} setTheme={setTheme} onDataChange={refreshData} />}
         </div>
       </div>
     </div>

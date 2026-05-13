@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function SettingsScreen({ theme, setTheme }) {
+export default function SettingsScreen({ theme, setTheme, onDataChange }) {
   const [busy, setBusy] = useState(false);
   const [dbPath, setDbPath] = useState('');
   const [todoistToken, setTodoistTokenState] = useState('');
@@ -70,7 +70,7 @@ export default function SettingsScreen({ theme, setTheme }) {
       setImportResult({ error: `Errore API Todoist (${result.status ?? result.error}).` });
     } else {
       setImportResult({ added: result.added });
-      if (result.added > 0) setTimeout(() => window.location.reload(), 1200);
+      if (result.added > 0 && onDataChange) onDataChange();
     }
   }
 
