@@ -91,7 +91,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
         overflow: 'hidden',
       }}>
         <span style={{
-          fontSize: 10, fontWeight: 700, color: client.color + 'bb',
+          fontSize: 10, fontWeight: 700, color: client.color,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           flex: 1, paddingRight: 4,
         }}>
