@@ -64,6 +64,14 @@ function TrashIcon() {
   );
 }
 
+function MoveIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+      <path d="M7.5 1v13M1 7.5h13M4 4.5L1 7.5l3 3M11 4.5l3 3-3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
 function DragHandle() {
   return (
     <svg width="8" height="12" viewBox="0 0 8 12" fill="currentColor"
@@ -109,6 +117,12 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
   // Project DnD
   const [draggingProjectId, setDraggingProjectId] = useState(null);
   const [projectInsertIdx, setProjectInsertIdx]   = useState(null);
+
+  // Project move
+  const [movingProjectId, setMovingProjectId] = useState(null);
+
+  // Project drag-to-area
+  const [projectDragOverAreaId, setProjectDragOverAreaId] = useState(null);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -279,6 +293,19 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
   function handleProjectDragEnd() {
     setDraggingProjectId(null);
     setProjectInsertIdx(null);
+    setProjectDragOverAreaId(null);
+  }
+
+  function handleAreaDropProject(e, targetClientId) {
+    e.preventDefault();
+    if (!draggingProjectId || targetClientId === selectedId) {
+      setProjectDragOverAreaId(null);
+      return;
+    }
+    moveProject(draggingProjectId, targetClientId);
+    setDraggingProjectId(null);
+    setProjectInsertIdx(null);
+    setProjectDragOverAreaId(null);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -303,13 +330,23 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
               <div
                 draggable
                 onDragStart={e => handleAreaDragStart(e, c.id)}
-                onDragOver={e => handleAreaDragOver(e, i, c.id)}
+                onDragOver={e => {
+                  if (draggingProjectId) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setProjectDragOverAreaId(c.id);
+                  } else {
+                    handleAreaDragOver(e, i, c.id);
+                  }
+                }}
+                onDragLeave={e => { if (draggingProjectId && !e.currentTarget.contains(e.relatedTarget)) setProjectDragOverAreaId(null); }}
+                onDrop={e => draggingProjectId ? handleAreaDropProject(e, c.id) : undefined}
                 onDragEnd={handleAreaDragEnd}
                 onClick={() => setSelectedId(c.id)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 6,
-                  background: selectedId === c.id ? 'var(--tb-panel-bg)' : 'transparent',
-                  border: selectedId === c.id ? '1px solid var(--tb-border)' : '1px solid transparent',
+                  background: projectDragOverAreaId === c.id ? c.color + '22' : selectedId === c.id ? 'var(--tb-panel-bg)' : 'transparent',
+                  border: projectDragOverAreaId === c.id ? `1px solid ${c.color}` : selectedId === c.id ? '1px solid var(--tb-border)' : '1px solid transparent',
                   cursor: 'pointer', textAlign: 'left', transition: 'background 0.1s, border-color 0.1s',
                   opacity: draggingAreaId === c.id ? 0.35 : 1,
                   userSelect: 'none',
@@ -403,13 +440,13 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
             <>
               <SectionLabel>Configurazione billing</SectionLabel>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 8, marginBottom: 24 }}>
-                <div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <label style={formLabel}>Tipo billing</label>
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <div style={{ display: 'flex', gap: 4, flex: 1 }}>
                     {BILLING_OPTIONS.map(b => (
                       <button key={b} onClick={() => updateClient('billing', b)}
                         style={{
-                          flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
+                          flex: 1, padding: '8px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
                           border: sel.billing === b ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
                           background: sel.billing === b ? sel.color + '15' : 'transparent',
                           color: sel.billing === b ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
@@ -429,13 +466,13 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                 </div>
 
 
-                <div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <label style={formLabel}>Tipo limite ore</label>
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <div style={{ display: 'flex', gap: 4, flex: 1 }}>
                     {[['weekly', 'Settimanale'], ['global', 'Globale']].map(([t, label]) => (
                       <button key={t} onClick={() => updateClient('limitType', t)}
                         style={{
-                          flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
+                          flex: 1, padding: '8px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
                           border: sel.limitType === t ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
                           background: sel.limitType === t ? sel.color + '15' : 'transparent',
                           color: sel.limitType === t ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
@@ -493,31 +530,42 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                     <input
                       type="number"
                       value={p.budgetHours ?? ''}
-                      placeholder="budget h"
+                      placeholder="—"
                       title="Budget totale progetto (ore globali)"
                       onChange={e => updateProject(p.id, 'budgetHours', e.target.value ? Number(e.target.value) : null)}
                       onMouseDown={e => e.stopPropagation()}
-                      style={{ width: 68, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
+                      style={{ width: 52, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
                         border: 'none', background: 'transparent', outline: 'none',
                         fontFamily: "'Open Sans', sans-serif" }} />
-                    {p.budgetHours && <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>h</span>}
+                    <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0 }}>h</span>
                     <input
                       type="number"
                       value={p.weeklyHours ?? ''}
-                      placeholder="sett h"
+                      placeholder="—"
                       title="Limite settimanale progetto (ore/settimana)"
                       onChange={e => updateProject(p.id, 'weeklyHours', e.target.value ? Number(e.target.value) : null)}
                       onMouseDown={e => e.stopPropagation()}
-                      style={{ width: 56, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
+                      style={{ width: 44, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
                         border: 'none', background: 'transparent', outline: 'none',
                         fontFamily: "'Open Sans', sans-serif" }} />
-                    {p.weeklyHours && <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>h/s</span>}
+                    <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0 }}>h/s</span>
 
-                    <select
-                      value={p.clientId}
-                      onChange={e => moveProject(p.id, e.target.value)}
-                      onMouseDown={e => e.stopPropagation()}
+                    <button
+                      onClick={e => { e.stopPropagation(); setMovingProjectId(movingProjectId === p.id ? null : p.id); }}
                       title="Sposta in un'altra area"
+                      style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
+                        background: movingProjectId === p.id ? 'var(--tb-border-mid)' : 'transparent',
+                        color: movingProjectId === p.id ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }}>
+                      <MoveIcon />
+                    </button>
+                    {movingProjectId === p.id && (
+                    <select
+                      autoFocus
+                      value={p.clientId}
+                      onChange={e => { moveProject(p.id, e.target.value); setMovingProjectId(null); }}
+                      onBlur={() => setMovingProjectId(null)}
+                      onMouseDown={e => e.stopPropagation()}
                       style={{
                         fontSize: 10, color: 'var(--tb-text-faint)',
                         border: '1px solid var(--tb-border-mid)', borderRadius: 4,
@@ -528,6 +576,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
+                    )}
 
                     <button onClick={() => updateProject(p.id, 'archived', !p.archived)}
                       title={p.archived ? "Ripristina progetto" : "Archivia progetto"}
