@@ -9,12 +9,12 @@ import SettingsScreen from './screens/SettingsScreen';
 import EntriesScreen from './screens/EntriesScreen';
 
 const NAV_ITEMS = [
-  { id: 'weekly',     label: 'Settimana',      icon: WeekIcon      },
-  { id: 'panoramica', label: 'Panoramica',      icon: ChartIcon     },
-  { id: 'billing',    label: 'Fatturazione',    icon: BillingIcon   },
+  { id: 'weekly',     label: 'Timesheet',      icon: WeekIcon      },
+  { id: 'panoramica', label: 'Dashboard',       icon: ChartIcon     },
+  { id: 'billing',    label: 'Rendiconto',      icon: BillingIcon   },
+  { id: 'entries',    label: 'Registro',        icon: ListIcon      },
   { id: 'clients',    label: 'Aree',            icon: ClientsIcon   },
   { id: 'recurring',  label: 'Ricorrenza',      icon: RepeatIcon    },
-  { id: 'entries',    label: 'Registrazioni',   icon: ListIcon      },
   { id: 'settings',   label: 'Impostazioni',    icon: SettingsIcon  },
 ];
 
