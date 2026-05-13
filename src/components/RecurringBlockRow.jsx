@@ -72,9 +72,9 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
       style={{
         position: 'relative',
         height: blockH,
-        background: client.color + '14',
-        border: `1px solid ${client.color}28`,
-        borderLeft: `3px solid ${client.color}66`,
+        background: client.color + '66',
+        border: `1px solid ${client.color}88`,
+        borderLeft: `3px solid ${client.color}`,
         borderRadius: 4,
         cursor: resizing ? 'ns-resize' : (isDragging ? 'grabbing' : 'grab'),
         opacity: isDragging ? 0.35 : 1,
