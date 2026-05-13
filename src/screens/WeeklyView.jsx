@@ -155,7 +155,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const existing = weekEntries.find(e => e.projectId === projectId && e.date === dateStr);
     if (hours === 0) {
       setWeekEntries(prev => prev.filter(e => !(e.projectId === projectId && e.date === dateStr)));
-      if (existing) await window.api.deleteEntry(existing.id);
+      if (existing) {
+        await window.api.deleteEntry(existing.id);
+        window.api.getProjectTotals().then(setProjectTotals);
+      }
     } else {
       let resolvedSlot = slot;
       if (!resolvedSlot) {
@@ -335,6 +338,33 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     p.weeklyHours > 0 && (weekProjectHours[p.id] ?? 0) > p.weeklyHours
   );
 
+  // Projects exceeding total budget
+  const budgetOverProjects = projects.filter(p =>
+    p.budgetHours > 0 && (projectTotals[p.id] ?? 0) > p.budgetHours
+  );
+
+  // Hours done this week per client
+  const weekClientHours = weekEntries.reduce((acc, e) => {
+    const proj = projects.find(p => p.id === e.projectId);
+    if (proj) acc[proj.clientId] = (acc[proj.clientId] ?? 0) + e.hours;
+    return acc;
+  }, {});
+
+  // Clients exceeding weekly area limit
+  const weeklyOverClients = clients.filter(c =>
+    c.limitType === 'weekly' && c.limitHours > 0 && (weekClientHours[c.id] ?? 0) > c.limitHours
+  );
+
+  // Clients exceeding global area limit (all-time)
+  const clientTotals = Object.entries(projectTotals).reduce((acc, [projectId, h]) => {
+    const proj = projects.find(p => p.id === projectId);
+    if (proj) acc[proj.clientId] = (acc[proj.clientId] ?? 0) + h;
+    return acc;
+  }, {});
+  const globalOverClients = clients.filter(c =>
+    c.limitType === 'global' && c.limitHours > 0 && (clientTotals[c.id] ?? 0) > c.limitHours
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
@@ -343,9 +373,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '8px 14px', borderRadius: 7,
-          background: '#E0525210', border: '1px solid #E0525240',
+          background: '#E07B3A10', border: '1px solid #E07B3A40',
         }}>
-          <span style={{ fontSize: 12, color: '#E05252', flex: 1 }}>
+          <span style={{ fontSize: 12, color: '#E07B3A', flex: 1 }}>
             <strong>Limite settimanale superato:</strong>{' '}
             {weeklyOverProjects.map(p => {
               const h = weekProjectHours[p.id] ?? 0;
@@ -358,6 +388,51 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               color: '#E05252', fontSize: 14, lineHeight: 1, padding: '0 2px',
               fontFamily: "'Open Sans', sans-serif", fontWeight: 700,
             }}>×</button>
+        </div>
+      )}
+
+      {/* Budget exceeded alert banner */}
+      {!alertDismissed && budgetOverProjects.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 14px', borderRadius: 7,
+          background: '#E07B3A10', border: '1px solid #E07B3A40',
+        }}>
+          <span style={{ fontSize: 12, color: '#E07B3A', flex: 1 }}>
+            <strong>Budget totale superato:</strong>{' '}
+            {budgetOverProjects.map(p => {
+              const h = projectTotals[p.id] ?? 0;
+              return `${p.name} (${fmtH(h)} / ${fmtH(p.budgetHours)})`;
+            }).join(' · ')}
+          </span>
+        </div>
+      )}
+
+      {/* Client weekly limit alert banner */}
+      {!alertDismissed && weeklyOverClients.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 14px', borderRadius: 7,
+          background: '#E07B3A10', border: '1px solid #E07B3A40',
+        }}>
+          <span style={{ fontSize: 12, color: '#E07B3A', flex: 1 }}>
+            <strong>Limite settimanale area superato:</strong>{' '}
+            {weeklyOverClients.map(c => `${c.name} (${fmtH(weekClientHours[c.id] ?? 0)} / ${fmtH(c.limitHours)})`).join(' · ')}
+          </span>
+        </div>
+      )}
+
+      {/* Client global limit alert banner */}
+      {!alertDismissed && globalOverClients.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 14px', borderRadius: 7,
+          background: '#E0525210', border: '1px solid #E0525240',
+        }}>
+          <span style={{ fontSize: 12, color: '#E05252', flex: 1 }}>
+            <strong>Limite totale area superato:</strong>{' '}
+            {globalOverClients.map(c => `${c.name} (${fmtH(clientTotals[c.id] ?? 0)} / ${fmtH(c.limitHours)})`).join(' · ')}
+          </span>
         </div>
       )}
 

@@ -86,33 +86,33 @@ function countWeeksInMonth(monthIdx, year) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Panoramica({ clients, projects, recurring, screen }) {
-  const [period, setPeriod]             = useState('month');
   const [periodOffset, setPeriodOffset] = useState(0);
   const [entries, setEntries]           = useState([]);
+  const [projectTotals, setProjectTotals] = useState({});
+  const [weekOverrides, setWeekOverrides] = useState({});
 
-  // Compute the broadest date range we need: covers current period + full trend
+  const currentWeekKey = fmt(addDays(getMondayOfWeek(getToday()), periodOffset * 7));
+
+  // Fetch range covers current week + trend history
   const fetchRange = useMemo(() => {
-    const today = getToday();
-    // Current period end
-    let periodEnd;
-    if (period === 'week') {
-      const { end } = weekRange(periodOffset);
-      periodEnd = end;
-    } else {
-      const { end } = monthRange(periodOffset);
-      periodEnd = end;
-    }
-    // Trend start: farthest back
-    const weekTrendStart = addDays(getMondayOfWeek(today), -(TREND_WEEKS - 1) * 7 + (periodOffset * 7));
-    const monthTrendStart = new Date(today.getFullYear(), today.getMonth() - (TREND_MONTHS - 1) + periodOffset, 1);
-    const earliest = weekTrendStart < monthTrendStart ? weekTrendStart : monthTrendStart;
-    return { from: fmt(earliest), to: fmt(periodEnd) };
-  }, [period, periodOffset]);
+    const monday = addDays(getMondayOfWeek(getToday()), periodOffset * 7);
+    const trendStart = addDays(getMondayOfWeek(getToday()), -(TREND_WEEKS - 1) * 7 + periodOffset * 7);
+    return { from: fmt(trendStart), to: fmt(addDays(monday, 6)) };
+  }, [periodOffset]);
 
   useEffect(() => {
     if (screen !== 'panoramica') return;
     window.api.getEntries(fetchRange.from, fetchRange.to).then(setEntries);
-  }, [screen, fetchRange.from, fetchRange.to]);
+    window.api.getProjectTotals().then(setProjectTotals);
+    window.api.getWeekOverrides(currentWeekKey).then(rows => {
+      const map = {};
+      rows.forEach(r => {
+        if (!map[r.dayIndex]) map[r.dayIndex] = {};
+        map[r.dayIndex][r.slot] = r.blocks;
+      });
+      setWeekOverrides(map);
+    });
+  }, [screen, fetchRange.from, fetchRange.to, currentWeekKey]);
 
   // Build a lookup: projectId → clientId
   const projectClientMap = useMemo(() => {
@@ -121,21 +121,27 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
     return m;
   }, [projects]);
 
-  // Compute stats for the current period
-  const stats = useMemo(() => {
-    let startStr, endStr, numWeeks;
-    if (period === 'week') {
-      const r = weekRange(periodOffset);
-      startStr = r.startStr;
-      endStr   = r.endStr;
-      numWeeks = 1;
-    } else {
-      const r = monthRange(periodOffset);
-      startStr = r.startStr;
-      endStr   = r.endStr;
-      numWeeks = countWeeksInMonth(r.monthIdx, r.year);
+  // Compute effective planned hours per client for the current week (uses overrides)
+  const plannedByClientEffective = useMemo(() => {
+    const result = {};
+    clients.forEach(c => { result[c.id] = 0; });
+    for (let dayIndex = 0; dayIndex < 5; dayIndex++) {
+      for (const slot of ['am', 'pm']) {
+        const dayOverride = weekOverrides[dayIndex];
+        const blocks = dayOverride && dayOverride[slot] !== undefined
+          ? dayOverride[slot]
+          : recurring.filter(r => r.day === dayIndex && r.slot === slot).map(r => ({ clientId: r.clientId, hours: r.hours }));
+        blocks.forEach(b => {
+          if (b.clientId in result) result[b.clientId] += b.hours;
+        });
+      }
     }
+    return result;
+  }, [weekOverrides, recurring, clients]);
 
+  // Compute stats for the current week
+  const stats = useMemo(() => {
+    const { startStr, endStr } = weekRange(periodOffset);
     const periodEntries = entries.filter(e => e.date >= startStr && e.date <= endStr);
 
     const actualByClient = {};
@@ -145,100 +151,63 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
       if (cid != null) actualByClient[cid] = (actualByClient[cid] ?? 0) + e.hours;
     });
 
-    const plannedByClient = {};
-    clients.forEach(c => {
-      plannedByClient[c.id] = clientWeeklyCapacity(c.id, recurring) * numWeeks;
-    });
+    const plannedByClient = plannedByClientEffective;
 
     const capacity  = Object.values(plannedByClient).reduce((s, v) => s + v, 0);
     const totalDone = Object.values(actualByClient).reduce((s, v) => s + v, 0);
 
     const billable = clients.filter(isBillableClient);
-    const billedDoneEur    = billable.reduce((s, c) => s + (actualByClient[c.id] ?? 0) * c.rate, 0);
-    const projectionEur    = billable.reduce((s, c) => s + Math.max(actualByClient[c.id] ?? 0, plannedByClient[c.id] ?? 0) * c.rate, 0);
+    const billedDoneEur     = billable.reduce((s, c) => s + (actualByClient[c.id] ?? 0) * c.rate, 0);
+    const projectionEur     = billable.reduce((s, c) => s + Math.max(actualByClient[c.id] ?? 0, plannedByClient[c.id] ?? 0) * c.rate, 0);
     const billableDoneHours = billable.reduce((s, c) => s + (actualByClient[c.id] ?? 0), 0);
 
-    // Hours per project in this period (for budget card)
     const actualByProject = {};
     projects.forEach(p => { actualByProject[p.id] = 0; });
     periodEntries.forEach(e => {
       if (e.projectId in actualByProject) actualByProject[e.projectId] += e.hours;
     });
 
-    return { actualByClient, plannedByClient, actualByProject, numWeeks, capacity, totalDone, billedDoneEur, projectionEur, billableDoneHours };
-  }, [entries, period, periodOffset, clients, projects, recurring, projectClientMap]);
+    return { actualByClient, plannedByClient, actualByProject, numWeeks: 1, capacity, totalDone, billedDoneEur, projectionEur, billableDoneHours };
+  }, [entries, periodOffset, clients, projects, projectClientMap, plannedByClientEffective]);
 
-  // Build trend data (follows the main period toggle)
+  // Build trend data (weekly)
   const trendData = useMemo(() => {
-    const today = getToday();
+    return Array.from({ length: TREND_WEEKS }, (_, i) => {
+      const weekIdx  = i - (TREND_WEEKS - 1) + periodOffset;
+      const monday   = addDays(getMondayOfWeek(getToday()), weekIdx * 7);
+      const sunday   = addDays(monday, 6);
+      const startStr = fmt(monday);
+      const endStr   = fmt(sunday);
+      const isCurrent = startStr === currentWeekKey;
 
-    if (period === 'week') {
-      const currentMonday = getMondayOfWeek(today);
-      return Array.from({ length: TREND_WEEKS }, (_, i) => {
-        const weekIdx = i - (TREND_WEEKS - 1) + periodOffset;
-        const monday  = addDays(getMondayOfWeek(today), weekIdx * 7);
-        const sunday  = addDays(monday, 6);
-        const startStr = fmt(monday);
-        const endStr   = fmt(sunday);
-        const isCurrent = fmt(monday) === fmt(addDays(getMondayOfWeek(today), periodOffset * 7));
-
-        const wEntries = entries.filter(e => e.date >= startStr && e.date <= endStr);
-        const done = {};
-        const planned = {};
-        clients.forEach(c => {
-          planned[c.id] = clientWeeklyCapacity(c.id, recurring);
-          done[c.id] = 0;
-        });
-        wEntries.forEach(e => {
-          const cid = projectClientMap[e.projectId];
-          if (cid) done[cid] = (done[cid] ?? 0) + e.hours;
-        });
-
-        const d = monday.getDate();
-        const m = MONTHS_IT[monday.getMonth()].slice(0, 3);
-        return {
-          label: `${d} ${m}`,
-          planned: Object.values(planned).reduce((s, v) => s + v, 0),
-          done:    Object.values(done).reduce((s, v) => s + v, 0),
-          current: isCurrent,
-        };
-      });
-    }
-
-    // Monthly trend
-    return Array.from({ length: TREND_MONTHS }, (_, i) => {
-      const monthBack = i - (TREND_MONTHS - 1) + periodOffset;
-      const { startStr, endStr, monthIdx, year } = monthRange(monthBack);
-      const isCurrent = monthBack === 0;
-
-      const mEntries = entries.filter(e => e.date >= startStr && e.date <= endStr);
-      const nWeeks = countWeeksInMonth(monthIdx, year);
-      const done = {};
-      const planned = {};
+      const wEntries = entries.filter(e => e.date >= startStr && e.date <= endStr);
+      const done = {}, planned = {};
       clients.forEach(c => {
-        planned[c.id] = clientWeeklyCapacity(c.id, recurring) * nWeeks;
+        planned[c.id] = clientWeeklyCapacity(c.id, recurring);
         done[c.id] = 0;
       });
-      mEntries.forEach(e => {
+      wEntries.forEach(e => {
         const cid = projectClientMap[e.projectId];
         if (cid) done[cid] = (done[cid] ?? 0) + e.hours;
       });
 
+      const d = monday.getDate();
+      const m = MONTHS_IT[monday.getMonth()].slice(0, 3);
       return {
-        label: MONTHS_IT[monthIdx].slice(0, 3),
+        label: `${d} ${m}`,
         planned: Object.values(planned).reduce((s, v) => s + v, 0),
         done:    Object.values(done).reduce((s, v) => s + v, 0),
         current: isCurrent,
       };
     });
-  }, [entries, period, periodOffset, clients, recurring, projectClientMap]);
+  }, [entries, periodOffset, clients, recurring, projectClientMap, currentWeekKey]);
 
-  const status   = statusFor(stats.totalDone, stats.capacity);
-  const deltaH   = stats.totalDone - stats.capacity;
-  const label    = periodLabel(period, periodOffset);
-  const isToday  = periodOffset === 0;
+  const status  = statusFor(stats.totalDone, stats.capacity);
+  const deltaH  = stats.totalDone - stats.capacity;
+  const label   = periodLabel('week', periodOffset);
+  const isToday = periodOffset === 0;
 
-  const budgetProjects = projects.filter(p => p.budgetHours > 0);
+  const budgetProjects = projects.filter(p => p.budgetHours > 0 || p.weeklyHours > 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 24 }}>
@@ -258,18 +227,13 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
             <NavBtn small onClick={() => setPeriodOffset(0)}>Oggi</NavBtn>
           )}
         </div>
-        <Segmented
-          value={period}
-          options={[{ v: 'week', l: 'Settimana' }, { v: 'month', l: 'Mese' }]}
-          onChange={v => { setPeriod(v); setPeriodOffset(0); }}
-        />
       </div>
 
       {/* KPI cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: 14 }}>
         {/* CARICO */}
         <Card>
-          <CardLabel>Carico {period === 'month' ? 'del mese' : 'della settimana'}</CardLabel>
+          <CardLabel>Carico della settimana</CardLabel>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
             <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
               {fmtH(stats.totalDone)}
@@ -304,7 +268,7 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <ProjectionIcon />
               <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)', letterSpacing: '0.03em' }}>
-                Proiezione fine {period === 'month' ? 'mese' : 'settimana'}
+                Proiezione fine settimana
               </span>
             </div>
             <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
@@ -348,7 +312,7 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
           </div>
         </div>
         <div style={{ padding: '4px 18px 18px' }}>
-          <TrendChart data={trendData} capacity={stats.capacity} mode={period} />
+          <TrendChart data={trendData} capacity={stats.capacity} mode="week" />
         </div>
       </Card>
 
@@ -362,8 +326,6 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
               client={c}
               done={stats.actualByClient[c.id] ?? 0}
               planned={stats.plannedByClient[c.id] ?? 0}
-              period={period}
-              numWeeks={stats.numWeeks}
             />
           ))}
         </div>
@@ -372,14 +334,18 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
       {/* Budget progetti */}
       {budgetProjects.length > 0 && (
         <div>
-          <SectionHeader title="Budget progetti" subtitle={`${budgetProjects.length} con budget`} />
+          <SectionHeader
+            title="Budget progetti"
+            subtitle="da inizio progetto · indipendente dal periodo"
+          />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {budgetProjects.map(p => (
               <ProjectCardCockpit
                 key={p.id}
                 project={p}
                 clients={clients}
-                done={stats.actualByProject[p.id] ?? 0}
+                cumulativeDone={projectTotals[p.id] ?? 0}
+                periodDone={stats.actualByProject[p.id] ?? 0}
               />
             ))}
           </div>
@@ -391,104 +357,187 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function AreaCardCockpit({ client, done, planned, period, numWeeks }) {
+function AreaCardCockpit({ client, done, planned }) {
   const hasLimit    = !!client.limitType && client.limitHours > 0;
   const isBillable  = isBillableClient(client);
   const isFixed     = client.billing === 'fixed';
   const rate        = client.rate ?? 0;
 
-  // Scale weekly limit to match the current period
-  const limitBase = hasLimit
-    ? (client.limitType === 'weekly' ? client.limitHours * numWeeks : client.limitHours)
-    : null;
+  const limitBase = hasLimit ? client.limitHours : null;
 
-  const pct = limitBase
-    ? done / limitBase
-    : (planned > 0 ? done / planned : 0);
+  const reference = limitBase ?? planned;
+  const isOver = reference === 0 ? done > 0 : done / reference > 1.05;
+  const pct = reference > 0 ? done / reference : (done > 0 ? Infinity : 0);
 
-  let barColor = client.color;
-  if (hasLimit && pct > 1.05) barColor = COL_OVER;
-  else if (hasLimit && pct > 0.95) barColor = COL_OK;
+  const barColor = client.color;
 
+  const statusColor = isOver ? COL_OVER : pct > 0.95 ? COL_OK : pct >= 0.75 ? 'var(--tb-text-secondary)' : pct > 0 ? COL_UNDER : 'var(--tb-text-faint)';
+  const statusLabel = null;
+
+  const labelStyle = { fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 };
+  const isGlobal = hasLimit && client.limitType === 'global';
   return (
     <div style={{
-      background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
-      borderRadius: 8, padding: '14px 18px', display: 'grid',
-      gridTemplateColumns: '1fr auto auto auto', gap: 18, alignItems: 'center',
+      background: 'var(--tb-panel-bg)',
+      border: '1px solid var(--tb-panel-border)',
+      borderLeft: isOver ? `3px solid ${COL_OVER}` : pct > 0.95 ? `3px solid ${COL_OK}` : '1px solid var(--tb-panel-border)',
+      borderRadius: 8, padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 8,
     }}>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
-          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{client.name}</span>
-          <TypeBadge client={client} />
-        </div>
-        <Bar value={done} max={Math.max(limitBase || planned || 1, done)} color={barColor} />
-      </div>
 
-      <div style={{ textAlign: 'right', minWidth: 90 }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>
-          {fmtH(done)}
-        </div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 3, textTransform: 'uppercase' }}>
-          {hasLimit
-            ? `/ ${fmtH(limitBase)} ${client.limitType === 'weekly' ? (period === 'week' ? 'sett' : 'mese') : 'tot'}`
-            : `/ ${fmtH(planned)} piano`}
-        </div>
-      </div>
-
-      <div style={{ textAlign: 'right', minWidth: 120 }}>
-        {isBillable ? (
-          <>
-            <div style={{ fontSize: 14, fontWeight: 800, color: COL_OK, lineHeight: 1 }}>
-              {fmtEur(done * rate)}
-            </div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 3, textTransform: 'uppercase' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
+        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{client.name}</span>
+        <TypeBadge client={client} />
+        <div style={{ flex: 1 }} />
+        {isBillable && (
+          <div style={{ textAlign: 'right' }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: COL_OK }}>{fmtEur(done * rate)}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', marginLeft: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               proiez. {fmtEur(Math.max(done, planned) * rate)}
-            </div>
-          </>
-        ) : (
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-faint)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-            {isFixed ? 'fisso' : 'non fatt.'}
+            </span>
           </div>
+        )}
+        {statusLabel && (
+          <span style={{
+            fontSize: 10, fontWeight: 800, padding: '3px 7px', borderRadius: 4,
+            background: statusColor + '20', color: statusColor,
+            letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap',
+          }}>{statusLabel}</span>
         )}
       </div>
 
-      <div style={{ minWidth: 24 }}>
-        <AreaStatusDot client={client} done={done} planned={planned} limit={limitBase} />
+      {/* Barra piano — sempre */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+            <span style={labelStyle}>Piano</span>
+            {done > planned && planned > 0 && <span style={{ fontSize: 10, color: COL_OVER }} title="Superato">⚠</span>}
+          </div>
+          <Bar value={done} max={Math.max(planned || 1, done)} color={barColor} />
+        </div>
+        <div style={{ textAlign: 'right', minWidth: 90, flexShrink: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(done)}</div>
+          {planned > 0 && (
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 2, textTransform: 'uppercase' }}>
+              / {fmtH(planned)}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Barra limite settimanale — solo se presente */}
+      {hasLimit && !isGlobal && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+              <span style={labelStyle}>Limite settimanale</span>
+              {done > limitBase && <span style={{ fontSize: 10, color: COL_OVER }} title="Superato">⚠</span>}
+            </div>
+            <Bar value={done} max={limitBase} color={client.color} />
+          </div>
+          <div style={{ textAlign: 'right', minWidth: 90, flexShrink: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(done)}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 2, textTransform: 'uppercase' }}>
+              / {fmtH(limitBase)}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Barra limite globale — in aggiunta, solo se presente */}
+      {isGlobal && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+              <span style={labelStyle}>Limite totale</span>
+              {done > limitBase && <span style={{ fontSize: 10, color: COL_OVER }} title="Superato">⚠</span>}
+            </div>
+            <Bar value={done} max={limitBase} color={client.color} />
+          </div>
+          <div style={{ textAlign: 'right', minWidth: 90, flexShrink: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(done)}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 2, textTransform: 'uppercase' }}>
+              / {fmtH(limitBase)}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ProjectCardCockpit({ project, clients, done }) {
+function ProjectCardCockpit({ project, clients, cumulativeDone, periodDone }) {
   const client = clients.find(c => c.id === project.clientId);
   if (!client) return null;
-  const pct  = done / project.budgetHours;
-  const color = pct > 1 ? COL_OVER : pct > 0.9 ? COL_UNDER : client.color;
+
+  const hasBudget = project.budgetHours > 0;
+  const hasWeekly = project.weeklyHours > 0;
+
+  // Budget: always cumulative (all-time hours vs total budget)
+  const budgetPct   = hasBudget ? cumulativeDone / project.budgetHours : null;
+  const budgetColor = client.color;
+
+  const weeklyLimit = hasWeekly ? project.weeklyHours : null;
+  const weeklyPct   = weeklyLimit ? periodDone / weeklyLimit : null;
+  const weeklyColor = client.color;
+
+  const labelStyle = { fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 };
 
   return (
     <div style={{
       background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
-      borderRadius: 8, padding: '12px 18px',
-      display: 'grid', gridTemplateColumns: '1fr auto', gap: 18, alignItems: 'center',
+      borderRadius: 8, padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 8,
     }}>
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <div style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)' }}>{project.name}</span>
-          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}>· {client.name}</span>
-        </div>
-        <Bar value={done} max={project.budgetHours} color={color} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)' }}>{project.name}</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}>· {client.name}</span>
       </div>
-      <div style={{ textAlign: 'right', minWidth: 100 }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>
-          {fmtH(done)}{' '}
-          <span style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>/ {fmtH(project.budgetHours)}</span>
+
+      {hasWeekly && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+              <span style={labelStyle}>Limite settimanale</span>
+              <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>·</span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em' }}>{Math.round(weeklyPct * 100)}%</span>
+              {weeklyPct > 1 && <span style={{ fontSize: 10, color: COL_OVER }} title="Superato">⚠</span>}
+            </div>
+            <Bar value={periodDone} max={Math.max(weeklyLimit, periodDone)} color={weeklyColor} />
+          </div>
+          <div style={{ textAlign: 'right', minWidth: 80, flexShrink: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>
+              {fmtH(periodDone)}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 2, textTransform: 'uppercase' }}>
+              / {fmtH(weeklyLimit)}
+            </div>
+          </div>
         </div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: pct > 0.9 ? color : 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 3, textTransform: 'uppercase' }}>
-          {Math.round(pct * 100)}% budget
+      )}
+
+      {hasBudget && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+              <span style={labelStyle}>Budget totale</span>
+              <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>·</span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em' }}>{Math.round(budgetPct * 100)}%</span>
+              {budgetPct > 1 && <span style={{ fontSize: 10, color: COL_OVER }} title="Superato">⚠</span>}
+            </div>
+            <Bar value={cumulativeDone} max={Math.max(project.budgetHours, cumulativeDone)} color={budgetColor} />
+          </div>
+          <div style={{ textAlign: 'right', minWidth: 80, flexShrink: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>
+              {fmtH(cumulativeDone)}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 2, textTransform: 'uppercase' }}>
+              / {fmtH(project.budgetHours)}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -598,11 +647,9 @@ function Bar({ value, max, color, thin }) {
 }
 
 function TypeBadge({ client }) {
-  const isFixed = client.billing === 'fixed';
   const nonBillable = !client.billable || client.rate === 0;
-  const text = isFixed
-    ? `Fisso${client.limitType === 'weekly' ? ' · sett' : client.limitType === 'global' ? ' · tot' : ''}`
-    : nonBillable ? 'non fatt.' : 'A ore';
+  const isFixed = client.billing === 'fixed';
+  const text = nonBillable ? 'Non fatturabile' : isFixed ? 'Canone' : 'Tariffa oraria';
   const color = nonBillable ? 'var(--tb-text-muted)' : isFixed ? '#9B59B6' : COL_OK;
   return (
     <span style={{

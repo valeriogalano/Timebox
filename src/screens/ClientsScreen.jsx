@@ -64,6 +64,26 @@ function TrashIcon() {
   );
 }
 
+function BudgetIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 15 15" fill="none" style={{ flexShrink: 0 }}>
+      <path d="M7.5 1a6.5 6.5 0 1 0 0 13A6.5 6.5 0 0 0 7.5 1z" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M7.5 4v3.5l2.5 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function WeeklyIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 15 15" fill="none" style={{ flexShrink: 0 }}>
+      <rect x="1.5" y="3" width="12" height="10.5" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M1.5 6.5h12" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M5 1.5v3M10 1.5v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      <path d="M4.5 9.5h2M8.5 9.5h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 function MoveIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
@@ -527,28 +547,38 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                         border: 'none', background: 'transparent', outline: 'none',
                         fontFamily: "'Open Sans', sans-serif",
                         textDecoration: p.archived ? 'line-through' : 'none' }} />
-                    <input
-                      type="number"
-                      value={p.budgetHours ?? ''}
-                      placeholder="—"
-                      title="Budget totale progetto (ore globali)"
-                      onChange={e => updateProject(p.id, 'budgetHours', e.target.value ? Number(e.target.value) : null)}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ width: 52, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
-                        border: 'none', background: 'transparent', outline: 'none',
-                        fontFamily: "'Open Sans', sans-serif" }} />
-                    <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0 }}>h</span>
-                    <input
-                      type="number"
-                      value={p.weeklyHours ?? ''}
-                      placeholder="—"
-                      title="Limite settimanale progetto (ore/settimana)"
-                      onChange={e => updateProject(p.id, 'weeklyHours', e.target.value ? Number(e.target.value) : null)}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ width: 44, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
-                        border: 'none', background: 'transparent', outline: 'none',
-                        fontFamily: "'Open Sans', sans-serif" }} />
-                    <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0 }}>h/s</span>
+                    <div title="Budget totale progetto (ore globali)"
+                      style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 7px',
+                        borderRadius: 4, border: '1px solid var(--tb-border-mid)', flexShrink: 0,
+                        color: 'var(--tb-text-faint)' }}>
+                      <BudgetIcon />
+                      <input
+                        type="number"
+                        value={p.budgetHours ?? ''}
+                        placeholder="—"
+                        onChange={e => updateProject(p.id, 'budgetHours', e.target.value ? Number(e.target.value) : null)}
+                        onMouseDown={e => e.stopPropagation()}
+                        style={{ width: 36, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
+                          border: 'none', background: 'transparent', outline: 'none',
+                          fontFamily: "'Open Sans', sans-serif" }} />
+                      <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0 }}>h</span>
+                    </div>
+                    <div title="Limite settimanale progetto (ore/settimana)"
+                      style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 7px',
+                        borderRadius: 4, border: '1px solid var(--tb-border-mid)', flexShrink: 0,
+                        color: 'var(--tb-text-faint)' }}>
+                      <WeeklyIcon />
+                      <input
+                        type="number"
+                        value={p.weeklyHours ?? ''}
+                        placeholder="—"
+                        onChange={e => updateProject(p.id, 'weeklyHours', e.target.value ? Number(e.target.value) : null)}
+                        onMouseDown={e => e.stopPropagation()}
+                        style={{ width: 30, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
+                          border: 'none', background: 'transparent', outline: 'none',
+                          fontFamily: "'Open Sans', sans-serif" }} />
+                      <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0 }}>h/s</span>
+                    </div>
 
                     <button
                       onClick={e => { e.stopPropagation(); setMovingProjectId(movingProjectId === p.id ? null : p.id); }}
