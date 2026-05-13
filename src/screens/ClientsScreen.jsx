@@ -34,6 +34,36 @@ const formInput = {
   background: 'var(--tb-input-bg)', outline: 'none',
 };
 
+function ArchiveIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+      <rect x="1" y="4" width="13" height="9.5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M1 4.5L2.5 1.5h10L14 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+      <path d="M5.5 8h4M7.5 6v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function UnarchiveIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+      <rect x="1" y="4" width="13" height="9.5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M1 4.5L2.5 1.5h10L14 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+      <path d="M5.5 8.5h4M7.5 10.5V6.5M6 8l1.5-1.5L9 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+      <path d="M2 4h11M6 4V2.5C6 2 6.5 1.5 7 1.5h1c.5 0 1 .5 1 1V4M5.5 4v7.5M9.5 4v7.5"
+        stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      <rect x="3" y="4" width="9" height="9.5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+    </svg>
+  );
+}
+
 function DragHandle() {
   return (
     <svg width="8" height="12" viewBox="0 0 8 12" fill="currentColor"
@@ -324,12 +354,12 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
               style={{ ...formInput, fontSize: 18, fontWeight: 800, border: 'none', padding: 0, flex: 1, background: 'transparent' }} />
             <button onClick={() => deleteClient(sel.id)}
               title="Elimina area"
-              style={{ padding: '5px 10px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
-                background: 'transparent', color: 'var(--tb-text-secondary)', fontSize: 13, fontWeight: 600,
-                cursor: 'pointer', fontFamily: "'Open Sans', sans-serif", transition: 'all 0.2s', flexShrink: 0 }}
+              style={{ padding: '5px 8px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
+                background: 'transparent', color: 'var(--tb-text-secondary)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s', flexShrink: 0 }}
               onMouseEnter={e => { e.currentTarget.style.color = '#d97070'; e.currentTarget.style.borderColor = '#d97070'; }}
               onMouseLeave={e => { e.currentTarget.style.color = 'var(--tb-text-secondary)'; e.currentTarget.style.borderColor = 'var(--tb-border-mid)'; }}>
-              ✕
+              <TrashIcon />
             </button>
           </div>
 
@@ -501,20 +531,21 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
 
                     <button onClick={() => updateProject(p.id, 'archived', !p.archived)}
                       title={p.archived ? "Ripristina progetto" : "Archivia progetto"}
-                      style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
+                      style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
                         background: p.archived ? 'var(--tb-border-mid)' : 'transparent',
-                        color: p.archived ? '#fff' : 'var(--tb-text-secondary)', fontSize: 12, fontWeight: 600,
-                        cursor: 'pointer', fontFamily: "'Open Sans', sans-serif", transition: 'all 0.2s' }}>
-                      {p.archived ? '⤴' : '⬇'}
+                        color: p.archived ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }}>
+                      {p.archived ? <UnarchiveIcon /> : <ArchiveIcon />}
                     </button>
 
                     <button onClick={() => deleteProject(p.id)}
-                      style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
-                        background: 'transparent', color: 'var(--tb-text-secondary)', fontSize: 12, fontWeight: 600,
-                        cursor: 'pointer', fontFamily: "'Open Sans', sans-serif", transition: 'all 0.2s' }}
-                      onMouseEnter={e => { e.target.style.color = '#d97070'; e.target.style.borderColor = '#d97070'; }}
-                      onMouseLeave={e => { e.target.style.color = 'var(--tb-text-secondary)'; e.target.style.borderColor = 'var(--tb-border-mid)'; }}>
-                      ✕
+                      title="Elimina progetto"
+                      style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
+                        background: 'transparent', color: 'var(--tb-text-secondary)',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#d97070'; e.currentTarget.style.borderColor = '#d97070'; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = 'var(--tb-text-secondary)'; e.currentTarget.style.borderColor = 'var(--tb-border-mid)'; }}>
+                      <TrashIcon />
                     </button>
                   </div>
                 </React.Fragment>
