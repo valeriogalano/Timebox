@@ -281,8 +281,8 @@ export default function PlanningCell({
   }, []);
 
   function confirmAdd() {
-    const h = parseFloat(addHoursStr.replace(',', '.'));
-    if (!addClientId || isNaN(h) || h <= 0) return;
+    const h = parseHHMM(addHoursStr);
+    if (!addClientId || h <= 0) return;
     onAddBlock(addClientId, h);
     setAddOpen(false);
     setAddClientId('');
@@ -296,8 +296,8 @@ export default function PlanningCell({
   useEffect(() => { if (editId && editRef.current) editRef.current.select(); }, [editId]);
 
   function commitEdit() {
-    const h = parseFloat(editDraft.replace(',', '.'));
-    if (!isNaN(h) && h > 0) onUpdateBlock(editId, h);
+    const h = parseHHMM(editDraft);
+    if (h > 0) onUpdateBlock(editId, h);
     setEditId(null);
   }
 
@@ -327,7 +327,7 @@ export default function PlanningCell({
               isDragging={draggingId === block.id}
               editing={editId === block.id} editDraft={editDraft}
               setEditDraft={setEditDraft} editRef={editRef} commitEdit={commitEdit}
-              onStartEdit={() => { setEditId(block.id); setEditDraft(String(block.hours)); }}
+              onStartEdit={() => { setEditId(block.id); setEditDraft(toHHMM(block.hours)); }}
               onCancelEdit={() => setEditId(null)}
               onRemove={() => onRemoveBlock(block.id)}
               onDragStart={(e) => {
