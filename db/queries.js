@@ -261,6 +261,11 @@ function setTodoistCache(dateStr, tasks, syncedAt) {
   db.prepare('INSERT OR REPLACE INTO todoist_cache (dateStr,tasksJson,syncedAt) VALUES (?,?,?)').run(dateStr, JSON.stringify(tasks), syncedAt);
 }
 
+function getAllTodoistCache() {
+  return db.prepare('SELECT dateStr, tasksJson, syncedAt FROM todoist_cache ORDER BY dateStr DESC').all()
+    .map(row => ({ dateStr: row.dateStr, tasks: JSON.parse(row.tasksJson), syncedAt: row.syncedAt }));
+}
+
 // ── Data management ────────────────────────────────────────────────────────────
 function resetAllData() {
   db.exec(`
@@ -299,7 +304,7 @@ module.exports = {
   getEntries, getProjectTotals, saveEntry, deleteEntry,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,
   getSetting, setSetting,
-  getTodoistCache, setTodoistCache,
+  getTodoistCache, setTodoistCache, getAllTodoistCache,
   importTodoistProjects,
   resetAllData, seedDemoData,
 };

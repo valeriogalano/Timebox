@@ -193,6 +193,7 @@
         getTodoistToken: async () => '',
         setTodoistToken: async () => {},
         getTodoistCache: async (dates) => dates.map(d => ({ dateStr: d, tasks: [], syncedAt: null })),
+        getAllTodoistCache: async () => [],
         setTodoistCache: async () => {},
         syncTodoist: async () => ({ byDate: {} }),
         importTodoistProjects: async () => ({ added: 0 }),

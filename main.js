@@ -176,6 +176,7 @@ function setupIpc() {
 
   ipcMain.handle('db:getTodoistCache',     (_, dates)               => q.getTodoistCache(dates));
   ipcMain.handle('db:setTodoistCache',     (_, dateStr, tasks, syncedAt) => q.setTodoistCache(dateStr, tasks, syncedAt));
+  ipcMain.handle('db:getAllTodoistCache',  ()                       => q.getAllTodoistCache());
 
   ipcMain.handle('todoist:sync', async (_, timboxProjects, dates, debug) => {
     const enc = q.getSetting('todoist_token_enc');

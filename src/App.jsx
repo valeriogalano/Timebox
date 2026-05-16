@@ -7,12 +7,14 @@ import ClientsScreen from './screens/ClientsScreen';
 import RecurringScreen from './screens/RecurringScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import EntriesScreen from './screens/EntriesScreen';
+import TodoistLog from './screens/TodoistLog';
 
 const NAV_ITEMS = [
   { id: 'weekly',     label: 'Timesheet',      icon: WeekIcon      },
   { id: 'panoramica', label: 'Dashboard',       icon: ChartIcon     },
   { id: 'billing',    label: 'Rendiconto',      icon: BillingIcon   },
   { id: 'entries',    label: 'Registro',        icon: ListIcon      },
+  { id: 'todoist-log', label: 'Task Todoist',   icon: TodoistIcon   },
   { id: 'clients',    label: 'Aree',            icon: ClientsIcon   },
   { id: 'recurring',  label: 'Ricorrenza',      icon: RepeatIcon    },
   { id: 'settings',   label: 'Impostazioni',    icon: SettingsIcon  },
@@ -24,6 +26,7 @@ function ClientsIcon()  { return <svg width="15" height="15" viewBox="0 0 15 15"
 function RepeatIcon()   { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="1" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 5h13M1 9h13" stroke="currentColor" strokeWidth="1.2"/><path d="M5 5v9M10 5v9" stroke="currentColor" strokeWidth="1.2"/></svg>; }
 function SettingsIcon() { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 1v1.5M7.5 12.5V14M14 7.5h-1.5M2.5 7.5H1M11.7 3.3l-1.1 1.1M4.4 10.6l-1.1 1.1M11.7 11.7l-1.1-1.1M4.4 4.4 3.3 3.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function ListIcon()     { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M3 4h9M3 7.5h9M3 11h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
+function TodoistIcon()   { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7.5l1.8 1.8L10 5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function BillingIcon()  { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="2" width="13" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 5.5h13" stroke="currentColor" strokeWidth="1.2"/><path d="M4 9h2M9 9h2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function CollapseIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function ExpandIcon()   { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
@@ -248,6 +251,7 @@ export default function App() {
           {screen === 'entries' && (
             <EntriesScreen clients={clients} projects={projects} onEntryChange={refreshSidebar} />
           )}
+          {screen === 'todoist-log' && <TodoistLog clients={clients} projects={projects} />}
           {screen === 'settings' && <SettingsScreen theme={theme} setTheme={setTheme} onDataChange={refreshData} />}
         </div>
       </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { toHHMM } from '../utils';
+import MarkdownText from './MarkdownText';
 
 function OrphanBlock({ orphan, cl, isToday, isFuture }) {
   const [hover, setHover] = useState(false);
@@ -30,9 +31,7 @@ function OrphanBlock({ orphan, cl, isToday, isFuture }) {
         }}>
           {orphan.tasks.map(t => (
             <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text)', lineHeight: 1.3, wordBreak: 'break-word' }}>
-                {t.content || '(senza titolo)'}
-              </span>
+              <MarkdownText text={t.content || '(senza titolo)'} style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-primary)', lineHeight: 1.3, wordBreak: 'break-word' }} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ fontSize: 9, color: cl.color, fontWeight: 600 }}>{toHHMM(t.hours)}</span>
                 <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>{t.projectName}</span>
