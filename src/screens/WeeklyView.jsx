@@ -323,7 +323,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     });
   });
 
-  const COL = '200px repeat(7, 1fr) 85px';
+  const COL = 'minmax(60px, 1fr) repeat(7, minmax(0, 1fr)) minmax(55px, 0.65fr)';
   const todayBorderLeft = d => `1px solid ${d.isToday ? '#3DB33D28' : 'var(--tb-border-soft)'}`;
   const todayBg = (d, base) => d.isToday ? 'var(--tb-cell-today)' : (base || 'transparent');
 
@@ -525,11 +525,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   onReorder={newBlocks => setSlotOverride(i, 'am', newBlocks)}
                   onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'am', cid, h)}
                   draggingId={dragging?.blockId} />
-                {amTotal > 0 && (
-                  <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
-                    {toHHMM(amTotal)}
-                  </div>
-                )}
+                <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', minHeight: 14 }}>
+                  {amTotal > 0 ? toHHMM(amTotal) : ''}
+                </div>
               </div>
             );
           })}
@@ -568,11 +566,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   onReorder={newBlocks => setSlotOverride(i, 'pm', newBlocks)}
                   onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'pm', cid, h)}
                   draggingId={dragging?.blockId} />
-                {pmTotal > 0 && (
-                  <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
-                    {toHHMM(pmTotal)}
-                  </div>
-                )}
+                <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', minHeight: 14 }}>
+                  {pmTotal > 0 ? toHHMM(pmTotal) : ''}
+                </div>
               </div>
             );
           })}
@@ -767,11 +763,11 @@ function GridLabel({ children, border, header, timeLabel }) {
       borderBottom: header ? '1px solid var(--tb-border)' : border ? '1px solid var(--tb-border-soft)' : '1px solid var(--tb-border)',
       display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3,
     }}>
-      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase' }}>
+      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {children}
       </span>
       {timeLabel && (
-        <span style={{ fontSize: 8, fontWeight: 600, color: 'var(--tb-text-faint)', opacity: 0.7, letterSpacing: '0.04em', textTransform: 'none' }}>
+        <span style={{ fontSize: 8, fontWeight: 600, color: 'var(--tb-text-faint)', opacity: 0.7, letterSpacing: '0.04em', textTransform: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {timeLabel}
         </span>
       )}
