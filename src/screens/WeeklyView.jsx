@@ -592,8 +592,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
             fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
           }}>
             <span>Extra</span>
-            <span style={{ fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 3,
-              background: 'var(--tb-panel-bg-subtle)', color: 'var(--tb-text-faint)', letterSpacing: '0.06em' }}>non pian.</span>
           </div>
           {days.map((d, i) => (
             <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)', background: todayBg(d), padding: 4 }}>
