@@ -297,8 +297,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const weekActual  = days.reduce((s, d) => s + d.dayHours, 0);
   const weekDelta   = weekActual - weekPlanned;
   const weekExtra   = days.reduce((s, d) => s + Math.max(0, d.bilancioExtra), 0);
-  const weekAmPlanned = days.reduce((s, d) => s + d.amBlocks.reduce((s2, b) => s2 + b.hours, 0), 0);
-  const weekPmPlanned = days.reduce((s, d) => s + d.pmBlocks.reduce((s2, b) => s2 + b.hours, 0), 0);
   const endSun = addDays(monday, 6);
   const weekLabel = `${monday.getDate()} ${MONTHS_IT[monday.getMonth()]} – ${endSun.getDate()} ${MONTHS_IT[endSun.getMonth()]} ${endSun.getFullYear()}`;
 
@@ -500,9 +498,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           }}>Tot</div>
 
           {/* AM row */}
-          <GridLabel border timeLabel="fino alle 13:00" total={weekAmPlanned}>Mattina</GridLabel>
+          <GridLabel border timeLabel="fino alle 13:00">Mattina</GridLabel>
           {days.map((d, i) => {
             const isDropTarget = dragOver?.day === i && dragOver?.slot === 'am';
+            const amTotal = d.amBlocks.reduce((s, b) => s + b.hours, 0);
             return (
               <div key={i}
                 onDragOver={e => { e.preventDefault(); setDragOver({ day: i, slot: 'am' }); }}
@@ -513,7 +512,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: 4,
                   transition: 'background 0.1s',
                   outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
-                  display: 'flex',
+                  display: 'flex', flexDirection: 'column', gap: 3,
                 }}>
                 <PlanningCell slot="am" dayIndex={i} blocks={d.amBlocks}
                   clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
@@ -526,6 +525,11 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   onReorder={newBlocks => setSlotOverride(i, 'am', newBlocks)}
                   onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'am', cid, h)}
                   draggingId={dragging?.blockId} />
+                {amTotal > 0 && (
+                  <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', paddingRight: 4 }}>
+                    {toHHMM(amTotal)}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -537,9 +541,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           </div>
 
           {/* PM row */}
-          <GridLabel border timeLabel="dalle 13:00" total={weekPmPlanned}>Pomeriggio</GridLabel>
+          <GridLabel border timeLabel="dalle 13:00">Pomeriggio</GridLabel>
           {days.map((d, i) => {
             const isDropTarget = dragOver?.day === i && dragOver?.slot === 'pm';
+            const pmTotal = d.pmBlocks.reduce((s, b) => s + b.hours, 0);
             return (
               <div key={i}
                 onDragOver={e => { e.preventDefault(); setDragOver({ day: i, slot: 'pm' }); }}
@@ -550,7 +555,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: 4,
                   transition: 'background 0.1s',
                   outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
-                  display: 'flex',
+                  display: 'flex', flexDirection: 'column', gap: 3,
                 }}>
                 <PlanningCell slot="pm" dayIndex={i} blocks={d.pmBlocks}
                   clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
@@ -563,6 +568,11 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   onReorder={newBlocks => setSlotOverride(i, 'pm', newBlocks)}
                   onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'pm', cid, h)}
                   draggingId={dragging?.blockId} />
+                {pmTotal > 0 && (
+                  <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', paddingRight: 4 }}>
+                    {toHHMM(pmTotal)}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -749,7 +759,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   );
 }
 
-function GridLabel({ children, border, header, timeLabel, total }) {
+function GridLabel({ children, border, header, timeLabel }) {
   return (
     <div style={{
       padding: '8px 14px',
@@ -763,11 +773,6 @@ function GridLabel({ children, border, header, timeLabel, total }) {
       {timeLabel && (
         <span style={{ fontSize: 8, fontWeight: 600, color: 'var(--tb-text-faint)', opacity: 0.7, letterSpacing: '0.04em', textTransform: 'none' }}>
           {timeLabel}
-        </span>
-      )}
-      {total != null && (
-        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: 0, textTransform: 'none' }}>
-          {toHHMM(total) || '0:00'}
         </span>
       )}
     </div>
