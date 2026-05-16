@@ -208,6 +208,7 @@ export default function PlanningCell({
   isToday, isFuture, isWeekend, editable,
   onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onReorder, draggingId,
 }) {
+  const seenTodoistClients = new Set();
   const visualBlocks = blocks.map(block => {
     const cl = clients.find(c => c.id === block.clientId);
     if (!cl) return null;
@@ -217,8 +218,10 @@ export default function PlanningCell({
     const fillPct = block.hours > 0 ? Math.min(1, logged / block.hours) : 0;
     const delta   = logged - block.hours;
     const overflow = fill.hasExtra;
-    const todoistH = (todoistByClient && todoistByClient[block.clientId]) ?? 0;
-    const todoistTasks = (todoistTasksByClient && todoistTasksByClient[block.clientId]) ?? [];
+    const firstOccurrence = !seenTodoistClients.has(block.clientId);
+    seenTodoistClients.add(block.clientId);
+    const todoistH = (firstOccurrence && todoistByClient) ? (todoistByClient[block.clientId] ?? 0) : 0;
+    const todoistTasks = (firstOccurrence && todoistTasksByClient) ? (todoistTasksByClient[block.clientId] ?? []) : [];
     return { block, cl, blockH, fillPct, delta, logged, overflow, todoistH, todoistTasks };
   }).filter(Boolean);
 
