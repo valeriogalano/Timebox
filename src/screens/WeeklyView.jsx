@@ -541,7 +541,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           </div>
 
           {/* PM row */}
-          <GridLabel border timeLabel="dalle 13:00">Pomeriggio</GridLabel>
+          <GridLabel border>Pomeriggio</GridLabel>
           {days.map((d, i) => {
             const isDropTarget = dragOver?.day === i && dragOver?.slot === 'pm';
             const pmTotal = d.pmBlocks.reduce((s, b) => s + b.hours, 0);
