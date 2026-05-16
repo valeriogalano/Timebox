@@ -375,22 +375,24 @@ export default function PlanningCell({
       <div style={{ marginTop: 'auto', flexShrink: 0 }}>
       {editable && (
         <div ref={addRef} style={{ position: 'relative', flexShrink: 0 }}>
-          {!addOpen ? (
-            <button onClick={() => setAddOpen(true)}
-              style={{
-                width: '100%', padding: '3px 0', borderRadius: 4,
-                border: '1px dashed var(--tb-border-mid)', background: 'transparent',
-                color: 'var(--tb-text-faint)', fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                fontFamily: "'Open Sans', sans-serif",
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
-              }}>
-              +
-            </button>
-          ) : (
+          <button onClick={() => setAddOpen(v => !v)}
+            style={{
+              width: '100%', padding: '3px 0', borderRadius: 4,
+              border: '1px dashed var(--tb-border-mid)',
+              background: addOpen ? 'var(--tb-panel-bg-soft)' : 'transparent',
+              color: 'var(--tb-text-faint)', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+              fontFamily: "'Open Sans', sans-serif",
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
+            }}>
+            +
+          </button>
+          {addOpen && (
             <div style={{
+              position: 'absolute', bottom: 'calc(100% + 4px)', left: 0, right: 0,
               background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border-mid)', borderRadius: 6,
-              padding: 8, display: 'flex', flexDirection: 'column', gap: 5,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 10,
+              padding: 8, display: 'flex', flexDirection: 'column', gap: 6,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)', zIndex: 50,
+              minWidth: 140,
             }}>
               <select value={addClientId} onChange={e => setAddClientId(e.target.value)}
                 style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--tb-input-border)',
