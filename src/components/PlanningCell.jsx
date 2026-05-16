@@ -158,7 +158,7 @@ function PlanningBlock({
           background: barBg,
           overflow: 'hidden', position: 'relative',
         }}>
-          {hasTodoistSync && todoistH > 0 && (
+          {hasTodoistSync && todoistH > 0 && (isToday || isFuture) && (
             <div style={{
               position: 'absolute', left: 0, top: 0, bottom: 0,
               width: `${Math.min(100, (todoistH / block.hours) * 100)}%`,
@@ -209,6 +209,8 @@ export default function PlanningCell({
   onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onReorder, draggingId,
 }) {
   const seenTodoistClients = new Set();
+  const todoistRemainder = {};
+  const todoistTaskQueue = {};
   const visualBlocks = blocks.map(block => {
     const cl = clients.find(c => c.id === block.clientId);
     if (!cl) return null;
@@ -219,9 +221,29 @@ export default function PlanningCell({
     const delta   = logged - block.hours;
     const overflow = fill.hasExtra;
     const firstOccurrence = !seenTodoistClients.has(block.clientId);
-    seenTodoistClients.add(block.clientId);
-    const todoistH = (firstOccurrence && todoistByClient) ? (todoistByClient[block.clientId] ?? 0) : 0;
-    const todoistTasks = (firstOccurrence && todoistTasksByClient) ? (todoistTasksByClient[block.clientId] ?? []) : [];
+    if (firstOccurrence) {
+      seenTodoistClients.add(block.clientId);
+      todoistRemainder[block.clientId] = todoistByClient?.[block.clientId] ?? 0;
+      todoistTaskQueue[block.clientId] = [...(todoistTasksByClient?.[block.clientId] ?? [])];
+    }
+    const available = todoistRemainder[block.clientId] ?? 0;
+    const todoistH = Math.min(available, block.hours);
+    todoistRemainder[block.clientId] = Math.max(0, available - block.hours);
+    const todoistTasks = [];
+    let capacity = block.hours;
+    const queue = todoistTaskQueue[block.clientId] ?? [];
+    while (queue.length > 0 && capacity > 0) {
+      const t = queue[0];
+      if (t.hours <= capacity + 0.001) {
+        todoistTasks.push(t);
+        capacity -= t.hours;
+        queue.shift();
+      } else {
+        todoistTasks.push({ ...t, hours: capacity });
+        queue[0] = { ...t, hours: t.hours - capacity };
+        capacity = 0;
+      }
+    }
     return { block, cl, blockH, fillPct, delta, logged, overflow, todoistH, todoistTasks };
   }).filter(Boolean);
 

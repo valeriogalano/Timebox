@@ -280,15 +280,28 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     amBlocks.forEach(b => { amPlanned[b.clientId] = (amPlanned[b.clientId] ?? 0) + b.hours; });
     const pmPlanned = {};
     pmBlocks.forEach(b => { pmPlanned[b.clientId] = (pmPlanned[b.clientId] ?? 0) + b.hours; });
+    function leftoverTasks(tasks, capacity) {
+      let cap = capacity;
+      const leftover = [];
+      for (const t of tasks) {
+        if (cap <= 0) { leftover.push(t); continue; }
+        if (t.hours <= cap + 0.001) { cap -= t.hours; }
+        else { leftover.push({ ...t, hours: t.hours - cap }); cap = 0; }
+      }
+      return leftover;
+    }
+
     const orphanTodoist = [];
-    Object.entries(todoistByCS.am).forEach(([cid, h]) => {
-      const remaining = h - (amPlanned[cid] ?? 0);
-      if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'am', tasks: todoistTasksByCS.am[cid] ?? [] });
-    });
-    Object.entries(todoistByCS.pm).forEach(([cid, h]) => {
-      const remaining = h - (pmPlanned[cid] ?? 0);
-      if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'pm', tasks: todoistTasksByCS.pm[cid] ?? [] });
-    });
+    if (isToday || isFuture) {
+      Object.entries(todoistByCS.am).forEach(([cid, h]) => {
+        const remaining = h - (amPlanned[cid] ?? 0);
+        if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'am', tasks: leftoverTasks(todoistTasksByCS.am[cid] ?? [], amPlanned[cid] ?? 0) });
+      });
+      Object.entries(todoistByCS.pm).forEach(([cid, h]) => {
+        const remaining = h - (pmPlanned[cid] ?? 0);
+        if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'pm', tasks: leftoverTasks(todoistTasksByCS.pm[cid] ?? [], pmPlanned[cid] ?? 0) });
+      });
+    }
 
     return { date, dateStr, isToday, isFuture, isWeekend, dayHours, plannedTotal, delta, loggedInPlan, bilancioExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill, todoistByCS, todoistTasksByCS, lastSync, orphanTodoist };
   });
@@ -584,7 +597,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           </div>
           {days.map((d, i) => (
             <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)', background: todayBg(d), padding: 4 }}>
-              <ExtraCell blocks={d.extraBlocks} orphanTodoist={d.isWeekend ? [] : d.orphanTodoist} clients={clients} isToday={d.isToday} isFuture={d.isFuture} />
+              <ExtraCell blocks={d.extraBlocks} orphanTodoist={d.orphanTodoist} clients={clients} isToday={d.isToday} isFuture={d.isFuture} />
             </div>
           ))}
 
