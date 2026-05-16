@@ -526,7 +526,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'am', cid, h)}
                   draggingId={dragging?.blockId} />
                 {amTotal > 0 && (
-                  <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', paddingRight: 4 }}>
+                  <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
                     {toHHMM(amTotal)}
                   </div>
                 )}
@@ -569,7 +569,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'pm', cid, h)}
                   draggingId={dragging?.blockId} />
                 {pmTotal > 0 && (
-                  <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', paddingRight: 4 }}>
+                  <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
                     {toHHMM(pmTotal)}
                   </div>
                 )}
