@@ -279,10 +279,46 @@ function resetAllData() {
 
 function seedDemoData() {
   resetAllData();
-  const insertClient   = db.prepare('INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position) VALUES (?,?,?,?,?,?,?,?,?)');
-  const insertProject  = db.prepare('INSERT INTO projects (id,clientId,name,budgetHours,weeklyHours,position) VALUES (?,?,?,?,?,?)');
+  db.prepare('DELETE FROM todoist_cache').run();
+
+  const insertClient    = db.prepare('INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position) VALUES (?,?,?,?,?,?,?,?,?)');
+  const insertProject   = db.prepare('INSERT INTO projects (id,clientId,name,budgetHours,weeklyHours,position) VALUES (?,?,?,?,?,?)');
   const insertRecurring = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours,position) VALUES (?,?,?,?,?,?)');
-  const insertEntry    = db.prepare('INSERT INTO entries (id,projectId,date,hours,slot,billed) VALUES (?,?,?,?,?,?)');
+  const insertEntry     = db.prepare('INSERT INTO entries (id,projectId,date,hours,slot,billed) VALUES (?,?,?,?,?,?)');
+
+  const today = new Date();
+  const prevMonday = new Date(today);
+  const dow = prevMonday.getDay();
+  prevMonday.setDate(prevMonday.getDate() - (dow === 0 ? 6 : dow - 1) - 7);
+  function pd(offset) {
+    const dt = new Date(prevMonday);
+    dt.setDate(dt.getDate() + offset);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  const now = new Date().toISOString();
+  const todoistDays = [
+    { date: pd(0), tasks: [
+      { id: 'td1', projectId: 'p1', content: 'Revisione mockup homepage', hours: 2,   slot: 'am', completed: true },
+      { id: 'td2', projectId: 'p3', content: 'Articolo newsletter maggio',  hours: 2.5, slot: 'pm', completed: true },
+    ]},
+    { date: pd(1), tasks: [
+      { id: 'td3', projectId: 'p2', content: 'Setup endpoint autenticazione', hours: 3.5, slot: 'am', completed: true },
+      { id: 'td4', projectId: 'p6', content: 'Palette colori brand',          hours: 1,   slot: 'pm', completed: true },
+    ]},
+    { date: pd(2), tasks: [
+      { id: 'td5', projectId: 'p4', content: 'Integrazione API dati sensori', hours: 2, slot: 'am', completed: true },
+      { id: 'td6', projectId: 'p1', content: 'Fix layout mobile',             hours: 1, slot: 'am', completed: true },
+    ]},
+    { date: pd(3), tasks: [
+      { id: 'td7', projectId: 'p4', content: 'Grafici dashboard overview', hours: 2, slot: 'am', completed: true },
+      { id: 'td8', projectId: 'p6', content: 'Bozze logo varianti',         hours: 2, slot: 'pm', completed: true },
+    ]},
+    { date: pd(4), tasks: [
+      { id: 'td9',  projectId: 'p5', content: 'Schermata onboarding',  hours: 2,   slot: 'pm', completed: true },
+      { id: 'td10', projectId: 'p3', content: 'Revisione articolo SEO', hours: 2.5, slot: 'pm', completed: true },
+    ]},
+  ];
 
   db.transaction(() => {
     for (const c of INIT_CLIENTS)
@@ -293,6 +329,8 @@ function seedDemoData() {
       insertRecurring.run(r.id, r.clientId, r.slot, r.day, r.hours, r.position ?? 0);
     for (const e of getSeedEntries())
       insertEntry.run(e.id, e.projectId, e.date, e.hours, e.slot, e.billed);
+    for (const { date, tasks } of todoistDays)
+      db.prepare('INSERT OR REPLACE INTO todoist_cache (dateStr,tasksJson,syncedAt) VALUES (?,?,?)').run(date, JSON.stringify(tasks), now);
   })();
 }
 
