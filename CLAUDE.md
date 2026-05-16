@@ -47,6 +47,7 @@ TimeBox/
       Dashboard.jsx
       ClientsScreen.jsx
       RecurringScreen.jsx
+      TodoistLog.jsx  ← elenco task Todoist in cache, raggruppati per giorno
     components/
       PlanningCell.jsx
       ExtraCell.jsx
@@ -54,6 +55,7 @@ TimeBox/
       TimeCell.jsx
       MultiSlotCell.jsx
       RecurringBlockRow.jsx
+      MarkdownText.jsx ← renderer inline Markdown (bold, italic, code, strikethrough, link)
 ```
 
 ---
@@ -77,16 +79,23 @@ Renderer (React)
 ## Schema SQLite
 
 ```sql
-clients      (id, name, color, billing, rate, limitType, limitHours, carryover)
-projects     (id, clientId, name, budgetHours)
-recurring    (id, clientId, slot, day, hours)
-entries      (id, projectId, date, hours, slot, billed)
+clients        (id, name, color, billable, billing, rate, limitType, limitHours, position)
+projects       (id, clientId, name, budgetHours, weeklyHours, position, archived)
+recurring      (id, clientId, slot, day, hours, position)
+entries        (id, projectId, date, hours, slot, billed)
 week_overrides (id, weekKey, dayIndex, slot, blocksJson)
+settings       (key, value)
+todoist_cache  (dateStr, tasksJson, syncedAt)
 ```
 
 Il DB viene creato in `app.getPath('userData')/timebox.db`.
 Al primo avvio (tabella `clients` vuota) vengono inseriti automaticamente 4 clienti,
 6 progetti, 13 blocchi ricorrenti e alcune entries di esempio.
+
+`todoist_cache`: una riga per giorno (`dateStr` = ISO date). `tasksJson` contiene
+l'array di task `{id, projectId, content, hours, slot, completed}`. `syncedAt` è
+l'ISO timestamp dell'ultima sync. La cache viene popolata da `syncTodoist` in `main.js`
+e consultata da `WeeklyView.jsx` e `TodoistLog.jsx`.
 
 ### week_overrides
 
@@ -118,6 +127,11 @@ Riga assente → si usa il template ricorrente.
 ### Dashboard.jsx — stato locale
 - `entries`: caricato da `1 gennaio` a oggi quando `screen === 'dashboard'`
 - Viene ricaricato ogni volta che si apre la schermata Dashboard
+
+### TodoistLog.jsx — stato locale
+- `rows`: caricato via `window.api.getAllTodoistCache()` al mount
+- Raggruppa i task per giorno (più recenti in cima)
+- Mostra `lastSync` globale = max `syncedAt` tra tutte le righe
 
 ---
 
@@ -182,14 +196,21 @@ che togola e salva.
 ## Componenti
 
 ### PlanningCell
-Props: `slot, dayIndex, blocks, clients, projects, slotEntries, isToday, isFuture,
-isWeekend, editable, onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, draggingId`
+Props: `slot, dayIndex, blocks, clients, projects, slotEntries, todoistTasks,
+hasTodoistSync, isToday, isFuture, isWeekend, editable, onAddBlock, onUpdateBlock,
+onRemoveBlock, onDragStart, draggingId`
 
 - `blocks`: array di `{id, clientId, hours}` — i blocchi **pianificati** per questo slot
 - `slotEntries`: entries già filtrate per questo slot specifico (am o pm)
+- `todoistTasks`: task Todoist del giorno per questo slot (visibili solo se `isToday || isFuture`)
+- `hasTodoistSync`: `true` se esiste almeno una riga in cache per la settimana corrente
 - Il fill progressivo (da basso) è `min(1, logged/planned) * 100%`
 - L'overflow bar appare solo se `logged > planned`
 - Il blocco in drag ha `opacity: 0.35` mentre viene trascinato
+- I task Todoist sono distribuiti sequenzialmente tra i blocchi dello stesso cliente;
+  un task può essere spezzato tra blocchi contigui se supera la capacità del primo
+- Il popup "+ blocco" fluttua sopra il pulsante (`position: absolute, bottom: calc(100% + 4px)`)
+  e si togola con lo stesso pulsante; non sposta il layout sottostante
 
 ### TimeCell
 Props: `hours, billed, isFuture, isWeekend, isToday, clientColor, onSave, onToggleBilled`
@@ -201,6 +222,35 @@ Props: `hours, billed, isFuture, isWeekend, isToday, clientColor, onSave, onTogg
 ### MultiSlotCell (RecurringScreen)
 Wrapper per N `RecurringBlockRow`. Il pulsante `+ blocco` apre un popover inline
 con select cliente + input ore. Click fuori → chiude il popover.
+
+### MarkdownText
+Props: `text, style`
+
+Renderer inline Markdown senza dipendenze esterne. Supporta: `**bold**`, `*italic*`,
+`` `code` ``, `~~strikethrough~~`, `[link text](url)` (mostra solo il testo, no href).
+Usato nei tooltip dei task Todoist in `PlanningCell` e `ExtraCell`.
+
+---
+
+## Integrazione Todoist
+
+### Flusso sync
+1. Il renderer chiama `window.api.syncTodoist(projects, dates, debug)`
+2. `main.js` recupera il token da `safeStorage`, chiama la Todoist REST API v1
+3. Scarica tutti i task aperti con paginazione (`cursor`-based)
+4. Filtra per `due.date` presente nell'insieme `dates`
+5. Fa match del progetto Todoist → progetto Timebox per nome
+6. Salva i risultati in `todoist_cache` (una riga per giorno)
+7. Ritorna `{ byDate: { [dateStr]: [...tasks] } }`
+
+### Visibilità nel Timesheet (WeeklyView)
+- Le barre Todoist e i blocchi orfani appaiono **solo su oggi e giorni futuri**
+- Su giorni passati i dati restano in cache ma non vengono mostrati
+- La sync non include task con `due.date` < oggi (filtro lato renderer prima di chiamare la API)
+
+### Task orfani (ExtraCell)
+`leftoverTasks(tasks, capacity)` in `WeeklyView.jsx` calcola i task non assorbiti
+dai blocchi pianificati e li passa a `ExtraCell` come blocchi aggiuntivi.
 
 ---
 
@@ -241,7 +291,7 @@ Non rimuovere il mock: serve per:
 
 ## Gotcha noti
 
-- **`carryover` nel DB è `INTEGER` (0/1)**, non `BOOLEAN`. `queries.js` normalizza
+- **`billable` nel DB è `INTEGER` (0/1)**, non `BOOLEAN`. `queries.js` normalizza
   in `normalizeClient()` → `boolean`. Non salvare `true/false` direttamente via SQL.
 
 - **`billed` nel DB è `INTEGER` (0/1)**. Stessa normalizzazione in `normalizeEntry()`.
