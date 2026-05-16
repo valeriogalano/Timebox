@@ -297,6 +297,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const weekActual  = days.reduce((s, d) => s + d.dayHours, 0);
   const weekDelta   = weekActual - weekPlanned;
   const weekExtra   = days.reduce((s, d) => s + Math.max(0, d.bilancioExtra), 0);
+  const weekAmPlanned = days.reduce((s, d) => s + d.amBlocks.reduce((s2, b) => s2 + b.hours, 0), 0);
+  const weekPmPlanned = days.reduce((s, d) => s + d.pmBlocks.reduce((s2, b) => s2 + b.hours, 0), 0);
   const endSun = addDays(monday, 6);
   const weekLabel = `${monday.getDate()} ${MONTHS_IT[monday.getMonth()]} – ${endSun.getDate()} ${MONTHS_IT[endSun.getMonth()]} ${endSun.getFullYear()}`;
 
@@ -498,7 +500,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           }}>Tot</div>
 
           {/* AM row */}
-          <GridLabel border>Mattina</GridLabel>
+          <GridLabel border timeLabel="fino alle 13:00" total={weekAmPlanned}>Mattina</GridLabel>
           {days.map((d, i) => {
             const isDropTarget = dragOver?.day === i && dragOver?.slot === 'am';
             return (
@@ -535,7 +537,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           </div>
 
           {/* PM row */}
-          <GridLabel border>Pomeriggio</GridLabel>
+          <GridLabel border timeLabel="dalle 13:00" total={weekPmPlanned}>Pomeriggio</GridLabel>
           {days.map((d, i) => {
             const isDropTarget = dragOver?.day === i && dragOver?.slot === 'pm';
             return (
@@ -747,16 +749,27 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   );
 }
 
-function GridLabel({ children, border, header }) {
+function GridLabel({ children, border, header, timeLabel, total }) {
   return (
     <div style={{
       padding: '8px 14px',
       background: header ? 'var(--tb-panel-bg-soft)' : undefined,
       borderBottom: header ? '1px solid var(--tb-border)' : border ? '1px solid var(--tb-border-soft)' : '1px solid var(--tb-border)',
-      display: 'flex', alignItems: 'center',
-      fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
+      display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3,
     }}>
-      {children}
+      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase' }}>
+        {children}
+      </span>
+      {timeLabel && (
+        <span style={{ fontSize: 8, fontWeight: 600, color: 'var(--tb-text-faint)', opacity: 0.7, letterSpacing: '0.04em', textTransform: 'none' }}>
+          {timeLabel}
+        </span>
+      )}
+      {total != null && (
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: 0, textTransform: 'none' }}>
+          {toHHMM(total) || '0:00'}
+        </span>
+      )}
     </div>
   );
 }
