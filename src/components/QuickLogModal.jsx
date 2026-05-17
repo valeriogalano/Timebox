@@ -25,6 +25,21 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
     if (item) item.scrollIntoView({ block: 'nearest' });
   }, [selectedIdx]);
 
+  function highlight(text, term) {
+    if (!term) return text;
+    const idx = text.toLowerCase().indexOf(term);
+    if (idx === -1) return text;
+    return (
+      <>
+        {text.slice(0, idx)}
+        <mark style={{ background: 'var(--tb-text-primary)', color: 'var(--tb-panel-bg)', borderRadius: 2, padding: '0 1px' }}>
+          {text.slice(idx, idx + term.length)}
+        </mark>
+        {text.slice(idx + term.length)}
+      </>
+    );
+  }
+
   function handleKeyDown(e) {
     if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
     if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, filtered.length - 1)); return; }
@@ -100,7 +115,7 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
                   <div style={{ fontSize: 10, color: 'var(--tb-text-muted)', fontWeight: 600 }}>{client?.name ?? ''}</div>
                   {q && project.description?.toLowerCase().includes(q) && (
                     <div style={{ fontSize: 10, color: 'var(--tb-text-faint)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {project.description}
+                      {highlight(project.description, q)}
                     </div>
                   )}
                 </div>
