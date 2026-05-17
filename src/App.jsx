@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getToday, MONTHS_IT, fmtH, fmt } from './utils';
+import QuickLogModal from './components/QuickLogModal';
 import WeeklyView from './screens/WeeklyView';
 import Panoramica from './screens/Panoramica';
 import BillingScreen from './screens/BillingScreen';
@@ -45,6 +46,8 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem('timebox-sidebar-collapsed') === 'true'; } catch { return false; }
   });
+  const [quickLogOpen, setQuickLogOpen] = useState(false);
+  const [autoFocusProject, setAutoFocusProject] = useState(null);
   const refreshSidebar = useCallback(() => setSidebarKey(k => k + 1), []);
 
   const [theme, setThemeState] = useState(() => {
@@ -72,13 +75,13 @@ export default function App() {
     setThemeState(t);
   }
 
-  function toggleSidebar() {
+  const toggleSidebar = useCallback(() => {
     setCollapsed(prev => {
       const newVal = !prev;
       try { localStorage.setItem('timebox-sidebar-collapsed', String(newVal)); } catch {}
       return newVal;
     });
-  }
+  }, []);
 
   function refreshData() {
     return Promise.all([
@@ -103,6 +106,49 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (!e.metaKey) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      switch (e.key) {
+        case 'l':
+          e.preventDefault();
+          setQuickLogOpen(o => !o);
+          break;
+        case 't':
+          e.preventDefault();
+          setScreen('weekly');
+          setWeekOffset(0);
+          break;
+        case 'ArrowLeft':
+          if (screen === 'weekly') { e.preventDefault(); setWeekOffset(o => o - 1); }
+          break;
+        case 'ArrowRight':
+          if (screen === 'weekly') { e.preventDefault(); setWeekOffset(o => o + 1); }
+          break;
+        case 'b':
+          e.preventDefault();
+          toggleSidebar();
+          break;
+        case ',':
+          e.preventDefault();
+          setScreen('settings');
+          break;
+        default: {
+          const idx = parseInt(e.key, 10) - 1;
+          if (!isNaN(idx) && idx >= 0 && idx < NAV_ITEMS.length) {
+            e.preventDefault();
+            setScreen(NAV_ITEMS[idx].id);
+          }
+        }
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [screen, toggleSidebar]);
+
   const topbarDate = getToday().toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
   if (loading) {
@@ -115,8 +161,23 @@ export default function App() {
     );
   }
 
+  function handleQuickLogSelect(projectId) {
+    setQuickLogOpen(false);
+    setScreen('weekly');
+    setWeekOffset(0);
+    setAutoFocusProject(projectId);
+  }
+
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: "'Open Sans', sans-serif", overflow: 'hidden' }}>
+      {quickLogOpen && (
+        <QuickLogModal
+          projects={projects}
+          clients={clients}
+          onSelect={handleQuickLogSelect}
+          onClose={() => setQuickLogOpen(false)}
+        />
+      )}
 
       {/* ── Sidebar ─────────────────────────────────────────────── */}
       <div style={{
@@ -240,7 +301,9 @@ export default function App() {
               clients={clients} projects={projects} recurring={recurring}
               weekOffset={weekOffset} setWeekOffset={setWeekOffset}
               onEntryChange={refreshSidebar}
-              externalRefreshTick={weekRefreshTick} />
+              externalRefreshTick={weekRefreshTick}
+              autoFocusProject={autoFocusProject}
+              onAutoFocusConsumed={() => setAutoFocusProject(null)} />
           )}
           {screen === 'panoramica' && (
             <Panoramica clients={clients} projects={projects} recurring={recurring} screen={screen} />

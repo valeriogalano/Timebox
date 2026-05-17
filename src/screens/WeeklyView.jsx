@@ -14,7 +14,7 @@ function getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, slot) {
     .map(r => ({ id: r.id, clientId: r.clientId, hours: r.hours }));
 }
 
-export default function WeeklyView({ clients, projects, recurring, weekOffset, setWeekOffset, onEntryChange, externalRefreshTick }) {
+export default function WeeklyView({ clients, projects, recurring, weekOffset, setWeekOffset, onEntryChange, externalRefreshTick, autoFocusProject, onAutoFocusConsumed }) {
   const monday = addDays(getMondayOfWeek(getToday()), weekOffset * 7);
   const weekKey = getWeekKey(monday);
 
@@ -41,6 +41,18 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     document.addEventListener('keydown', onGlobalTab);
     return () => document.removeEventListener('keydown', onGlobalTab);
   }, []);
+
+  useEffect(() => {
+    if (!autoFocusProject) return;
+    requestAnimationFrame(() => {
+      const cell = document.querySelector(`[data-timecell][data-today][data-project="${autoFocusProject}"]`);
+      if (cell) {
+        cell.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        cell.click();
+      }
+      onAutoFocusConsumed?.();
+    });
+  }, [autoFocusProject]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset dismiss state when week changes
   useEffect(() => { setAlertDismissed(false); }, [weekKey]);
@@ -719,6 +731,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                           isFuture={d.isFuture} isToday={d.isToday}
                           clientColor={client.color}
                           colIndex={i}
+                          projectId={project.id}
                           onSave={h => saveEntry(project.id, d.dateStr, h, entry?.slot)} />
                       </div>
                     );

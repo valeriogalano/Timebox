@@ -117,6 +117,38 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
 
   return (
     <div style={{ maxWidth: 560 }}>
+      <Section title="Scorciatorie da tastiera">
+        <div style={{ padding: '16px 20px' }}>
+          <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginBottom: 14 }}>
+            Tutte le scorciatorie usano il tasto <kbd style={{ fontFamily: 'monospace', fontSize: 11, background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)', borderRadius: 4, padding: '1px 5px' }}>⌘</kbd> come modificatore.
+            Non sono attive quando un campo di testo è in focus.
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <tbody>
+              {[
+                ['⌘ L', 'Apre il quick-log per navigare a un progetto'],
+                ['⌘ T', 'Torna al Timesheet della settimana corrente'],
+                ['⌘ ←', 'Settimana precedente (solo nel Timesheet)'],
+                ['⌘ →', 'Settimana successiva (solo nel Timesheet)'],
+                ['⌘ B', 'Espande / riduce la sidebar'],
+                ['⌘ ,', 'Apre le Impostazioni'],
+                ['⌘ 1–8', 'Naviga alle schermate in ordine sidebar'],
+              ].map(([keys, desc], i) => (
+                <tr key={i} style={{ borderBottom: i < 6 ? '1px solid var(--tb-border-soft)' : 'none' }}>
+                  <td style={{ padding: '9px 12px 9px 0', width: 90, whiteSpace: 'nowrap' }}>
+                    <kbd style={{
+                      fontFamily: 'monospace', fontSize: 11,
+                      background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)',
+                      borderRadius: 4, padding: '2px 6px', color: 'var(--tb-text-primary)', fontWeight: 700,
+                    }}>{keys}</kbd>
+                  </td>
+                  <td style={{ padding: '9px 0', color: 'var(--tb-text-secondary)', fontSize: 11 }}>{desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Section>
       <Section title="Aspetto">
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--tb-border-soft)' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 6 }}>

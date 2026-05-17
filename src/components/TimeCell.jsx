@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toHHMM, parseHHMM } from '../utils';
 
-export default function TimeCell({ hours, billed, isBillable, isFuture, isToday, clientColor, colIndex, onSave }) {
+export default function TimeCell({ hours, billed, isBillable, isFuture, isToday, clientColor, colIndex, projectId, onSave }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [hover, setHover] = useState(false);
@@ -61,6 +61,7 @@ export default function TimeCell({ hours, billed, isBillable, isFuture, isToday,
     <div
       data-timecell
       data-col={colIndex}
+      data-project={projectId}
       data-today={isToday ? 'true' : undefined}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
