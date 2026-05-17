@@ -98,6 +98,11 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
                     {project.name}
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--tb-text-muted)', fontWeight: 600 }}>{client?.name ?? ''}</div>
+                  {q && project.description?.toLowerCase().includes(q) && (
+                    <div style={{ fontSize: 10, color: 'var(--tb-text-faint)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {project.description}
+                    </div>
+                  )}
                 </div>
                 {i === selectedIdx && (
                   <span style={{ fontSize: 10, color: 'var(--tb-text-faint)', fontFamily: 'monospace', flexShrink: 0 }}>↵</span>
