@@ -136,13 +136,15 @@ function createHttpServer() {
         const existing = getProjects().find(pr => pr.id === id);
         if (!existing) return json(res, 404, { error: `Project not found: ${id}` });
         const updated = { ...existing };
-        if (body.name)        updated.name = body.name;
-        if (body.clientId)    updated.clientId = body.clientId;
-        if ('description' in body) updated.description = body.description ?? null;
+        if (body.name !== undefined)        updated.name = body.name;
+        if (body.clientId !== undefined)    updated.clientId = body.clientId;
+        if ('description' in body)          updated.description = body.description ?? null;
+        if ('budgetHours' in body)          updated.budgetHours = body.budgetHours ?? null;
+        if ('weeklyHours' in body)          updated.weeklyHours = body.weeklyHours ?? null;
         saveProject(updated);
         const client = getClients().find(c => c.id === updated.clientId);
         emitter.emit('change', 'structure');
-        return json(res, 200, { id, name: updated.name, clientId: updated.clientId, client: client?.name });
+        return json(res, 200, { id, name: updated.name, clientId: updated.clientId, client: client?.name, description: updated.description, budgetHours: updated.budgetHours, weeklyHours: updated.weeklyHours });
       }
 
       if (req.method === 'DELETE' && p.startsWith('/projects/') && p !== '/projects/') {

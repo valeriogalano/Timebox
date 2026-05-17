@@ -76,10 +76,10 @@ describe('MCP server', () => {
     const res = await rpc(mcp, msg('tools/list', {}));
     const { tools } = res.result;
     assert.ok(Array.isArray(tools));
-    assert.equal(tools.length, 14);
+    assert.equal(tools.length, 15);
     const names = tools.map(t => t.name);
     for (const n of ['today', 'week', 'projects', 'clients', 'status', 'log_hours',
-      'find_client', 'find_project', 'rename_client', 'rename_project',
+      'find_client', 'find_project', 'rename_client', 'rename_project', 'update_project',
       'move_project', 'create_project', 'delete_project', 'merge_project_entries']) {
       assert.ok(names.includes(n), `missing tool: ${n}`);
     }

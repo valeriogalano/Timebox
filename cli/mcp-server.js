@@ -164,6 +164,21 @@ const TOOLS = [
     },
   },
   {
+    name: 'update_project',
+    description: 'Update one or more fields of a Timebox project (name, description, budgetHours, weeklyHours). Use find_project to get the id first. Only include the fields you want to change.',
+    inputSchema: {
+      type: 'object',
+      required: ['id'],
+      properties: {
+        id: { type: 'string', description: 'Project id' },
+        name: { type: 'string', description: 'New project name' },
+        description: { type: 'string', description: 'New description (pass empty string to clear it)' },
+        budgetHours: { type: 'number', description: 'New total budget in hours (pass 0 to clear)' },
+        weeklyHours: { type: 'number', description: 'New weekly hours limit (pass 0 to clear)' },
+      },
+    },
+  },
+  {
     name: 'move_project',
     description: 'Move a Timebox project to a different client. Use find_project and find_client to get ids first.',
     inputSchema: {
@@ -324,6 +339,21 @@ async function callTool(name, args) {
   if (name === 'rename_project') {
     const d = await httpRequest(`/projects/${encodeURIComponent(args.id)}`, 'PATCH', { name: args.name });
     return `Project renamed to '${d.name}'.`;
+  }
+
+  if (name === 'update_project') {
+    const body = {};
+    if (args.name !== undefined)        body.name = args.name;
+    if (args.description !== undefined) body.description = args.description || null;
+    if (args.budgetHours !== undefined) body.budgetHours = args.budgetHours || null;
+    if (args.weeklyHours !== undefined) body.weeklyHours = args.weeklyHours || null;
+    const d = await httpRequest(`/projects/${encodeURIComponent(args.id)}`, 'PATCH', body);
+    const parts = [];
+    if (args.name !== undefined)        parts.push(`name: '${d.name}'`);
+    if (args.description !== undefined) parts.push(`description: ${d.description ? `'${d.description}'` : 'cleared'}`);
+    if (args.budgetHours !== undefined) parts.push(`budget: ${d.budgetHours ? `${d.budgetHours}h` : 'cleared'}`);
+    if (args.weeklyHours !== undefined) parts.push(`weekly limit: ${d.weeklyHours ? `${d.weeklyHours}h` : 'cleared'}`);
+    return `Project '${d.name}' updated — ${parts.join(', ')}.`;
   }
 
   if (name === 'move_project') {
