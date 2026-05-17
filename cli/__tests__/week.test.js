@@ -1,0 +1,42 @@
+'use strict';
+
+const { test, describe, before } = require('node:test');
+const assert = require('node:assert/strict');
+const { createTestDb } = require('./helpers');
+const { getWeekData } = require('../commands/week');
+const { logHours } = require('../commands/log');
+
+describe('getWeekData', () => {
+  before(() => createTestDb());
+
+  test('always returns exactly 5 days', () => {
+    const data = getWeekData(new Date('2020-08-12T00:00:00'));
+    assert.equal(data.days.length, 5);
+  });
+
+  test('monday is correct for a Wednesday input', () => {
+    // 2020-08-12 is a Wednesday; Monday of that week is 2020-08-10
+    const data = getWeekData(new Date('2020-08-12T00:00:00'));
+    assert.equal(data.days[0].date, '2020-08-10');
+    assert.equal(data.days[4].date, '2020-08-14');
+  });
+
+  test('offset -1 gives previous week', () => {
+    const current = getWeekData(new Date('2020-08-12T00:00:00'), 0);
+    const prev = getWeekData(new Date('2020-08-12T00:00:00'), -1);
+    assert.equal(prev.days[0].date, '2020-08-03');
+    assert.equal(prev.days[4].date, '2020-08-07');
+  });
+
+  test('empty week returns total 0', () => {
+    const data = getWeekData(new Date('2020-08-12T00:00:00'));
+    assert.equal(data.total, 0);
+  });
+
+  test('sums hours across all days', () => {
+    logHours({ projectName: 'website', hoursStr: '2', slot: 'am', date: '2020-08-10', add: false });
+    logHours({ projectName: 'brand', hoursStr: '3', slot: 'pm', date: '2020-08-12', add: false });
+    const data = getWeekData(new Date('2020-08-12T00:00:00'));
+    assert.equal(data.total, 5);
+  });
+});

@@ -338,3 +338,69 @@ npx electron-builder --mac dmg
 
 Il log di runtime dell'app installata si trova in:
 - **macOS:** `~/Library/Application Support/Timebox/logs/timebox.log`
+
+---
+
+## CLI
+
+Timebox include una CLI per accedere ai dati da terminale — utile per script, automazioni e integrazione con Claude Code.
+
+### Installazione
+
+```bash
+npm link          # rende `timebox` disponibile globalmente
+```
+
+oppure usa direttamente `node cli/index.js <comando>`.
+
+### Variabile d'ambiente
+
+```bash
+TIMEBOX_DB=/percorso/alternativo/timebox.db timebox clients
+```
+
+Se non impostata, la CLI usa il DB di default dell'app: `~/Library/Application Support/Timebox/timebox.db`.
+
+### Comandi
+
+| Comando | Descrizione |
+|---------|-------------|
+| `timebox clients` | Lista clienti con tariffazione |
+| `timebox projects [--client <nome>] [--all]` | Lista progetti con budget e ore loggate |
+| `timebox today [--date YYYY-MM-DD]` | Ore loggate oggi per slot AM/PM |
+| `timebox week [--offset N]` | Riepilogo settimanale (--offset -1 = settimana scorsa) |
+| `timebox status` | Overview rapida: oggi, settimana, alert budget |
+| `timebox log <progetto> <ore> [opzioni]` | Registra ore su un progetto |
+
+### Esempi
+
+```bash
+# Vedere le ore di oggi
+timebox today
+
+# Riepilogo della settimana scorsa
+timebox week --offset -1
+
+# Loggare 2h 30m sul progetto "Website Redesign" (slot PM)
+timebox log "website" 2:30 --slot pm
+
+# Aggiungere 1h alle ore già presenti per oggi
+timebox log "website" 1 --add
+
+# Cancellare un'entry (0 ore)
+timebox log "website" 0
+
+# Output JSON (per script o integrazione con Claude Code)
+timebox today --json
+timebox projects --json
+```
+
+Il flag `--json` è disponibile su tutti i comandi di lettura e produce JSON puro su stdout.
+
+### Note sulla compilazione nativa
+
+`better-sqlite3` richiede una versione compilata compatibile con il runtime usato:
+- **Electron (app):** `npm run rebuild`
+- **Node.js (tests/CLI):** `npm rebuild better-sqlite3`
+
+`npm test` effettua automaticamente il rebuild per Node.js prima di eseguire i test. Dopo aver eseguito i test, riesegui `npm run rebuild` se hai bisogno che l'app Electron funzioni.

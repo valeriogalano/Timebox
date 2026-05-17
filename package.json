@@ -3,15 +3,20 @@
   "version": "0.1.0",
   "description": "Freelance time tracking desktop app",
   "main": "main.js",
+  "bin": {
+    "timebox": "./cli/index.js"
+  },
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && ELECTRON_START_URL=http://localhost:5173 electron .\"",
     "build": "vite build",
     "start": "npm run dev",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "postinstall": "electron-rebuild -f -w better-sqlite3"
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "test": "npm rebuild better-sqlite3 && node --test cli/__tests__/*.test.js"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
+    "commander": "^14.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
