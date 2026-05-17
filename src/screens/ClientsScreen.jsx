@@ -331,7 +331,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16, height: 'calc(100vh - 140px)' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16, alignItems: 'start' }}>
 
       {/* Area list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -402,7 +402,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
 
       {/* Config panel */}
       {sel && (
-        <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', padding: 24, overflowY: 'auto' }}>
+        <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', padding: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingBottom: 20, borderBottom: '1px solid var(--tb-border-soft)' }}>
             <div style={{ width: 14, height: 14, borderRadius: '50%', background: sel.color }} />
             <input

@@ -116,7 +116,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
   }
 
   return (
-    <div style={{ maxWidth: 560 }}>
+    <div>
       <Section title="Scorciatorie da tastiera">
         <div style={{ padding: '16px 20px' }}>
           <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginBottom: 14 }}>
