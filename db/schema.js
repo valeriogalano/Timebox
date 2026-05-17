@@ -8,12 +8,12 @@ const INIT_CLIENTS = [
 ];
 
 const INIT_PROJECTS = [
-  { id: 'p1', clientId: 'c1', name: 'Website Redesign',  budgetHours: 80,   weeklyHours: 10,  position: 0 },
-  { id: 'p2', clientId: 'c1', name: 'API Integration',   budgetHours: 40,   weeklyHours: null, position: 1 },
-  { id: 'p3', clientId: 'c2', name: 'Monthly Articles',  budgetHours: null, weeklyHours: 5,   position: 0 },
-  { id: 'p4', clientId: 'c3', name: 'Dashboard MVP',     budgetHours: 120,  weeklyHours: null, position: 0 },
-  { id: 'p5', clientId: 'c3', name: 'Mobile App',        budgetHours: 60,   weeklyHours: null, position: 1 },
-  { id: 'p6', clientId: 'c4', name: 'Brand Identity',    budgetHours: 30,   weeklyHours: null, position: 0 },
+  { id: 'p1', clientId: 'c1', name: 'Website Redesign',  description: 'Restyling completo del sito pubblico: UX, UI e ottimizzazione mobile.',          budgetHours: 80,   weeklyHours: 10,   position: 0 },
+  { id: 'p2', clientId: 'c1', name: 'API Integration',   description: 'Integrazione REST con i sistemi ERP del cliente, autenticazione OAuth2.',         budgetHours: 40,   weeklyHours: null, position: 1 },
+  { id: 'p3', clientId: 'c2', name: 'Monthly Articles',  description: 'Quattro articoli mensili su tech e produttività per il blog editoriale.',          budgetHours: null, weeklyHours: 5,    position: 0 },
+  { id: 'p4', clientId: 'c3', name: 'Dashboard MVP',     description: 'Prima versione della dashboard IoT: grafici real-time e alert soglie sensori.',    budgetHours: 120,  weeklyHours: null, position: 0 },
+  { id: 'p5', clientId: 'c3', name: 'Mobile App',        description: 'App iOS/Android per monitoraggio impianti in campo, offline-first.',               budgetHours: 60,   weeklyHours: null, position: 1 },
+  { id: 'p6', clientId: 'c4', name: 'Brand Identity',    description: 'Logo, palette colori, tipografia e linee guida per il nuovo brand dello studio.',  budgetHours: 30,   weeklyHours: null, position: 0 },
 ];
 
 const INIT_RECURRING = [
