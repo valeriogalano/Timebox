@@ -1,0 +1,270 @@
+'use strict';
+
+const { describe, it, before, after } = require('node:test');
+const assert = require('node:assert/strict');
+const http = require('node:http');
+const { createTestDb } = require('./helpers');
+const { createHttpServer } = require('../http-server');
+const { getClients, saveProject } = require('../../db/queries');
+const { randomUUID } = require('crypto');
+
+function get(port, path) {
+  return new Promise((resolve, reject) => {
+    const [pathname, search] = path.split('?');
+    const opts = { hostname: '127.0.0.1', port, path: search ? `${pathname}?${search}` : pathname, method: 'GET' };
+    http.get(opts, res => {
+      let raw = '';
+      res.on('data', c => { raw += c; });
+      res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(raw) }));
+    }).on('error', reject);
+  });
+}
+
+function request(port, method, path, body) {
+  return new Promise((resolve, reject) => {
+    const payload = body ? JSON.stringify(body) : '';
+    const req = http.request({
+      hostname: '127.0.0.1', port, path, method,
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+    }, res => {
+      let raw = '';
+      res.on('data', c => { raw += c; });
+      res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(raw) }));
+    });
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+function post(port, path, body) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify(body);
+    const req = http.request({
+      hostname: '127.0.0.1', port, path, method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+    }, res => {
+      let raw = '';
+      res.on('data', c => { raw += c; });
+      res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(raw) }));
+    });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+describe('HTTP server', () => {
+  let server;
+  let port;
+
+  before(() => {
+    createTestDb();
+    server = createHttpServer();
+    return new Promise(resolve => {
+      server.listen(0, '127.0.0.1', () => {
+        port = server.address().port;
+        resolve();
+      });
+    });
+  });
+
+  after(() => new Promise(resolve => server.close(resolve)));
+
+  it('GET /ping → { ok: true }', async () => {
+    const { status, body } = await get(port, '/ping');
+    assert.equal(status, 200);
+    assert.equal(body.ok, true);
+  });
+
+  it('GET /today → { date, slots, amTotal, pmTotal }', async () => {
+    const { status, body } = await get(port, '/today');
+    assert.equal(status, 200);
+    assert.ok(body.date, 'has date');
+    assert.ok(body.slots, 'has slots');
+    assert.ok('am' in body.slots, 'has am slot');
+    assert.ok('pm' in body.slots, 'has pm slot');
+  });
+
+  it('GET /today?date=2020-01-01 → total 0 (no entries)', async () => {
+    const { status, body } = await get(port, '/today?date=2020-01-01');
+    assert.equal(status, 200);
+    assert.equal(body.date, '2020-01-01');
+    assert.equal(body.amTotal, 0);
+    assert.equal(body.pmTotal, 0);
+  });
+
+  it('GET /week → has 5 days and total', async () => {
+    const { status, body } = await get(port, '/week');
+    assert.equal(status, 200);
+    assert.ok(Array.isArray(body.days), 'days is array');
+    assert.equal(body.days.length, 5);
+    assert.ok('total' in body, 'has total');
+    assert.ok(body.monday, 'has monday');
+    assert.ok(body.friday, 'has friday');
+  });
+
+  it('GET /week?offset=-1 → different week from /week', async () => {
+    const [cur, prev] = await Promise.all([
+      get(port, '/week'),
+      get(port, '/week?offset=-1'),
+    ]);
+    assert.equal(cur.status, 200);
+    assert.equal(prev.status, 200);
+    assert.notEqual(cur.body.monday, prev.body.monday);
+  });
+
+  it('GET /projects → non-empty array with expected fields', async () => {
+    const { status, body } = await get(port, '/projects');
+    assert.equal(status, 200);
+    assert.ok(Array.isArray(body) && body.length > 0, 'non-empty array');
+    const p = body[0];
+    assert.ok('project' in p, 'has project');
+    assert.ok('client' in p, 'has client');
+  });
+
+  it('GET /clients → 4 seed clients', async () => {
+    const { status, body } = await get(port, '/clients');
+    assert.equal(status, 200);
+    assert.ok(Array.isArray(body), 'is array');
+    assert.equal(body.length, 4);
+  });
+
+  it('GET /status → { today, todayTotal, weekTotal, alerts }', async () => {
+    const { status, body } = await get(port, '/status');
+    assert.equal(status, 200);
+    assert.ok(body.today, 'has today');
+    assert.ok('todayTotal' in body, 'has todayTotal');
+    assert.ok('weekTotal' in body, 'has weekTotal');
+    assert.ok(Array.isArray(body.alerts), 'has alerts array');
+  });
+
+  it('POST /log → logs hours and returns result', async () => {
+    const { status, body } = await post(port, '/log', {
+      project: 'website',
+      hours: '1',
+      slot: 'am',
+      date: '2025-06-15',
+      add: false,
+    });
+    assert.equal(status, 200);
+    assert.ok(body.action, 'has action');
+    assert.ok(body.project, 'has project');
+  });
+
+  it('POST /log with unknown project → status 400', async () => {
+    const { status, body } = await post(port, '/log', {
+      project: 'NonexistentXYZ999',
+      hours: '1',
+    });
+    assert.equal(status, 400);
+    assert.ok(body.error, 'has error message');
+  });
+
+  it('GET /clients?search=acme → filtered by name, has id field', async () => {
+    const { status, body } = await get(port, '/clients?search=acme');
+    assert.equal(status, 200);
+    assert.ok(body.length > 0, 'has results');
+    assert.ok(body.every(c => c.name.toLowerCase().includes('acme')), 'all match acme');
+    assert.ok('id' in body[0], 'has id field');
+  });
+
+  it('GET /projects?search=website → filtered by project name', async () => {
+    const { status, body } = await get(port, '/projects?search=website');
+    assert.equal(status, 200);
+    assert.ok(body.length > 0, 'has results');
+    assert.ok(body.every(p => p.project.toLowerCase().includes('website')), 'all match website');
+  });
+
+  it('POST /projects → creates project and returns id', async () => {
+    const clients = getClients();
+    const { status, body } = await post(port, '/projects', {
+      name: 'Test Project XYZ',
+      clientId: clients[0].id,
+    });
+    assert.equal(status, 200);
+    assert.ok(body.id, 'has id');
+    assert.equal(body.name, 'Test Project XYZ');
+    assert.ok(body.client, 'has client name');
+  });
+
+  it('POST /projects without required fields → 400', async () => {
+    const { status } = await post(port, '/projects', { name: 'Missing client' });
+    assert.equal(status, 400);
+  });
+
+  it('PATCH /clients/:id → renames client', async () => {
+    const clients = getClients();
+    const target = clients[0];
+    const { status, body } = await request(port, 'PATCH', `/clients/${target.id}`, { name: 'Renamed Client' });
+    assert.equal(status, 200);
+    assert.equal(body.oldName, target.name);
+    assert.equal(body.newName, 'Renamed Client');
+  });
+
+  it('PATCH /clients/:id with unknown id → 404', async () => {
+    const { status } = await request(port, 'PATCH', '/clients/nonexistent-id', { name: 'X' });
+    assert.equal(status, 404);
+  });
+
+  it('PATCH /projects/:id → renames project', async () => {
+    const { body: created } = await post(port, '/projects', {
+      name: 'Rename Me',
+      clientId: getClients()[0].id,
+    });
+    const { status, body } = await request(port, 'PATCH', `/projects/${created.id}`, { name: 'Renamed Project' });
+    assert.equal(status, 200);
+    assert.equal(body.name, 'Renamed Project');
+  });
+
+  it('PATCH /projects/:id → moves project to another client', async () => {
+    const clients = getClients();
+    const { body: created } = await post(port, '/projects', {
+      name: 'Move Me',
+      clientId: clients[0].id,
+    });
+    const { status, body } = await request(port, 'PATCH', `/projects/${created.id}`, { clientId: clients[1].id });
+    assert.equal(status, 200);
+    assert.equal(body.clientId, clients[1].id);
+  });
+
+  it('DELETE /projects/:id (no entries) → 200', async () => {
+    const { body: created } = await post(port, '/projects', {
+      name: 'Delete Me',
+      clientId: getClients()[0].id,
+    });
+    const { status, body } = await request(port, 'DELETE', `/projects/${created.id}`);
+    assert.equal(status, 200);
+    assert.equal(body.name, 'Delete Me');
+  });
+
+  it('DELETE /projects/:id (has entries) → 409', async () => {
+    // Use a seed project that has logged hours (p1 = Website Redesign)
+    const { body: projects } = await get(port, '/projects?search=website');
+    const proj = projects[0];
+    const { status, body } = await request(port, 'DELETE', `/projects/${proj.id}`);
+    assert.equal(status, 409);
+    assert.ok(body.error.includes('entries'), 'error mentions entries');
+  });
+
+  it('POST /projects/merge → merges entries and deletes source', async () => {
+    const clients = getClients();
+    // Create two fresh projects with no entries
+    const { body: src } = await post(port, '/projects', { name: 'Merge Source', clientId: clients[0].id });
+    const { body: dst } = await post(port, '/projects', { name: 'Merge Dest',   clientId: clients[0].id });
+    // Log an entry on source
+    await post(port, '/log', { project: 'Merge Source', hours: '1', date: '2025-08-01' });
+    const { status, body } = await post(port, '/projects/merge', { fromId: src.id, toId: dst.id });
+    assert.equal(status, 200);
+    assert.equal(body.count, 1);
+    assert.equal(body.from, 'Merge Source');
+    assert.equal(body.to, 'Merge Dest');
+  });
+
+  it('POST /projects/merge with unknown fromId → 400', async () => {
+    const clients = getClients();
+    const { body: dst } = await post(port, '/projects', { name: 'Merge Dest 2', clientId: clients[0].id });
+    const { status } = await post(port, '/projects/merge', { fromId: 'nonexistent', toId: dst.id });
+    assert.equal(status, 400);
+  });
+});

@@ -29,13 +29,37 @@ npm run build            # Vite → dist/, poi Electron carica dist/index.html
 
 ```
 TimeBox/
-  main.js           ← Electron main process: BrowserWindow, ipcMain, avvio DB
+  main.js           ← Electron main process: BrowserWindow, ipcMain, avvio DB, HTTP server
   preload.js        ← contextBridge: espone window.api al renderer
   vite.config.js    ← base: './', output: dist/
   index.html        ← entry HTML + @font-face Open Sans + mock window.api (dev browser)
   db/
     schema.js       ← initDb(dbPath): CREATE TABLE, indici, seed al primo avvio
     queries.js      ← tutte le query sync (better-sqlite3); init(db) va chiamato prima
+  cli/
+    http-server.js  ← HTTP server (porta 37373) usato da main.js; testabile in isolamento
+    standalone.js   ← CLI installabile: zero dipendenze, parla solo con l'HTTP server
+    mcp-server.js   ← MCP server installabile: JSON-RPC su stdio, parla con l'HTTP server
+    index.js        ← CLI sviluppatore: accesso diretto al DB via better-sqlite3
+    db.js           ← apre il DB per la dev CLI (chiama initDb per le migrazioni)
+    format.js       ← fmtH, fmt, getToday, getMondayOfWeek, ecc. (condiviso da commands/)
+    commands/
+      today.js      ← getTodayData(date)
+      week.js       ← getWeekData(today, offset)
+      projects.js   ← getProjectsData({clientFilter, includeArchived})
+      clients.js    ← getClientsData()
+      status.js     ← getStatusData(today)
+      log.js        ← logHours({projectName, hoursStr, slot, date, add}), findProject(name)
+    __tests__/
+      helpers.js          ← createTestDb(): DB in-memory con dati seed
+      clients.test.js
+      log.test.js
+      projects.test.js
+      status.test.js
+      today.test.js
+      week.test.js
+      http-server.test.js ← 10 test HTTP con server su porta casuale
+      mcp-server.test.js  ← test MCP via child_process stdio
   public/
     fonts/          ← OpenSans-Variable.woff2 (variable font, pesi 100–900)
   src/
@@ -48,6 +72,7 @@ TimeBox/
       ClientsScreen.jsx
       RecurringScreen.jsx
       TodoistLog.jsx  ← elenco task Todoist in cache, raggruppati per giorno
+      SettingsScreen.jsx ← Aspetto, Todoist, CLI e MCP, Database, Dati
     components/
       PlanningCell.jsx
       ExtraCell.jsx
@@ -73,6 +98,77 @@ Renderer (React)
 `window.api` non è disponibile in un browser normale: esiste solo nell'Electron renderer.
 `index.html` contiene un mock `window.api` con dati statici che si attiva solo se
 `window.api` è `undefined` — usato esclusivamente per preview/test nel browser.
+
+---
+
+## HTTP Server e CLI/MCP
+
+### Architettura
+
+```
+cli/standalone.js  ─┐
+cli/mcp-server.js  ─┤─ HTTP 127.0.0.1:37373 ─── main.js ─── db/queries.js
+curl / script      ─┘
+```
+
+L'HTTP server gira dentro il processo Electron (`main.js`) sulla porta `37373`,
+accessibile solo in locale. Viene avviato in `app.whenReady()` dopo `setupIpc()`.
+
+`cli/standalone.js` e `cli/mcp-server.js` sono script **self-contained** (zero
+dipendenze npm, solo moduli Node built-in) e parlano esclusivamente con l'HTTP server.
+Se l'app è chiusa, entrambi restituiscono un errore leggibile.
+
+### Installazione (app distribuita)
+
+Dalle Impostazioni → **CLI e MCP**:
+- **Installa CLI** → crea symlink `/usr/local/bin/timebox → cli/standalone.js`
+  (in dev) o `Contents/Resources/timebox` (packaged)
+- **Installa MCP Server** → crea symlink `/usr/local/bin/timebox-mcp → cli/mcp-server.js`
+  (in dev) o `Contents/Resources/timebox-mcp` (packaged)
+
+In sviluppo (`app.isPackaged === false`) i symlink puntano ai file del repo.
+In produzione puntano ai file in `extraResources` (vedi `package.json` → `build.extraResources`).
+
+### IPC handler nuovi (main.js)
+
+| Handler | Comportamento |
+|---------|--------------|
+| `app:getHttpPort` | Ritorna `37373` |
+| `app:checkCliInstalled` | `fs.accessSync('/usr/local/bin/timebox')` |
+| `app:installCli` | Symlink + chmod |
+| `app:checkMcpServerInstalled` | `fs.accessSync('/usr/local/bin/timebox-mcp')` |
+| `app:installMcpServer` | Symlink + chmod |
+
+### Endpoint HTTP
+
+| Metodo | Path | Funzione |
+|--------|------|----------|
+| GET | `/ping` | health check |
+| GET | `/today?date=` | `getTodayData(date)` |
+| GET | `/week?offset=` | `getWeekData(today, offset)` |
+| GET | `/projects?client=&all=` | `getProjectsData({...})` |
+| GET | `/clients` | `getClientsData()` |
+| GET | `/status` | `getStatusData(today)` |
+| POST | `/log` | `logHours({...})` |
+
+### MCP Server (cli/mcp-server.js)
+
+Implementa MCP spec `2024-11-05` via JSON-RPC 2.0 su stdio (readline).
+Tool esposti: `today`, `week`, `projects`, `clients`, `status`, `log_hours`.
+
+Configurazione per Claude Code (`.claude/settings.json`):
+```json
+{ "mcpServers": { "timebox": { "command": "timebox-mcp" } } }
+```
+
+oppure: `claude mcp add timebox timebox-mcp`
+
+### Nota ABI (dev CLI vs app)
+
+`cli/index.js` (dev CLI) usa `better-sqlite3` direttamente → ABI mismatch con
+Node 26 dopo `npm run rebuild`. Per usarla: `npm rebuild better-sqlite3` (poi
+rieseguire `npm run rebuild` per tornare a Electron). La standalone CLI e il MCP
+server non hanno questo problema perché non usano `better-sqlite3`.
 
 ---
 

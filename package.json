@@ -21,6 +21,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
     "@vitejs/plugin-react": "^4.3.1",
     "concurrently": "^9.1.0",
     "electron": "^31.7.7",
@@ -42,6 +43,16 @@
       "build/**/*",
       "renderer-dist/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "cli/standalone.js",
+        "to": "timebox"
+      },
+      {
+        "from": "cli/mcp-server.js",
+        "to": "timebox-mcp"
+      }
     ],
     "mac": {
       "category": "public.app-category.productivity",

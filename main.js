@@ -1,8 +1,10 @@
 const { app, BrowserWindow, ipcMain, nativeImage, dialog, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { execFile } = require('child_process');
 const { initDb } = require('./db/schema');
 const q = require('./db/queries');
+const { createHttpServer } = require('./cli/http-server');
 
 function getAppIcon() {
   const img = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'));
@@ -39,6 +41,8 @@ const logger = createLogger();
 
 let _db = null;
 let _dbPath = null;
+let _httpServer = null;
+const HTTP_PORT = 37373;
 
 function getConfigPath() {
   return path.join(app.getPath('userData'), 'config.json');
@@ -135,6 +139,29 @@ function createWindow() {
   }
 }
 
+function sh(s) { return "'" + s.replace(/'/g, "'\\''") + "'"; }
+
+function installTool(src, dest) {
+  return new Promise(resolve => {
+    // First try without privileges (works if /usr/local/bin is user-writable)
+    try {
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      try { fs.unlinkSync(dest); } catch (_) {}
+      fs.symlinkSync(src, dest);
+      fs.chmodSync(src, 0o755);
+      return resolve({ ok: true });
+    } catch (_) {}
+
+    // Fall back to osascript admin prompt (macOS)
+    const cmd = `ln -sf ${sh(src)} ${sh(dest)} && chmod 755 ${sh(src)}`;
+    const script = `do shell script "${cmd.replace(/"/g, '\\"')}" with administrator privileges`;
+    execFile('osascript', ['-e', script], err => {
+      if (err) resolve({ error: err.message });
+      else resolve({ ok: true });
+    });
+  });
+}
+
 function setupIpc() {
   ipcMain.handle('db:getClients',          ()              => q.getClients());
   ipcMain.handle('db:saveClient',          (_, c)          => q.saveClient(c));
@@ -161,6 +188,26 @@ function setupIpc() {
 
   ipcMain.handle('db:resetAllData',        ()              => q.resetAllData());
   ipcMain.handle('db:seedDemoData',        ()              => q.seedDemoData());
+
+  ipcMain.handle('app:getHttpPort', () => HTTP_PORT);
+
+  ipcMain.handle('app:checkCliInstalled', () => {
+    try { fs.accessSync('/usr/local/bin/timebox'); return true; } catch { return false; }
+  });
+
+  ipcMain.handle('app:installCli', () => installTool(
+    app.isPackaged ? path.join(process.resourcesPath, 'timebox') : path.join(__dirname, 'cli', 'standalone.js'),
+    '/usr/local/bin/timebox'
+  ));
+
+  ipcMain.handle('app:checkMcpServerInstalled', () => {
+    try { fs.accessSync('/usr/local/bin/timebox-mcp'); return true; } catch { return false; }
+  });
+
+  ipcMain.handle('app:installMcpServer', () => installTool(
+    app.isPackaged ? path.join(process.resourcesPath, 'timebox-mcp') : path.join(__dirname, 'cli', 'mcp-server.js'),
+    '/usr/local/bin/timebox-mcp'
+  ));
 
   ipcMain.handle('settings:getTodoistToken', () => {
     const enc = q.getSetting('todoist_token_enc');
@@ -340,6 +387,15 @@ app.whenReady().then(() => {
   }
   setupIpc();
 
+  _httpServer = createHttpServer();
+  _httpServer.emitter.on('change', type => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send('db:changed', type);
+    }
+  });
+  _httpServer.listen(HTTP_PORT, '127.0.0.1', () => logger.info('HTTP server started', { port: HTTP_PORT }));
+  _httpServer.on('error', err => logger.warn('HTTP server error', { message: err.message }));
+
   if (process.platform === 'darwin') {
     const icon = getAppIcon();
     if (icon) app.dock.setIcon(icon);
@@ -350,6 +406,10 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+app.on('before-quit', () => {
+  if (_httpServer) _httpServer.close();
 });
 
 app.on('window-all-closed', () => {

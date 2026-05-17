@@ -341,25 +341,104 @@ Il log di runtime dell'app installata si trova in:
 
 ---
 
-## CLI
+## MCP Server
 
-Timebox include una CLI per accedere ai dati da terminale — utile per script, automazioni e integrazione con Claude Code.
+Timebox include un server MCP (Model Context Protocol) per l'integrazione con Claude Code e Claude Desktop.
+
+> **Richiede l'app aperta.** Il server MCP comunica con l'HTTP server locale (porta 37373).
 
 ### Installazione
 
-```bash
-npm link          # rende `timebox` disponibile globalmente
+1. Apri Timebox
+2. Vai in **Impostazioni → CLI e MCP → Installa MCP Server…**
+3. Il comando `timebox-mcp` sarà disponibile in `/usr/local/bin`
+
+### Configurazione Claude Code
+
+Aggiungi a `.claude/settings.json` del tuo progetto (o globale):
+
+```json
+{
+  "mcpServers": {
+    "timebox": {
+      "command": "timebox-mcp"
+    }
+  }
+}
 ```
 
-oppure usa direttamente `node cli/index.js <comando>`.
-
-### Variabile d'ambiente
+Oppure via CLI:
 
 ```bash
-TIMEBOX_DB=/percorso/alternativo/timebox.db timebox clients
+claude mcp add timebox timebox-mcp
 ```
 
-Se non impostata, la CLI usa il DB di default dell'app: `~/Library/Application Support/Timebox/timebox.db`.
+### Tool disponibili
+
+| Tool | Descrizione |
+|------|-------------|
+| `today` | Ore loggate oggi per slot AM/PM |
+| `week` | Riepilogo settimanale giorno per giorno |
+| `projects` | Lista progetti con budget e ore loggate |
+| `clients` | Lista clienti con tipo fatturazione |
+| `status` | Overview rapida: oggi, settimana, alert budget |
+| `log_hours` | Registra ore su un progetto |
+
+### Configurazione Claude Desktop
+
+Aggiungi a `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "timebox": {
+      "command": "timebox-mcp"
+    }
+  }
+}
+```
+
+---
+
+## HTTP API
+
+Mentre l'app è aperta, un server HTTP locale è disponibile su `127.0.0.1:37373`.
+
+| Metodo | Endpoint | Query / Body | Descrizione |
+|--------|----------|-------------|-------------|
+| GET | `/ping` | — | Health check → `{ ok: true }` |
+| GET | `/today` | `?date=YYYY-MM-DD` | Ore di oggi per slot AM/PM |
+| GET | `/week` | `?offset=N` | Riepilogo settimanale (offset 0 = corrente, -1 = scorsa) |
+| GET | `/projects` | `?client=X&all=1` | Lista progetti (con ore loggate) |
+| GET | `/clients` | — | Lista clienti |
+| GET | `/status` | — | Overview rapida: oggi, settimana, alert |
+| POST | `/log` | `{ project, hours, slot?, date?, add? }` | Registra ore su un progetto |
+
+```bash
+# Esempi curl
+curl http://127.0.0.1:37373/ping
+curl http://127.0.0.1:37373/today
+curl http://127.0.0.1:37373/week?offset=-1
+curl -X POST http://127.0.0.1:37373/log \
+  -H 'Content-Type: application/json' \
+  -d '{"project":"website","hours":"2:30","slot":"pm"}'
+```
+
+Il server è disponibile solo in locale e solo mentre l'app è aperta.
+
+---
+
+## CLI
+
+Timebox include una CLI installabile per accedere ai dati da terminale — utile per script, automazioni e integrazione con Claude Code.
+
+> **Richiede l'app aperta.** La CLI comunica con l'HTTP server locale (porta 37373).
+
+### Installazione
+
+1. Apri Timebox
+2. Vai in **Impostazioni → CLI e MCP → Installa…**
+3. Il comando `timebox` sarà disponibile in `/usr/local/bin`
 
 ### Comandi
 
@@ -395,12 +474,25 @@ timebox today --json
 timebox projects --json
 ```
 
-Il flag `--json` è disponibile su tutti i comandi di lettura e produce JSON puro su stdout.
+Il flag `--json` è disponibile su tutti i comandi e produce JSON puro su stdout.
 
-### Note sulla compilazione nativa
+### Variabile d'ambiente
+
+```bash
+TIMEBOX_PORT=37373 timebox clients   # porta alternativa (default: 37373)
+```
+
+### Note sullo sviluppo
+
+La CLI per sviluppatori (accesso diretto al DB) è in `cli/index.js`:
+
+```bash
+npm link          # rende `timebox` disponibile globalmente (usa cli/index.js)
+node cli/index.js today
+```
 
 `better-sqlite3` richiede una versione compilata compatibile con il runtime usato:
 - **Electron (app):** `npm run rebuild`
-- **Node.js (tests/CLI):** `npm rebuild better-sqlite3`
+- **Node.js (tests/CLI dev):** `npm rebuild better-sqlite3`
 
 `npm test` effettua automaticamente il rebuild per Node.js prima di eseguire i test. Dopo aver eseguito i test, riesegui `npm run rebuild` se hai bisogno che l'app Electron funzioni.

@@ -51,6 +51,31 @@ function deleteProject(id) {
   db.prepare('DELETE FROM projects WHERE id=?').run(id);
 }
 
+function hasProjectEntries(id) {
+  return db.prepare('SELECT COUNT(*) as c FROM entries WHERE projectId = ?').get(id).c > 0;
+}
+
+function mergeProjectEntries(fromId, toId) {
+  let count = 0;
+  db.transaction(() => {
+    const sources = db.prepare('SELECT * FROM entries WHERE projectId = ?').all(fromId);
+    count = sources.length;
+    for (const e of sources) {
+      const existing = db.prepare(
+        'SELECT * FROM entries WHERE projectId = ? AND date = ? AND slot = ?'
+      ).get(toId, e.date, e.slot);
+      if (existing) {
+        db.prepare('UPDATE entries SET hours = ? WHERE id = ?').run(existing.hours + e.hours, existing.id);
+        db.prepare('DELETE FROM entries WHERE id = ?').run(e.id);
+      } else {
+        db.prepare('UPDATE entries SET projectId = ? WHERE id = ?').run(toId, e.id);
+      }
+    }
+    db.prepare('DELETE FROM projects WHERE id = ?').run(fromId);
+  })();
+  return { count };
+}
+
 const TODOIST_COLORS = {
   berry_red:   '#b8255f',
   red:         '#db4035',
@@ -337,7 +362,7 @@ function seedDemoData() {
 module.exports = {
   init,
   getClients, saveClient, deleteClient,
-  getProjects, saveProject, deleteProject,
+  getProjects, saveProject, deleteProject, hasProjectEntries, mergeProjectEntries,
   getRecurring, saveRecurring, deleteRecurring,
   getEntries, getProjectTotals, saveEntry, deleteEntry,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,

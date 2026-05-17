@@ -39,4 +39,16 @@ contextBridge.exposeInMainWorld('api', {
   setTodoistCache:    (dateStr, tasks, syncedAt)  => ipcRenderer.invoke('db:setTodoistCache', dateStr, tasks, syncedAt),
   syncTodoist:        (projects, dates, debug)      => ipcRenderer.invoke('todoist:sync', projects, dates, debug),
   importTodoistProjects: ()                         => ipcRenderer.invoke('todoist:importProjects'),
+
+  getHttpPort:            ()  => ipcRenderer.invoke('app:getHttpPort'),
+  checkCliInstalled:      ()  => ipcRenderer.invoke('app:checkCliInstalled'),
+  installCli:             ()  => ipcRenderer.invoke('app:installCli'),
+  checkMcpServerInstalled: () => ipcRenderer.invoke('app:checkMcpServerInstalled'),
+  installMcpServer:       ()  => ipcRenderer.invoke('app:installMcpServer'),
+
+  onDbChanged: (cb) => {
+    const handler = (_, type) => cb(type);
+    ipcRenderer.on('db:changed', handler);
+    return () => ipcRenderer.removeListener('db:changed', handler);
+  },
 });

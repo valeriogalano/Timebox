@@ -41,6 +41,7 @@ export default function App() {
   const [recurring, setRecurring] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [sidebarKey, setSidebarKey] = useState(0);
+  const [weekRefreshTick, setWeekRefreshTick] = useState(0);
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem('timebox-sidebar-collapsed') === 'true'; } catch { return false; }
   });
@@ -93,6 +94,13 @@ export default function App() {
 
   useEffect(() => {
     refreshData().then(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    return window.api.onDbChanged(type => {
+      if (type === 'structure') refreshData();
+      setWeekRefreshTick(t => t + 1);
+    });
   }, []);
 
   const topbarDate = getToday().toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
@@ -231,7 +239,8 @@ export default function App() {
             <WeeklyView
               clients={clients} projects={projects} recurring={recurring}
               weekOffset={weekOffset} setWeekOffset={setWeekOffset}
-              onEntryChange={refreshSidebar} />
+              onEntryChange={refreshSidebar}
+              externalRefreshTick={weekRefreshTick} />
           )}
           {screen === 'panoramica' && (
             <Panoramica clients={clients} projects={projects} recurring={recurring} screen={screen} />

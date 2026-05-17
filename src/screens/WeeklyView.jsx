@@ -14,7 +14,7 @@ function getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, slot) {
     .map(r => ({ id: r.id, clientId: r.clientId, hours: r.hours }));
 }
 
-export default function WeeklyView({ clients, projects, recurring, weekOffset, setWeekOffset, onEntryChange }) {
+export default function WeeklyView({ clients, projects, recurring, weekOffset, setWeekOffset, onEntryChange, externalRefreshTick }) {
   const monday = addDays(getMondayOfWeek(getToday()), weekOffset * 7);
   const weekKey = getWeekKey(monday);
 
@@ -44,6 +44,14 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   // Reset dismiss state when week changes
   useEffect(() => { setAlertDismissed(false); }, [weekKey]);
+
+  // Reload entries when an external DB change is pushed from main process
+  useEffect(() => {
+    if (!externalRefreshTick) return;
+    window.api.getProjectTotals().then(setProjectTotals);
+    const sunday = addDays(monday, 6);
+    window.api.getEntries(fmt(monday), fmt(sunday)).then(setWeekEntries);
+  }, [externalRefreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load entries, overrides, and project totals when week changes
   useEffect(() => {

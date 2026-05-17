@@ -1,0 +1,410 @@
+#!/usr/bin/env node
+'use strict';
+
+const http = require('node:http');
+const readline = require('node:readline');
+
+const PORT = parseInt(process.env.TIMEBOX_PORT || '37373', 10);
+
+// ── HTTP client ───────────────────────────────────────────────────────────────
+
+function httpRequest(path, method = 'GET', body = null) {
+  return new Promise((resolve, reject) => {
+    const payload = body ? JSON.stringify(body) : null;
+    const opts = {
+      hostname: '127.0.0.1',
+      port: PORT,
+      path,
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}),
+      },
+    };
+    const req = http.request(opts, res => {
+      let raw = '';
+      res.on('data', c => { raw += c; });
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(raw);
+          if (res.statusCode >= 400) reject(new Error(data.error || raw));
+          else resolve(data);
+        } catch { reject(new Error(`Invalid response: ${raw}`)); }
+      });
+    });
+    req.on('error', err => {
+      if (err.code === 'ECONNREFUSED') {
+        reject(new Error(`Timebox app is not running. Please open Timebox and try again.`));
+      } else {
+        reject(err);
+      }
+    });
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+// ── JSON-RPC stdio transport ──────────────────────────────────────────────────
+
+function send(obj) {
+  process.stdout.write(JSON.stringify(obj) + '\n');
+}
+
+function respond(id, result) {
+  send({ jsonrpc: '2.0', id, result });
+}
+
+function respondError(id, code, message) {
+  send({ jsonrpc: '2.0', id, error: { code, message } });
+}
+
+// ── Tool definitions ──────────────────────────────────────────────────────────
+
+const TOOLS = [
+  {
+    name: 'today',
+    description: 'Get hours logged in Timebox for a given day, broken down by AM/PM slot and project.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'Date in YYYY-MM-DD format (default: today)' },
+      },
+    },
+  },
+  {
+    name: 'week',
+    description: 'Get the weekly summary of logged hours in Timebox, day by day.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        offset: { type: 'number', description: 'Week offset: 0 = current week, -1 = last week (default: 0)' },
+      },
+    },
+  },
+  {
+    name: 'projects',
+    description: 'List Timebox projects with their client, budget, weekly limit and total logged hours.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        client: { type: 'string', description: 'Filter by client name (partial, case-insensitive)' },
+        all: { type: 'boolean', description: 'Include archived projects (default: false)' },
+      },
+    },
+  },
+  {
+    name: 'clients',
+    description: 'List Timebox clients (areas) with their billing type and hourly rate.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'status',
+    description: 'Get a quick overview: hours logged today and this week, plus any budget alerts.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'log_hours',
+    description: 'Log hours on a Timebox project. Replaces existing hours for that day/slot unless add=true.',
+    inputSchema: {
+      type: 'object',
+      required: ['project', 'hours'],
+      properties: {
+        project: { type: 'string', description: 'Project name (partial match, must be unambiguous)' },
+        hours: { type: 'string', description: 'Hours to log — "2", "2.5", or "2:30"' },
+        slot: { type: 'string', enum: ['am', 'pm'], description: 'Time slot (default: am)' },
+        date: { type: 'string', description: 'Date in YYYY-MM-DD format (default: today)' },
+        add: { type: 'boolean', description: 'Add to existing hours instead of replacing (default: false)' },
+      },
+    },
+  },
+  {
+    name: 'find_client',
+    description: 'Search Timebox clients by name (partial, case-insensitive). Returns id and name — use id with rename_client.',
+    inputSchema: {
+      type: 'object',
+      required: ['name'],
+      properties: {
+        name: { type: 'string', description: 'Partial name to search for' },
+      },
+    },
+  },
+  {
+    name: 'find_project',
+    description: 'Search Timebox projects by name (partial, case-insensitive). Returns id, name and client — use id with rename_project, move_project, delete_project, merge_project_entries.',
+    inputSchema: {
+      type: 'object',
+      required: ['name'],
+      properties: {
+        name: { type: 'string', description: 'Partial name to search for' },
+      },
+    },
+  },
+  {
+    name: 'rename_client',
+    description: 'Rename a Timebox client (area). Use find_client to get the id first.',
+    inputSchema: {
+      type: 'object',
+      required: ['id', 'name'],
+      properties: {
+        id: { type: 'string', description: 'Client id' },
+        name: { type: 'string', description: 'New name' },
+      },
+    },
+  },
+  {
+    name: 'rename_project',
+    description: 'Rename a Timebox project. Use find_project to get the id first.',
+    inputSchema: {
+      type: 'object',
+      required: ['id', 'name'],
+      properties: {
+        id: { type: 'string', description: 'Project id' },
+        name: { type: 'string', description: 'New name' },
+      },
+    },
+  },
+  {
+    name: 'move_project',
+    description: 'Move a Timebox project to a different client. Use find_project and find_client to get ids first.',
+    inputSchema: {
+      type: 'object',
+      required: ['id', 'clientId'],
+      properties: {
+        id: { type: 'string', description: 'Project id' },
+        clientId: { type: 'string', description: 'Target client id' },
+      },
+    },
+  },
+  {
+    name: 'create_project',
+    description: 'Create a new project in a Timebox client. Use find_client to get the clientId first.',
+    inputSchema: {
+      type: 'object',
+      required: ['name', 'clientId'],
+      properties: {
+        name: { type: 'string', description: 'Project name' },
+        clientId: { type: 'string', description: 'Client id to create the project in' },
+        budgetHours: { type: 'number', description: 'Total budget in hours (optional)' },
+        weeklyHours: { type: 'number', description: 'Weekly hours limit (optional)' },
+      },
+    },
+  },
+  {
+    name: 'delete_project',
+    description: 'Delete a Timebox project. Fails if the project has logged entries — use merge_project_entries first.',
+    inputSchema: {
+      type: 'object',
+      required: ['id'],
+      properties: {
+        id: { type: 'string', description: 'Project id' },
+      },
+    },
+  },
+  {
+    name: 'merge_project_entries',
+    description: 'Move all logged entries from one project into another (summing hours on the same day+slot), then delete the source project.',
+    inputSchema: {
+      type: 'object',
+      required: ['fromId', 'toId'],
+      properties: {
+        fromId: { type: 'string', description: 'Source project id (will be deleted)' },
+        toId: { type: 'string', description: 'Destination project id' },
+      },
+    },
+  },
+];
+
+// ── Tool handlers ─────────────────────────────────────────────────────────────
+
+async function callTool(name, args) {
+  if (name === 'today') {
+    const qs = args.date ? `?date=${encodeURIComponent(args.date)}` : '';
+    const d = await httpRequest(`/today${qs}`);
+    const lines = [`Date: ${d.date}\n`];
+    for (const slot of ['am', 'pm']) {
+      const entries = d.slots[slot];
+      if (!entries.length) continue;
+      lines.push(`${slot.toUpperCase()}:`);
+      for (const e of entries) lines.push(`  ${e.project}: ${e.hours}h`);
+    }
+    const total = (d.amTotal || 0) + (d.pmTotal || 0);
+    lines.push(`\nTotal: ${total}h`);
+    return lines.join('\n');
+  }
+
+  if (name === 'week') {
+    const offset = args.offset ?? 0;
+    const d = await httpRequest(`/week?offset=${offset}`);
+    const lines = [`Week ${d.monday} – ${d.friday}\n`];
+    for (const day of d.days) {
+      const label = day.label || day.day;
+      lines.push(`  ${label}: ${day.total || 0}h  (AM: ${day.amTotal || 0}h, PM: ${day.pmTotal || 0}h)`);
+    }
+    lines.push(`\nTotal: ${d.total || 0}h`);
+    return lines.join('\n');
+  }
+
+  if (name === 'projects') {
+    const params = new URLSearchParams();
+    if (args.client) params.set('client', args.client);
+    if (args.all) params.set('all', '1');
+    const qs = params.toString() ? `?${params}` : '';
+    const d = await httpRequest(`/projects${qs}`);
+    if (!d.length) return 'No projects found.';
+    return d.map(p => {
+      let line = `${p.project} [${p.client}] — logged: ${p.logged || 0}h`;
+      if (p.budgetHours) line += `, budget: ${p.budgetHours}h`;
+      if (p.weeklyHours) line += `, weekly limit: ${p.weeklyHours}h`;
+      if (p.archived) line += ' (archived)';
+      return line;
+    }).join('\n');
+  }
+
+  if (name === 'clients') {
+    const d = await httpRequest('/clients');
+    if (!d.length) return 'No clients found.';
+    return d.map(c => {
+      let line = `${c.name} — ${c.billing || 'no billing'}`;
+      if (c.rate) line += ` @ €${c.rate}/h`;
+      if (c.limitHours) line += `, limit: ${c.limitHours}h (${c.limitType || ''})`;
+      return line;
+    }).join('\n');
+  }
+
+  if (name === 'status') {
+    const d = await httpRequest('/status');
+    const lines = [
+      `Today (${d.today}): ${d.todayTotal || 0}h`,
+      `This week: ${d.weekTotal || 0}h`,
+    ];
+    if (d.alerts?.length) {
+      lines.push('\nAlerts:');
+      for (const a of d.alerts) lines.push(`  ⚠ ${a}`);
+    } else {
+      lines.push('\nNo budget alerts.');
+    }
+    return lines.join('\n');
+  }
+
+  if (name === 'log_hours') {
+    const body = {
+      project: args.project,
+      hours: String(args.hours),
+      slot: args.slot || undefined,
+      date: args.date || undefined,
+      add: !!args.add,
+    };
+    const d = await httpRequest('/log', 'POST', body);
+    return `${d.action}: ${d.hours}h on "${d.project}" (${d.date}, ${d.slot || 'am'})`;
+  }
+
+  if (name === 'find_client') {
+    const d = await httpRequest(`/clients?search=${encodeURIComponent(args.name)}`);
+    if (!d.length) return 'No matches found.';
+    return d.map(c => `[${c.id}] ${c.name}`).join('\n');
+  }
+
+  if (name === 'find_project') {
+    const d = await httpRequest(`/projects?search=${encodeURIComponent(args.name)}`);
+    if (!d.length) return 'No matches found.';
+    return d.map(p => `[${p.id}] ${p.project} (client: ${p.client})`).join('\n');
+  }
+
+  if (name === 'rename_client') {
+    const d = await httpRequest(`/clients/${encodeURIComponent(args.id)}`, 'PATCH', { name: args.name });
+    return `Client '${d.oldName}' renamed to '${d.newName}'.`;
+  }
+
+  if (name === 'rename_project') {
+    const d = await httpRequest(`/projects/${encodeURIComponent(args.id)}`, 'PATCH', { name: args.name });
+    return `Project renamed to '${d.name}'.`;
+  }
+
+  if (name === 'move_project') {
+    const d = await httpRequest(`/projects/${encodeURIComponent(args.id)}`, 'PATCH', { clientId: args.clientId });
+    return `Project '${d.name}' moved to client '${d.client}'.`;
+  }
+
+  if (name === 'create_project') {
+    const body = {
+      name: args.name,
+      clientId: args.clientId,
+      budgetHours: args.budgetHours ?? null,
+      weeklyHours: args.weeklyHours ?? null,
+    };
+    const d = await httpRequest('/projects', 'POST', body);
+    return `Project '${d.name}' created in client '${d.client}'.`;
+  }
+
+  if (name === 'delete_project') {
+    const d = await httpRequest(`/projects/${encodeURIComponent(args.id)}`, 'DELETE');
+    return `Project '${d.name}' deleted.`;
+  }
+
+  if (name === 'merge_project_entries') {
+    const d = await httpRequest('/projects/merge', 'POST', { fromId: args.fromId, toId: args.toId });
+    return `Merged ${d.count} entries from '${d.from}' into '${d.to}'. Project '${d.from}' deleted.`;
+  }
+
+  throw new Error(`Unknown tool: ${name}`);
+}
+
+// ── Request dispatcher ────────────────────────────────────────────────────────
+
+async function handleRequest(msg) {
+  const { id, method, params } = msg;
+
+  if (method === 'initialize') {
+    respond(id, {
+      protocolVersion: '2024-11-05',
+      capabilities: { tools: {} },
+      serverInfo: { name: 'timebox', version: '1.0.0' },
+    });
+    return;
+  }
+
+  if (method === 'notifications/initialized') return;
+
+  if (method === 'ping') {
+    respond(id, {});
+    return;
+  }
+
+  if (method === 'tools/list') {
+    respond(id, { tools: TOOLS });
+    return;
+  }
+
+  if (method === 'tools/call') {
+    const { name, arguments: args = {} } = params;
+    try {
+      const text = await callTool(name, args);
+      respond(id, { content: [{ type: 'text', text }] });
+    } catch (err) {
+      respond(id, {
+        content: [{ type: 'text', text: `Error: ${err.message}` }],
+        isError: true,
+      });
+    }
+    return;
+  }
+
+  if (id !== undefined) {
+    respondError(id, -32601, `Method not found: ${method}`);
+  }
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+const rl = readline.createInterface({ input: process.stdin, terminal: false });
+
+rl.on('line', line => {
+  const trimmed = line.trim();
+  if (!trimmed) return;
+  let msg;
+  try { msg = JSON.parse(trimmed); }
+  catch { return; }
+  handleRequest(msg).catch(err => {
+    if (msg.id !== undefined) respondError(msg.id, -32603, err.message);
+  });
+});

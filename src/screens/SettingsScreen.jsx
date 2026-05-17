@@ -9,6 +9,8 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
   const [todoistDebug, setTodoistDebug] = useState(() => {
     try { return localStorage.getItem('timebox-todoist-debug') === 'true'; } catch { return false; }
   });
+  const [cliInstalled, setCliInstalled] = useState(false);
+  const [mcpInstalled, setMcpInstalled] = useState(false);
 
   function toggleTodoistDebug() {
     setTodoistDebug(prev => {
@@ -21,7 +23,31 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
   useEffect(() => {
     window.api.getDbPath().then(p => setDbPath(p || ''));
     window.api.getTodoistToken().then(t => setTodoistTokenState(t || ''));
+    window.api.checkCliInstalled().then(v => setCliInstalled(!!v));
+    window.api.checkMcpServerInstalled().then(v => setMcpInstalled(!!v));
   }, []);
+
+  async function handleInstallMcpServer() {
+    setBusy(true);
+    const result = await window.api.installMcpServer();
+    setBusy(false);
+    if (result?.ok) {
+      setMcpInstalled(true);
+    } else {
+      window.alert(`Installazione MCP Server non riuscita:\n${result?.error || 'Errore sconosciuto'}`);
+    }
+  }
+
+  async function handleInstallCli() {
+    setBusy(true);
+    const result = await window.api.installCli();
+    setBusy(false);
+    if (result?.ok) {
+      setCliInstalled(true);
+    } else {
+      window.alert(`Installazione CLI non riuscita:\n${result?.error || 'Errore sconosciuto'}`);
+    }
+  }
 
   async function handleSelectDbFile() {
     setBusy(true);
@@ -197,6 +223,32 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
             Importa
           </button>
         </div>
+      </Section>
+      <Section title="CLI e MCP">
+        <Row
+          label="Installa CLI"
+          description={
+            cliInstalled
+              ? 'Comando timebox disponibile in /usr/local/bin · porta HTTP: 37373'
+              : 'Installa il comando timebox nel terminale per accedere a Timebox da riga di comando (richiede app aperta)'
+          }
+          buttonLabel={cliInstalled ? '✓ Installata' : 'Installa…'}
+          buttonColor="#4A9A4A"
+          onClick={handleInstallCli}
+          disabled={busy || cliInstalled}
+        />
+        <Row
+          label="Installa MCP Server"
+          description={
+            mcpInstalled
+              ? 'Server MCP disponibile in /usr/local/bin/timebox-mcp · usalo con Claude Code o Claude Desktop'
+              : 'Installa il server MCP per integrare Timebox con Claude Code e Claude Desktop (richiede app aperta)'
+          }
+          buttonLabel={mcpInstalled ? '✓ Installato' : 'Installa…'}
+          buttonColor="#4A8FE8"
+          onClick={handleInstallMcpServer}
+          disabled={busy || mcpInstalled}
+        />
       </Section>
       <Section title="Database">
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--tb-border-soft)' }}>

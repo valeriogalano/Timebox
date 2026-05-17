@@ -197,6 +197,12 @@
         setTodoistCache: async () => {},
         syncTodoist: async () => ({ byDate: {} }),
         importTodoistProjects: async () => ({ added: 0 }),
+        getHttpPort: async () => 37373,
+        checkCliInstalled: async () => false,
+        installCli: async () => ({ ok: true }),
+        checkMcpServerInstalled: async () => false,
+        installMcpServer: async () => ({ ok: true }),
+        onDbChanged: () => () => {},
       };
     }
   </script>

@@ -2,8 +2,14 @@
 
 const { getClients } = require('../../db/queries');
 
-function getClientsData() {
-  return getClients().map(c => ({
+function getClientsData({ nameFilter } = {}) {
+  let clients = getClients();
+  if (nameFilter) {
+    const s = nameFilter.toLowerCase();
+    clients = clients.filter(c => c.name.toLowerCase().includes(s));
+  }
+  return clients.map(c => ({
+    id: c.id,
     name: c.name,
     billable: c.billable,
     billing: c.billing,

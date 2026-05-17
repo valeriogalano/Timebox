@@ -2,7 +2,7 @@
 
 const { getProjects, getClients, getProjectTotals } = require('../../db/queries');
 
-function getProjectsData({ clientFilter, includeArchived } = {}) {
+function getProjectsData({ clientFilter, includeArchived, nameSearch } = {}) {
   const projects = getProjects();
   const clients = getClients();
   const totals = getProjectTotals();
@@ -14,6 +14,10 @@ function getProjectsData({ clientFilter, includeArchived } = {}) {
     filtered = filtered.filter(p =>
       (clientMap[p.clientId]?.name.toLowerCase() || '').includes(search)
     );
+  }
+  if (nameSearch) {
+    const s = nameSearch.toLowerCase();
+    filtered = filtered.filter(p => p.name.toLowerCase().includes(s));
   }
 
   return filtered.map(p => ({
