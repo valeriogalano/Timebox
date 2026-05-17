@@ -534,16 +534,96 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                       transition: 'opacity 0.1s',
                     }}>
                     <DragHandle />
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: sel.color, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <input
-                        value={p.name}
-                        onChange={e => updateProject(p.id, 'name', e.target.value)}
-                        onMouseDown={e => e.stopPropagation()}
-                        style={{ width: '100%', fontSize: 13, color: 'var(--tb-text-primary)', fontWeight: 600,
-                          border: 'none', background: 'transparent', outline: 'none',
-                          fontFamily: "'Open Sans', sans-serif",
-                          textDecoration: p.archived ? 'line-through' : 'none' }} />
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: sel.color, flexShrink: 0, marginTop: 5 }} />
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {/* Top row: name + all controls */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          value={p.name}
+                          onChange={e => updateProject(p.id, 'name', e.target.value)}
+                          onMouseDown={e => e.stopPropagation()}
+                          style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--tb-text-primary)', fontWeight: 600,
+                            border: 'none', background: 'transparent', outline: 'none',
+                            fontFamily: "'Open Sans', sans-serif",
+                            textDecoration: p.archived ? 'line-through' : 'none' }} />
+                        <div title="Budget totale progetto (ore globali)"
+                          style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 7px',
+                            borderRadius: 4, border: '1px solid var(--tb-border-mid)', flexShrink: 0,
+                            color: 'var(--tb-text-faint)' }}>
+                          <BudgetIcon />
+                          <input
+                            type="number"
+                            value={p.budgetHours ?? ''}
+                            placeholder="—"
+                            onChange={e => updateProject(p.id, 'budgetHours', e.target.value ? Number(e.target.value) : null)}
+                            onMouseDown={e => e.stopPropagation()}
+                            style={{ width: 36, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
+                              border: 'none', background: 'transparent', outline: 'none',
+                              fontFamily: "'Open Sans', sans-serif" }} />
+                          <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0 }}>h</span>
+                        </div>
+                        <div title="Limite settimanale progetto (ore/settimana)"
+                          style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 7px',
+                            borderRadius: 4, border: '1px solid var(--tb-border-mid)', flexShrink: 0,
+                            color: 'var(--tb-text-faint)' }}>
+                          <WeeklyIcon />
+                          <input
+                            type="number"
+                            value={p.weeklyHours ?? ''}
+                            placeholder="—"
+                            onChange={e => updateProject(p.id, 'weeklyHours', e.target.value ? Number(e.target.value) : null)}
+                            onMouseDown={e => e.stopPropagation()}
+                            style={{ width: 30, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
+                              border: 'none', background: 'transparent', outline: 'none',
+                              fontFamily: "'Open Sans', sans-serif" }} />
+                          <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0 }}>h/s</span>
+                        </div>
+                        <button
+                          onClick={e => { e.stopPropagation(); setMovingProjectId(movingProjectId === p.id ? null : p.id); }}
+                          title="Sposta in un'altra area"
+                          style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
+                            background: movingProjectId === p.id ? 'var(--tb-border-mid)' : 'transparent',
+                            color: movingProjectId === p.id ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s', flexShrink: 0 }}>
+                          <MoveIcon />
+                        </button>
+                        {movingProjectId === p.id && (
+                        <select
+                          autoFocus
+                          value={p.clientId}
+                          onChange={e => { moveProject(p.id, e.target.value); setMovingProjectId(null); }}
+                          onBlur={() => setMovingProjectId(null)}
+                          onMouseDown={e => e.stopPropagation()}
+                          style={{
+                            fontSize: 10, color: 'var(--tb-text-faint)',
+                            border: '1px solid var(--tb-border-mid)', borderRadius: 4,
+                            background: 'var(--tb-input-bg)', padding: '3px 5px', cursor: 'pointer',
+                            fontFamily: "'Open Sans', sans-serif", maxWidth: 90,
+                          }}>
+                          {clients.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                        )}
+                        <button onClick={() => updateProject(p.id, 'archived', !p.archived)}
+                          title={p.archived ? "Ripristina progetto" : "Archivia progetto"}
+                          style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
+                            background: p.archived ? 'var(--tb-border-mid)' : 'transparent',
+                            color: p.archived ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s', flexShrink: 0 }}>
+                          {p.archived ? <UnarchiveIcon /> : <ArchiveIcon />}
+                        </button>
+                        <button onClick={() => deleteProject(p.id)}
+                          title="Elimina progetto"
+                          style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
+                            background: 'transparent', color: 'var(--tb-text-secondary)',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s', flexShrink: 0 }}
+                          onMouseEnter={e => { e.currentTarget.style.color = '#d97070'; e.currentTarget.style.borderColor = '#d97070'; }}
+                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--tb-text-secondary)'; e.currentTarget.style.borderColor = 'var(--tb-border-mid)'; }}>
+                          <TrashIcon />
+                        </button>
+                      </div>
+                      {/* Description — full width below */}
                       <input
                         value={p.description ?? ''}
                         onChange={e => updateProject(p.id, 'description', e.target.value || null)}
@@ -553,85 +633,6 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                           border: 'none', background: 'transparent', outline: 'none',
                           fontFamily: "'Open Sans', sans-serif" }} />
                     </div>
-                    <div title="Budget totale progetto (ore globali)"
-                      style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 7px',
-                        borderRadius: 4, border: '1px solid var(--tb-border-mid)', flexShrink: 0,
-                        color: 'var(--tb-text-faint)' }}>
-                      <BudgetIcon />
-                      <input
-                        type="number"
-                        value={p.budgetHours ?? ''}
-                        placeholder="—"
-                        onChange={e => updateProject(p.id, 'budgetHours', e.target.value ? Number(e.target.value) : null)}
-                        onMouseDown={e => e.stopPropagation()}
-                        style={{ width: 36, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
-                          border: 'none', background: 'transparent', outline: 'none',
-                          fontFamily: "'Open Sans', sans-serif" }} />
-                      <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0 }}>h</span>
-                    </div>
-                    <div title="Limite settimanale progetto (ore/settimana)"
-                      style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 7px',
-                        borderRadius: 4, border: '1px solid var(--tb-border-mid)', flexShrink: 0,
-                        color: 'var(--tb-text-faint)' }}>
-                      <WeeklyIcon />
-                      <input
-                        type="number"
-                        value={p.weeklyHours ?? ''}
-                        placeholder="—"
-                        onChange={e => updateProject(p.id, 'weeklyHours', e.target.value ? Number(e.target.value) : null)}
-                        onMouseDown={e => e.stopPropagation()}
-                        style={{ width: 30, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
-                          border: 'none', background: 'transparent', outline: 'none',
-                          fontFamily: "'Open Sans', sans-serif" }} />
-                      <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0 }}>h/s</span>
-                    </div>
-
-                    <button
-                      onClick={e => { e.stopPropagation(); setMovingProjectId(movingProjectId === p.id ? null : p.id); }}
-                      title="Sposta in un'altra area"
-                      style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
-                        background: movingProjectId === p.id ? 'var(--tb-border-mid)' : 'transparent',
-                        color: movingProjectId === p.id ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)',
-                        cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }}>
-                      <MoveIcon />
-                    </button>
-                    {movingProjectId === p.id && (
-                    <select
-                      autoFocus
-                      value={p.clientId}
-                      onChange={e => { moveProject(p.id, e.target.value); setMovingProjectId(null); }}
-                      onBlur={() => setMovingProjectId(null)}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{
-                        fontSize: 10, color: 'var(--tb-text-faint)',
-                        border: '1px solid var(--tb-border-mid)', borderRadius: 4,
-                        background: 'var(--tb-input-bg)', padding: '3px 5px', cursor: 'pointer',
-                        fontFamily: "'Open Sans', sans-serif", maxWidth: 90,
-                      }}>
-                      {clients.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                    )}
-
-                    <button onClick={() => updateProject(p.id, 'archived', !p.archived)}
-                      title={p.archived ? "Ripristina progetto" : "Archivia progetto"}
-                      style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
-                        background: p.archived ? 'var(--tb-border-mid)' : 'transparent',
-                        color: p.archived ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)',
-                        cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }}>
-                      {p.archived ? <UnarchiveIcon /> : <ArchiveIcon />}
-                    </button>
-
-                    <button onClick={() => deleteProject(p.id)}
-                      title="Elimina progetto"
-                      style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
-                        background: 'transparent', color: 'var(--tb-text-secondary)',
-                        cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }}
-                      onMouseEnter={e => { e.currentTarget.style.color = '#d97070'; e.currentTarget.style.borderColor = '#d97070'; }}
-                      onMouseLeave={e => { e.currentTarget.style.color = 'var(--tb-text-secondary)'; e.currentTarget.style.borderColor = 'var(--tb-border-mid)'; }}>
-                      <TrashIcon />
-                    </button>
                   </div>
                 </React.Fragment>
               ))}
