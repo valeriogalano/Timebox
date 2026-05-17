@@ -535,14 +535,24 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                     }}>
                     <DragHandle />
                     <div style={{ width: 6, height: 6, borderRadius: '50%', background: sel.color, flexShrink: 0 }} />
-                    <input
-                      value={p.name}
-                      onChange={e => updateProject(p.id, 'name', e.target.value)}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ flex: 1, fontSize: 13, color: 'var(--tb-text-primary)', fontWeight: 600,
-                        border: 'none', background: 'transparent', outline: 'none',
-                        fontFamily: "'Open Sans', sans-serif",
-                        textDecoration: p.archived ? 'line-through' : 'none' }} />
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <input
+                        value={p.name}
+                        onChange={e => updateProject(p.id, 'name', e.target.value)}
+                        onMouseDown={e => e.stopPropagation()}
+                        style={{ width: '100%', fontSize: 13, color: 'var(--tb-text-primary)', fontWeight: 600,
+                          border: 'none', background: 'transparent', outline: 'none',
+                          fontFamily: "'Open Sans', sans-serif",
+                          textDecoration: p.archived ? 'line-through' : 'none' }} />
+                      <input
+                        value={p.description ?? ''}
+                        onChange={e => updateProject(p.id, 'description', e.target.value || null)}
+                        onMouseDown={e => e.stopPropagation()}
+                        placeholder="Descrizione…"
+                        style={{ width: '100%', fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 400,
+                          border: 'none', background: 'transparent', outline: 'none',
+                          fontFamily: "'Open Sans', sans-serif" }} />
+                    </div>
                     <div title="Budget totale progetto (ore globali)"
                       style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 7px',
                         borderRadius: 4, border: '1px solid var(--tb-border-mid)', flexShrink: 0,

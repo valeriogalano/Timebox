@@ -17,13 +17,17 @@ function getProjectsData({ clientFilter, includeArchived, nameSearch } = {}) {
   }
   if (nameSearch) {
     const s = nameSearch.toLowerCase();
-    filtered = filtered.filter(p => p.name.toLowerCase().includes(s));
+    filtered = filtered.filter(p =>
+      p.name.toLowerCase().includes(s) ||
+      (p.description?.toLowerCase() || '').includes(s)
+    );
   }
 
   return filtered.map(p => ({
     id: p.id,
     client: clientMap[p.clientId]?.name || '?',
     project: p.name,
+    description: p.description || null,
     budgetHours: p.budgetHours,
     weeklyHours: p.weeklyHours,
     logged: totals[p.id] || 0,

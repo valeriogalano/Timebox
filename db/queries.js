@@ -38,13 +38,13 @@ function getProjects() {
 
 function saveProject(project) {
   db.prepare(`
-    INSERT INTO projects (id,clientId,name,budgetHours,weeklyHours,position,archived)
-    VALUES (@id,@clientId,@name,@budgetHours,@weeklyHours,@position,@archived)
+    INSERT INTO projects (id,clientId,name,description,budgetHours,weeklyHours,position,archived)
+    VALUES (@id,@clientId,@name,@description,@budgetHours,@weeklyHours,@position,@archived)
     ON CONFLICT(id) DO UPDATE SET
-      clientId=excluded.clientId, name=excluded.name,
+      clientId=excluded.clientId, name=excluded.name, description=excluded.description,
       budgetHours=excluded.budgetHours, weeklyHours=excluded.weeklyHours,
       position=excluded.position, archived=excluded.archived
-  `).run({ position: 0, archived: 0, weeklyHours: null, ...project, archived: project.archived ? 1 : 0 });
+  `).run({ position: 0, archived: 0, weeklyHours: null, description: null, ...project, archived: project.archived ? 1 : 0 });
 }
 
 function deleteProject(id) {
@@ -133,9 +133,9 @@ function importTodoistProjects(todoistProjects) {
     const colorKey = tp.color ?? 'charcoal';
     const client = getOrCreateTodoistClient(colorKey);
     db.prepare(`
-      INSERT INTO projects (id,clientId,name,budgetHours,weeklyHours,position,archived)
-      VALUES (?,?,?,?,?,?,?)
-    `).run(randomUUID(), client.id, tp.name, null, null, maxProjPos + 1 + i, 0);
+      INSERT INTO projects (id,clientId,name,description,budgetHours,weeklyHours,position,archived)
+      VALUES (?,?,?,?,?,?,?,?)
+    `).run(randomUUID(), client.id, tp.name, null, null, null, maxProjPos + 1 + i, 0);
     added++;
   });
   return { added };
@@ -307,7 +307,7 @@ function seedDemoData() {
   db.prepare('DELETE FROM todoist_cache').run();
 
   const insertClient    = db.prepare('INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position) VALUES (?,?,?,?,?,?,?,?,?)');
-  const insertProject   = db.prepare('INSERT INTO projects (id,clientId,name,budgetHours,weeklyHours,position) VALUES (?,?,?,?,?,?)');
+  const insertProject   = db.prepare('INSERT INTO projects (id,clientId,name,description,budgetHours,weeklyHours,position) VALUES (?,?,?,?,?,?,?)');
   const insertRecurring = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours,position) VALUES (?,?,?,?,?,?)');
   const insertEntry     = db.prepare('INSERT INTO entries (id,projectId,date,hours,slot,billed) VALUES (?,?,?,?,?,?)');
 
@@ -349,7 +349,7 @@ function seedDemoData() {
     for (const c of INIT_CLIENTS)
       insertClient.run(c.id, c.name, c.color, c.billable ?? 1, c.billing, c.rate, c.limitType ?? null, c.limitHours, c.position ?? 0);
     for (const p of INIT_PROJECTS)
-      insertProject.run(p.id, p.clientId, p.name, p.budgetHours, p.weeklyHours ?? null, p.position ?? 0);
+      insertProject.run(p.id, p.clientId, p.name, p.description ?? null, p.budgetHours, p.weeklyHours ?? null, p.position ?? 0);
     for (const r of INIT_RECURRING)
       insertRecurring.run(r.id, r.clientId, r.slot, r.day, r.hours, r.position ?? 0);
     for (const e of getSeedEntries())

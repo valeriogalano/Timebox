@@ -9,7 +9,11 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
   const active = projects.filter(p => !p.archived);
   const q = query.trim().toLowerCase();
   const filtered = q
-    ? active.filter(p => p.name.toLowerCase().includes(q) || clients.find(c => c.id === p.clientId)?.name.toLowerCase().includes(q))
+    ? active.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        clients.find(c => c.id === p.clientId)?.name.toLowerCase().includes(q) ||
+        (p.description?.toLowerCase() || '').includes(q)
+      )
     : active;
 
   useEffect(() => { inputRef.current?.focus(); }, []);

@@ -315,7 +315,7 @@ Il database SQLite contiene le seguenti tabelle:
 | Tabella | Contenuto |
 |---|---|
 | `clients` | Aree di lavoro con colore, tipo fatturazione, tariffa, limiti |
-| `projects` | Progetti collegati a un'area, con budget totale e limite settimanale |
+| `projects` | Progetti collegati a un'area, con descrizione, budget totale e limite settimanale |
 | `recurring` | Template ricorrente: blocchi client per slot e giorno della settimana |
 | `entries` | Ore registrate: progetto, data, ore, slot, stato fatturazione |
 | `week_overrides` | Override settimanali: sostituiscono il template per una settimana specifica |

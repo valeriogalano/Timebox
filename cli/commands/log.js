@@ -13,7 +13,8 @@ function findProject(name) {
   const matches = projects.filter(p =>
     !p.archived && (
       p.name.toLowerCase().includes(search) ||
-      (clientMap[p.clientId]?.name.toLowerCase() || '').includes(search)
+      (clientMap[p.clientId]?.name.toLowerCase() || '').includes(search) ||
+      (p.description?.toLowerCase() || '').includes(search)
     )
   );
 

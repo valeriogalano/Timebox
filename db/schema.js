@@ -148,6 +148,7 @@ function initDb(dbPath) {
   } catch (_) {}
   try { db.exec('ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0'); } catch (_) {}
   try { db.exec('ALTER TABLE projects ADD COLUMN weeklyHours REAL'); } catch (_) {}
+  try { db.exec('ALTER TABLE projects ADD COLUMN description TEXT'); } catch (_) {}
 
   return db;
 }

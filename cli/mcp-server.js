@@ -130,12 +130,12 @@ const TOOLS = [
   },
   {
     name: 'find_project',
-    description: 'Search Timebox projects by name (partial, case-insensitive). Returns id, name and client — use id with rename_project, move_project, delete_project, merge_project_entries.',
+    description: 'Search Timebox projects by name or description (partial, case-insensitive). Returns id, name, description and client — use id with rename_project, move_project, delete_project, merge_project_entries.',
     inputSchema: {
       type: 'object',
       required: ['name'],
       properties: {
-        name: { type: 'string', description: 'Partial name to search for' },
+        name: { type: 'string', description: 'Partial text to search in project name or description' },
       },
     },
   },
@@ -184,6 +184,7 @@ const TOOLS = [
       properties: {
         name: { type: 'string', description: 'Project name' },
         clientId: { type: 'string', description: 'Client id to create the project in' },
+        description: { type: 'string', description: 'Project description (optional, searchable)' },
         budgetHours: { type: 'number', description: 'Total budget in hours (optional)' },
         weeklyHours: { type: 'number', description: 'Weekly hours limit (optional)' },
       },
@@ -256,6 +257,7 @@ async function callTool(name, args) {
       if (p.budgetHours) line += `, budget: ${p.budgetHours}h`;
       if (p.weeklyHours) line += `, weekly limit: ${p.weeklyHours}h`;
       if (p.archived) line += ' (archived)';
+      if (p.description) line += `\n  ${p.description}`;
       return line;
     }).join('\n');
   }
@@ -305,9 +307,13 @@ async function callTool(name, args) {
   }
 
   if (name === 'find_project') {
-    const d = await httpRequest(`/projects?search=${encodeURIComponent(args.name)}`);
+    const d = await httpRequest(`/projects?search=${encodeURIComponent(args.name)}&all=1`);
     if (!d.length) return 'No matches found.';
-    return d.map(p => `[${p.id}] ${p.project} (client: ${p.client})`).join('\n');
+    return d.map(p => {
+      let line = `[${p.id}] ${p.project} (client: ${p.client})`;
+      if (p.description) line += `\n  ${p.description}`;
+      return line;
+    }).join('\n');
   }
 
   if (name === 'rename_client') {
@@ -329,6 +335,7 @@ async function callTool(name, args) {
     const body = {
       name: args.name,
       clientId: args.clientId,
+      description: args.description ?? null,
       budgetHours: args.budgetHours ?? null,
       weeklyHours: args.weeklyHours ?? null,
     };

@@ -109,12 +109,12 @@ function createHttpServer() {
       }
 
       if (req.method === 'POST' && p === '/projects') {
-        const { name, clientId, budgetHours, weeklyHours } = await readBody(req);
+        const { name, clientId, description, budgetHours, weeklyHours } = await readBody(req);
         if (!name || !clientId) return json(res, 400, { error: 'name and clientId are required' });
         const client = getClients().find(c => c.id === clientId);
         if (!client) return json(res, 400, { error: `Client not found: ${clientId}` });
         const id = randomUUID();
-        saveProject({ id, clientId, name, budgetHours: budgetHours ?? null, weeklyHours: weeklyHours ?? null });
+        saveProject({ id, clientId, name, description: description ?? null, budgetHours: budgetHours ?? null, weeklyHours: weeklyHours ?? null });
         emitter.emit('change', 'structure');
         return json(res, 200, { id, name, client: client.name });
       }
@@ -136,8 +136,9 @@ function createHttpServer() {
         const existing = getProjects().find(pr => pr.id === id);
         if (!existing) return json(res, 404, { error: `Project not found: ${id}` });
         const updated = { ...existing };
-        if (body.name)     updated.name = body.name;
-        if (body.clientId) updated.clientId = body.clientId;
+        if (body.name)        updated.name = body.name;
+        if (body.clientId)    updated.clientId = body.clientId;
+        if ('description' in body) updated.description = body.description ?? null;
         saveProject(updated);
         const client = getClients().find(c => c.id === updated.clientId);
         emitter.emit('change', 'structure');

@@ -176,7 +176,7 @@ server non hanno questo problema perché non usano `better-sqlite3`.
 
 ```sql
 clients        (id, name, color, billable, billing, rate, limitType, limitHours, position)
-projects       (id, clientId, name, budgetHours, weeklyHours, position, archived)
+projects       (id, clientId, name, description, budgetHours, weeklyHours, position, archived)
 recurring      (id, clientId, slot, day, hours, position)
 entries        (id, projectId, date, hours, slot, billed)
 week_overrides (id, weekKey, dayIndex, slot, blocksJson)
