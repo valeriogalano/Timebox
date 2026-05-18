@@ -10,8 +10,8 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
     try { return localStorage.getItem('timebox-todoist-debug') === 'true'; } catch { return false; }
   });
   const [cliInstalled, setCliInstalled] = useState(false);
-  const [mcpInstalled, setMcpInstalled] = useState(false);
   const [mcpDesktopInstalled, setMcpDesktopInstalled] = useState(false);
+  const [mcpClaudeCodeInstalled, setMcpClaudeCodeInstalled] = useState(false);
 
   function toggleTodoistDebug() {
     setTodoistDebug(prev => {
@@ -25,18 +25,18 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
     window.api.getDbPath().then(p => setDbPath(p || ''));
     window.api.getTodoistToken().then(t => setTodoistTokenState(t || ''));
     window.api.checkCliInstalled().then(v => setCliInstalled(!!v));
-    window.api.checkMcpServerInstalled().then(v => setMcpInstalled(!!v));
     window.api.checkMcpDesktopInstalled().then(v => setMcpDesktopInstalled(!!v));
+    window.api.checkMcpClaudeCodeInstalled().then(v => setMcpClaudeCodeInstalled(!!v));
   }, []);
 
-  async function handleInstallMcpServer() {
+  async function handleInstallMcpClaudeCode() {
     setBusy(true);
-    const result = await window.api.installMcpServer();
+    const result = await window.api.installMcpClaudeCode();
     setBusy(false);
     if (result?.ok) {
-      setMcpInstalled(true);
+      setMcpClaudeCodeInstalled(true);
     } else {
-      window.alert(`Installazione MCP Server non riuscita:\n${result?.error || 'Errore sconosciuto'}`);
+      window.alert(`Configurazione Claude Code non riuscita:\n${result?.error || 'Errore sconosciuto'}`);
     }
   }
 
@@ -283,30 +283,28 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
           disabled={busy || cliInstalled}
         />
         <Row
-          label="Installa MCP Server"
+          label="Configura Claude Code"
           description={
-            mcpInstalled
-              ? 'Server MCP disponibile in /usr/local/bin/timebox-mcp · usalo con Claude Code'
-              : 'Installa il server MCP in /usr/local/bin/timebox-mcp (richiede app aperta)'
+            mcpClaudeCodeInstalled
+              ? 'Timebox MCP configurato in Claude Code (~/.claude/settings.json) per tutta la macchina'
+              : 'Installa il server MCP e lo aggiunge a ~/.claude/settings.json per Claude Code'
           }
-          buttonLabel={mcpInstalled ? '✓ Installato' : 'Installa…'}
+          buttonLabel={mcpClaudeCodeInstalled ? '✓ Configurato' : 'Configura…'}
           buttonColor="#4A8FE8"
-          onClick={handleInstallMcpServer}
-          disabled={busy || mcpInstalled}
+          onClick={handleInstallMcpClaudeCode}
+          disabled={busy || mcpClaudeCodeInstalled}
         />
         <Row
           label="Configura Claude Desktop"
           description={
-            !mcpInstalled
-              ? 'Installa prima il server MCP'
-              : mcpDesktopInstalled
-                ? 'Timebox è configurato in Claude Desktop (~/Library/Application Support/Claude/claude_desktop_config.json)'
-                : 'Aggiunge timebox a claude_desktop_config.json per Claude Desktop'
+            mcpDesktopInstalled
+              ? 'Timebox MCP configurato in Claude Desktop (~/Library/Application Support/Claude/claude_desktop_config.json)'
+              : 'Installa il server MCP e lo aggiunge a claude_desktop_config.json per Claude Desktop'
           }
           buttonLabel={mcpDesktopInstalled ? '✓ Configurato' : 'Configura…'}
           buttonColor="#4A8FE8"
           onClick={handleInstallMcpDesktop}
-          disabled={busy || !mcpInstalled || mcpDesktopInstalled}
+          disabled={busy || mcpDesktopInstalled}
         />
       </Section>
       <Section title="Database">
