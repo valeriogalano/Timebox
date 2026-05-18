@@ -11,6 +11,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
   });
   const [cliInstalled, setCliInstalled] = useState(false);
   const [mcpInstalled, setMcpInstalled] = useState(false);
+  const [mcpDesktopInstalled, setMcpDesktopInstalled] = useState(false);
 
   function toggleTodoistDebug() {
     setTodoistDebug(prev => {
@@ -25,6 +26,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
     window.api.getTodoistToken().then(t => setTodoistTokenState(t || ''));
     window.api.checkCliInstalled().then(v => setCliInstalled(!!v));
     window.api.checkMcpServerInstalled().then(v => setMcpInstalled(!!v));
+    window.api.checkMcpDesktopInstalled().then(v => setMcpDesktopInstalled(!!v));
   }, []);
 
   async function handleInstallMcpServer() {
@@ -35,6 +37,17 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
       setMcpInstalled(true);
     } else {
       window.alert(`Installazione MCP Server non riuscita:\n${result?.error || 'Errore sconosciuto'}`);
+    }
+  }
+
+  async function handleInstallMcpDesktop() {
+    setBusy(true);
+    const result = await window.api.installMcpDesktop();
+    setBusy(false);
+    if (result?.ok) {
+      setMcpDesktopInstalled(true);
+    } else {
+      window.alert(`Configurazione Claude Desktop non riuscita:\n${result?.error || 'Errore sconosciuto'}`);
     }
   }
 
@@ -273,13 +286,27 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
           label="Installa MCP Server"
           description={
             mcpInstalled
-              ? 'Server MCP disponibile in /usr/local/bin/timebox-mcp · usalo con Claude Code o Claude Desktop'
-              : 'Installa il server MCP per integrare Timebox con Claude Code e Claude Desktop (richiede app aperta)'
+              ? 'Server MCP disponibile in /usr/local/bin/timebox-mcp · usalo con Claude Code'
+              : 'Installa il server MCP in /usr/local/bin/timebox-mcp (richiede app aperta)'
           }
           buttonLabel={mcpInstalled ? '✓ Installato' : 'Installa…'}
           buttonColor="#4A8FE8"
           onClick={handleInstallMcpServer}
           disabled={busy || mcpInstalled}
+        />
+        <Row
+          label="Configura Claude Desktop"
+          description={
+            !mcpInstalled
+              ? 'Installa prima il server MCP'
+              : mcpDesktopInstalled
+                ? 'Timebox è configurato in Claude Desktop (~/Library/Application Support/Claude/claude_desktop_config.json)'
+                : 'Aggiunge timebox a claude_desktop_config.json per Claude Desktop'
+          }
+          buttonLabel={mcpDesktopInstalled ? '✓ Configurato' : 'Configura…'}
+          buttonColor="#4A8FE8"
+          onClick={handleInstallMcpDesktop}
+          disabled={busy || !mcpInstalled || mcpDesktopInstalled}
         />
       </Section>
       <Section title="Database">

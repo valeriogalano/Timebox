@@ -209,6 +209,28 @@ function setupIpc() {
     '/usr/local/bin/timebox-mcp'
   ));
 
+  ipcMain.handle('app:checkMcpDesktopInstalled', () => {
+    const configPath = path.join(app.getPath('home'), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
+    try {
+      const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      return !!(cfg?.mcpServers?.timebox);
+    } catch { return false; }
+  });
+
+  ipcMain.handle('app:installMcpDesktop', () => {
+    const configPath = path.join(app.getPath('home'), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
+    try {
+      let cfg = {};
+      try { cfg = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch {}
+      if (!cfg.mcpServers) cfg.mcpServers = {};
+      cfg.mcpServers.timebox = { command: '/usr/local/bin/timebox-mcp' };
+      fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2), 'utf8');
+      return { ok: true };
+    } catch (e) {
+      return { error: e.message };
+    }
+  });
+
   ipcMain.handle('settings:getTodoistToken', () => {
     const enc = q.getSetting('todoist_token_enc');
     if (!enc || !safeStorage.isEncryptionAvailable()) return '';
