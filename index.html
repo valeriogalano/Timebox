@@ -177,7 +177,7 @@
       window.api = {
         getClients: async () => CLIENTS, saveClient: async () => {}, deleteClient: async () => {},
         getProjects: async () => PROJECTS, saveProject: async () => {}, deleteProject: async () => {},
-        getRecurring: async () => RECURRING, saveRecurring: async () => {}, deleteRecurring: async () => {},
+        getRecurring: async () => RECURRING, saveRecurring: async () => {}, deleteRecurring: async () => {}, deleteRecurringByClient: async () => {},
         getEntries: async (from, to) => entries.filter(e => e.date >= from && e.date <= to),
         getProjectTotals: async () => { const t = {}; entries.forEach(e => { t[e.projectId] = (t[e.projectId] || 0) + e.hours; }); return t; },
         saveEntry: async (e) => { const i = entries.findIndex(x => x.id === e.id); i >= 0 ? entries[i] = e : entries.push(e); },

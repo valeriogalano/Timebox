@@ -164,6 +164,10 @@ function deleteRecurring(id) {
   db.prepare('DELETE FROM recurring WHERE id=?').run(id);
 }
 
+function deleteRecurringByClient(clientId) {
+  db.prepare('DELETE FROM recurring WHERE clientId=?').run(clientId);
+}
+
 // ── Entries ────────────────────────────────────────────────────────────────────
 function getProjectTotals() {
   return db.prepare(
@@ -363,7 +367,7 @@ module.exports = {
   init,
   getClients, saveClient, deleteClient,
   getProjects, saveProject, deleteProject, hasProjectEntries, mergeProjectEntries,
-  getRecurring, saveRecurring, deleteRecurring,
+  getRecurring, saveRecurring, deleteRecurring, deleteRecurringByClient,
   getEntries, getProjectTotals, saveEntry, deleteEntry,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,
   getSetting, setSetting,

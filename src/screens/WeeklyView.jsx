@@ -534,7 +534,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           <GridLabel border timeLabel="fino alle 13:00">Mattina</GridLabel>
           {days.map((d, i) => {
             const isDropTarget = dragOver?.day === i && dragOver?.slot === 'am';
-            const amTotal = d.amBlocks.reduce((s, b) => s + b.hours, 0);
+            const amTotal = d.amBlocks.filter(b => clients.some(c => c.id === b.clientId)).reduce((s, b) => s + b.hours, 0);
             return (
               <div key={i}
                 onDragOver={e => { e.preventDefault(); setDragOver({ day: i, slot: 'am' }); }}
@@ -575,7 +575,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           <GridLabel border>Pomeriggio</GridLabel>
           {days.map((d, i) => {
             const isDropTarget = dragOver?.day === i && dragOver?.slot === 'pm';
-            const pmTotal = d.pmBlocks.reduce((s, b) => s + b.hours, 0);
+            const pmTotal = d.pmBlocks.filter(b => clients.some(c => c.id === b.clientId)).reduce((s, b) => s + b.hours, 0);
             return (
               <div key={i}
                 onDragOver={e => { e.preventDefault(); setDragOver({ day: i, slot: 'pm' }); }}

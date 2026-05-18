@@ -173,7 +173,8 @@ function setupIpc() {
 
   ipcMain.handle('db:getRecurring',        ()              => q.getRecurring());
   ipcMain.handle('db:saveRecurring',       (_, r)          => q.saveRecurring(r));
-  ipcMain.handle('db:deleteRecurring',     (_, id)         => q.deleteRecurring(id));
+  ipcMain.handle('db:deleteRecurring',         (_, id)     => q.deleteRecurring(id));
+  ipcMain.handle('db:deleteRecurringByClient', (_, cid)   => q.deleteRecurringByClient(cid));
 
   ipcMain.handle('db:getEntries',          (_, from, to)   => q.getEntries(from, to));
   ipcMain.handle('db:getProjectTotals',    ()              => q.getProjectTotals());

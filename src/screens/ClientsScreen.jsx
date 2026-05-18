@@ -177,6 +177,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
       : `Eliminare l'area "${area?.name}"?`;
     if (!window.confirm(msg)) return;
     areaProjects.forEach(p => window.api.deleteProject(p.id));
+    window.api.deleteRecurringByClient(id);
     window.api.deleteClient(id);
     setProjects(prev => prev.filter(p => p.clientId !== id));
     setClients(prev => {
