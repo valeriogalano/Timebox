@@ -110,7 +110,7 @@ export default function App() {
     function onKeyDown(e) {
       if (!e.metaKey) return;
       const tag = document.activeElement?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') document.activeElement.blur();
 
       switch (e.key) {
         case 'l':
