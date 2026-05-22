@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toHHMM, parseHHMM } from '../utils';
 
-export default function TimeCell({ hours, billed, isBillable, isFuture, isToday, clientColor, colIndex, projectId, onSave }) {
+export default function TimeCell({ hours, billed, isBillable, isFuture, isToday, clientColor, colIndex, projectId, onSave, onEditStart, onEditEnd }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [hover, setHover] = useState(false);
@@ -14,16 +14,18 @@ export default function TimeCell({ hours, billed, isBillable, isFuture, isToday,
   function startEdit() {
     setDraft(hours > 0 ? toHHMM(hours) : '');
     setEditing(true);
+    onEditStart?.();
   }
 
   function commit() {
     onSave(parseHHMM(draft));
     setEditing(false);
+    onEditEnd?.();
   }
 
   function onKeyDown(e) {
     if (e.key === 'Enter') commit();
-    if (e.key === 'Escape') setEditing(false);
+    if (e.key === 'Escape') { setEditing(false); onEditEnd?.(); }
     if (e.key === 'Tab') {
       e.preventDefault();
       commit();

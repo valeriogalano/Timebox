@@ -26,6 +26,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const [dragOver, setDragOver] = useState(null);
   const [todoistTasks, setTodoistTasks] = useState({});
   const [todoistSync, setTodoistSync] = useState({});
+  const [editingProject, setEditingProject] = useState(null);
 
   useEffect(() => {
     function onGlobalTab(e) {
@@ -694,12 +695,15 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               const budgetWarn = budgetPct != null && !budgetOver && budgetPct >= 0.8;
               const alertColor = (weeklyOver || budgetOver) ? '#E05252' : (weeklyWarn || budgetWarn) ? '#E07B3A' : null;
 
+              const rowActive = editingProject === project.id;
               return (
                 <React.Fragment key={project.id}>
                   <div style={{
                     padding: '0 14px', display: 'flex', alignItems: 'center', gap: 7,
                     borderRight: '1px solid var(--tb-border-soft)', borderBottom: '1px solid var(--tb-border-soft)',
                     borderTop: topBorder, minHeight: 44,
+                    background: rowActive ? 'var(--tb-row-active, rgba(255,255,255,0.04))' : 'transparent',
+                    transition: 'background 0.1s',
                   }}>
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -723,7 +727,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                     return (
                       <div key={i} style={{
                         borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)', borderTop: topBorder,
-                        background: todayBg(d),
+                        background: rowActive && !d.isToday ? 'var(--tb-row-active, rgba(255,255,255,0.04))' : todayBg(d),
                       }}>
                         <TimeCell
                           hours={entry?.hours ?? 0} billed={entry?.billed ?? false}
@@ -732,7 +736,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                           clientColor={client.color}
                           colIndex={i}
                           projectId={project.id}
-                          onSave={h => saveEntry(project.id, d.dateStr, h, entry?.slot)} />
+                          onSave={h => saveEntry(project.id, d.dateStr, h, entry?.slot)}
+                          onEditStart={() => setEditingProject(project.id)}
+                          onEditEnd={() => setEditingProject(null)} />
                       </div>
                     );
                   })}
@@ -740,6 +746,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)', borderTop: topBorder,
                     padding: '0 8px',
+                    background: rowActive ? 'var(--tb-row-active, rgba(255,255,255,0.04))' : 'transparent',
+                    transition: 'background 0.1s',
                   }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: alertColor ?? (weekTotal > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)') }}>
                       {weekTotal > 0 ? fmtH(weekTotal) : '—'}
