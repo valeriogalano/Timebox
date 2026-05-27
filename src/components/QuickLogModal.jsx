@@ -20,11 +20,10 @@ function parseTimeSpec(s) {
 
 export function parseQuickLogQuery(q) {
   const trimmed = q.trim();
-  const m = trimmed.match(/^(.*?)\s*\+\s*(\S+)$/);
+  const m = trimmed.match(/^(.*?)\s*\+(.*)$/);
   if (!m) return { search: trimmed, addHours: null };
-  const hours = parseTimeSpec(m[2]);
-  if (hours == null || hours <= 0) return { search: trimmed, addHours: null };
-  return { search: m[1].trim(), addHours: hours };
+  const hours = parseTimeSpec(m[2].trim());
+  return { search: m[1].trim(), addHours: (hours != null && hours > 0) ? hours : null };
 }
 
 export default function QuickLogModal({ projects, clients, onSelect, onClose }) {
