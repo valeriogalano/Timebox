@@ -72,6 +72,22 @@ function fmtWeekRange(monday) {
   return `${MONTHS[monday.getMonth()]} ${monday.getDate()} – ${MONTHS[friday.getMonth()]} ${friday.getDate()} ${friday.getFullYear()}`;
 }
 
+function effBillable(entry) {
+  if (!entry) return 0;
+  return entry.billableHours == null ? entry.hours : entry.billableHours;
+}
+
+function isDivergent(entry) {
+  if (!entry || entry.billableHours == null) return false;
+  return Math.abs(entry.billableHours - entry.hours) > 0.001;
+}
+
+function fmtHoursWithBillable(hours, billableHours) {
+  const h = fmtH(hours);
+  if (billableHours == null || Math.abs(billableHours - hours) < 0.001) return h;
+  return `${h} (${fmtH(billableHours)} fatt.)`;
+}
+
 function pad(str, len) {
   str = String(str == null ? '' : str);
   return str.length >= len ? str : str + ' '.repeat(len - str.length);
@@ -86,4 +102,5 @@ module.exports = {
   DAYS, MONTHS,
   fmtH, parseHours, fmt, getToday, getMondayOfWeek, addDays,
   fmtDay, fmtDayShort, fmtWeekRange, pad, padLeft,
+  effBillable, isDivergent, fmtHoursWithBillable,
 };

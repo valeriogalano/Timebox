@@ -39,4 +39,28 @@ describe('getTodayData', () => {
     assert.equal(data.slots.am[0].client, 'Acme Corp');
     assert.equal(data.slots.pm[0].client, 'Studio Nova');
   });
+
+  test('exposes billableHours and totalBillable in response', () => {
+    const data = getTodayData(TEST_DATE);
+    for (const slot of ['am', 'pm']) {
+      for (const e of data.slots[slot]) {
+        assert.ok('billableHours' in e, 'entry should include billableHours');
+        assert.ok('isBillable' in e, 'entry should include isBillable');
+      }
+    }
+    assert.ok('amBillable' in data);
+    assert.ok('pmBillable' in data);
+    assert.ok('totalBillable' in data);
+  });
+
+  test('billable override is reflected in totalBillable', () => {
+    logHours({
+      projectName: 'website', hoursStr: '4', billableHoursStr: '3',
+      slot: 'am', date: '2020-07-15', add: false,
+    });
+    const data = getTodayData('2020-07-15');
+    assert.equal(data.amTotal, 4);
+    assert.equal(data.totalBillable, 3);
+    assert.equal(data.slots.am[0].billableHours, 3);
+  });
 });

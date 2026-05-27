@@ -55,6 +55,15 @@ function hasProjectEntries(id) {
   return db.prepare('SELECT COUNT(*) as c FROM entries WHERE projectId = ?').get(id).c > 0;
 }
 
+function mergeBillable(aBillable, aHours, bBillable, bHours) {
+  const aSet = aBillable != null;
+  const bSet = bBillable != null;
+  if (!aSet && !bSet) return null;
+  const a = aSet ? aBillable : aHours;
+  const b = bSet ? bBillable : bHours;
+  return a + b;
+}
+
 function mergeProjectEntries(fromId, toId) {
   let count = 0;
   db.transaction(() => {
@@ -65,7 +74,8 @@ function mergeProjectEntries(fromId, toId) {
         'SELECT * FROM entries WHERE projectId = ? AND date = ? AND slot = ?'
       ).get(toId, e.date, e.slot);
       if (existing) {
-        db.prepare('UPDATE entries SET hours = ? WHERE id = ?').run(existing.hours + e.hours, existing.id);
+        const mergedBillable = mergeBillable(existing.billableHours, existing.hours, e.billableHours, e.hours);
+        db.prepare('UPDATE entries SET hours = ?, billableHours = ? WHERE id = ?').run(existing.hours + e.hours, mergedBillable, existing.id);
         db.prepare('DELETE FROM entries WHERE id = ?').run(e.id);
       } else {
         db.prepare('UPDATE entries SET projectId = ? WHERE id = ?').run(toId, e.id);
