@@ -67,7 +67,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   useEffect(() => {
     function onViewModeShortcut(e) {
-      if (!e.metaKey || !e.shiftKey || e.key.toLowerCase() !== 'b') return;
+      if (!e.metaKey || !e.shiftKey || e.key.toLowerCase() !== 'v') return;
       e.preventDefault();
       setViewMode(v => {
         const next = v === 'tracked' ? 'billable' : 'tracked';
@@ -1048,7 +1048,7 @@ function ViewModeToggle({ value, onChange }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-faint)', letterSpacing: '0.04em' }}
-            title="Alterna tra Tracciate e Fatturabili · ⌘⇧B">
+            title="Alterna tra Tracciate e Fatturabili · ⌘⇧V">
         Vista timesheet:
       </span>
       <div style={{

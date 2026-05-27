@@ -147,7 +147,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
                 ['⌘ ,', 'Apre le Impostazioni'],
                 ['⌘ 1–8', 'Naviga alle schermate in ordine sidebar'],
                 ['⌘ ⇧ H', 'Nascondi / mostra progetti senza ore (Timesheet)'],
-                ['⌘ ⇧ B', 'Alterna vista Tracciate / Fatturabili (Timesheet)'],
+                ['⌘ ⇧ V', 'Alterna vista Tracciate / Fatturabili (Timesheet)'],
               ].map(([keys, desc], i, arr) => (
                 <tr key={i} style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--tb-border-soft)' : 'none' }}>
                   <td style={{ padding: '9px 12px 9px 0', width: 90, whiteSpace: 'nowrap' }}>
