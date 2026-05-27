@@ -157,20 +157,20 @@ function PlanningBlock({
           background: barBg,
           overflow: 'hidden', position: 'relative',
         }}>
-          {hasTodoistSync && todoistH > 0 && (isToday || isFuture) && (
-            <div style={{
-              position: 'absolute', left: 0, top: 0, bottom: 0,
-              width: `${Math.min(100, (todoistH / block.hours) * 100)}%`,
-              backgroundImage: `repeating-linear-gradient(135deg, ${cl.color}80 0 3px, transparent 3px 6px)`,
-              backgroundColor: cl.color + '14',
-            }} />
-          )}
           <div style={{
             position: 'absolute', left: 0, top: 0, bottom: 0,
             width: `${Math.min(100, fillPct * 100)}%`,
             background: complete ? cl.color : (partial ? cl.color + 'aa' : 'transparent'),
             transition: 'width 0.4s ease, background 0.2s',
           }} />
+          {hasTodoistSync && todoistH > 0 && (isToday || isFuture) && fillPct < 1 && (
+            <div style={{
+              position: 'absolute', left: `${fillPct * 100}%`, top: 0, bottom: 0,
+              width: `${Math.min(100 - fillPct * 100, (todoistH / block.hours) * 100)}%`,
+              backgroundImage: `repeating-linear-gradient(135deg, ${cl.color}80 0 3px, transparent 3px 6px)`,
+              backgroundColor: cl.color + '14',
+            }} />
+          )}
         </div>
         {overflow && (
           <div style={{
