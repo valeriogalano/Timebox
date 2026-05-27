@@ -286,6 +286,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const pmBlocks = effectiveBlocks(i, 'pm');
     const plannedTotal = [...amBlocks, ...pmBlocks].reduce((s, b) => s + b.hours, 0);
     const delta = dayHours - plannedTotal;
+    const recurringTotal = recurring.filter(r => r.day === i).reduce((s, r) => s + r.hours, 0);
+    const pianificazioneExtra = Math.max(0, plannedTotal - recurringTotal);
 
     const clientPlanned = {};
     for (const b of [...amBlocks, ...pmBlocks]) {
@@ -369,7 +371,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       });
     }
 
-    return { date, dateStr, isToday, isFuture, isWeekend, dayHours, dayBillable, dayDivergent, plannedTotal, delta, loggedInPlan, bilancioExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill, todoistByCS, todoistTasksByCS, lastSync, orphanTodoist };
+    return { date, dateStr, isToday, isFuture, isWeekend, dayHours, dayBillable, dayDivergent, plannedTotal, delta, loggedInPlan, bilancioExtra, pianificazioneExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill, todoistByCS, todoistTasksByCS, lastSync, orphanTodoist };
   });
 
   const weekPlanned  = days.reduce((s, d) => s + d.plannedTotal, 0);
@@ -703,6 +705,16 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                     )}
                     {d.bilancioExtra > 0 && (
                       <span style={{ fontSize: 9, fontWeight: 800, color: '#E07B3A', background: '#E07B3A18', padding: '1px 5px', borderRadius: 3 }}>+{toHHMM(d.bilancioExtra)} extra</span>
+                    )}
+                    {d.pianificazioneExtra > 0 && (
+                      <span style={{ fontSize: 9, fontWeight: 800, color: '#5B8DD9', background: '#5B8DD918', padding: '1px 5px', borderRadius: 3, border: '1px dashed #5B8DD966' }}>+{toHHMM(d.pianificazioneExtra)} pianif.</span>
+                    )}
+                  </div>
+                ) : d.isFuture && d.plannedTotal > 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>{toHHMM(d.plannedTotal)}</span>
+                    {d.pianificazioneExtra > 0 && (
+                      <span style={{ fontSize: 9, fontWeight: 800, color: '#5B8DD9', background: '#5B8DD918', padding: '1px 5px', borderRadius: 3, border: '1px dashed #5B8DD966' }}>+{toHHMM(d.pianificazioneExtra)} pianif.</span>
                     )}
                   </div>
                 ) : (
