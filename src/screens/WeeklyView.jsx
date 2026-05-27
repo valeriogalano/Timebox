@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM } from '../utils';
 import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
@@ -27,6 +27,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const [todoistTasks, setTodoistTasks] = useState({});
   const [todoistSync, setTodoistSync] = useState({});
   const [editingProject, setEditingProject] = useState(null);
+  const [hideEmpty, setHideEmpty] = useState(() => localStorage.getItem('timebox-hide-empty-projects') === 'true');
 
   useEffect(() => {
     function onGlobalTab(e) {
@@ -41,6 +42,20 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     }
     document.addEventListener('keydown', onGlobalTab);
     return () => document.removeEventListener('keydown', onGlobalTab);
+  }, []);
+
+  useEffect(() => {
+    function onHideShortcut(e) {
+      if (!e.metaKey || !e.shiftKey || e.key.toLowerCase() !== 'h') return;
+      e.preventDefault();
+      setHideEmpty(v => {
+        const next = !v;
+        localStorage.setItem('timebox-hide-empty-projects', String(next));
+        return next;
+      });
+    }
+    document.addEventListener('keydown', onHideShortcut);
+    return () => document.removeEventListener('keydown', onHideShortcut);
   }, []);
 
   useEffect(() => {
@@ -367,6 +382,15 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     return acc;
   }, {});
 
+  const projectsInView = hideEmpty
+    ? clientsWithProjects.map(c => ({
+        ...c,
+        projects: c.projects.filter(p =>
+          (weekProjectHours[p.id] ?? 0) > 0 || p.id === autoFocusProject || p.id === editingProject
+        ),
+      })).filter(c => c.projects.length > 0)
+    : clientsWithProjects;
+
   // Projects exceeding weekly limit this week
   const weeklyOverProjects = projects.filter(p =>
     p.weeklyHours > 0 && (weekProjectHours[p.id] ?? 0) > p.weeklyHours
@@ -680,7 +704,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           }}>Tot</div>
 
           {/* Project rows */}
-          {clientsWithProjects.map(client =>
+          {projectsInView.map(client =>
             client.projects.map((project, pi) => {
               const weekTotal = days.reduce((s, d) => {
                 const e = weekEntries.find(e2 => e2.projectId === project.id && e2.date === d.dateStr);
@@ -698,30 +722,11 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               const rowActive = editingProject === project.id;
               return (
                 <React.Fragment key={project.id}>
-                  <div style={{
-                    padding: '0 14px', display: 'flex', alignItems: 'center', gap: 7,
-                    borderRight: '1px solid var(--tb-border-soft)', borderBottom: '1px solid var(--tb-border-soft)',
-                    borderTop: topBorder, minHeight: 44,
-                    background: rowActive ? 'var(--tb-row-active, rgba(255,255,255,0.04))' : 'transparent',
-                    transition: 'background 0.1s',
-                  }}>
-                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)', lineHeight: 1.2,
-                        maxWidth: 155, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {project.name}
-                      </div>
-                      <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>{client.name}</div>
-                    </div>
-                    {alertColor && (
-                      <div style={{
-                        width: 0, height: 0, flexShrink: 0,
-                        borderLeft: '5px solid transparent',
-                        borderRight: '5px solid transparent',
-                        borderBottom: `9px solid ${alertColor}`,
-                      }} />
-                    )}
-                  </div>
+                  <ProjectLabel
+                    project={project} client={client} alertColor={alertColor}
+                    rowActive={rowActive} topBorder={topBorder}
+                    projectTotals={projectTotals} weekProjectHours={weekProjectHours}
+                  />
                   {days.map((d, i) => {
                     const entry = weekEntries.find(e => e.projectId === project.id && e.date === d.dateStr);
                     return (
@@ -791,6 +796,113 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           </div>
         </div>
       </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+        <button
+          onClick={() => setHideEmpty(v => {
+            const next = !v;
+            localStorage.setItem('timebox-hide-empty-projects', String(next));
+            return next;
+          })}
+          title={hideEmpty ? 'Mostra tutti i progetti · ⌘⇧H' : 'Nascondi progetti senza ore · ⌘⇧H'}
+          style={{
+            fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 5,
+            background: 'transparent',
+            border: `1px solid ${hideEmpty ? '#3DB33D55' : 'var(--tb-border)'}`,
+            color: hideEmpty ? '#3DB33D' : 'var(--tb-text-faint)',
+            cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
+          }}>
+          {hideEmpty ? '◉ Nascosti' : '○ Nascondi vuoti'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ProjectLabel({ project, client, alertColor, rowActive, topBorder, projectTotals, weekProjectHours }) {
+  const [tooltipPos, setTooltipPos] = useState(null);
+  const labelRef = useRef();
+  const weekH = weekProjectHours[project.id] ?? 0;
+  const totalH = projectTotals[project.id] ?? 0;
+  const hasTooltip = !!(project.description || project.budgetHours > 0 || project.weeklyHours > 0);
+
+  function handleMouseEnter() {
+    if (!hasTooltip) return;
+    const rect = labelRef.current?.getBoundingClientRect();
+    if (rect) setTooltipPos({ x: rect.right + 8, y: rect.top + rect.height / 2 });
+  }
+
+  return (
+    <div
+      ref={labelRef}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => setTooltipPos(null)}
+      style={{
+        padding: '0 14px', display: 'flex', alignItems: 'center', gap: 7,
+        borderRight: '1px solid var(--tb-border-soft)', borderBottom: '1px solid var(--tb-border-soft)',
+        borderTop: topBorder, minHeight: 44,
+        background: rowActive ? 'var(--tb-row-active, rgba(255,255,255,0.04))' : 'transparent',
+        transition: 'background 0.1s',
+      }}>
+      <div style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)', lineHeight: 1.2,
+          maxWidth: 155, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {project.name}
+        </div>
+        <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>{client.name}</div>
+      </div>
+      {alertColor && (
+        <div style={{
+          width: 0, height: 0, flexShrink: 0,
+          borderLeft: '5px solid transparent',
+          borderRight: '5px solid transparent',
+          borderBottom: `9px solid ${alertColor}`,
+        }} />
+      )}
+      {tooltipPos && (
+        <div style={{
+          position: 'fixed',
+          left: tooltipPos.x,
+          top: tooltipPos.y,
+          transform: 'translateY(-50%)',
+          background: 'var(--tb-panel-bg)',
+          border: '1px solid var(--tb-border-mid)',
+          borderRadius: 6, padding: '8px 10px',
+          boxShadow: '0 4px 14px rgba(0,0,0,0.22)',
+          zIndex: 9999, minWidth: 160, maxWidth: 280,
+          pointerEvents: 'none',
+          display: 'flex', flexDirection: 'column', gap: 4,
+        }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)', wordBreak: 'break-word', lineHeight: 1.3 }}>
+            {project.name}
+          </span>
+          {project.description && (
+            <span style={{ fontSize: 10, color: 'var(--tb-text-muted)', lineHeight: 1.4, wordBreak: 'break-word' }}>
+              {project.description}
+            </span>
+          )}
+          {(project.budgetHours > 0 || project.weeklyHours > 0) && (
+            <div style={{ borderTop: '1px solid var(--tb-border-soft)', paddingTop: 4, marginTop: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {project.budgetHours > 0 && (
+                <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <span>Budget totale</span>
+                  <span style={{ fontWeight: 700, color: totalH >= project.budgetHours ? '#E05252' : totalH / project.budgetHours >= 0.8 ? '#E07B3A' : 'var(--tb-text-secondary)' }}>
+                    {fmtH(totalH)} / {fmtH(project.budgetHours)}
+                  </span>
+                </div>
+              )}
+              {project.weeklyHours > 0 && (
+                <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <span>Limite sett.</span>
+                  <span style={{ fontWeight: 700, color: weekH >= project.weeklyHours ? '#E05252' : weekH / project.weeklyHours >= 0.8 ? '#E07B3A' : 'var(--tb-text-secondary)' }}>
+                    {fmtH(weekH)} / {fmtH(project.weeklyHours)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

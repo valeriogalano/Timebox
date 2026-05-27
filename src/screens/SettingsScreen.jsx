@@ -146,8 +146,9 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
                 ['⌘ B', 'Espande / riduce la sidebar'],
                 ['⌘ ,', 'Apre le Impostazioni'],
                 ['⌘ 1–8', 'Naviga alle schermate in ordine sidebar'],
+                ['⌘ ⇧ H', 'Nascondi / mostra progetti senza ore (Timesheet)'],
               ].map(([keys, desc], i) => (
-                <tr key={i} style={{ borderBottom: i < 6 ? '1px solid var(--tb-border-soft)' : 'none' }}>
+                <tr key={i} style={{ borderBottom: i < 7 ? '1px solid var(--tb-border-soft)' : 'none' }}>
                   <td style={{ padding: '9px 12px 9px 0', width: 90, whiteSpace: 'nowrap' }}>
                     <kbd style={{
                       fontFamily: 'monospace', fontSize: 11,
