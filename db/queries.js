@@ -183,12 +183,13 @@ function getEntries(dateFrom, dateTo) {
 
 function saveEntry(entry) {
   db.prepare(`
-    INSERT INTO entries (id,projectId,date,hours,slot,billed)
-    VALUES (@id,@projectId,@date,@hours,@slot,@billed)
+    INSERT INTO entries (id,projectId,date,hours,billableHours,slot,billed)
+    VALUES (@id,@projectId,@date,@hours,@billableHours,@slot,@billed)
     ON CONFLICT(id) DO UPDATE SET
       projectId=excluded.projectId, date=excluded.date,
-      hours=excluded.hours, slot=excluded.slot, billed=excluded.billed
-  `).run({ ...entry, billed: entry.billed ? 1 : 0 });
+      hours=excluded.hours, billableHours=excluded.billableHours,
+      slot=excluded.slot, billed=excluded.billed
+  `).run({ billableHours: null, ...entry, billed: entry.billed ? 1 : 0 });
 }
 
 function deleteEntry(id) {
@@ -196,7 +197,7 @@ function deleteEntry(id) {
 }
 
 function normalizeEntry(row) {
-  return { ...row, billed: row.billed === 1 };
+  return { ...row, billed: row.billed === 1, billableHours: row.billableHours ?? null };
 }
 
 // ── Week Overrides ─────────────────────────────────────────────────────────────
@@ -313,7 +314,7 @@ function seedDemoData() {
   const insertClient    = db.prepare('INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position) VALUES (?,?,?,?,?,?,?,?,?)');
   const insertProject   = db.prepare('INSERT INTO projects (id,clientId,name,description,budgetHours,weeklyHours,position) VALUES (?,?,?,?,?,?,?)');
   const insertRecurring = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours,position) VALUES (?,?,?,?,?,?)');
-  const insertEntry     = db.prepare('INSERT INTO entries (id,projectId,date,hours,slot,billed) VALUES (?,?,?,?,?,?)');
+  const insertEntry     = db.prepare('INSERT INTO entries (id,projectId,date,hours,billableHours,slot,billed) VALUES (?,?,?,?,?,?,?)');
 
   const today = new Date();
   const prevMonday = new Date(today);
@@ -357,7 +358,7 @@ function seedDemoData() {
     for (const r of INIT_RECURRING)
       insertRecurring.run(r.id, r.clientId, r.slot, r.day, r.hours, r.position ?? 0);
     for (const e of getSeedEntries())
-      insertEntry.run(e.id, e.projectId, e.date, e.hours, e.slot, e.billed);
+      insertEntry.run(e.id, e.projectId, e.date, e.hours, e.billableHours ?? null, e.slot, e.billed);
     for (const { date, tasks } of todoistDays)
       db.prepare('INSERT OR REPLACE INTO todoist_cache (dateStr,tasksJson,syncedAt) VALUES (?,?,?)').run(date, JSON.stringify(tasks), now);
   })();

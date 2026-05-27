@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM } from '../utils';
+import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM, effBillable } from '../utils';
 import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
 import TimeCell from '../components/TimeCell';
+import DivergenceDot from '../components/DivergenceDot';
 
 function getWeekKey(monday) { return fmt(monday); }
 
@@ -28,6 +29,12 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const [todoistSync, setTodoistSync] = useState({});
   const [editingProject, setEditingProject] = useState(null);
   const [hideEmpty, setHideEmpty] = useState(() => localStorage.getItem('timebox-hide-empty-projects') === 'true');
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('timebox-timesheet-view') === 'billable' ? 'billable' : 'tracked');
+
+  function changeViewMode(next) {
+    setViewMode(next);
+    localStorage.setItem('timebox-timesheet-view', next);
+  }
 
   useEffect(() => {
     function onGlobalTab(e) {
@@ -187,8 +194,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     }
   }
 
-  async function saveEntry(projectId, dateStr, hours, slot) {
+  async function saveEntry(projectId, dateStr, payload, slot) {
     const existing = weekEntries.find(e => e.projectId === projectId && e.date === dateStr);
+    const hours = typeof payload === 'object' ? payload.hours : payload;
+    const billableHours = typeof payload === 'object' ? (payload.billableHours ?? null) : (existing?.billableHours ?? null);
     if (hours === 0) {
       setWeekEntries(prev => prev.filter(e => !(e.projectId === projectId && e.date === dateStr)));
       if (existing) {
@@ -217,8 +226,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
         }
       }
       const entry = existing
-        ? { ...existing, hours }
-        : { id: crypto.randomUUID(), projectId, date: dateStr, hours, slot: resolvedSlot, billed: false };
+        ? { ...existing, hours, billableHours }
+        : { id: crypto.randomUUID(), projectId, date: dateStr, hours, billableHours, slot: resolvedSlot, billed: false };
       setWeekEntries(prev =>
         existing
           ? prev.map(e => e.projectId === projectId && e.date === dateStr ? entry : e)
@@ -227,6 +236,15 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       await window.api.saveEntry(entry);
       window.api.getProjectTotals().then(setProjectTotals);
     }
+    onEntryChange?.();
+  }
+
+  async function resetBillable(projectId, dateStr) {
+    const existing = weekEntries.find(e => e.projectId === projectId && e.date === dateStr);
+    if (!existing) return;
+    const entry = { ...existing, billableHours: null };
+    setWeekEntries(prev => prev.map(e => e.id === existing.id ? entry : e));
+    await window.api.saveEntry(entry);
     onEntryChange?.();
   }
 
@@ -252,6 +270,18 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const isWeekend = i >= 5;
     const dayEntries = weekEntries.filter(e => e.date === dateStr);
     const dayHours = dayEntries.reduce((s, e) => s + e.hours, 0);
+    const dayBillable = dayEntries.reduce((s, e) => {
+      const proj = projects.find(p => p.id === e.projectId);
+      const cli = proj ? clients.find(c => c.id === proj.clientId) : null;
+      if (!cli || cli.billing === 'none') return s;
+      return s + effBillable(e);
+    }, 0);
+    const dayDivergent = dayEntries.some(e => {
+      const proj = projects.find(p => p.id === e.projectId);
+      const cli = proj ? clients.find(c => c.id === proj.clientId) : null;
+      if (!cli || cli.billing === 'none') return false;
+      return e.billableHours !== null && e.billableHours !== undefined && Math.abs(e.billableHours - e.hours) > 0.001;
+    });
     const amBlocks = effectiveBlocks(i, 'am');
     const pmBlocks = effectiveBlocks(i, 'pm');
     const plannedTotal = [...amBlocks, ...pmBlocks].reduce((s, b) => s + b.hours, 0);
@@ -339,13 +369,15 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       });
     }
 
-    return { date, dateStr, isToday, isFuture, isWeekend, dayHours, plannedTotal, delta, loggedInPlan, bilancioExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill, todoistByCS, todoistTasksByCS, lastSync, orphanTodoist };
+    return { date, dateStr, isToday, isFuture, isWeekend, dayHours, dayBillable, dayDivergent, plannedTotal, delta, loggedInPlan, bilancioExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill, todoistByCS, todoistTasksByCS, lastSync, orphanTodoist };
   });
 
-  const weekPlanned = days.reduce((s, d) => s + d.plannedTotal, 0);
-  const weekActual  = days.reduce((s, d) => s + d.dayHours, 0);
-  const weekDelta   = weekActual - weekPlanned;
-  const weekExtra   = days.reduce((s, d) => s + Math.max(0, d.bilancioExtra), 0);
+  const weekPlanned  = days.reduce((s, d) => s + d.plannedTotal, 0);
+  const weekActual   = days.reduce((s, d) => s + d.dayHours, 0);
+  const weekBillable = days.reduce((s, d) => s + d.dayBillable, 0);
+  const weekDivergent = days.some(d => d.dayDivergent);
+  const weekDelta    = weekActual - weekPlanned;
+  const weekExtra    = days.reduce((s, d) => s + Math.max(0, d.bilancioExtra), 0);
   const endSun = addDays(monday, 6);
   const weekLabel = `${monday.getDate()} ${MONTHS_IT[monday.getMonth()]} – ${endSun.getDate()} ${MONTHS_IT[endSun.getMonth()]} ${endSun.getFullYear()}`;
 
@@ -518,10 +550,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
             projects={projects} />
         </div>
         <div style={{ display: 'flex', gap: 28 }}>
-          <Pill label="Pianificate" value={fmtH(weekPlanned)} color="var(--tb-text-muted)" />
-          <Pill label="Tracciate"   value={fmtH(weekActual)}  color="var(--tb-text-primary)" />
-          <Pill label="Delta"       value={(weekDelta >= 0 ? '+' : '') + fmtH(weekDelta)}
-            color={weekDelta === 0 ? 'var(--tb-text-secondary)' : weekDelta > 0 ? '#3DB33D' : '#E05252'} />
+          <Pill label="Pianificate" value={fmtH(weekPlanned)}  color="var(--tb-text-muted)"   dim />
+          <Pill label="Tracciate"   value={fmtH(weekActual)}   color="var(--tb-text-primary)" dim={viewMode !== 'tracked'} />
+          <Pill label="Fatturabili" value={fmtH(weekBillable)} color="#3DB33D"                dim={viewMode !== 'billable'} />
           {weekExtra > 0 && (
             <Pill label="Extra" value={fmtH(weekExtra)} color="#E07B3A" />
           )}
@@ -706,10 +737,17 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           {/* Project rows */}
           {projectsInView.map(client =>
             client.projects.map((project, pi) => {
-              const weekTotal = days.reduce((s, d) => {
-                const e = weekEntries.find(e2 => e2.projectId === project.id && e2.date === d.dateStr);
-                return s + (e?.hours ?? 0);
-              }, 0);
+              const projectEntries = weekEntries.filter(e => e.projectId === project.id);
+              const clientBillable = client.billing !== 'none';
+              const weekTotalTracked  = projectEntries.reduce((s, e) => s + e.hours, 0);
+              const weekTotalBillable = clientBillable
+                ? projectEntries.reduce((s, e) => s + effBillable(e), 0)
+                : 0;
+              const weekTotal = viewMode === 'billable' ? weekTotalBillable : weekTotalTracked;
+              const rowDivergent = clientBillable && projectEntries.some(e =>
+                e.billableHours !== null && e.billableHours !== undefined && Math.abs(e.billableHours - e.hours) > 0.001
+              );
+              const rowHasValueInMode = viewMode === 'billable' ? clientBillable && weekTotal > 0 : weekTotal > 0;
               const topBorder = pi === 0 ? '2px solid var(--tb-border)' : 'none';
 
               const weeklyOver = project.weeklyHours > 0 && weekTotal > project.weeklyHours;
@@ -735,13 +773,17 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                         background: rowActive && !d.isToday ? 'var(--tb-row-active, rgba(255,255,255,0.04))' : todayBg(d),
                       }}>
                         <TimeCell
-                          hours={entry?.hours ?? 0} billed={entry?.billed ?? false}
+                          hours={entry?.hours ?? 0}
+                          billableHours={entry?.billableHours ?? null}
+                          billed={entry?.billed ?? false}
                           isBillable={client.billing !== 'none'}
                           isFuture={d.isFuture} isToday={d.isToday}
                           clientColor={client.color}
                           colIndex={i}
                           projectId={project.id}
-                          onSave={h => saveEntry(project.id, d.dateStr, h, entry?.slot)}
+                          viewMode={viewMode}
+                          onSave={payload => saveEntry(project.id, d.dateStr, payload, entry?.slot)}
+                          onResetBillable={() => resetBillable(project.id, d.dateStr)}
                           onEditStart={() => setEditingProject(project.id)}
                           onEditEnd={() => setEditingProject(null)} />
                       </div>
@@ -752,11 +794,18 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                     borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)', borderTop: topBorder,
                     padding: '0 8px',
                     background: rowActive ? 'var(--tb-row-active, rgba(255,255,255,0.04))' : 'transparent',
-                    transition: 'background 0.1s',
+                    transition: 'background 0.1s', position: 'relative',
                   }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: alertColor ?? (weekTotal > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)') }}>
-                      {weekTotal > 0 ? fmtH(weekTotal) : '—'}
+                    <span style={{ fontSize: 12, fontWeight: 700, color: alertColor ?? (rowHasValueInMode ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)') }}>
+                      {rowHasValueInMode ? fmtH(weekTotal) : '—'}
                     </span>
+                    {rowDivergent && (
+                      <DivergenceDot
+                        tooltip={viewMode === 'billable'
+                          ? `Tracciate: ${fmtH(weekTotalTracked)}`
+                          : `Fatturabili: ${fmtH(weekTotalBillable)}`}
+                      />
+                    )}
                   </div>
                 </React.Fragment>
               );
@@ -769,34 +818,53 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
             fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
             display: 'flex', alignItems: 'center',
           }}>Totale</div>
-          {days.map((d, i) => (
-            <div key={i} style={{
-              padding: '10px 4px', textAlign: 'center',
-              background: d.isToday ? 'var(--tb-cell-today-header)' : 'var(--tb-panel-bg-soft)',
-              borderLeft: `1px solid ${d.isToday ? '#3DB33D55' : 'var(--tb-border)'}`,
-              borderTop: '2px solid var(--tb-border-mid)', opacity: d.isWeekend ? 0.7 : 1,
-            }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: d.dayHours > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>
-                {d.dayHours > 0 ? fmtH(d.dayHours) : '—'}
-              </div>
-              {d.plannedTotal > 0 && !d.isFuture && (
-                <div style={{ fontSize: 10, fontWeight: 700, color: d.delta >= 0 ? '#3DB33D' : '#E05252' }}>
-                  {d.delta >= 0 ? '+' : ''}{fmtH(d.delta)}
+          {days.map((d, i) => {
+            const dayTotal = viewMode === 'billable' ? d.dayBillable : d.dayHours;
+            return (
+              <div key={i} style={{
+                padding: '10px 4px', textAlign: 'center',
+                background: d.isToday ? 'var(--tb-cell-today-header)' : 'var(--tb-panel-bg-soft)',
+                borderLeft: `1px solid ${d.isToday ? '#3DB33D55' : 'var(--tb-border)'}`,
+                borderTop: '2px solid var(--tb-border-mid)', opacity: d.isWeekend ? 0.7 : 1,
+                position: 'relative',
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: dayTotal > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>
+                  {dayTotal > 0 ? fmtH(dayTotal) : '—'}
                 </div>
-              )}
-            </div>
-          ))}
+                {d.plannedTotal > 0 && !d.isFuture && (
+                  <div style={{ fontSize: 10, fontWeight: 700, color: d.delta >= 0 ? '#3DB33D' : '#E05252' }}>
+                    {d.delta >= 0 ? '+' : ''}{fmtH(d.delta)}
+                  </div>
+                )}
+                {d.dayDivergent && (
+                  <DivergenceDot
+                    tooltip={viewMode === 'billable'
+                      ? `Tracciate: ${fmtH(d.dayHours)}`
+                      : `Fatturabili: ${fmtH(d.dayBillable)}`}
+                  />
+                )}
+              </div>
+            );
+          })}
           <div style={{
             background: 'var(--tb-panel-bg-soft)', borderLeft: '1px solid var(--tb-border-mid)', borderTop: '2px solid var(--tb-border-mid)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px',
+            position: 'relative',
           }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: weekActual > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>
-              {weekActual > 0 ? fmtH(weekActual) : '—'}
+            <span style={{ fontSize: 13, fontWeight: 800, color: (viewMode === 'billable' ? weekBillable : weekActual) > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>
+              {(viewMode === 'billable' ? weekBillable : weekActual) > 0 ? fmtH(viewMode === 'billable' ? weekBillable : weekActual) : '—'}
             </span>
+            {weekDivergent && (
+              <DivergenceDot
+                tooltip={viewMode === 'billable'
+                  ? `Tracciate: ${fmtH(weekActual)}`
+                  : `Fatturabili: ${fmtH(weekBillable)}`}
+              />
+            )}
           </div>
         </div>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button
           onClick={() => setHideEmpty(v => {
             const next = !v;
@@ -813,6 +881,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           }}>
           {hideEmpty ? '◉ Nascosti' : '○ Nascondi vuoti'}
         </button>
+        <ViewModeToggle value={viewMode} onChange={changeViewMode} />
       </div>
     </div>
   );
@@ -945,9 +1014,48 @@ function NavBtn({ children, onClick, small }) {
   );
 }
 
-function Pill({ label, value, color }) {
+function ViewModeToggle({ value, onChange }) {
+  const opts = [
+    { key: 'tracked',  label: 'Tracciate',   color: '#3DB33D' },
+    { key: 'billable', label: 'Fatturabili', color: '#3DB33D' },
+  ];
   return (
-    <div style={{ textAlign: 'center' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-faint)', letterSpacing: '0.04em' }}>
+        Vista timesheet:
+      </span>
+      <div style={{
+        display: 'inline-flex',
+        border: '1px solid var(--tb-border)', borderRadius: 5,
+        overflow: 'hidden', background: 'var(--tb-panel-bg)',
+      }}>
+        {opts.map((o, idx) => {
+          const active = value === o.key;
+          return (
+            <button
+              key={o.key}
+              onClick={() => onChange(o.key)}
+              style={{
+                fontSize: 10, fontWeight: 700, padding: '3px 10px',
+                background: active ? o.color : 'transparent',
+                color: active ? '#fff' : 'var(--tb-text-muted)',
+                border: 'none',
+                borderLeft: idx > 0 ? '1px solid var(--tb-border)' : 'none',
+                cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
+                transition: 'background 0.15s, color 0.15s',
+              }}>
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Pill({ label, value, color, dim }) {
+  return (
+    <div style={{ textAlign: 'center', opacity: dim ? 0.4 : 1, transition: 'opacity 0.15s' }}>
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
         color: 'var(--tb-text-faint)', marginBottom: 2 }}>{label}</div>
       <div style={{ fontSize: 15, fontWeight: 800, color }}>{value}</div>

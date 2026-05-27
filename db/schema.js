@@ -56,16 +56,18 @@ function getSeedEntries() {
   }
 
   return [
-    { id: 'e1',  projectId: 'p1', date: d(0),  hours: 3.5, slot: 'am', billed: 1 },
-    { id: 'e2',  projectId: 'p3', date: d(0),  hours: 2,   slot: 'pm', billed: 1 },
-    { id: 'e3',  projectId: 'p2', date: d(1),  hours: 4,   slot: 'am', billed: 0 },
-    { id: 'e4',  projectId: 'p3', date: d(1),  hours: 2.5, slot: 'pm', billed: 1 },
-    { id: 'e5',  projectId: 'p4', date: d(2),  hours: 2,   slot: 'am', billed: 0 },
-    { id: 'e6',  projectId: 'p1', date: pd(0), hours: 3.5, slot: 'am', billed: 1 },
-    { id: 'e7',  projectId: 'p6', date: pd(1), hours: 2,   slot: 'pm', billed: 1 },
-    { id: 'e8',  projectId: 'p4', date: pd(2), hours: 3.5, slot: 'am', billed: 0 },
-    { id: 'e9',  projectId: 'p5', date: pd(3), hours: 2,   slot: 'pm', billed: 0 },
-    { id: 'e10', projectId: 'p3', date: pd(4), hours: 2.5, slot: 'pm', billed: 1 },
+    { id: 'e1',  projectId: 'p1', date: d(0),  hours: 3.5, billableHours: null, slot: 'am', billed: 1 },
+    { id: 'e2',  projectId: 'p3', date: d(0),  hours: 2,   billableHours: null, slot: 'pm', billed: 1 },
+    { id: 'e3',  projectId: 'p2', date: d(1),  hours: 4,   billableHours: 3.5,  slot: 'am', billed: 0 }, // arrotondamento contrattuale
+    { id: 'e4',  projectId: 'p3', date: d(1),  hours: 2,   billableHours: null, slot: 'pm', billed: 1 },
+    { id: 'e5',  projectId: 'p4', date: d(2),  hours: 2.5, billableHours: 2,    slot: 'am', billed: 0 }, // cap fisso raggiunto
+    { id: 'e11', projectId: 'p3', date: d(1),  hours: 2,   billableHours: 0,    slot: 'pm', billed: 0 }, // lavoro interno
+    { id: 'e12', projectId: 'p6', date: d(2),  hours: 2,   billableHours: 1.5,  slot: 'pm', billed: 0 }, // sconto di cortesia
+    { id: 'e6',  projectId: 'p1', date: pd(0), hours: 3.5, billableHours: null, slot: 'am', billed: 1 },
+    { id: 'e7',  projectId: 'p6', date: pd(1), hours: 2,   billableHours: null, slot: 'pm', billed: 1 },
+    { id: 'e8',  projectId: 'p4', date: pd(2), hours: 3.5, billableHours: null, slot: 'am', billed: 0 },
+    { id: 'e9',  projectId: 'p5', date: pd(3), hours: 2,   billableHours: null, slot: 'pm', billed: 0 },
+    { id: 'e10', projectId: 'p3', date: pd(4), hours: 2.5, billableHours: null, slot: 'pm', billed: 1 },
   ];
 }
 
@@ -110,6 +112,7 @@ function initDb(dbPath) {
       projectId TEXT,
       date TEXT,
       hours REAL,
+      billableHours REAL,
       slot TEXT,
       billed INTEGER DEFAULT 0
     );
@@ -149,6 +152,7 @@ function initDb(dbPath) {
   try { db.exec('ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0'); } catch (_) {}
   try { db.exec('ALTER TABLE projects ADD COLUMN weeklyHours REAL'); } catch (_) {}
   try { db.exec('ALTER TABLE projects ADD COLUMN description TEXT'); } catch (_) {}
+  try { db.exec('ALTER TABLE entries ADD COLUMN billableHours REAL'); } catch (_) {}
 
   return db;
 }

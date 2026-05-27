@@ -170,10 +170,10 @@
       const monday = new Date(today); const dow = monday.getDay(); monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1));
       function d(n) { const dt = new Date(monday); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); }
       const ENTRIES = [
-        { id:'e1', projectId:'p1', date:d(0), hours:3.5, slot:'am', billed:true },
-        { id:'e2', projectId:'p3', date:d(0), hours:2, slot:'pm', billed:true },
-        { id:'e3', projectId:'p2', date:d(1), hours:4, slot:'am', billed:false },
-        { id:'e5', projectId:'p4', date:d(2), hours:2, slot:'am', billed:false },
+        { id:'e1', projectId:'p1', date:d(0), hours:3.5, billableHours:null, slot:'am', billed:true },
+        { id:'e2', projectId:'p3', date:d(0), hours:2,   billableHours:null, slot:'pm', billed:true },
+        { id:'e3', projectId:'p2', date:d(1), hours:4,   billableHours:3.5,  slot:'am', billed:false },
+        { id:'e5', projectId:'p4', date:d(2), hours:2,   billableHours:0,    slot:'am', billed:false },
       ];
       let entries = [...ENTRIES];
       window.api = {

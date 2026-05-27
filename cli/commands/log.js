@@ -52,6 +52,7 @@ function logHours({ projectName, hoursStr, slot, date, add }) {
     projectId: project.id,
     date,
     hours: newHours,
+    billableHours: existing?.billableHours ?? null,
     slot: resolvedSlot,
     billed: existing?.billed || false,
   });

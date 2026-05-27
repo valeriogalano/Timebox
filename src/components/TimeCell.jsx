@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toHHMM, parseHHMM } from '../utils';
+import DivergenceDot from './DivergenceDot';
 
-export default function TimeCell({ hours, billed, isBillable, isFuture, isToday, clientColor, colIndex, projectId, onSave, onEditStart, onEditEnd }) {
+export default function TimeCell({
+  hours, billableHours, billed, isBillable,
+  isFuture, isToday, clientColor, colIndex, projectId,
+  viewMode = 'tracked',
+  onSave, onResetBillable, onEditStart, onEditEnd,
+}) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [hover, setHover] = useState(false);
@@ -11,14 +17,34 @@ export default function TimeCell({ hours, billed, isBillable, isFuture, isToday,
     if (editing && inputRef.current) inputRef.current.select();
   }, [editing]);
 
+  const hasEntry = hours > 0;
+  const billable = (billableHours ?? hours);
+  const divergent = isBillable && hasEntry && billableHours !== null && billableHours !== undefined && Math.abs(billableHours - hours) > 0.001;
+  const inBillableView = viewMode === 'billable';
+  const lockedInBillable = inBillableView && !isBillable;
+  const displayValue = inBillableView ? billable : hours;
+  const showDash = inBillableView && hasEntry && billableHours === 0;
+
   function startEdit() {
-    setDraft(hours > 0 ? toHHMM(hours) : '');
+    if (lockedInBillable) return;
+    const base = inBillableView ? (hasEntry ? billable : 0) : hours;
+    setDraft(base > 0 ? toHHMM(base) : '');
     setEditing(true);
     onEditStart?.();
   }
 
   function commit() {
-    onSave(parseHHMM(draft));
+    const parsed = parseHHMM(draft);
+    if (inBillableView) {
+      if (!hasEntry) {
+        if (parsed > 0) onSave({ hours: parsed, billableHours: null });
+      } else {
+        const matchesTracked = Math.abs(parsed - hours) < 0.001;
+        onSave({ hours, billableHours: matchesTracked ? null : parsed });
+      }
+    } else {
+      onSave({ hours: parsed, billableHours: hasEntry && parsed > 0 ? (billableHours ?? null) : null });
+    }
     setEditing(false);
     onEditEnd?.();
   }
@@ -57,7 +83,10 @@ export default function TimeCell({ hours, billed, isBillable, isFuture, isToday,
     }
   }
 
-  const hasHours = hours > 0;
+  function handleReset(e) {
+    e.stopPropagation();
+    onResetBillable?.();
+  }
 
   return (
     <div
@@ -70,9 +99,10 @@ export default function TimeCell({ hours, billed, isBillable, isFuture, isToday,
       style={{
         background: editing ? 'var(--tb-input-bg)'
           : isToday ? 'var(--tb-cell-today)'
-          : hover ? 'var(--tb-cell-hover)' : 'var(--tb-cell-bg)',
+          : (hover && !lockedInBillable) ? 'var(--tb-cell-hover)' : 'var(--tb-cell-bg)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        minHeight: 44, cursor: 'pointer',
+        minHeight: 44,
+        cursor: lockedInBillable ? 'default' : 'pointer',
         position: 'relative',
         transition: 'background 0.1s',
       }}
@@ -92,11 +122,17 @@ export default function TimeCell({ hours, billed, isBillable, isFuture, isToday,
             color: clientColor, background: 'transparent', padding: '0 4px',
           }}
         />
-      ) : hasHours ? (
+      ) : lockedInBillable ? null : hasEntry ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-          <span style={{ fontSize: 13, fontWeight: 800, color: clientColor, letterSpacing: '-0.01em' }}>
-            {toHHMM(hours)}
-          </span>
+          {showDash ? (
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-faint)', letterSpacing: '-0.01em' }}>
+              —
+            </span>
+          ) : (
+            <span style={{ fontSize: 13, fontWeight: 800, color: clientColor, letterSpacing: '-0.01em' }}>
+              {toHHMM(displayValue)}
+            </span>
+          )}
           {isBillable && billed && (
             <span style={{ fontSize: 8, fontWeight: 800, color: '#3DB33D',
               border: '1px solid #3DB33D', padding: '0 3px', borderRadius: 2, lineHeight: 1.5 }}>
@@ -112,7 +148,27 @@ export default function TimeCell({ hours, billed, isBillable, isFuture, isToday,
           hh:mm
         </span>
       )}
-
+      {!editing && divergent && (
+        <DivergenceDot
+          tooltip={inBillableView
+            ? `Tracciate: ${toHHMM(hours)}`
+            : `Fatturabili: ${toHHMM(billable)}`}
+        />
+      )}
+      {!editing && hover && divergent && inBillableView && (
+        <button
+          onClick={handleReset}
+          title="Resetta override · usa il valore tracciato"
+          style={{
+            position: 'absolute', bottom: 2, left: 2,
+            background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border)',
+            fontSize: 9, padding: '0 4px', borderRadius: 3,
+            color: 'var(--tb-text-muted)', cursor: 'pointer', fontWeight: 700,
+            fontFamily: "'Open Sans', sans-serif", lineHeight: 1.5,
+          }}>
+          = {toHHMM(hours)}
+        </button>
+      )}
     </div>
   );
 }
