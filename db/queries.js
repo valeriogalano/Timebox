@@ -55,6 +55,15 @@ function hasProjectEntries(id) {
   return db.prepare('SELECT COUNT(*) as c FROM entries WHERE projectId = ?').get(id).c > 0;
 }
 
+function mergeBillable(aBillable, aHours, bBillable, bHours) {
+  const aSet = aBillable != null;
+  const bSet = bBillable != null;
+  if (!aSet && !bSet) return null;
+  const a = aSet ? aBillable : aHours;
+  const b = bSet ? bBillable : bHours;
+  return a + b;
+}
+
 function mergeProjectEntries(fromId, toId) {
   let count = 0;
   db.transaction(() => {
@@ -65,7 +74,8 @@ function mergeProjectEntries(fromId, toId) {
         'SELECT * FROM entries WHERE projectId = ? AND date = ? AND slot = ?'
       ).get(toId, e.date, e.slot);
       if (existing) {
-        db.prepare('UPDATE entries SET hours = ? WHERE id = ?').run(existing.hours + e.hours, existing.id);
+        const mergedBillable = mergeBillable(existing.billableHours, existing.hours, e.billableHours, e.hours);
+        db.prepare('UPDATE entries SET hours = ?, billableHours = ? WHERE id = ?').run(existing.hours + e.hours, mergedBillable, existing.id);
         db.prepare('DELETE FROM entries WHERE id = ?').run(e.id);
       } else {
         db.prepare('UPDATE entries SET projectId = ? WHERE id = ?').run(toId, e.id);
@@ -183,12 +193,13 @@ function getEntries(dateFrom, dateTo) {
 
 function saveEntry(entry) {
   db.prepare(`
-    INSERT INTO entries (id,projectId,date,hours,slot,billed)
-    VALUES (@id,@projectId,@date,@hours,@slot,@billed)
+    INSERT INTO entries (id,projectId,date,hours,billableHours,slot,billed)
+    VALUES (@id,@projectId,@date,@hours,@billableHours,@slot,@billed)
     ON CONFLICT(id) DO UPDATE SET
       projectId=excluded.projectId, date=excluded.date,
-      hours=excluded.hours, slot=excluded.slot, billed=excluded.billed
-  `).run({ ...entry, billed: entry.billed ? 1 : 0 });
+      hours=excluded.hours, billableHours=excluded.billableHours,
+      slot=excluded.slot, billed=excluded.billed
+  `).run({ billableHours: null, ...entry, billed: entry.billed ? 1 : 0 });
 }
 
 function deleteEntry(id) {
@@ -196,7 +207,7 @@ function deleteEntry(id) {
 }
 
 function normalizeEntry(row) {
-  return { ...row, billed: row.billed === 1 };
+  return { ...row, billed: row.billed === 1, billableHours: row.billableHours ?? null };
 }
 
 // ── Week Overrides ─────────────────────────────────────────────────────────────
@@ -313,7 +324,7 @@ function seedDemoData() {
   const insertClient    = db.prepare('INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position) VALUES (?,?,?,?,?,?,?,?,?)');
   const insertProject   = db.prepare('INSERT INTO projects (id,clientId,name,description,budgetHours,weeklyHours,position) VALUES (?,?,?,?,?,?,?)');
   const insertRecurring = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours,position) VALUES (?,?,?,?,?,?)');
-  const insertEntry     = db.prepare('INSERT INTO entries (id,projectId,date,hours,slot,billed) VALUES (?,?,?,?,?,?)');
+  const insertEntry     = db.prepare('INSERT INTO entries (id,projectId,date,hours,billableHours,slot,billed) VALUES (?,?,?,?,?,?,?)');
 
   const today = new Date();
   const prevMonday = new Date(today);
@@ -357,7 +368,7 @@ function seedDemoData() {
     for (const r of INIT_RECURRING)
       insertRecurring.run(r.id, r.clientId, r.slot, r.day, r.hours, r.position ?? 0);
     for (const e of getSeedEntries())
-      insertEntry.run(e.id, e.projectId, e.date, e.hours, e.slot, e.billed);
+      insertEntry.run(e.id, e.projectId, e.date, e.hours, e.billableHours ?? null, e.slot, e.billed);
     for (const { date, tasks } of todoistDays)
       db.prepare('INSERT OR REPLACE INTO todoist_cache (dateStr,tasksJson,syncedAt) VALUES (?,?,?)').run(date, JSON.stringify(tasks), now);
   })();

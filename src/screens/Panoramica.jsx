@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH } from '../utils';
+import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable } from '../utils';
 
 const COL_OVER  = '#E05252';
 const COL_UNDER = '#E8B339';
@@ -145,10 +145,17 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
     const periodEntries = entries.filter(e => e.date >= startStr && e.date <= endStr);
 
     const actualByClient = {};
-    clients.forEach(c => { actualByClient[c.id] = 0; });
+    const billableByClient = {};
+    clients.forEach(c => { actualByClient[c.id] = 0; billableByClient[c.id] = 0; });
     periodEntries.forEach(e => {
       const cid = projectClientMap[e.projectId];
-      if (cid != null) actualByClient[cid] = (actualByClient[cid] ?? 0) + e.hours;
+      if (cid != null) {
+        actualByClient[cid] = (actualByClient[cid] ?? 0) + e.hours;
+        const cli = clients.find(c => c.id === cid);
+        if (cli && isBillableClient(cli)) {
+          billableByClient[cid] = (billableByClient[cid] ?? 0) + effBillable(e);
+        }
+      }
     });
 
     const plannedByClient = plannedByClientEffective;
@@ -157,9 +164,9 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
     const totalDone = Object.values(actualByClient).reduce((s, v) => s + v, 0);
 
     const billable = clients.filter(isBillableClient);
-    const billedDoneEur     = billable.reduce((s, c) => s + (actualByClient[c.id] ?? 0) * c.rate, 0);
-    const projectionEur     = billable.reduce((s, c) => s + Math.max(actualByClient[c.id] ?? 0, plannedByClient[c.id] ?? 0) * c.rate, 0);
-    const billableDoneHours = billable.reduce((s, c) => s + (actualByClient[c.id] ?? 0), 0);
+    const billedDoneEur     = billable.reduce((s, c) => s + (billableByClient[c.id] ?? 0) * c.rate, 0);
+    const projectionEur     = billable.reduce((s, c) => s + Math.max(billableByClient[c.id] ?? 0, plannedByClient[c.id] ?? 0) * c.rate, 0);
+    const billableDoneHours = billable.reduce((s, c) => s + (billableByClient[c.id] ?? 0), 0);
 
     const actualByProject = {};
     projects.forEach(p => { actualByProject[p.id] = 0; });

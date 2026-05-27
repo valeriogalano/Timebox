@@ -44,6 +44,11 @@ export function toHHMM(hours) {
   return `${h}:${m.toString().padStart(2, '0')}`;
 }
 
+export function effBillable(entry) {
+  if (!entry) return 0;
+  return entry.billableHours ?? entry.hours;
+}
+
 export function parseHHMM(str) {
   if (!str || str.trim() === '') return 0;
   str = str.trim();

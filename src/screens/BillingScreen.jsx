@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getToday, MONTHS_IT, fmtH, fmt } from '../utils';
+import { getToday, MONTHS_IT, fmtH, fmt, effBillable } from '../utils';
 
 const QUARTER_LABELS = ['Q1 (Gen–Mar)', 'Q2 (Apr–Giu)', 'Q3 (Lug–Set)', 'Q4 (Ott–Dic)'];
 
@@ -79,12 +79,12 @@ export default function BillingScreen({ clients, projects, screen }) {
   const billableClients = clients.filter(c => c.billing !== 'none');
   const billablePids = new Set(projects.filter(p => billableClients.some(c => c.id === p.clientId)).map(p => p.id));
   const billableEntries = entries.filter(e => billablePids.has(e.projectId));
-  const grandTotalH = billableEntries.reduce((s, e) => s + e.hours, 0);
-  const grandUnbilledH = billableEntries.filter(e => !e.billed).reduce((s, e) => s + e.hours, 0);
+  const grandTotalH = billableEntries.reduce((s, e) => s + effBillable(e), 0);
+  const grandUnbilledH = billableEntries.filter(e => !e.billed).reduce((s, e) => s + effBillable(e), 0);
   const grandTotalEur = billableClients.reduce((s, client) => {
     if (client.billing !== 'hourly' || !client.rate) return s;
     const pids = projects.filter(p => p.clientId === client.id).map(p => p.id);
-    const h = entries.filter(e => pids.includes(e.projectId)).reduce((a, e) => a + e.hours, 0);
+    const h = entries.filter(e => pids.includes(e.projectId)).reduce((a, e) => a + effBillable(e), 0);
     return s + h * client.rate;
   }, 0);
 
@@ -134,7 +134,7 @@ export default function BillingScreen({ clients, projects, screen }) {
               €{(billableClients.reduce((s, c) => {
                 if (c.billing !== 'hourly' || !c.rate) return s;
                 const pids = projects.filter(p => p.clientId === c.id).map(p => p.id);
-                const h = billableEntries.filter(e => pids.includes(e.projectId) && !e.billed).reduce((a, e) => a + e.hours, 0);
+                const h = billableEntries.filter(e => pids.includes(e.projectId) && !e.billed).reduce((a, e) => a + effBillable(e), 0);
                 return s + h * c.rate;
               }, 0)).toFixed(0)}
             </div>
@@ -150,14 +150,14 @@ export default function BillingScreen({ clients, projects, screen }) {
               €{(billableClients.reduce((s, c) => {
                 if (c.billing !== 'hourly' || !c.rate) return s;
                 const pids = projects.filter(p => p.clientId === c.id).map(p => p.id);
-                const h = billableEntries.filter(e => pids.includes(e.projectId) && e.billed).reduce((a, e) => a + e.hours, 0);
+                const h = billableEntries.filter(e => pids.includes(e.projectId) && e.billed).reduce((a, e) => a + effBillable(e), 0);
                 return s + h * c.rate;
               }, 0)).toFixed(0)}
             </div>
           )}
         </Card>
         <Card>
-          <CardLabel>Totale ore</CardLabel>
+          <CardLabel>Fatturabili totali</CardLabel>
           <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
             {fmtH(grandTotalH)}
           </div>
@@ -176,8 +176,8 @@ export default function BillingScreen({ clients, projects, screen }) {
         const clientEntries = entries.filter(e => clientPids.includes(e.projectId));
         if (!clientEntries.length) return null;
 
-        const totalH    = clientEntries.reduce((s, e) => s + e.hours, 0);
-        const billedH   = clientEntries.filter(e => e.billed).reduce((s, e) => s + e.hours, 0);
+        const totalH    = clientEntries.reduce((s, e) => s + effBillable(e), 0);
+        const billedH   = clientEntries.filter(e => e.billed).reduce((s, e) => s + effBillable(e), 0);
         const unbilledH = totalH - billedH;
         const hourlyRate = client.billing === 'hourly' && client.rate ? client.rate : null;
         const unbilledEntries = clientEntries.filter(e => !e.billed);
@@ -217,8 +217,8 @@ export default function BillingScreen({ clients, projects, screen }) {
                 .sort((a, b) => a.date.localeCompare(b.date));
               if (!projectEntries.length) return null;
 
-              const projTotalH    = projectEntries.reduce((s, e) => s + e.hours, 0);
-              const projBilledH   = projectEntries.filter(e => e.billed).reduce((s, e) => s + e.hours, 0);
+              const projTotalH    = projectEntries.reduce((s, e) => s + effBillable(e), 0);
+              const projBilledH   = projectEntries.filter(e => e.billed).reduce((s, e) => s + effBillable(e), 0);
               const projUnbilledH = projTotalH - projBilledH;
               const projUnbilledEntries = projectEntries.filter(e => !e.billed);
               const isLastProject = pi === clientProjects.filter(p => clientEntries.some(e => e.projectId === p.id)).length - 1;
@@ -255,6 +255,8 @@ export default function BillingScreen({ clients, projects, screen }) {
                   {projectEntries.map((entry, i) => {
                     const isLast = i === projectEntries.length - 1;
                     const dateLabel = new Date(entry.date + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+                    const eff = effBillable(entry);
+                    const diverges = entry.billableHours != null && Math.abs(entry.billableHours - entry.hours) > 0.001;
                     return (
                       <div key={entry.id} style={{
                         padding: '7px 16px 7px 32px', display: 'flex', alignItems: 'center', gap: 10,
@@ -263,12 +265,17 @@ export default function BillingScreen({ clients, projects, screen }) {
                       }}>
                         <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', minWidth: 90 }}>{dateLabel}</span>
                         <span style={{ fontSize: 10, color: 'var(--tb-text-faint)', flex: 1 }}>{entry.slot?.toUpperCase()}</span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-primary)', minWidth: 40, textAlign: 'right' }}>
-                          {fmtH(entry.hours)}
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-primary)', minWidth: 60, textAlign: 'right', position: 'relative' }}
+                          title={diverges ? `Tracciate: ${fmtH(entry.hours)}` : undefined}>
+                          {fmtH(eff)}
+                          {diverges && <span style={{
+                            display: 'inline-block', width: 5, height: 5, borderRadius: '50%',
+                            background: '#E07B3A', marginLeft: 5, verticalAlign: 'middle',
+                          }} />}
                         </span>
                         {hourlyRate && (
                           <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', minWidth: 45, textAlign: 'right' }}>
-                            €{(entry.hours * hourlyRate).toFixed(0)}
+                            €{(eff * hourlyRate).toFixed(0)}
                           </span>
                         )}
                         <button

@@ -39,4 +39,17 @@ describe('getWeekData', () => {
     const data = getWeekData(new Date('2020-08-12T00:00:00'));
     assert.equal(data.total, 5);
   });
+
+  test('exposes totalBillable and per-day totalBillable', () => {
+    logHours({ projectName: 'website', hoursStr: '4', billableHoursStr: '3',
+      slot: 'am', date: '2020-09-07', add: false });
+    const data = getWeekData(new Date('2020-09-09T00:00:00'));
+    assert.ok('totalBillable' in data);
+    const monday = data.days[0];
+    assert.ok('totalBillable' in monday);
+    assert.equal(monday.total, 4);
+    assert.equal(monday.totalBillable, 3);
+    assert.equal(data.totalBillable, 3);
+    assert.equal(monday.entries[0].billableHours, 3);
+  });
 });

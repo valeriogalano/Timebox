@@ -152,6 +152,33 @@ describe('HTTP server', () => {
     assert.ok(body.project, 'has project');
   });
 
+  it('POST /log with billableHours → persists override', async () => {
+    const { status, body } = await post(port, '/log', {
+      project: 'website',
+      hours: '4',
+      billableHours: '3:30',
+      slot: 'am',
+      date: '2025-09-10',
+      add: false,
+    });
+    assert.equal(status, 200);
+    assert.equal(body.hours, 4);
+    assert.equal(body.billableHours, 3.5);
+  });
+
+  it('GET /today includes billableHours and totalBillable fields', async () => {
+    await post(port, '/log', {
+      project: 'brand', hours: '2', billableHours: '1', slot: 'pm', date: '2025-09-11', add: false,
+    });
+    const { status, body } = await get(port, '/today?date=2025-09-11');
+    assert.equal(status, 200);
+    assert.ok('totalBillable' in body, 'has totalBillable');
+    const entry = body.slots.pm[0];
+    assert.ok('billableHours' in entry, 'entry has billableHours');
+    assert.equal(entry.billableHours, 1);
+    assert.equal(body.totalBillable, 1);
+  });
+
   it('POST /log with unknown project → status 400', async () => {
     const { status, body } = await post(port, '/log', {
       project: 'NonexistentXYZ999',

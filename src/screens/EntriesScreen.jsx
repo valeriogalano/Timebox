@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getToday, fmt, fmtH, parseHHMM, toHHMM } from '../utils';
+import { getToday, fmt, fmtH, parseHHMM, toHHMM, effBillable } from '../utils';
 
 function defaultFrom() {
   const d = new Date(getToday().getFullYear(), getToday().getMonth(), 1);
@@ -35,9 +35,13 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
 
   function startEdit(entry) {
     setEditingId(entry.id);
+    const billableStr = entry.billableHours == null
+      ? (toHHMM(entry.hours) || String(entry.hours))
+      : (toHHMM(entry.billableHours) || String(entry.billableHours));
     setEditState({
       date: entry.date,
       hours: toHHMM(entry.hours) || String(entry.hours),
+      billable: billableStr,
       projectId: entry.projectId,
       billed: entry.billed,
     });
@@ -50,12 +54,21 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
       const p = projects.find(p2 => p2.id === editState.projectId);
       return p && c.id === p.clientId;
     });
+    const isBillableClient = entryClient?.billing !== 'none';
+    let billableValue = null;
+    if (isBillableClient) {
+      const parsedB = parseHHMM(editState.billable);
+      if (!isNaN(parsedB) && parsedB >= 0 && Math.abs(parsedB - parsed) > 0.001) {
+        billableValue = parsedB;
+      }
+    }
     const updated = {
       ...entry,
       date: editState.date,
       hours: parsed,
+      billableHours: billableValue,
       projectId: editState.projectId,
-      billed: entryClient?.billing !== 'none' ? editState.billed : false,
+      billed: isBillableClient ? editState.billed : false,
     };
     await window.api.saveEntry(updated);
     setEditingId(null);
@@ -118,6 +131,16 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
 
         <span style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginLeft: 4 }}>
           {filtered.length} entr{filtered.length === 1 ? 'y' : 'ies'} · {fmtH(filtered.reduce((s, e) => s + e.hours, 0))}
+          {(() => {
+            const totBill = filtered.reduce((s, e) => {
+              const cli = clientOf(e);
+              if (!cli || cli.billing === 'none') return s;
+              return s + effBillable(e);
+            }, 0);
+            const totTracked = filtered.reduce((s, e) => s + e.hours, 0);
+            if (Math.abs(totBill - totTracked) < 0.001) return null;
+            return <> · <span style={{ color: '#E07B3A' }}>{fmtH(totBill)} fatt.</span></>;
+          })()}
         </span>
       </div>
 
@@ -131,7 +154,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: 'var(--tb-table-header-bg, var(--tb-sidebar-bg))' }}>
-                {['Data', 'Area', 'Progetto', 'Ore', 'Fatturato', ''].map(h => (
+                {['Data', 'Area', 'Progetto', 'Ore', 'Fatturabili', 'Fatturato', ''].map(h => (
                   <th key={h} style={thStyle}>{h}</th>
                 ))}
               </tr>
@@ -209,6 +232,33 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
                             style={{ ...inputStyle, width: 70, textAlign: 'right' }} />
                         : fmtH(entry.hours)
                       }
+                    </td>
+
+                    {/* Billable hours */}
+                    <td style={{ ...tdStyle, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                      {client?.billing === 'none' ? (
+                        <span style={{ color: 'var(--tb-text-faint)' }}>—</span>
+                      ) : isEditing ? (
+                        <input value={editState.billable}
+                          onChange={e => setEditState(s => ({ ...s, billable: e.target.value }))}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') commitEdit(entry);
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                          style={{ ...inputStyle, width: 70, textAlign: 'right' }} />
+                      ) : (() => {
+                        const eff = effBillable(entry);
+                        const diverges = entry.billableHours != null && Math.abs(entry.billableHours - entry.hours) > 0.001;
+                        return (
+                          <span title={diverges ? `Tracciate: ${fmtH(entry.hours)}` : undefined}>
+                            {fmtH(eff)}
+                            {diverges && <span style={{
+                              display: 'inline-block', width: 5, height: 5, borderRadius: '50%',
+                              background: '#E07B3A', marginLeft: 5, verticalAlign: 'middle',
+                            }} />}
+                          </span>
+                        );
+                      })()}
                     </td>
 
                     {/* Billed */}

@@ -82,11 +82,12 @@ function createHttpServer() {
 
       if (req.method === 'POST' && p === '/log') {
         const body = await readBody(req);
-        const { project, hours, slot, date, add } = body;
+        const { project, hours, slot, date, add, billableHours } = body;
         if (!project || !hours) return json(res, 400, { error: 'project and hours are required' });
         const result = logHours({
           projectName: project,
           hoursStr: String(hours),
+          billableHoursStr: billableHours != null ? String(billableHours) : undefined,
           slot,
           date: date || fmt(getToday()),
           add: !!add,

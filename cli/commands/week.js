@@ -1,7 +1,7 @@
 'use strict';
 
 const { getEntries, getProjects, getClients } = require('../../db/queries');
-const { getMondayOfWeek, addDays, fmt } = require('../format');
+const { getMondayOfWeek, addDays, fmt, effBillable } = require('../format');
 
 function getWeekData(today, offset = 0) {
   const monday = getMondayOfWeek(today);
@@ -23,18 +23,24 @@ function getWeekData(today, offset = 0) {
       .map(e => {
         const project = projectMap[e.projectId];
         const client = project ? clientMap[project.clientId] : null;
+        const isBillable = client && client.billing !== 'none';
         return {
           hours: e.hours,
+          billableHours: e.billableHours ?? null,
           project: project?.name || e.projectId,
           client: client?.name || '?',
+          isBillable,
           slot: e.slot,
         };
       });
+    const total = dayEntries.reduce((s, e) => s + e.hours, 0);
+    const totalBillable = dayEntries.reduce((s, e) => s + (e.isBillable ? effBillable(e) : 0), 0);
     days.push({
       date: dateStr,
       day,
       entries: dayEntries,
-      total: dayEntries.reduce((s, e) => s + e.hours, 0),
+      total,
+      totalBillable,
     });
   }
 
@@ -43,6 +49,7 @@ function getWeekData(today, offset = 0) {
     friday,
     days,
     total: days.reduce((s, d) => s + d.total, 0),
+    totalBillable: days.reduce((s, d) => s + d.totalBillable, 0),
   };
 }
 

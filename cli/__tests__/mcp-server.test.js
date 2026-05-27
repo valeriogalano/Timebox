@@ -136,6 +136,16 @@ describe('MCP server', () => {
     assert.ok(!res.result.isError, 'not an error');
   });
 
+  it('tools/call log_hours with billable_hours → persists override and renders divergence', async () => {
+    const res = await rpc(mcp, msg('tools/call', {
+      name: 'log_hours',
+      arguments: { project: 'website', hours: '4', billable_hours: '3', date: '2025-08-15' },
+    }));
+    assert.ok(!res.result.isError, 'not an error');
+    const text = res.result.content[0].text;
+    assert.ok(text.includes('fatt.'), `expected text to mention 'fatt.' but got: ${text}`);
+  });
+
   it('tools/call log_hours with unknown project → isError true', async () => {
     const res = await rpc(mcp, msg('tools/call', {
       name: 'log_hours',

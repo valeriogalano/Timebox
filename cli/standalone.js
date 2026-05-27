@@ -8,6 +8,11 @@ const BASE = `http://127.0.0.1:${PORT}`;
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+function fmtHB(hours, billable) {
+  if (billable == null || Math.abs(billable - hours) < 0.001) return fmtH(hours);
+  return `${fmtH(hours)} (${fmtH(billable)} fatt.)`;
+}
+
 function fmtH(h) {
   if (h === 0) return '0h';
   const neg = h < 0;
@@ -115,10 +120,11 @@ async function cmdToday(flags) {
     const entries = d.slots[slot];
     if (!entries.length) continue;
     console.log(`\n  ${slot.toUpperCase()}`);
-    for (const e of entries) console.log(`    ${col(e.project, 30)} ${fmtH(e.hours)}`);
+    for (const e of entries) console.log(`    ${col(e.project, 30)} ${fmtHB(e.hours, e.isBillable ? e.billableHours : null)}`);
   }
   const total = (d.amTotal || 0) + (d.pmTotal || 0);
-  console.log(`\n  Total: ${fmtH(total)}\n`);
+  const totalBill = d.totalBillable != null && Math.abs(d.totalBillable - total) > 0.001 ? d.totalBillable : null;
+  console.log(`\n  Total: ${fmtHB(total, totalBill)}\n`);
 }
 
 async function cmdWeek(flags) {
@@ -127,14 +133,20 @@ async function cmdWeek(flags) {
   if (flags.json) { console.log(JSON.stringify(d)); return; }
 
   console.log(`\nWeek ${d.monday} – ${d.friday}\n`);
-  const rows = d.days.map(day => ({
-    Day: day.label || day.day,
-    AM: fmtH(day.amTotal || 0),
-    PM: fmtH(day.pmTotal || 0),
-    Total: fmtH(day.total || 0),
-  }));
+  const rows = d.days.map(day => {
+    const tot = day.total || 0;
+    const totBill = day.totalBillable != null && Math.abs(day.totalBillable - tot) > 0.001 ? day.totalBillable : null;
+    return {
+      Day: day.label || day.day,
+      AM: fmtH(day.amTotal || 0),
+      PM: fmtH(day.pmTotal || 0),
+      Total: fmtHB(tot, totBill),
+    };
+  });
   printTable(rows);
-  console.log(`\n  Week total: ${fmtH(d.total || 0)}\n`);
+  const tot = d.total || 0;
+  const totBill = d.totalBillable != null && Math.abs(d.totalBillable - tot) > 0.001 ? d.totalBillable : null;
+  console.log(`\n  Week total: ${fmtHB(tot, totBill)}\n`);
 }
 
 async function cmdProjects(flags) {
@@ -175,8 +187,10 @@ async function cmdStatus(flags) {
   const d = await request('/status');
   if (flags.json) { console.log(JSON.stringify(d)); return; }
 
-  console.log(`\nToday (${d.today}): ${fmtH(d.todayTotal || 0)}`);
-  console.log(`This week:   ${fmtH(d.weekTotal || 0)}`);
+  const tBill = d.todayBillable != null && Math.abs(d.todayBillable - (d.todayTotal || 0)) > 0.001 ? d.todayBillable : null;
+  const wBill = d.weekBillable != null && Math.abs(d.weekBillable - (d.weekTotal || 0)) > 0.001 ? d.weekBillable : null;
+  console.log(`\nToday (${d.today}): ${fmtHB(d.todayTotal || 0, tBill)}`);
+  console.log(`This week:   ${fmtHB(d.weekTotal || 0, wBill)}`);
   if (d.alerts && d.alerts.length) {
     console.log('\nAlerts:');
     for (const a of d.alerts) console.log(`  ⚠  ${a}`);
@@ -187,12 +201,13 @@ async function cmdStatus(flags) {
 async function cmdLog(positional, flags) {
   const [, project, hoursStr] = positional;
   if (!project || !hoursStr) {
-    console.error('Usage: timebox log <project> <hours> [--slot am|pm] [--date YYYY-MM-DD] [--add]');
+    console.error('Usage: timebox log <project> <hours> [--billable HH:MM] [--slot am|pm] [--date YYYY-MM-DD] [--add]');
     process.exit(1);
   }
   const body = {
     project,
     hours: hoursStr,
+    billableHours: flags.billable || undefined,
     slot: flags.slot || undefined,
     date: flags.date || undefined,
     add: !!flags.add,
@@ -201,7 +216,7 @@ async function cmdLog(positional, flags) {
   if (flags.json) { console.log(JSON.stringify(d)); return; }
 
   const action = d.action === 'deleted' ? 'Deleted' : d.action === 'updated' ? 'Updated' : 'Logged';
-  console.log(`\n  ${action}: ${fmtH(d.hours || 0)} on ${d.project} (${d.date}, ${d.slot || 'am'})\n`);
+  console.log(`\n  ${action}: ${fmtHB(d.hours || 0, d.billableHours ?? null)} on ${d.project} (${d.date}, ${d.slot || 'am'})\n`);
 }
 
 function cmdHelp() {
@@ -222,6 +237,7 @@ Options (log):
   --slot am|pm      Time slot (default: am)
   --date YYYY-MM-DD Date (default: today)
   --add             Add to existing hours instead of replacing
+  --billable HH     Billable hours override (e.g. "3:30"). Only applies to billable areas.
 
 Options (week):
   --offset N        Week offset (e.g. -1 = last week)

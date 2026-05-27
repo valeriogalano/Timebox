@@ -6,6 +6,11 @@ const readline = require('node:readline');
 
 const PORT = parseInt(process.env.TIMEBOX_PORT || '37373', 10);
 
+function fmtBillable(hours, billableHours) {
+  if (billableHours == null || Math.abs(billableHours - hours) < 0.001) return `${hours}h`;
+  return `${hours}h (${billableHours}h fatt.)`;
+}
+
 // ── HTTP client ───────────────────────────────────────────────────────────────
 
 function httpRequest(path, method = 'GET', body = null) {
@@ -111,6 +116,7 @@ const TOOLS = [
       properties: {
         project: { type: 'string', description: 'Project name (partial match, must be unambiguous)' },
         hours: { type: 'string', description: 'Hours to log — "2", "2.5", or "2:30"' },
+        billable_hours: { type: 'string', description: 'Billable hours override (optional). Same format as hours. Defaults to identical to hours.' },
         slot: { type: 'string', enum: ['am', 'pm'], description: 'Time slot (default: am)' },
         date: { type: 'string', description: 'Date in YYYY-MM-DD format (default: today)' },
         add: { type: 'boolean', description: 'Add to existing hours instead of replacing (default: false)' },
@@ -241,10 +247,11 @@ async function callTool(name, args) {
       const entries = d.slots[slot];
       if (!entries.length) continue;
       lines.push(`${slot.toUpperCase()}:`);
-      for (const e of entries) lines.push(`  ${e.project}: ${e.hours}h`);
+      for (const e of entries) lines.push(`  ${e.project}: ${fmtBillable(e.hours, e.billableHours)}`);
     }
     const total = (d.amTotal || 0) + (d.pmTotal || 0);
-    lines.push(`\nTotal: ${total}h`);
+    const totalBillable = d.totalBillable ?? null;
+    lines.push(`\nTotal: ${fmtBillable(total, totalBillable !== null && Math.abs(totalBillable - total) > 0.001 ? totalBillable : null)}`);
     return lines.join('\n');
   }
 
@@ -254,9 +261,17 @@ async function callTool(name, args) {
     const lines = [`Week ${d.monday} – ${d.friday}\n`];
     for (const day of d.days) {
       const label = day.label || day.day;
-      lines.push(`  ${label}: ${day.total || 0}h  (AM: ${day.amTotal || 0}h, PM: ${day.pmTotal || 0}h)`);
+      const total = day.total || 0;
+      const totalBill = day.totalBillable ?? null;
+      const billLabel = totalBill != null && Math.abs(totalBill - total) > 0.001
+        ? ` (${totalBill}h fatt.)`
+        : '';
+      lines.push(`  ${label}: ${total}h${billLabel}`);
     }
-    lines.push(`\nTotal: ${d.total || 0}h`);
+    const total = d.total || 0;
+    const totBill = d.totalBillable ?? null;
+    const billPart = totBill != null && Math.abs(totBill - total) > 0.001 ? ` (${totBill}h fatt.)` : '';
+    lines.push(`\nTotal: ${total}h${billPart}`);
     return lines.join('\n');
   }
 
@@ -290,9 +305,13 @@ async function callTool(name, args) {
 
   if (name === 'status') {
     const d = await httpRequest('/status');
+    const todayBill = d.todayBillable != null && Math.abs(d.todayBillable - (d.todayTotal || 0)) > 0.001
+      ? ` (${d.todayBillable}h fatt.)` : '';
+    const weekBill = d.weekBillable != null && Math.abs(d.weekBillable - (d.weekTotal || 0)) > 0.001
+      ? ` (${d.weekBillable}h fatt.)` : '';
     const lines = [
-      `Today (${d.today}): ${d.todayTotal || 0}h`,
-      `This week: ${d.weekTotal || 0}h`,
+      `Today (${d.today}): ${d.todayTotal || 0}h${todayBill}`,
+      `This week: ${d.weekTotal || 0}h${weekBill}`,
     ];
     if (d.alerts?.length) {
       lines.push('\nAlerts:');
@@ -311,8 +330,11 @@ async function callTool(name, args) {
       date: args.date || undefined,
       add: !!args.add,
     };
+    if (args.billable_hours != null) body.billableHours = String(args.billable_hours);
     const d = await httpRequest('/log', 'POST', body);
-    return `${d.action}: ${d.hours}h on "${d.project}" (${d.date}, ${d.slot || 'am'})`;
+    const billPart = d.billableHours != null && Math.abs(d.billableHours - d.hours) > 0.001
+      ? ` (${d.billableHours}h fatt.)` : '';
+    return `${d.action}: ${d.hours}h${billPart} on "${d.project}" (${d.date}, ${d.slot || 'am'})`;
   }
 
   if (name === 'find_client') {

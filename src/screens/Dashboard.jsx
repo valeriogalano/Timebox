@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getToday, MONTHS_IT, getMondayOfWeek, fmtH } from '../utils';
+import { getToday, MONTHS_IT, getMondayOfWeek, fmtH, effBillable } from '../utils';
 
 export default function Dashboard({ clients, projects, screen }) {
   const [entries, setEntries] = useState([]);
@@ -26,8 +26,9 @@ export default function Dashboard({ clients, projects, screen }) {
     const all       = entries.filter(e => pids.includes(e.projectId));
     const week      = all.filter(e => new Date(e.date) >= startOfWeek);
     const month     = all.filter(e => new Date(e.date) >= startOfMonth);
-    const billedH   = all.filter(e => e.billed).reduce((s, e) => s + e.hours, 0);
-    const unbilledH = all.filter(e => !e.billed).reduce((s, e) => s + e.hours, 0);
+    const isBillable = client.billing !== 'none';
+    const billedH   = isBillable ? all.filter(e => e.billed).reduce((s, e) => s + effBillable(e), 0) : 0;
+    const unbilledH = isBillable ? all.filter(e => !e.billed).reduce((s, e) => s + effBillable(e), 0) : 0;
     const weekH     = week.reduce((s, e) => s + e.hours, 0);
     const monthH    = month.reduce((s, e) => s + e.hours, 0);
     const usedH     = client.limitType === 'weekly' ? weekH : monthH;

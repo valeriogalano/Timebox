@@ -30,9 +30,10 @@ function findProject(name) {
   return { project, client: clientMap[project.clientId] };
 }
 
-function logHours({ projectName, hoursStr, slot, date, add }) {
+function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) {
   const { project, client } = findProject(projectName);
   const parsed = parseHours(hoursStr);
+  const isBillable = client.billing !== 'none';
 
   const entries = getEntries(date, date);
   const existing = entries.find(e => e.projectId === project.id);
@@ -46,12 +47,21 @@ function logHours({ projectName, hoursStr, slot, date, add }) {
     return { action: 'noop', client: client.name, project: project.name, date };
   }
 
+  let billableHours = existing?.billableHours ?? null;
+  if (isBillable && billableHoursStr != null) {
+    const parsedB = parseHours(billableHoursStr);
+    billableHours = Math.abs(parsedB - newHours) < 0.001 ? null : parsedB;
+  } else if (!isBillable) {
+    billableHours = null;
+  }
+
   const resolvedSlot = slot || (new Date().getHours() < 12 ? 'am' : 'pm');
   saveEntry({
     id: existing?.id || randomUUID(),
     projectId: project.id,
     date,
     hours: newHours,
+    billableHours,
     slot: resolvedSlot,
     billed: existing?.billed || false,
   });
@@ -61,6 +71,7 @@ function logHours({ projectName, hoursStr, slot, date, add }) {
     client: client.name,
     project: project.name,
     hours: newHours,
+    billableHours,
     date,
     slot: resolvedSlot,
   };
