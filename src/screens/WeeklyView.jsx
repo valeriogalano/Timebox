@@ -66,6 +66,20 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   }, []);
 
   useEffect(() => {
+    function onViewModeShortcut(e) {
+      if (!e.metaKey || !e.shiftKey || e.key.toLowerCase() !== 'b') return;
+      e.preventDefault();
+      setViewMode(v => {
+        const next = v === 'tracked' ? 'billable' : 'tracked';
+        localStorage.setItem('timebox-timesheet-view', next);
+        return next;
+      });
+    }
+    document.addEventListener('keydown', onViewModeShortcut);
+    return () => document.removeEventListener('keydown', onViewModeShortcut);
+  }, []);
+
+  useEffect(() => {
     if (!autoFocusProject) return;
     requestAnimationFrame(() => {
       const cell = document.querySelector(`[data-timecell][data-today][data-project="${autoFocusProject}"]`);
@@ -1033,7 +1047,8 @@ function ViewModeToggle({ value, onChange }) {
   ];
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-faint)', letterSpacing: '0.04em' }}>
+      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-faint)', letterSpacing: '0.04em' }}
+            title="Alterna tra Tracciate e Fatturabili · ⌘⇧B">
         Vista timesheet:
       </span>
       <div style={{
