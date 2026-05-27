@@ -161,11 +161,28 @@ export default function App() {
     );
   }
 
-  function handleQuickLogSelect(projectId) {
+  function handleQuickLogSelect(projectId, addHours) {
     setQuickLogOpen(false);
-    setScreen('weekly');
-    setWeekOffset(0);
-    setAutoFocusProject(projectId);
+    if (addHours == null) {
+      setScreen('weekly');
+      setWeekOffset(0);
+      setAutoFocusProject(projectId);
+      return;
+    }
+    addHoursToToday(projectId, addHours);
+  }
+
+  async function addHoursToToday(projectId, addHours) {
+    const today = fmt(getToday());
+    const entries = await window.api.getEntries(today, today);
+    const existing = entries.find(e => e.projectId === projectId);
+    const newHours = (existing?.hours || 0) + addHours;
+    const slot = existing?.slot || (new Date().getHours() < 12 ? 'am' : 'pm');
+    const entry = existing
+      ? { ...existing, hours: newHours }
+      : { id: crypto.randomUUID(), projectId, date: today, hours: newHours, billableHours: null, slot, billed: false };
+    await window.api.saveEntry(entry);
+    setWeekRefreshTick(t => t + 1);
   }
 
   return (
