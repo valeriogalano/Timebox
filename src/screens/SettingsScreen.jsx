@@ -148,6 +148,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
                 ['⌘ 1–8', 'Naviga alle schermate in ordine sidebar'],
                 ['⌘ ⇧ H', 'Nascondi / mostra progetti senza ore (Timesheet)'],
                 ['⌘ ⇧ V', 'Alterna vista Tracciate / Fatturabili (Timesheet)'],
+                ['?',      'Mostra / nasconde l\'overlay delle scorciatorie'],
               ].map(([keys, desc], i, arr) => (
                 <tr key={i} style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--tb-border-soft)' : 'none' }}>
                   <td style={{ padding: '9px 12px 9px 0', width: 90, whiteSpace: 'nowrap' }}>

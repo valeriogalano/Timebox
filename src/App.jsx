@@ -47,6 +47,7 @@ export default function App() {
     try { return localStorage.getItem('timebox-sidebar-collapsed') === 'true'; } catch { return false; }
   });
   const [quickLogOpen, setQuickLogOpen] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [autoFocusProject, setAutoFocusProject] = useState(null);
   const refreshSidebar = useCallback(() => setSidebarKey(k => k + 1), []);
 
@@ -149,6 +150,18 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [screen, toggleSidebar]);
 
+  useEffect(() => {
+    function onHelpKey(e) {
+      if (e.key !== '?') return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      e.preventDefault();
+      setShowHelp(v => !v);
+    }
+    document.addEventListener('keydown', onHelpKey);
+    return () => document.removeEventListener('keydown', onHelpKey);
+  }, []);
+
   const topbarDate = getToday().toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
   if (loading) {
@@ -195,6 +208,7 @@ export default function App() {
           onClose={() => setQuickLogOpen(false)}
         />
       )}
+      {showHelp && <KeyboardHelp onClose={() => setShowHelp(false)} />}
 
       {/* ── Sidebar ─────────────────────────────────────────────── */}
       <div style={{
@@ -343,6 +357,71 @@ export default function App() {
           {screen === 'todoist-log' && <TodoistLog clients={clients} projects={projects} />}
           {screen === 'settings' && <SettingsScreen theme={theme} setTheme={setTheme} onDataChange={refreshData} />}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function KeyboardHelp({ onClose }) {
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'Escape' || e.key === '?') { e.preventDefault(); onClose(); }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const shortcuts = [
+    ['⌘ L',     'Apre il QuickLog'],
+    ['⌘ T',     'Timesheet della settimana corrente'],
+    ['⌘ ← / →', 'Settimana precedente / successiva'],
+    ['⌘ B',     'Espande / riduce la sidebar'],
+    ['⌘ ,',     'Impostazioni'],
+    ['⌘ 1–8',   'Naviga alle schermate in ordine sidebar'],
+    ['⌘ ⇧ H',  'Nascondi / mostra vuoti nel Timesheet'],
+    ['⌘ ⇧ V',  'Alterna vista Tracciate / Fatturabili'],
+    ['?',        'Mostra / nasconde questa guida'],
+  ];
+
+  const kbd = txt => (
+    <kbd style={{
+      fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
+      background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)',
+      borderRadius: 4, padding: '2px 6px', color: 'var(--tb-text-primary)',
+    }}>{txt}</kbd>
+  );
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,0.55)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--tb-panel-bg)', borderRadius: 12,
+        border: '1px solid var(--tb-border)',
+        width: 460, overflow: 'hidden',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+      }}>
+        <div style={{
+          padding: '14px 20px', borderBottom: '1px solid var(--tb-border-soft)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
+            Scorciatorie da tastiera
+          </span>
+          {kbd('Esc')}
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <tbody>
+            {shortcuts.map(([keys, desc], i) => (
+              <tr key={i} style={{ borderBottom: i < shortcuts.length - 1 ? '1px solid var(--tb-border-soft)' : 'none' }}>
+                <td style={{ padding: '9px 12px 9px 20px', width: 120, whiteSpace: 'nowrap' }}>{kbd(keys)}</td>
+                <td style={{ padding: '9px 20px 9px 0', fontSize: 11, color: 'var(--tb-text-secondary)' }}>{desc}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
