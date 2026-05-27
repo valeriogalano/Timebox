@@ -133,7 +133,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
       <Section title="Scorciatorie da tastiera">
         <div style={{ padding: '16px 20px' }}>
           <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginBottom: 14 }}>
-            Tutte le scorciatorie usano il tasto <kbd style={{ fontFamily: 'monospace', fontSize: 11, background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)', borderRadius: 4, padding: '1px 5px' }}>⌘</kbd> come modificatore.
+            Tutte le scorciatorie usano <kbd style={{ fontFamily: 'monospace', fontSize: 11, background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)', borderRadius: 4, padding: '1px 5px' }}>⌘</kbd> come modificatore (alcune anche <kbd style={{ fontFamily: 'monospace', fontSize: 11, background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)', borderRadius: 4, padding: '1px 5px' }}>⇧</kbd>).
             Non sono attive quando un campo di testo è in focus.
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -147,8 +147,9 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
                 ['⌘ ,', 'Apre le Impostazioni'],
                 ['⌘ 1–8', 'Naviga alle schermate in ordine sidebar'],
                 ['⌘ ⇧ H', 'Nascondi / mostra progetti senza ore (Timesheet)'],
-              ].map(([keys, desc], i) => (
-                <tr key={i} style={{ borderBottom: i < 7 ? '1px solid var(--tb-border-soft)' : 'none' }}>
+                ['⌘ ⇧ B', 'Alterna vista Tracciate / Fatturabili (Timesheet)'],
+              ].map(([keys, desc], i, arr) => (
+                <tr key={i} style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--tb-border-soft)' : 'none' }}>
                   <td style={{ padding: '9px 12px 9px 0', width: 90, whiteSpace: 'nowrap' }}>
                     <kbd style={{
                       fontFamily: 'monospace', fontSize: 11,
