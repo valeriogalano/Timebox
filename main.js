@@ -367,6 +367,21 @@ function setupIpc() {
       return dt && dt.getHours() < 13 ? 'am' : 'pm';
     }
 
+    function numericOrder(value, fallback = Number.MAX_SAFE_INTEGER) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    function todoistTaskOrder(a, b) {
+      const byDayOrder = numericOrder(a.dayOrder) - numericOrder(b.dayOrder);
+      if (byDayOrder !== 0) return byDayOrder;
+
+      const byChildOrder = numericOrder(a.childOrder ?? a.order) - numericOrder(b.childOrder ?? b.order);
+      if (byChildOrder !== 0) return byChildOrder;
+
+      return String(a.id).localeCompare(String(b.id));
+    }
+
     const byDate = {};
     for (const t of openTasks) {
       const date = t.due?.date?.slice(0, 10) ?? null;
@@ -378,9 +393,19 @@ function setupIpc() {
       const hours = parseDurationHours(t.duration);
       if (!hours) continue;
       if (!byDate[date]) byDate[date] = [];
-      byDate[date].push({ id: t.id, projectId: proj.id, content: t.content ?? '', hours, slot: taskSlot(t.due), order: t.order ?? 0, completed: false });
+      byDate[date].push({
+        id: t.id,
+        projectId: proj.id,
+        content: t.content ?? '',
+        hours,
+        slot: taskSlot(t.due),
+        dayOrder: t.day_order ?? null,
+        childOrder: t.child_order ?? null,
+        order: t.order ?? null,
+        completed: false,
+      });
     }
-    for (const date of Object.keys(byDate)) byDate[date].sort((a, b) => a.order - b.order);
+    for (const date of Object.keys(byDate)) byDate[date].sort(todoistTaskOrder);
     logger.info('todoist:sync byDate', { dates: Object.keys(byDate), counts: Object.fromEntries(Object.entries(byDate).map(([d, ts]) => [d, ts.length])) });
     return { byDate };
   });
