@@ -918,10 +918,8 @@ function ProjectLabel({ project, client, alertColor, rowActive, topBorder, proje
   const labelRef = useRef();
   const weekH = weekProjectHours[project.id] ?? 0;
   const totalH = projectTotals[project.id] ?? 0;
-  const hasTooltip = !!(project.description || project.budgetHours > 0 || project.weeklyHours > 0);
 
   function handleMouseEnter() {
-    if (!hasTooltip) return;
     const rect = labelRef.current?.getBoundingClientRect();
     if (rect) setTooltipPos({ x: rect.right + 8, y: rect.top + rect.height / 2 });
   }
