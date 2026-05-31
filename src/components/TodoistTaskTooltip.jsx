@@ -12,10 +12,19 @@ export default function TodoistTaskTooltip({ anchorRef, tasks, color }) {
     const rect = anchor.getBoundingClientRect();
     const width = 240;
     const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-    const top = rect.top > 120 ? rect.top - 8 : rect.bottom + 8;
-    const transform = rect.top > 120 ? 'translateY(-100%)' : 'none';
+    const spaceAbove = rect.top - 16;
+    const spaceBelow = window.innerHeight - rect.bottom - 16;
+    const showAbove = spaceAbove > spaceBelow && spaceAbove >= 80;
+    const maxHeight = Math.max(80, Math.floor(showAbove ? spaceAbove : spaceBelow));
 
-    setPos({ left, top, width, transform });
+    setPos({
+      left,
+      width,
+      maxHeight,
+      ...(showAbove
+        ? { bottom: window.innerHeight - rect.top + 8 }
+        : { top: rect.bottom + 8 }),
+    });
   }, [anchorRef, tasks]);
 
   if (!pos) return null;
@@ -25,8 +34,9 @@ export default function TodoistTaskTooltip({ anchorRef, tasks, color }) {
       position: 'fixed',
       left: pos.left,
       top: pos.top,
+      bottom: pos.bottom,
       width: pos.width,
-      transform: pos.transform,
+      maxHeight: pos.maxHeight,
       background: 'var(--tb-panel-bg)',
       border: '1px solid var(--tb-border-mid)',
       borderRadius: 6,
@@ -36,6 +46,7 @@ export default function TodoistTaskTooltip({ anchorRef, tasks, color }) {
       display: 'flex',
       flexDirection: 'column',
       gap: 5,
+      overflowY: 'auto',
       pointerEvents: 'none',
     }}>
       {tasks.map(t => (
