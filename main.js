@@ -368,6 +368,7 @@ function setupIpc() {
     }
 
     function numericOrder(value, fallback = Number.MAX_SAFE_INTEGER) {
+      if (value === null || value === undefined || value === '') return fallback;
       const n = Number(value);
       return Number.isFinite(n) ? n : fallback;
     }
