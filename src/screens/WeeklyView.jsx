@@ -54,6 +54,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   useEffect(() => {
     function onHideShortcut(e) {
       if (!e.metaKey || !e.shiftKey || e.key.toLowerCase() !== 'h') return;
+      if (document.activeElement?.closest('input, textarea, [contenteditable="true"]')) return;
       e.preventDefault();
       setHideEmpty(v => {
         const next = !v;
@@ -68,6 +69,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   useEffect(() => {
     function onViewModeShortcut(e) {
       if (!e.metaKey || !e.shiftKey || e.key.toLowerCase() !== 'v') return;
+      if (document.activeElement?.closest('input, textarea, [contenteditable="true"]')) return;
       e.preventDefault();
       setViewMode(v => {
         const next = v === 'tracked' ? 'billable' : 'tracked';

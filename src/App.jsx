@@ -111,36 +111,43 @@ export default function App() {
     function onKeyDown(e) {
       if (!e.metaKey) return;
       const tag = document.activeElement?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') document.activeElement.blur();
+      const blurActiveInput = () => {
+        if (tag === 'INPUT' || tag === 'TEXTAREA') document.activeElement.blur();
+      };
 
       switch (e.key) {
         case 'l':
           e.preventDefault();
+          blurActiveInput();
           setQuickLogOpen(o => !o);
           break;
         case 't':
           e.preventDefault();
+          blurActiveInput();
           setScreen('weekly');
           setWeekOffset(0);
           break;
         case 'ArrowLeft':
-          if (screen === 'weekly') { e.preventDefault(); setWeekOffset(o => o - 1); }
+          if (screen === 'weekly') { e.preventDefault(); blurActiveInput(); setWeekOffset(o => o - 1); }
           break;
         case 'ArrowRight':
-          if (screen === 'weekly') { e.preventDefault(); setWeekOffset(o => o + 1); }
+          if (screen === 'weekly') { e.preventDefault(); blurActiveInput(); setWeekOffset(o => o + 1); }
           break;
         case 'b':
           e.preventDefault();
+          blurActiveInput();
           toggleSidebar();
           break;
         case ',':
           e.preventDefault();
+          blurActiveInput();
           setScreen('settings');
           break;
         default: {
           const idx = parseInt(e.key, 10) - 1;
           if (!isNaN(idx) && idx >= 0 && idx < NAV_ITEMS.length) {
             e.preventDefault();
+            blurActiveInput();
             setScreen(NAV_ITEMS[idx].id);
           }
         }
