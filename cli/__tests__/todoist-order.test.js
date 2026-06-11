@@ -2,7 +2,7 @@
 
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
-const { numericOrder, todoistTaskOrder } = require('../../lib/todoist-order');
+const { numericOrder, timedOrder, todoistTaskOrder } = require('../../lib/todoist-order');
 
 describe('todoistTaskOrder', () => {
   test('sorts by Todoist day order first', () => {
@@ -12,6 +12,15 @@ describe('todoistTaskOrder', () => {
     ];
 
     assert.deepEqual(tasks.sort(todoistTaskOrder).map(t => t.id), ['early', 'late']);
+  });
+
+  test('sorts timed tasks by due time before Todoist day order', () => {
+    const tasks = [
+      { id: 'db', dueDate: '2026-06-12T11:45:00', dayOrder: 10, childOrder: 1 },
+      { id: 'sstat', dueDate: '2026-06-12T11:15:00', dayOrder: 20, childOrder: 1 },
+    ];
+
+    assert.deepEqual(tasks.sort(todoistTaskOrder).map(t => t.id), ['sstat', 'db']);
   });
 
   test('falls back to child order when day order is equal', () => {
@@ -39,5 +48,12 @@ describe('todoistTaskOrder', () => {
     assert.equal(numericOrder(''), Number.MAX_SAFE_INTEGER);
     assert.equal(numericOrder('nope'), Number.MAX_SAFE_INTEGER);
     assert.equal(numericOrder('0'), 0);
+  });
+
+  test('treats all-day or invalid due dates as untimed', () => {
+    assert.equal(timedOrder(null), Number.MAX_SAFE_INTEGER);
+    assert.equal(timedOrder('2026-06-12'), Number.MAX_SAFE_INTEGER);
+    assert.equal(timedOrder('not-a-date'), Number.MAX_SAFE_INTEGER);
+    assert.ok(timedOrder('2026-06-12T11:15:00') < Number.MAX_SAFE_INTEGER);
   });
 });

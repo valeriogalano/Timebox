@@ -385,6 +385,7 @@ function setupIpc() {
         content: t.content ?? '',
         hours,
         slot: taskSlot(t.due),
+        dueDate: t.due?.date ?? null,
         dayOrder: t.day_order ?? null,
         childOrder: t.child_order ?? null,
         order: t.order ?? null,
