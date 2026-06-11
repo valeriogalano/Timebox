@@ -37,6 +37,11 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     localStorage.setItem('timebox-timesheet-view', next);
   }
 
+  function startEditingProject(projectId) {
+    setEditingProject(projectId);
+    setRevealedProject(current => current && current !== projectId ? null : current);
+  }
+
   useEffect(() => {
     function onGlobalTab(e) {
       if (e.key !== 'Tab') return;
@@ -813,7 +818,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                           viewMode={viewMode}
                           onSave={payload => saveEntry(project.id, d.dateStr, payload, entry?.slot)}
                           onResetBillable={() => resetBillable(project.id, d.dateStr)}
-                          onEditStart={() => setEditingProject(project.id)}
+                          onEditStart={() => startEditingProject(project.id)}
                           onEditEnd={() => setEditingProject(null)} />
                       </div>
                     );
