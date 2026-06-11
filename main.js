@@ -5,6 +5,7 @@ const { execFile } = require('child_process');
 const { initDb } = require('./db/schema');
 const q = require('./db/queries');
 const { createHttpServer } = require('./cli/http-server');
+const { todoistTaskOrder } = require('./lib/todoist-order');
 
 function getAppIcon() {
   const img = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'));
@@ -365,21 +366,6 @@ function setupIpc() {
       if (!due?.date) return 'am';
       const dt = due.date.length > 10 ? new Date(due.date) : null;
       return dt && dt.getHours() < 13 ? 'am' : 'pm';
-    }
-
-    function numericOrder(value, fallback = Number.MAX_SAFE_INTEGER) {
-      const n = Number(value);
-      return Number.isFinite(n) ? n : fallback;
-    }
-
-    function todoistTaskOrder(a, b) {
-      const byDayOrder = numericOrder(a.dayOrder) - numericOrder(b.dayOrder);
-      if (byDayOrder !== 0) return byDayOrder;
-
-      const byChildOrder = numericOrder(a.childOrder ?? a.order) - numericOrder(b.childOrder ?? b.order);
-      if (byChildOrder !== 0) return byChildOrder;
-
-      return String(a.id).localeCompare(String(b.id));
     }
 
     const byDate = {};
