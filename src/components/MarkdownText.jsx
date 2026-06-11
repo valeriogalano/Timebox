@@ -1,7 +1,7 @@
 import React from 'react';
 
-// Handles **bold**, ~~strikethrough~~, `code`, *italic*/_italic_, [link](url) → text only
-const TOKEN = /(\*\*|~~|`)(.+?)\1|([*_])(.+?)\3|\[([^\]]+)\]\([^)]+\)/g;
+// Handles the Todoist markdown that appears in task titles.
+const TOKEN = /(\*\*|~~|`)(.+?)\1|([*_])(.+?)\3|\[([^\]]+)\]\(([^)]+)\)/g;
 
 export default function MarkdownText({ text, style }) {
   if (!text) return null;
@@ -18,7 +18,18 @@ export default function MarkdownText({ text, style }) {
     else if (m[1] === '~~') parts.push(<del key={m.index}>{m[2]}</del>);
     else if (m[1] === '`')  parts.push(<code key={m.index} style={{ fontFamily: 'monospace', fontSize: '0.9em' }}>{m[2]}</code>);
     else if (m[3])          parts.push(<em key={m.index}>{m[4]}</em>);
-    else if (m[5])          parts.push(m[5]);
+    else if (m[5])          parts.push(
+      <a
+        key={m.index}
+        href={m[6]}
+        target="_blank"
+        rel="noreferrer"
+        style={{ color: 'inherit', textDecoration: 'underline', textDecorationThickness: '1px', textUnderlineOffset: 2 }}
+        onClick={e => e.stopPropagation()}
+      >
+        {m[5]}
+      </a>
+    );
 
     last = m.index + m[0].length;
   }
