@@ -362,9 +362,14 @@ function setupIpc() {
       return (h ? parseInt(h[1]) : 0) + (m ? parseInt(m[1]) / 60 : 0) || null;
     }
 
+    function taskDueValue(due) {
+      return due?.datetime ?? due?.date ?? null;
+    }
+
     function taskSlot(due) {
-      if (!due?.date) return 'am';
-      const dt = due.date.length > 10 ? new Date(due.date) : null;
+      const dueValue = taskDueValue(due);
+      if (!dueValue) return 'am';
+      const dt = dueValue.length > 10 ? new Date(dueValue) : null;
       return dt && dt.getHours() < 13 ? 'am' : 'pm';
     }
 
@@ -385,7 +390,7 @@ function setupIpc() {
         content: t.content ?? '',
         hours,
         slot: taskSlot(t.due),
-        dueDate: t.due?.date ?? null,
+        dueDate: taskDueValue(t.due),
         dayOrder: t.day_order ?? null,
         childOrder: t.child_order ?? null,
         order: t.order ?? null,
