@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toHHMM, parseHHMM } from '../utils';
-import MarkdownText from './MarkdownText';
+import TodoistTaskTooltip from './TodoistTaskTooltip';
 
 const PX_PER_H = 30;
 
@@ -24,6 +24,7 @@ function PlanningBlock({
   projects, projectTotals, weekProjectHours,
 }) {
   const [hover, setHover] = useState(false);
+  const blockRef = useRef(null);
   const complete = logged >= block.hours && block.hours > 0;
 
   const clientProjects = (projects || []).filter(p => p.clientId === block.clientId && !p.archived);
@@ -48,6 +49,7 @@ function PlanningBlock({
 
   return (
     <div
+      ref={blockRef}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       draggable={editable && !editing}
@@ -128,26 +130,7 @@ function PlanningBlock({
 
       {/* Todoist task tooltip */}
       {hasTodoistSync && todoistH > 0 && hover && (isToday || isFuture) && todoistTasks && todoistTasks.length > 0 && (
-        <div style={{
-          position: 'absolute', bottom: 'calc(100% + 6px)', left: 0,
-          background: 'var(--tb-panel-bg)',
-          border: '1px solid var(--tb-border-mid)',
-          borderRadius: 6, padding: '6px 8px',
-          boxShadow: '0 4px 14px rgba(0,0,0,0.22)',
-          zIndex: 100, minWidth: 160, maxWidth: 240,
-          display: 'flex', flexDirection: 'column', gap: 5,
-          pointerEvents: 'auto',
-        }}>
-          {todoistTasks.map(t => (
-            <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <MarkdownText text={t.content || '(senza titolo)'} style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-primary)', lineHeight: 1.3, wordBreak: 'break-word' }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ fontSize: 9, color: cl.color, fontWeight: 600 }}>{toHHMM(t.hours)}</span>
-                <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>{t.projectName}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+        <TodoistTaskTooltip anchorRef={blockRef} tasks={todoistTasks} color={cl.color} />
       )}
 
       {/* Progress bar + extra warning triangle */}

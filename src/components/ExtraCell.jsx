@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { toHHMM } from '../utils';
-import MarkdownText from './MarkdownText';
+import TodoistTaskTooltip from './TodoistTaskTooltip';
 
 function OrphanBlock({ orphan, cl, isToday, isFuture }) {
   const [hover, setHover] = useState(false);
+  const blockRef = useRef(null);
   const showTooltip = hover && (isToday || isFuture) && orphan.tasks && orphan.tasks.length > 0;
   return (
     <div key={'o-' + orphan.clientId}
+      ref={blockRef}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       title="Task Todoist senza blocco pianificato"
@@ -19,26 +21,7 @@ function OrphanBlock({ orphan, cl, isToday, isFuture }) {
         backgroundImage: `repeating-linear-gradient(135deg, ${cl.color}10 0 4px, transparent 4px 8px)`,
       }}>
       {showTooltip && (
-        <div style={{
-          position: 'absolute', bottom: 'calc(100% + 6px)', left: 0,
-          background: 'var(--tb-panel-bg)',
-          border: '1px solid var(--tb-border-mid)',
-          borderRadius: 6, padding: '6px 8px',
-          boxShadow: '0 4px 14px rgba(0,0,0,0.22)',
-          zIndex: 100, minWidth: 160, maxWidth: 240,
-          display: 'flex', flexDirection: 'column', gap: 5,
-          pointerEvents: 'auto',
-        }}>
-          {orphan.tasks.map(t => (
-            <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <MarkdownText text={t.content || '(senza titolo)'} style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-primary)', lineHeight: 1.3, wordBreak: 'break-word' }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ fontSize: 9, color: cl.color, fontWeight: 600 }}>{toHHMM(t.hours)}</span>
-                <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>{t.projectName}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+        <TodoistTaskTooltip anchorRef={blockRef} tasks={orphan.tasks} color={cl.color} />
       )}
       <span style={{
         fontSize: 10, fontWeight: 700, color: cl.color, flex: 1, opacity: 0.85,
