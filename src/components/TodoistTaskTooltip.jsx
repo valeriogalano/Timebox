@@ -47,7 +47,7 @@ export default function TodoistTaskTooltip({ anchorRef, tasks, color }) {
       flexDirection: 'column',
       gap: 5,
       overflowY: 'auto',
-      pointerEvents: 'none',
+      pointerEvents: 'auto',
     }}>
       {tasks.map(t => (
         <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
