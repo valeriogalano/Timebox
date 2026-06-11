@@ -39,6 +39,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "lib/**/*",
       "db/**/*",
       "cli/**/*",
       "build/**/*",
