@@ -136,7 +136,7 @@ function PlanningBlock({
           boxShadow: '0 4px 14px rgba(0,0,0,0.22)',
           zIndex: 100, minWidth: 160, maxWidth: 240,
           display: 'flex', flexDirection: 'column', gap: 5,
-          pointerEvents: 'none',
+          pointerEvents: 'auto',
         }}>
           {todoistTasks.map(t => (
             <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
