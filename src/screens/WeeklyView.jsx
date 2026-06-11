@@ -28,12 +28,18 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const [todoistTasks, setTodoistTasks] = useState({});
   const [todoistSync, setTodoistSync] = useState({});
   const [editingProject, setEditingProject] = useState(null);
+  const [revealedProject, setRevealedProject] = useState(null);
   const [hideEmpty, setHideEmpty] = useState(() => localStorage.getItem('timebox-hide-empty-projects') === 'true');
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('timebox-timesheet-view') === 'billable' ? 'billable' : 'tracked');
 
   function changeViewMode(next) {
     setViewMode(next);
     localStorage.setItem('timebox-timesheet-view', next);
+  }
+
+  function startEditingProject(projectId) {
+    setEditingProject(projectId);
+    setRevealedProject(current => current && current !== projectId ? null : current);
   }
 
   useEffect(() => {
@@ -81,6 +87,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   useEffect(() => {
     if (!autoFocusProject) return;
+    setRevealedProject(autoFocusProject);
     requestAnimationFrame(() => {
       const cell = document.querySelector(`[data-timecell][data-today][data-project="${autoFocusProject}"]`);
       if (cell) {
@@ -93,6 +100,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   // Reset dismiss state when week changes
   useEffect(() => { setAlertDismissed(false); }, [weekKey]);
+  useEffect(() => { setRevealedProject(null); }, [weekKey]);
 
   // Reload entries when an external DB change is pushed from main process
   useEffect(() => {
@@ -434,7 +442,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     ? clientsWithProjects.map(c => ({
         ...c,
         projects: c.projects.filter(p =>
-          (weekProjectHours[p.id] ?? 0) > 0 || p.id === autoFocusProject || p.id === editingProject
+          (weekProjectHours[p.id] ?? 0) > 0 || p.id === autoFocusProject || p.id === editingProject || p.id === revealedProject
         ),
       })).filter(c => c.projects.length > 0)
     : clientsWithProjects;
@@ -810,7 +818,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                           viewMode={viewMode}
                           onSave={payload => saveEntry(project.id, d.dateStr, payload, entry?.slot)}
                           onResetBillable={() => resetBillable(project.id, d.dateStr)}
-                          onEditStart={() => setEditingProject(project.id)}
+                          onEditStart={() => startEditingProject(project.id)}
                           onEditEnd={() => setEditingProject(null)} />
                       </div>
                     );

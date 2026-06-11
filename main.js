@@ -5,6 +5,7 @@ const { execFile } = require('child_process');
 const { initDb } = require('./db/schema');
 const q = require('./db/queries');
 const { createHttpServer } = require('./cli/http-server');
+const { todoistTaskOrder } = require('./lib/todoist-order');
 
 function getAppIcon() {
   const img = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'));
@@ -361,9 +362,14 @@ function setupIpc() {
       return (h ? parseInt(h[1]) : 0) + (m ? parseInt(m[1]) / 60 : 0) || null;
     }
 
+    function taskDueValue(due) {
+      return due?.datetime ?? due?.date ?? null;
+    }
+
     function taskSlot(due) {
-      if (!due?.date) return 'am';
-      const dt = due.date.length > 10 ? new Date(due.date) : null;
+      const dueValue = taskDueValue(due);
+      if (!dueValue) return 'am';
+      const dt = dueValue.length > 10 ? new Date(dueValue) : null;
       return dt && dt.getHours() < 13 ? 'am' : 'pm';
     }
 
@@ -378,9 +384,20 @@ function setupIpc() {
       const hours = parseDurationHours(t.duration);
       if (!hours) continue;
       if (!byDate[date]) byDate[date] = [];
-      byDate[date].push({ id: t.id, projectId: proj.id, content: t.content ?? '', hours, slot: taskSlot(t.due), order: t.order ?? 0, completed: false });
+      byDate[date].push({
+        id: t.id,
+        projectId: proj.id,
+        content: t.content ?? '',
+        hours,
+        slot: taskSlot(t.due),
+        dueDate: taskDueValue(t.due),
+        dayOrder: t.day_order ?? null,
+        childOrder: t.child_order ?? null,
+        order: t.order ?? null,
+        completed: false,
+      });
     }
-    for (const date of Object.keys(byDate)) byDate[date].sort((a, b) => a.order - b.order);
+    for (const date of Object.keys(byDate)) byDate[date].sort(todoistTaskOrder);
     logger.info('todoist:sync byDate', { dates: Object.keys(byDate), counts: Object.fromEntries(Object.entries(byDate).map(([d, ts]) => [d, ts.length])) });
     return { byDate };
   });
