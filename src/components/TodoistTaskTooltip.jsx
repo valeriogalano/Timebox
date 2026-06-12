@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useState } from 'react';
 import { toHHMM } from '../utils';
 import MarkdownText from './MarkdownText';
+import TodoistLabels from './TodoistLabels';
 
 export default function TodoistTaskTooltip({ anchorRef, tasks, color }) {
   const [pos, setPos] = useState(null);
@@ -62,6 +63,7 @@ export default function TodoistTaskTooltip({ anchorRef, tasks, color }) {
             <span style={{ fontSize: 9, color, fontWeight: 600 }}>{toHHMM(t.hours)}</span>
             <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>{t.projectName}</span>
           </div>
+          <TodoistLabels labels={t.labels} compact />
         </div>
       ))}
     </div>

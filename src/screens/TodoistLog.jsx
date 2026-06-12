@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toHHMM } from '../utils';
 import MarkdownText from '../components/MarkdownText';
+import TodoistLabels from '../components/TodoistLabels';
 
 const DAY_LONG = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 const MONTHS_LONG = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
@@ -79,7 +80,7 @@ export default function TodoistLog({ clients, projects }) {
                   const cl = proj ? clients.find(c => c.id === proj.clientId) : null;
                   return (
                     <div key={task.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
+                      display: 'flex', alignItems: 'flex-start', gap: 8,
                       padding: '5px 8px', borderRadius: 5,
                       background: cl ? cl.color + '0d' : 'var(--tb-panel-bg-soft)',
                       borderLeft: `3px solid ${cl ? cl.color : 'var(--tb-border-mid)'}`,
@@ -87,23 +88,27 @@ export default function TodoistLog({ clients, projects }) {
                       <span style={{
                         fontSize: 8, fontWeight: 800, letterSpacing: '0.08em',
                         color: cl ? cl.color : 'var(--tb-text-faint)',
-                        textTransform: 'uppercase', flexShrink: 0, width: 18,
+                        textTransform: 'uppercase', flexShrink: 0, width: 18, marginTop: 3,
                       }}>
                         {task.slot === 'am' ? 'AM' : 'PM'}
                       </span>
-                      <MarkdownText text={task.content || '(senza titolo)'} style={{
-                        fontSize: 11, fontWeight: 600, color: 'var(--tb-text-primary)',
-                        flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <MarkdownText text={task.content || '(senza titolo)'} style={{
+                          display: 'block',
+                          fontSize: 11, fontWeight: 600, color: 'var(--tb-text-primary)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }} />
+                        <TodoistLabels labels={task.labels} />
+                      </div>
                       {proj && (
-                        <span style={{ fontSize: 10, color: 'var(--tb-text-faint)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 10, color: 'var(--tb-text-faint)', flexShrink: 0, whiteSpace: 'nowrap', marginTop: 2 }}>
                           {proj.name}
                         </span>
                       )}
                       <span style={{
                         fontSize: 11, fontWeight: 800,
                         color: cl ? cl.color : 'var(--tb-text-secondary)',
-                        flexShrink: 0,
+                        flexShrink: 0, marginTop: 1,
                       }}>
                         {toHHMM(task.hours)}
                       </span>

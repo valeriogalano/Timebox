@@ -373,6 +373,13 @@ function setupIpc() {
       return dt && dt.getHours() < 13 ? 'am' : 'pm';
     }
 
+    function taskLabels(task) {
+      if (Array.isArray(task.labels)) return task.labels;
+      if (Array.isArray(task.label_names)) return task.label_names;
+      if (Array.isArray(task.labelNames)) return task.labelNames;
+      return [];
+    }
+
     const byDate = {};
     for (const t of openTasks) {
       const date = t.due?.date?.slice(0, 10) ?? null;
@@ -388,6 +395,7 @@ function setupIpc() {
         id: t.id,
         projectId: proj.id,
         content: t.content ?? '',
+        labels: taskLabels(t),
         hours,
         slot: taskSlot(t.due),
         dueDate: taskDueValue(t.due),
