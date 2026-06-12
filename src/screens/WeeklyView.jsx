@@ -12,6 +12,7 @@ function getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, slot) {
   if (dayOverride && dayOverride[slot] !== undefined) return dayOverride[slot];
   return recurring
     .filter(r => r.day === dayIndex && r.slot === slot)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
     .map(r => ({ id: r.id, clientId: r.clientId, hours: r.hours }));
 }
 
