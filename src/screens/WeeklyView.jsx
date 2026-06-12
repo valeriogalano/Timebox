@@ -165,14 +165,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const current = effectiveBlocks(dayIndex, slot);
     const newBlocks = current.filter(b => b.id !== blockId);
     if (newBlocks.length === 0) {
-      setWeekOverrides(prev => {
-        const weekData = { ...(prev[weekKey] ?? {}) };
-        const dayData  = { ...(weekData[dayIndex] ?? {}) };
-        delete dayData[slot];
-        weekData[dayIndex] = dayData;
-        return { ...prev, [weekKey]: weekData };
-      });
-      window.api.deleteWeekOverride(weekKey, dayIndex, slot);
+      // Persist an explicit empty override so the recurring template stays suppressed.
+      setSlotOverride(dayIndex, slot, []);
     } else {
       setSlotOverride(dayIndex, slot, newBlocks);
     }
