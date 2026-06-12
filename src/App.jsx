@@ -387,7 +387,8 @@ function KeyboardHelp({ onClose }) {
     ['⌘ ,',     'Impostazioni'],
     ['⌘ 1–8',   'Naviga alle schermate in ordine sidebar'],
     ['⌘ ⇧ H',  'Nascondi / mostra vuoti nel Timesheet'],
-    ['⌘ ⇧ V',  'Alterna vista Tracciate / Fatturabili'],
+    ['⌘ ⇧ P',  'Cicla Completa / Compatta / Nascosta'],
+    ['⌘ ⇧ V',  'Alterna Ore tracciate / Ore fatturabili'],
     ['?',        'Mostra / nasconde questa guida'],
   ];
 
