@@ -382,6 +382,7 @@ function KeyboardHelp({ onClose }) {
     ['⌘ L',     'Apre il QuickLog'],
     ['⌘ T',     'Timesheet della settimana corrente'],
     ['⌘ ← / →', 'Settimana precedente / successiva'],
+    ['⌥ ← / →', 'In una cella del timesheet: salva e si sposta di giorno sulla stessa riga'],
     ['⌘ B',     'Espande / riduce la sidebar'],
     ['⌘ ,',     'Impostazioni'],
     ['⌘ 1–8',   'Naviga alle schermate in ordine sidebar'],

@@ -134,7 +134,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
         <div style={{ padding: '16px 20px' }}>
           <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginBottom: 14 }}>
             Tutte le scorciatorie usano <kbd style={{ fontFamily: 'monospace', fontSize: 11, background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)', borderRadius: 4, padding: '1px 5px' }}>⌘</kbd> come modificatore (alcune anche <kbd style={{ fontFamily: 'monospace', fontSize: 11, background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)', borderRadius: 4, padding: '1px 5px' }}>⇧</kbd>).
-            Non sono attive quando un campo di testo è in focus.
+            Le scorciatoie globali non sono attive quando un campo di testo è in focus; nel timesheet puoi usare anche <kbd style={{ fontFamily: 'monospace', fontSize: 11, background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)', borderRadius: 4, padding: '1px 5px' }}>⌥ ← / →</kbd> mentre modifichi una cella.
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <tbody>
@@ -143,6 +143,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
                 ['⌘ T', 'Torna al Timesheet della settimana corrente'],
                 ['⌘ ←', 'Settimana precedente (solo nel Timesheet)'],
                 ['⌘ →', 'Settimana successiva (solo nel Timesheet)'],
+                ['⌥ ← / →', 'In una cella del Timesheet: salva e va al giorno precedente / successivo'],
                 ['⌘ B', 'Espande / riduce la sidebar'],
                 ['⌘ ,', 'Apre le Impostazioni'],
                 ['⌘ 1–8', 'Naviga alle schermate in ordine sidebar'],

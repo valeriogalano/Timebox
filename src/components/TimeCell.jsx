@@ -2,6 +2,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import { toHHMM, parseHHMM } from '../utils';
 import DivergenceDot from './DivergenceDot';
 
+function focusCell(target) {
+  if (!target) return;
+  target.click();
+  requestAnimationFrame(() => target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+}
+
+function getTimeCells() {
+  return Array.from(document.querySelectorAll('[data-timecell]'));
+}
+
+function getProjectRowCells(projectId) {
+  return getTimeCells()
+    .filter(el => el.dataset.project === projectId)
+    .sort((a, b) => Number(a.dataset.col) - Number(b.dataset.col));
+}
+
 export default function TimeCell({
   hours, billableHours, billed, isBillable,
   isFuture, isToday, clientColor, colIndex, projectId,
@@ -52,12 +68,22 @@ export default function TimeCell({
   function onKeyDown(e) {
     if (e.key === 'Enter') commit();
     if (e.key === 'Escape') { setEditing(false); onEditEnd?.(); }
+    if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      commit();
+      const currentCell = inputRef.current?.closest('[data-timecell]');
+      const rowCells = getProjectRowCells(projectId);
+      const cellIdx = rowCells.indexOf(currentCell);
+      const offset = e.key === 'ArrowRight' ? 1 : -1;
+      focusCell(rowCells[cellIdx + offset]);
+      return;
+    }
     if (e.key === 'Tab') {
       e.preventDefault();
       commit();
       const currentCell = inputRef.current.closest('[data-timecell]');
       const col = currentCell?.dataset.col;
-      const allCells = Array.from(document.querySelectorAll('[data-timecell]'));
+      const allCells = getTimeCells();
       const allCols = [...new Set(allCells.map(el => +el.dataset.col))].sort((a, b) => a - b);
       const colCells = allCells.filter(el => el.dataset.col === col);
       const cellIdx = colCells.indexOf(currentCell);
@@ -73,7 +99,8 @@ export default function TimeCell({
           target = prevColCells[prevColCells.length - 1];
         }
       }
-      if (target) { target.click(); requestAnimationFrame(() => target.scrollIntoView({ behavior: 'smooth', block: 'nearest' })); }
+      focusCell(target);
+      return;
     }
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
