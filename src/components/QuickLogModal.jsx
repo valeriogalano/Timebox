@@ -13,7 +13,8 @@ function parseTimeSpec(s) {
     return parseFloat(m1[1] || '0') + parseInt(m1[2] || '0', 10) / 60;
   }
   if (/^\d+(?:[.,]\d+)?$/.test(s)) {
-    return parseFloat(s.replace(',', '.'));
+    const numeric = parseFloat(s.replace(',', '.'));
+    return numeric > 4 ? numeric / 60 : numeric;
   }
   return null;
 }
@@ -112,7 +113,7 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Cerca progetto… (es. Acme +1h)"
+            placeholder="Cerca progetto… (es. Acme +1h, +30, +30m)"
             style={{
               flex: 1, border: 'none', outline: 'none', background: 'transparent',
               fontFamily: "'Open Sans', sans-serif", fontSize: 14, fontWeight: 600,
@@ -177,7 +178,7 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
           <span>↑↓ naviga</span>
           <span>↵ {addMode ? 'somma' : 'apri'}</span>
           <span>Esc chiudi</span>
-          {!addMode && <span style={{ marginLeft: 'auto', opacity: 0.7 }}>aggiungi <code style={{ fontFamily: 'monospace' }}>+1h</code> per sommare</span>}
+          {!addMode && <span style={{ marginLeft: 'auto', opacity: 0.7 }}>aggiungi <code style={{ fontFamily: 'monospace' }}>+1h</code>, <code style={{ fontFamily: 'monospace' }}>+30</code> o <code style={{ fontFamily: 'monospace' }}>+30m</code> per sommare</span>}
         </div>
       </div>
     </div>
