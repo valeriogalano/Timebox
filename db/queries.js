@@ -339,24 +339,24 @@ function seedDemoData() {
   const now = new Date().toISOString();
   const todoistDays = [
     { date: pd(0), tasks: [
-      { id: 'td1', projectId: 'p1', content: 'Revisione mockup homepage', hours: 2,   slot: 'am', completed: true },
-      { id: 'td2', projectId: 'p3', content: 'Articolo newsletter maggio',  hours: 2.5, slot: 'pm', completed: true },
+      { id: 'td1', projectId: 'p1', content: 'Revisione mockup homepage', hours: 2,   slot: 'am', completed: true, labels: ['Focus 🔕'] },
+      { id: 'td2', projectId: 'p3', content: 'Articolo newsletter maggio',  hours: 2.5, slot: 'pm', completed: true, labels: ['IA 🤖', '🍅🍅'] },
     ]},
     { date: pd(1), tasks: [
-      { id: 'td3', projectId: 'p2', content: 'Setup endpoint autenticazione', hours: 3.5, slot: 'am', completed: true },
-      { id: 'td4', projectId: 'p6', content: 'Palette colori brand',          hours: 1,   slot: 'pm', completed: true },
+      { id: 'td3', projectId: 'p2', content: 'Setup endpoint autenticazione', hours: 3.5, slot: 'am', completed: true, labels: ['Bug 🪲'] },
+      { id: 'td4', projectId: 'p6', content: 'Palette colori brand',          hours: 1,   slot: 'pm', completed: true, labels: ['Backup 🔀'] },
     ]},
     { date: pd(2), tasks: [
-      { id: 'td5', projectId: 'p4', content: 'Integrazione API dati sensori', hours: 2, slot: 'am', completed: true },
-      { id: 'td6', projectId: 'p1', content: 'Fix layout mobile',             hours: 1, slot: 'am', completed: true },
+      { id: 'td5', projectId: 'p4', content: 'Integrazione API dati sensori', hours: 2, slot: 'am', completed: true, labels: ['Focus 🔕'] },
+      { id: 'td6', projectId: 'p1', content: 'Fix layout mobile',             hours: 1, slot: 'am', completed: true, labels: ['Bug 🪲', '🍅'] },
     ]},
     { date: pd(3), tasks: [
-      { id: 'td7', projectId: 'p4', content: 'Grafici dashboard overview', hours: 2, slot: 'am', completed: true },
-      { id: 'td8', projectId: 'p6', content: 'Bozze logo varianti',         hours: 2, slot: 'pm', completed: true },
+      { id: 'td7', projectId: 'p4', content: 'Grafici dashboard overview', hours: 2, slot: 'am', completed: true, labels: ['IA 🤖'] },
+      { id: 'td8', projectId: 'p6', content: 'Bozze logo varianti',         hours: 2, slot: 'pm', completed: true, labels: ['Backup 🔀'] },
     ]},
     { date: pd(4), tasks: [
-      { id: 'td9',  projectId: 'p5', content: 'Schermata onboarding',  hours: 2,   slot: 'pm', completed: true },
-      { id: 'td10', projectId: 'p3', content: 'Revisione articolo SEO', hours: 2.5, slot: 'pm', completed: true },
+      { id: 'td9',  projectId: 'p5', content: 'Schermata onboarding',  hours: 2,   slot: 'pm', completed: true, labels: ['Focus 🔕'] },
+      { id: 'td10', projectId: 'p3', content: 'Revisione articolo SEO', hours: 2.5, slot: 'pm', completed: true, labels: ['IA 🤖', '🍅🍅'] },
     ]},
   ];
 
