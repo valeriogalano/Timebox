@@ -3,6 +3,7 @@ import { toHHMM, parseHHMM } from '../utils';
 import TodoistTaskTooltip from './TodoistTaskTooltip';
 
 const PX_PER_H = 30;
+const PX_PER_H_COMPACT = 18;
 
 function Divider() {
   return (
@@ -22,6 +23,7 @@ function PlanningBlock({
   editing, editDraft, setEditDraft, editRef, commitEdit, onStartEdit, onCancelEdit,
   onRemove, onDragStart,
   projects, projectTotals, weekProjectHours,
+  compact,
 }) {
   const [hover, setHover] = useState(false);
   const blockRef = useRef(null);
@@ -61,7 +63,7 @@ function PlanningBlock({
         border: `1px solid ${cl.color + '30'}`,
         borderLeft: `3px solid ${cl.color}`,
         borderRadius: 4,
-        padding: '5px 8px 7px',
+        padding: compact ? '4px 6px 5px' : '5px 8px 7px',
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
         cursor: editable && !editing ? 'grab' : 'default',
         opacity: isDragging ? 0.35 : 1,
@@ -72,7 +74,7 @@ function PlanningBlock({
       {/* Header: client name + budget alert dot */}
       <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: 3 }}>
         <span style={{
-          fontSize: 10, fontWeight: 700, color: cl.color,
+          fontSize: compact ? 9 : 10, fontWeight: 700, color: cl.color,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           letterSpacing: '0.01em', flex: 1, minWidth: 0,
         }}>{cl.name}</span>
@@ -97,7 +99,7 @@ function PlanningBlock({
             onClick={e => e.stopPropagation()}
             style={{
               width: 48, padding: '1px 4px', borderRadius: 3, border: `1px solid ${cl.color}`,
-              fontSize: 11, fontWeight: 800, color: cl.color, textAlign: 'right',
+              fontSize: compact ? 10 : 11, fontWeight: 800, color: cl.color, textAlign: 'right',
               fontFamily: "'Open Sans', sans-serif", outline: 'none',
               background: 'var(--tb-input-bg)',
             }} />
@@ -112,14 +114,14 @@ function PlanningBlock({
             }}>
             {logged > 0 && (
               <>
-                <span style={{ fontSize: 11, fontWeight: 400, color: readoutColor }}>
+                <span style={{ fontSize: compact ? 10 : 11, fontWeight: 400, color: readoutColor }}>
                   {toHHMM(logged)}
                 </span>
-                <span style={{ fontSize: 9, color: cl.color + '66', fontWeight: 400 }}>/</span>
+                <span style={{ fontSize: compact ? 8 : 9, color: cl.color + '66', fontWeight: 400 }}>/</span>
               </>
             )}
             <span style={{
-              fontSize: logged > 0 ? 9 : 11,
+              fontSize: logged > 0 ? (compact ? 8 : 9) : (compact ? 10 : 11),
               fontWeight: 400,
               color: logged > 0 ? cl.color + 'bb' : cl.color,
             }}>{toHHMM(block.hours)}</span>
@@ -136,7 +138,7 @@ function PlanningBlock({
       {/* Progress bar + extra warning triangle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <div style={{
-          flex: 1, height: 5, borderRadius: 3,
+          flex: 1, height: compact ? 4 : 5, borderRadius: 3,
           background: barBg,
           overflow: 'hidden', position: 'relative',
         }}>
@@ -175,7 +177,7 @@ function PlanningBlock({
             background: 'var(--tb-panel-bg)',
             border: `1px solid ${cl.color}44`,
             cursor: 'pointer',
-            color: cl.color, fontSize: 11, lineHeight: 1, padding: 0,
+            color: cl.color, fontSize: compact ? 10 : 11, lineHeight: 1, padding: 0,
             fontWeight: 700,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>×</button>
@@ -187,6 +189,7 @@ function PlanningBlock({
 export default function PlanningCell({
   slot, dayIndex, blocks, clients, projects, projectTotals, weekProjectHours, blockFill,
   todoistByClient, todoistTasksByClient, hasTodoistSync,
+  compact,
   isToday, isFuture, isWeekend, editable,
   onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onReorder, draggingId,
 }) {
@@ -198,7 +201,9 @@ export default function PlanningCell({
     if (!cl) return null;
     const fill    = blockFill?.[block.id] ?? { logged: 0, hasExtra: false };
     const logged  = fill.logged;
-    const blockH  = Math.max(46, Math.round(block.hours * PX_PER_H));
+    const pxPerH = compact ? PX_PER_H_COMPACT : PX_PER_H;
+    const minH = compact ? 30 : 46;
+    const blockH  = Math.max(minH, Math.round(block.hours * pxPerH));
     const fillPct = block.hours > 0 ? Math.min(1, logged / block.hours) : 0;
     const delta   = logged - block.hours;
     const overflow = fill.hasExtra;
@@ -316,7 +321,7 @@ export default function PlanningCell({
       style={{
         minHeight: 60,
         flex: 1,
-        borderRadius: 6, padding: 5,
+        borderRadius: 6, padding: compact ? 3 : 5,
         background: isWeekend ? 'var(--tb-cell-weekend)' : 'var(--tb-cell-bg)',
         border: `1px solid ${isToday ? '#3DB33D44' : 'var(--tb-border)'}`,
         opacity: isWeekend ? 0.5 : 1,
@@ -332,6 +337,7 @@ export default function PlanningCell({
               todoistH={todoistH} todoistTasks={todoistTasks} hasTodoistSync={hasTodoistSync}
               isFuture={isFuture} isToday={isToday} editable={editable}
               isDragging={draggingId === block.id}
+              compact={compact}
               editing={editId === block.id} editDraft={editDraft}
               setEditDraft={setEditDraft} editRef={editRef} commitEdit={commitEdit}
               onStartEdit={() => { setEditId(block.id); setEditDraft(toHHMM(block.hours)); }}
@@ -351,7 +357,7 @@ export default function PlanningCell({
 
       {visualBlocks.length === 0 && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--tb-border-mid)', fontSize: 11, minHeight: 40 }}>—</div>
+          color: 'var(--tb-border-mid)', fontSize: compact ? 10 : 11, minHeight: compact ? 28 : 40 }}>—</div>
       )}
 
       <div style={{ marginTop: 'auto', flexShrink: 0 }}>
@@ -362,7 +368,7 @@ export default function PlanningCell({
               width: '100%', padding: '3px 0', borderRadius: 4,
               border: '1px dashed var(--tb-border-mid)',
               background: addOpen ? 'var(--tb-panel-bg-soft)' : 'transparent',
-              color: 'var(--tb-text-faint)', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+              color: 'var(--tb-text-faint)', fontSize: compact ? 9 : 10, fontWeight: 700, cursor: 'pointer',
               fontFamily: "'Open Sans', sans-serif",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
             }}>

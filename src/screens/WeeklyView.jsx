@@ -5,6 +5,8 @@ import ExtraCell from '../components/ExtraCell';
 import TimeCell from '../components/TimeCell';
 import DivergenceDot from '../components/DivergenceDot';
 
+const PLANNING_MODES = ['full', 'compact', 'hidden'];
+
 function getWeekKey(monday) { return fmt(monday); }
 
 function getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, slot) {
@@ -32,10 +34,31 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const [revealedProject, setRevealedProject] = useState(null);
   const [hideEmpty, setHideEmpty] = useState(() => localStorage.getItem('timebox-hide-empty-projects') === 'true');
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('timebox-timesheet-view') === 'billable' ? 'billable' : 'tracked');
+  const [planningMode, setPlanningMode] = useState(() => {
+    const saved = localStorage.getItem('timebox-planning-mode');
+    if (PLANNING_MODES.includes(saved)) return saved;
+    return localStorage.getItem('timebox-planning-collapsed') === 'true' ? 'hidden' : 'full';
+  });
 
   function changeViewMode(next) {
     setViewMode(next);
     localStorage.setItem('timebox-timesheet-view', next);
+  }
+
+  function setPlanningModePersisted(next) {
+    setPlanningMode(next);
+    localStorage.setItem('timebox-planning-mode', next);
+    localStorage.setItem('timebox-planning-collapsed', String(next === 'hidden'));
+  }
+
+  function cyclePlanningMode() {
+    setPlanningMode(current => {
+      const currentIndex = PLANNING_MODES.indexOf(current);
+      const next = PLANNING_MODES[(currentIndex + 1) % PLANNING_MODES.length];
+      localStorage.setItem('timebox-planning-mode', next);
+      localStorage.setItem('timebox-planning-collapsed', String(next === 'hidden'));
+      return next;
+    });
   }
 
   function startEditingProject(projectId) {
@@ -86,6 +109,23 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     }
     document.addEventListener('keydown', onViewModeShortcut);
     return () => document.removeEventListener('keydown', onViewModeShortcut);
+  }, []);
+
+  useEffect(() => {
+    function onPlanningShortcut(e) {
+      if (!e.metaKey || !e.shiftKey || e.key.toLowerCase() !== 'p') return;
+      if (document.activeElement?.closest('input, textarea, [contenteditable="true"]')) return;
+      e.preventDefault();
+      setPlanningMode(current => {
+        const currentIndex = PLANNING_MODES.indexOf(current);
+        const next = PLANNING_MODES[(currentIndex + 1) % PLANNING_MODES.length];
+        localStorage.setItem('timebox-planning-mode', next);
+        localStorage.setItem('timebox-planning-collapsed', String(next === 'hidden'));
+        return next;
+      });
+    }
+    document.addEventListener('keydown', onPlanningShortcut);
+    return () => document.removeEventListener('keydown', onPlanningShortcut);
   }, []);
 
   useEffect(() => {
@@ -428,6 +468,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const COL = 'minmax(60px, 1fr) repeat(7, minmax(0, 1fr)) minmax(55px, 0.65fr)';
   const todayBorderLeft = d => `1px solid ${d.isToday ? '#3DB33D28' : 'var(--tb-border-soft)'}`;
   const todayBg = (d, base) => d.isToday ? 'var(--tb-cell-today)' : (base || 'transparent');
+  const planningCompact = planningMode === 'compact';
+  const planningVisible = planningMode !== 'hidden';
 
   // Weekly hours per project (for alert dot + banner)
   const weekProjectHours = weekEntries.reduce((acc, e) => {
@@ -579,170 +621,189 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           )}
         </div>
       </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <PlanningModeToggle value={planningMode} onChange={setPlanningModePersisted} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <ProjectVisibilityToggle value={hideEmpty ? 'worked' : 'all'} onChange={(next) => {
+            const nextHideEmpty = next === 'worked';
+            setHideEmpty(nextHideEmpty);
+            localStorage.setItem('timebox-hide-empty-projects', String(nextHideEmpty));
+          }} />
+          <ViewModeToggle value={viewMode} onChange={changeViewMode} />
+        </div>
+      </div>
 
       {/* Unified grid */}
       <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-border)', overflow: 'hidden' }}>
         <div style={{ display: 'grid', gridTemplateColumns: COL }}>
 
-          {/* Day header */}
-          <GridLabel>Pianificato</GridLabel>
-          {days.map((d, i) => (
-            <div key={i} style={{
-              background: d.isToday ? 'var(--tb-cell-today-header)' : 'var(--tb-panel-bg-soft)',
-              borderBottom: '1px solid var(--tb-border)',
-              borderLeft: `1px solid ${d.isToday ? '#3DB33D55' : 'var(--tb-border-soft)'}`,
-              padding: '8px 4px', textAlign: 'center', opacity: d.isWeekend ? 0.7 : 1,
-            }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
-                color: d.isToday ? '#3DB33D' : 'var(--tb-text-faint)' }}>{DAY_SHORT[i]}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: d.isToday ? '#3DB33D' : 'var(--tb-text-secondary)', lineHeight: 1.1 }}>
-                {d.date.getDate()}
-              </div>
-              {d.isToday && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3DB33D', margin: '3px auto 0' }} />}
-            </div>
-          ))}
-          <div style={{
-            background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)', borderLeft: '1px solid var(--tb-border-mid)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
-          }}>Tot</div>
-
-          {/* AM row */}
-          <GridLabel border timeLabel="fino alle 13:00">Mattina</GridLabel>
-          {days.map((d, i) => {
-            const isDropTarget = dragOver?.day === i && dragOver?.slot === 'am';
-            const amTotal = d.amBlocks.filter(b => clients.some(c => c.id === b.clientId)).reduce((s, b) => s + b.hours, 0);
-            return (
-              <div key={i}
-                onDragOver={e => { e.preventDefault(); setDragOver({ day: i, slot: 'am' }); }}
-                onDragLeave={() => setDragOver(null)}
-                onDrop={() => handleDrop(i, 'am')}
-                style={{
-                  borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)',
-                  background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: 4,
-                  transition: 'background 0.1s',
-                  outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
-                  display: 'flex', flexDirection: 'column', gap: 3,
+          {planningVisible && (
+            <>
+              {/* Day header */}
+              <GridLabel compact={planningCompact}>Pianificato</GridLabel>
+              {days.map((d, i) => (
+                <div key={i} style={{
+                  background: d.isToday ? 'var(--tb-cell-today-header)' : 'var(--tb-panel-bg-soft)',
+                  borderBottom: '1px solid var(--tb-border)',
+                  borderLeft: `1px solid ${d.isToday ? '#3DB33D55' : 'var(--tb-border-soft)'}`,
+                  padding: planningCompact ? '5px 4px' : '8px 4px', textAlign: 'center', opacity: d.isWeekend ? 0.7 : 1,
                 }}>
-                <PlanningCell slot="am" dayIndex={i} blocks={d.amBlocks}
-                  clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
-                  blockFill={d.blockFill}
-                  todoistByClient={d.todoistByCS.am} todoistTasksByClient={d.todoistTasksByCS.am} hasTodoistSync={!!d.lastSync}
-                  isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
-                  onAddBlock={(cid, h) => addBlockToSlot(i, 'am', cid, h)}
-                  onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'am', bid, h)}
-                  onRemoveBlock={bid => removeBlockFromSlot(i, 'am', bid)}
-                  onReorder={newBlocks => setSlotOverride(i, 'am', newBlocks)}
-                  onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'am', cid, h)}
-                  draggingId={dragging?.blockId} />
-                <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', minHeight: 14 }}>
-                  {amTotal > 0 ? toHHMM(amTotal) : ''}
+                  <div style={{ fontSize: planningCompact ? 9 : 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: d.isToday ? '#3DB33D' : 'var(--tb-text-faint)' }}>{DAY_SHORT[i]}</div>
+                  <div style={{ fontSize: planningCompact ? 11 : 12, fontWeight: 700, color: d.isToday ? '#3DB33D' : 'var(--tb-text-secondary)', lineHeight: 1.1 }}>
+                    {d.date.getDate()}
+                  </div>
+                  {d.isToday && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3DB33D', margin: planningCompact ? '2px auto 0' : '3px auto 0' }} />}
                 </div>
-              </div>
-            );
-          })}
-          <div style={{
-            borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)',
-            background: 'var(--tb-panel-bg-soft)', gridRow: 'span 3',
-          }}>
-            <SlotSummary summary={weekTotalSummary} clients={clients} />
-          </div>
+              ))}
+              <div style={{
+                background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)', borderLeft: '1px solid var(--tb-border-mid)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
+              }}>Tot</div>
 
-          {/* PM row */}
-          <GridLabel border>Pomeriggio</GridLabel>
-          {days.map((d, i) => {
-            const isDropTarget = dragOver?.day === i && dragOver?.slot === 'pm';
-            const pmTotal = d.pmBlocks.filter(b => clients.some(c => c.id === b.clientId)).reduce((s, b) => s + b.hours, 0);
-            return (
-              <div key={i}
-                onDragOver={e => { e.preventDefault(); setDragOver({ day: i, slot: 'pm' }); }}
-                onDragLeave={() => setDragOver(null)}
-                onDrop={() => handleDrop(i, 'pm')}
-                style={{
-                  borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)',
-                  background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: 4,
-                  transition: 'background 0.1s',
-                  outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
-                  display: 'flex', flexDirection: 'column', gap: 3,
-                }}>
-                <PlanningCell slot="pm" dayIndex={i} blocks={d.pmBlocks}
-                  clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
-                  blockFill={d.blockFill}
-                  todoistByClient={d.todoistByCS.pm} todoistTasksByClient={d.todoistTasksByCS.pm} hasTodoistSync={!!d.lastSync}
-                  isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
-                  onAddBlock={(cid, h) => addBlockToSlot(i, 'pm', cid, h)}
-                  onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'pm', bid, h)}
-                  onRemoveBlock={bid => removeBlockFromSlot(i, 'pm', bid)}
-                  onReorder={newBlocks => setSlotOverride(i, 'pm', newBlocks)}
-                  onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'pm', cid, h)}
-                  draggingId={dragging?.blockId} />
-                <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', minHeight: 14 }}>
-                  {pmTotal > 0 ? toHHMM(pmTotal) : ''}
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Extra row */}
-          <div style={{
-            padding: '8px 14px', borderBottom: '1px solid var(--tb-border-soft)', display: 'flex', alignItems: 'center', gap: 5,
-            fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
-          }}>
-            <span>Extra</span>
-          </div>
-          {days.map((d, i) => (
-            <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)', background: todayBg(d), padding: 4 }}>
-              <ExtraCell blocks={d.extraBlocks} orphanTodoist={d.orphanTodoist} clients={clients} isToday={d.isToday} isFuture={d.isFuture} />
-            </div>
-          ))}
-
-          {/* Day summary row */}
-          <div style={{
-            padding: '6px 14px', borderBottom: '2px solid var(--tb-border-mid)',
-            display: 'flex', alignItems: 'center',
-            fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
-          }}>Bilancio</div>
-          {days.map((d, i) => {
-            if (d.isWeekend) return (
-              <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border)', background: todayBg(d), opacity: 0.4 }} />
-            );
-            const hasData = d.plannedTotal > 0 || d.dayHours > 0;
-            return (
-              <div key={i} style={{
-                borderLeft: todayBorderLeft(d), borderBottom: '2px solid var(--tb-border-mid)',
-                background: todayBg(d), padding: '5px 6px',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+              {/* AM row */}
+              <GridLabel border compact={planningCompact} timeLabel="fino alle 13:00">Mattina</GridLabel>
+              {days.map((d, i) => {
+                const isDropTarget = dragOver?.day === i && dragOver?.slot === 'am';
+                const amTotal = d.amBlocks.filter(b => clients.some(c => c.id === b.clientId)).reduce((s, b) => s + b.hours, 0);
+                return (
+                  <div key={i}
+                    onDragOver={e => { e.preventDefault(); setDragOver({ day: i, slot: 'am' }); }}
+                    onDragLeave={() => setDragOver(null)}
+                    onDrop={() => handleDrop(i, 'am')}
+                    style={{
+                      borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)',
+                      background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: planningCompact ? 3 : 4,
+                      transition: 'background 0.1s',
+                      outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
+                      display: 'flex', flexDirection: 'column', gap: 3,
+                    }}>
+                    <PlanningCell slot="am" dayIndex={i} blocks={d.amBlocks}
+                      compact={planningCompact}
+                      clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
+                      blockFill={d.blockFill}
+                      todoistByClient={d.todoistByCS.am} todoistTasksByClient={d.todoistTasksByCS.am} hasTodoistSync={!!d.lastSync}
+                      isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
+                      onAddBlock={(cid, h) => addBlockToSlot(i, 'am', cid, h)}
+                      onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'am', bid, h)}
+                      onRemoveBlock={bid => removeBlockFromSlot(i, 'am', bid)}
+                      onReorder={newBlocks => setSlotOverride(i, 'am', newBlocks)}
+                      onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'am', cid, h)}
+                      draggingId={dragging?.blockId} />
+                    <div style={{ textAlign: 'center', fontSize: planningCompact ? 8 : 9, fontWeight: 700, color: 'var(--tb-text-faint)', minHeight: planningCompact ? 10 : 14 }}>
+                      {amTotal > 0 ? toHHMM(amTotal) : ''}
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{
+                borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)',
+                background: 'var(--tb-panel-bg-soft)', gridRow: 'span 3',
               }}>
-                {hasData && !d.isFuture ? (
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{toHHMM(d.loggedInPlan) || '0:00'}</span>
-                    {d.plannedTotal > 0 && (
-                      <>
-                        <span style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>/</span>
-                        <span style={{ fontSize: 9, color: 'var(--tb-text-muted)', fontWeight: 600 }}>{toHHMM(d.plannedTotal)}</span>
-                      </>
-                    )}
-                    {d.bilancioExtra > 0 && (
-                      <span style={{ fontSize: 9, fontWeight: 800, color: '#E07B3A', background: '#E07B3A18', padding: '1px 5px', borderRadius: 3 }}>+{toHHMM(d.bilancioExtra)} extra</span>
-                    )}
-                    {d.pianificazioneExtra > 0 && (
-                      <span style={{ fontSize: 9, fontWeight: 800, color: '#5B8DD9', background: '#5B8DD918', padding: '1px 5px', borderRadius: 3, border: '1px dashed #5B8DD966' }}>+{toHHMM(d.pianificazioneExtra)} pianif.</span>
-                    )}
-                  </div>
-                ) : d.isFuture && d.plannedTotal > 0 ? (
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>{toHHMM(d.plannedTotal)}</span>
-                    {d.pianificazioneExtra > 0 && (
-                      <span style={{ fontSize: 9, fontWeight: 800, color: '#5B8DD9', background: '#5B8DD918', padding: '1px 5px', borderRadius: 3, border: '1px dashed #5B8DD966' }}>+{toHHMM(d.pianificazioneExtra)} pianif.</span>
-                    )}
-                  </div>
-                ) : (
-                  <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>—</span>
-                )}
+                <SlotSummary summary={weekTotalSummary} clients={clients} compact={planningCompact} />
               </div>
-            );
-          })}
-          <div style={{ borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '2px solid var(--tb-border-mid)' }} />
+
+              {/* PM row */}
+              <GridLabel border compact={planningCompact}>Pomeriggio</GridLabel>
+              {days.map((d, i) => {
+                const isDropTarget = dragOver?.day === i && dragOver?.slot === 'pm';
+                const pmTotal = d.pmBlocks.filter(b => clients.some(c => c.id === b.clientId)).reduce((s, b) => s + b.hours, 0);
+                return (
+                  <div key={i}
+                    onDragOver={e => { e.preventDefault(); setDragOver({ day: i, slot: 'pm' }); }}
+                    onDragLeave={() => setDragOver(null)}
+                    onDrop={() => handleDrop(i, 'pm')}
+                    style={{
+                      borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)',
+                      background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: planningCompact ? 3 : 4,
+                      transition: 'background 0.1s',
+                      outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
+                      display: 'flex', flexDirection: 'column', gap: 3,
+                    }}>
+                    <PlanningCell slot="pm" dayIndex={i} blocks={d.pmBlocks}
+                      compact={planningCompact}
+                      clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
+                      blockFill={d.blockFill}
+                      todoistByClient={d.todoistByCS.pm} todoistTasksByClient={d.todoistTasksByCS.pm} hasTodoistSync={!!d.lastSync}
+                      isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
+                      onAddBlock={(cid, h) => addBlockToSlot(i, 'pm', cid, h)}
+                      onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'pm', bid, h)}
+                      onRemoveBlock={bid => removeBlockFromSlot(i, 'pm', bid)}
+                      onReorder={newBlocks => setSlotOverride(i, 'pm', newBlocks)}
+                      onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'pm', cid, h)}
+                      draggingId={dragging?.blockId} />
+                    <div style={{ textAlign: 'center', fontSize: planningCompact ? 8 : 9, fontWeight: 700, color: 'var(--tb-text-faint)', minHeight: planningCompact ? 10 : 14 }}>
+                      {pmTotal > 0 ? toHHMM(pmTotal) : ''}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Extra row */}
+              <div style={{
+                padding: '8px 14px', borderBottom: '1px solid var(--tb-border-soft)', display: 'flex', alignItems: 'center', gap: 5,
+                fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
+              }}>
+                <span>Extra</span>
+              </div>
+              {days.map((d, i) => (
+                <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)', background: todayBg(d), padding: planningCompact ? 3 : 4 }}>
+                  <ExtraCell compact={planningCompact} blocks={d.extraBlocks} orphanTodoist={d.orphanTodoist} clients={clients} isToday={d.isToday} isFuture={d.isFuture} />
+                </div>
+              ))}
+
+              {/* Day summary row */}
+              <div style={{
+                padding: '6px 14px', borderBottom: '2px solid var(--tb-border-mid)',
+                display: 'flex', alignItems: 'center',
+                fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
+              }}>Bilancio</div>
+              {days.map((d, i) => {
+                if (d.isWeekend) return (
+                  <div key={i} style={{ borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border)', background: todayBg(d), opacity: 0.4 }} />
+                );
+                const hasData = d.plannedTotal > 0 || d.dayHours > 0;
+                return (
+                  <div key={i} style={{
+                    borderLeft: todayBorderLeft(d), borderBottom: '2px solid var(--tb-border-mid)',
+                    background: todayBg(d), padding: '5px 6px',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+                  }}>
+                    {hasData && !d.isFuture ? (
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{toHHMM(d.loggedInPlan) || '0:00'}</span>
+                        {d.plannedTotal > 0 && (
+                          <>
+                            <span style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>/</span>
+                            <span style={{ fontSize: 9, color: 'var(--tb-text-muted)', fontWeight: 600 }}>{toHHMM(d.plannedTotal)}</span>
+                          </>
+                        )}
+                        {d.bilancioExtra > 0 && (
+                          <span style={{ fontSize: 9, fontWeight: 800, color: '#E07B3A', background: '#E07B3A18', padding: '1px 5px', borderRadius: 3 }}>+{toHHMM(d.bilancioExtra)} extra</span>
+                        )}
+                        {d.pianificazioneExtra > 0 && (
+                          <span style={{ fontSize: 9, fontWeight: 800, color: '#5B8DD9', background: '#5B8DD918', padding: '1px 5px', borderRadius: 3, border: '1px dashed #5B8DD966' }}>+{toHHMM(d.pianificazioneExtra)} pianif.</span>
+                        )}
+                      </div>
+                    ) : d.isFuture && d.plannedTotal > 0 ? (
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>{toHHMM(d.plannedTotal)}</span>
+                        {d.pianificazioneExtra > 0 && (
+                          <span style={{ fontSize: 9, fontWeight: 800, color: '#5B8DD9', background: '#5B8DD918', padding: '1px 5px', borderRadius: 3, border: '1px dashed #5B8DD966' }}>+{toHHMM(d.pianificazioneExtra)} pianif.</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>—</span>
+                    )}
+                  </div>
+                );
+              })}
+              <div style={{ borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '2px solid var(--tb-border-mid)' }} />
+            </>
+          )}
 
           {/* Timesheet header */}
           <GridLabel header>Ore per progetto</GridLabel>
@@ -895,25 +956,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           </div>
         </div>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <button
-          onClick={() => setHideEmpty(v => {
-            const next = !v;
-            localStorage.setItem('timebox-hide-empty-projects', String(next));
-            return next;
-          })}
-          title={hideEmpty ? 'Mostra tutti i progetti · ⌘⇧H' : 'Nascondi progetti senza ore · ⌘⇧H'}
-          style={{
-            fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 5,
-            background: 'transparent',
-            border: `1px solid ${hideEmpty ? '#3DB33D55' : 'var(--tb-border)'}`,
-            color: hideEmpty ? '#3DB33D' : 'var(--tb-text-faint)',
-            cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
-          }}>
-          {hideEmpty ? '◉ Nascosti' : '○ Nascondi vuoti'}
-        </button>
-        <ViewModeToggle value={viewMode} onChange={changeViewMode} />
-      </div>
     </div>
   );
 }
@@ -1005,19 +1047,19 @@ function ProjectLabel({ project, client, alertColor, rowActive, topBorder, proje
   );
 }
 
-function GridLabel({ children, border, header, timeLabel }) {
+function GridLabel({ children, border, header, timeLabel, compact }) {
   return (
     <div style={{
-      padding: '8px 14px',
+      padding: compact && !header ? '6px 12px' : '8px 14px',
       background: header ? 'var(--tb-panel-bg-soft)' : undefined,
       borderBottom: header ? '1px solid var(--tb-border)' : border ? '1px solid var(--tb-border-soft)' : '1px solid var(--tb-border)',
       display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3,
     }}>
-      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span style={{ fontSize: compact && !header ? 8 : 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {children}
       </span>
       {timeLabel && (
-        <span style={{ fontSize: 8, fontWeight: 600, color: 'var(--tb-text-faint)', opacity: 0.7, letterSpacing: '0.04em', textTransform: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={{ fontSize: compact ? 7 : 8, fontWeight: 600, color: 'var(--tb-text-faint)', opacity: 0.7, letterSpacing: '0.04em', textTransform: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {timeLabel}
         </span>
       )}
@@ -1045,40 +1087,106 @@ function NavBtn({ children, onClick, small }) {
 
 function ViewModeToggle({ value, onChange }) {
   const opts = [
-    { key: 'tracked',  label: 'Tracciate',   color: '#3DB33D' },
-    { key: 'billable', label: 'Fatturabili', color: '#3DB33D' },
+    { key: 'tracked',  label: 'Ore tracciate',   color: '#3DB33D' },
+    { key: 'billable', label: 'Ore fatturabili', color: '#3DB33D' },
   ];
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-faint)', letterSpacing: '0.04em' }}
-            title="Alterna tra Tracciate e Fatturabili · ⌘⇧V">
-        Vista timesheet:
-      </span>
-      <div style={{
+    <div style={{
+      display: 'inline-flex',
+      border: '1px solid var(--tb-border)', borderRadius: 5,
+      overflow: 'hidden', background: 'var(--tb-panel-bg)',
+    }}>
+      {opts.map((o, idx) => {
+        const active = value === o.key;
+        return (
+          <button
+            key={o.key}
+            onClick={() => onChange(o.key)}
+            title="Alterna tra Ore tracciate e Ore fatturabili · ⌘⇧V"
+            style={{
+              fontSize: 10, fontWeight: 700, padding: '3px 10px',
+              background: active ? o.color : 'transparent',
+              color: active ? '#fff' : 'var(--tb-text-muted)',
+              border: 'none',
+              borderLeft: idx > 0 ? '1px solid var(--tb-border)' : 'none',
+              cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
+              transition: 'background 0.15s, color 0.15s',
+            }}>
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProjectVisibilityToggle({ value, onChange }) {
+  const opts = [
+    { key: 'worked', label: 'Progetti lavorati', color: '#3DB33D' },
+    { key: 'all', label: 'Tutti i progetti', color: '#3DB33D' },
+  ];
+  return (
+    <div style={{
         display: 'inline-flex',
         border: '1px solid var(--tb-border)', borderRadius: 5,
         overflow: 'hidden', background: 'var(--tb-panel-bg)',
       }}>
-        {opts.map((o, idx) => {
-          const active = value === o.key;
-          return (
-            <button
-              key={o.key}
-              onClick={() => onChange(o.key)}
-              style={{
-                fontSize: 10, fontWeight: 700, padding: '3px 10px',
-                background: active ? o.color : 'transparent',
-                color: active ? '#fff' : 'var(--tb-text-muted)',
-                border: 'none',
-                borderLeft: idx > 0 ? '1px solid var(--tb-border)' : 'none',
-                cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
-                transition: 'background 0.15s, color 0.15s',
-              }}>
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
+      {opts.map((o, idx) => {
+        const active = value === o.key;
+        return (
+          <button
+            key={o.key}
+            onClick={() => onChange(o.key)}
+            title="Alterna tra Progetti lavorati e Tutti i progetti · ⌘⇧H"
+            style={{
+              fontSize: 10, fontWeight: 700, padding: '3px 10px',
+              background: active ? o.color : 'transparent',
+              color: active ? '#fff' : 'var(--tb-text-muted)',
+              border: 'none',
+              borderLeft: idx > 0 ? '1px solid var(--tb-border)' : 'none',
+              cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
+              transition: 'background 0.15s, color 0.15s',
+            }}>
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function PlanningModeToggle({ value, onChange }) {
+  const opts = [
+    { key: 'full', label: 'Completa', color: '#3DB33D' },
+    { key: 'compact', label: 'Compatta', color: '#3DB33D' },
+    { key: 'hidden', label: 'Nascosta', color: '#3DB33D' },
+  ];
+  return (
+    <div style={{
+      display: 'inline-flex',
+      border: '1px solid var(--tb-border)', borderRadius: 5,
+      overflow: 'hidden', background: 'var(--tb-panel-bg)',
+    }}>
+      {opts.map((o, idx) => {
+        const active = value === o.key;
+        return (
+          <button
+            key={o.key}
+            onClick={() => onChange(o.key)}
+            title="Seleziona pianificazione Completa, Compatta o Nascosta · ⌘⇧P"
+            style={{
+              fontSize: 10, fontWeight: 700, padding: '3px 10px',
+              background: active ? o.color : 'transparent',
+              color: active ? '#fff' : 'var(--tb-text-muted)',
+              border: 'none',
+              borderLeft: idx > 0 ? '1px solid var(--tb-border)' : 'none',
+              cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
+              transition: 'background 0.15s, color 0.15s',
+            }}>
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -1155,7 +1263,7 @@ function TodoistSyncButton({ days, todoistSync, setTodoistSync, todoistTasks, se
   );
 }
 
-function SlotSummary({ summary, clients }) {
+function SlotSummary({ summary, clients, compact }) {
   const items = Object.entries(summary)
     .filter(([_, data]) => (data.planned || 0) > 0 || (data.actual || 0) > 0)
     .sort((a, b) => (b[1].planned || 0) - (a[1].planned || 0) || (b[1].actual || 0) - (a[1].actual || 0));
@@ -1163,7 +1271,7 @@ function SlotSummary({ summary, clients }) {
   if (items.length === 0) return null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '10px 6px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 8 : 12, padding: compact ? '8px 6px' : '10px 6px' }}>
       {items.map(([clientId, data]) => {
         const cl = clients.find(c => c.id === clientId);
         if (!cl) return null;
@@ -1171,10 +1279,10 @@ function SlotSummary({ summary, clients }) {
         const actual = data.actual || 0;
         return (
           <div key={clientId} style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-            <div style={{ fontSize: 8, fontWeight: 700, color: cl.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 77 }}>
+            <div style={{ fontSize: compact ? 7 : 8, fontWeight: 700, color: cl.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 77 }}>
               {cl.name}
             </div>
-            <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
+            <div style={{ fontSize: compact ? 9 : 10, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
               {data.planned !== undefined ? (
                 <>
                   <span style={{ color: actual > planned ? '#E05252' : 'inherit' }}>{toHHMM(actual) || '0:00'}</span>
