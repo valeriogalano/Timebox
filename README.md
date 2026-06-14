@@ -343,7 +343,7 @@ Il log di runtime dell'app installata si trova in:
 
 ## MCP Server
 
-Timebox include un server MCP (Model Context Protocol) per l'integrazione con Claude Code e Claude Desktop.
+Timebox include un server MCP (Model Context Protocol) per l'integrazione con Codex, Claude Code e Claude Desktop.
 
 > **Richiede l'app aperta.** Il server MCP comunica con l'HTTP server locale (porta 37373).
 
@@ -353,24 +353,20 @@ Timebox include un server MCP (Model Context Protocol) per l'integrazione con Cl
 2. Vai in **Impostazioni → CLI e MCP → Installa MCP Server…**
 3. Il comando `timebox-mcp` sarà disponibile in `/usr/local/bin`
 
-### Configurazione Claude Code
+### Configurazione Codex
 
-Aggiungi a `.claude/settings.json` del tuo progetto (o globale):
-
-```json
-{
-  "mcpServers": {
-    "timebox": {
-      "command": "timebox-mcp"
-    }
-  }
-}
-```
-
-Oppure via CLI:
+Via CLI:
 
 ```bash
-claude mcp add timebox timebox-mcp
+codex mcp add timebox -- timebox-mcp
+```
+
+### Configurazione Claude Code
+
+Via CLI:
+
+```bash
+claude mcp add -s user timebox -- timebox-mcp
 ```
 
 ### Tool disponibili

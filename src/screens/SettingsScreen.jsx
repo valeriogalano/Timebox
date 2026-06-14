@@ -10,6 +10,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
     try { return localStorage.getItem('timebox-todoist-debug') === 'true'; } catch { return false; }
   });
   const [cliInstalled, setCliInstalled] = useState(false);
+  const [mcpCodexInstalled, setMcpCodexInstalled] = useState(false);
   const [mcpDesktopInstalled, setMcpDesktopInstalled] = useState(false);
   const [mcpClaudeCodeInstalled, setMcpClaudeCodeInstalled] = useState(false);
 
@@ -25,9 +26,21 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
     window.api.getDbPath().then(p => setDbPath(p || ''));
     window.api.getTodoistToken().then(t => setTodoistTokenState(t || ''));
     window.api.checkCliInstalled().then(v => setCliInstalled(!!v));
+    window.api.checkMcpCodexInstalled().then(v => setMcpCodexInstalled(!!v));
     window.api.checkMcpDesktopInstalled().then(v => setMcpDesktopInstalled(!!v));
     window.api.checkMcpClaudeCodeInstalled().then(v => setMcpClaudeCodeInstalled(!!v));
   }, []);
+
+  async function handleInstallMcpCodex() {
+    setBusy(true);
+    const result = await window.api.installMcpCodex();
+    setBusy(false);
+    if (result?.ok) {
+      setMcpCodexInstalled(true);
+    } else {
+      window.alert(`Configurazione Codex non riuscita:\n${result?.error || 'Errore sconosciuto'}`);
+    }
+  }
 
   async function handleInstallMcpClaudeCode() {
     setBusy(true);
@@ -287,11 +300,23 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
           disabled={busy || cliInstalled}
         />
         <Row
+          label="Configura Codex"
+          description={
+            mcpCodexInstalled
+              ? 'Timebox MCP configurato in Codex tramite il comando `codex mcp add`'
+              : 'Installa il server MCP e lo registra in Codex tramite `codex mcp add`'
+          }
+          buttonLabel={mcpCodexInstalled ? '✓ Configurato' : 'Configura…'}
+          buttonColor="#4A8FE8"
+          onClick={handleInstallMcpCodex}
+          disabled={busy || mcpCodexInstalled}
+        />
+        <Row
           label="Configura Claude Code"
           description={
             mcpClaudeCodeInstalled
-              ? 'Timebox MCP configurato in Claude Code (~/.claude/settings.json) per tutta la macchina'
-              : 'Installa il server MCP e lo aggiunge a ~/.claude/settings.json per Claude Code'
+              ? 'Timebox MCP configurato in Claude Code tramite il comando `claude mcp add` per l’utente corrente'
+              : 'Installa il server MCP e lo registra in Claude Code tramite `claude mcp add -s user`'
           }
           buttonLabel={mcpClaudeCodeInstalled ? '✓ Configurato' : 'Configura…'}
           buttonColor="#4A8FE8"
@@ -309,6 +334,11 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
           buttonColor="#4A8FE8"
           onClick={handleInstallMcpDesktop}
           disabled={busy || mcpDesktopInstalled}
+        />
+        <InfoRow
+          label="Configurazione generica"
+          description="Per altri agenti o client MCP, registra Timebox come server stdio usando il comando seguente."
+          code="timebox-mcp"
         />
       </Section>
       <Section title="Database">
@@ -493,6 +523,33 @@ function Row({ label, description, buttonLabel, buttonColor, onClick, disabled }
         }}>
         {buttonLabel}
       </button>
+    </div>
+  );
+}
+
+function InfoRow({ label, description, code }) {
+  return (
+    <div style={{
+      padding: '16px 20px',
+      display: 'flex', flexDirection: 'column', gap: 8,
+      borderBottom: '1px solid var(--tb-border-soft)',
+    }}>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 3 }}>{label}</div>
+        <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>{description}</div>
+      </div>
+      <div style={{
+        fontSize: 11,
+        color: 'var(--tb-text-secondary)',
+        background: 'var(--tb-panel-bg-soft)',
+        border: '1px solid var(--tb-border)',
+        borderRadius: 6,
+        padding: '8px 10px',
+        fontFamily: 'monospace',
+        wordBreak: 'break-all',
+      }}>
+        {code}
+      </div>
     </div>
   );
 }
