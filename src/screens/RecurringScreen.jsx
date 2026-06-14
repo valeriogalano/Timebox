@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { DAY_SHORT, fmtH } from '../utils';
 import MultiSlotCell from '../components/MultiSlotCell';
 
+const RECURRING_DAYS = DAY_SHORT.length;
+
 export default function RecurringScreen({ clients, recurring, setRecurring }) {
   const [dragging, setDragging] = useState(null); // { blockId, fromDay, fromSlot, clientId, hours }
   const [dragOver, setDragOver] = useState(null); // { day, slot }
@@ -74,7 +76,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
     setDragOver(null);
   }
 
-  const totalPerDay = Array.from({ length: 5 }, (_, i) =>
+  const totalPerDay = Array.from({ length: RECURRING_DAYS }, (_, i) =>
     recurring.filter(r => r.day === i).reduce((s, r) => s + r.hours, 0)
   );
   const weekTotal = totalPerDay.reduce((s, h) => s + h, 0);
@@ -87,12 +89,12 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
       </p>
 
       <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', overflow: 'hidden', marginBottom: 16 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(5, 1fr)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `80px repeat(${RECURRING_DAYS}, 1fr)` }}>
 
           {/* Header */}
           <div style={{ background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)', padding: '10px 14px',
             fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }} />
-          {DAY_SHORT.slice(0, 5).map((d, i) => (
+          {DAY_SHORT.map((d, i) => (
             <div key={i} style={{ background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)',
               borderLeft: '1px solid var(--tb-border-soft)', padding: '10px 8px', textAlign: 'center' }}>
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-muted)' }}>{d}</div>
@@ -104,7 +106,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
           <div style={{ padding: '14px 14px 12px', borderBottom: '2px solid var(--tb-border)', display: 'flex', alignItems: 'flex-start' }}>
             <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', paddingTop: 4 }}>Mattina</div>
           </div>
-          {Array.from({ length: 5 }, (_, i) => {
+          {Array.from({ length: RECURRING_DAYS }, (_, i) => {
             const blocks = recurring.filter(r => r.day === i && r.slot === 'am').sort((a, b) => a.position - b.position);
             const isDropTarget = dragOver?.day === i && dragOver?.slot === 'am';
             return (
@@ -132,7 +134,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
           <div style={{ padding: '14px 14px 12px', display: 'flex', alignItems: 'flex-start' }}>
             <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', paddingTop: 4 }}>Pomeriggio</div>
           </div>
-          {Array.from({ length: 5 }, (_, i) => {
+          {Array.from({ length: RECURRING_DAYS }, (_, i) => {
             const blocks = recurring.filter(r => r.day === i && r.slot === 'pm').sort((a, b) => a.position - b.position);
             const isDropTarget = dragOver?.day === i && dragOver?.slot === 'pm';
             return (
