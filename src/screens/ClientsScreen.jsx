@@ -329,6 +329,16 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
     setProjectDragOverAreaId(null);
   }
 
+  function sortSelectedProjectsAlphabetically() {
+    if (!selectedId || selProjects.length < 2) return;
+    const sortedProjects = [...selProjects]
+      .sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))
+      .map((project, index) => ({ ...project, position: index }));
+    const sortedMap = new Map(sortedProjects.map(project => [project.id, project]));
+    setProjects(prev => prev.map(project => sortedMap.get(project.id) ?? project));
+    sortedProjects.forEach(project => window.api.saveProject(project));
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -511,7 +521,29 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
 
           {/* Projects */}
           <div style={{ borderTop: '1px solid var(--tb-border-soft)', paddingTop: 20 }}>
-            <SectionLabel>Progetti ({selProjects.length})</SectionLabel>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <SectionLabel>Progetti ({selProjects.length})</SectionLabel>
+              <button
+                onClick={sortSelectedProjectsAlphabetically}
+                disabled={selProjects.length < 2}
+                style={{
+                  marginBottom: 8,
+                  padding: '6px 10px',
+                  borderRadius: 6,
+                  border: '1px solid var(--tb-border-mid)',
+                  background: selProjects.length < 2 ? 'transparent' : 'var(--tb-panel-bg-soft)',
+                  color: selProjects.length < 2 ? 'var(--tb-text-faint)' : 'var(--tb-text-secondary)',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: selProjects.length < 2 ? 'default' : 'pointer',
+                  fontFamily: "'Open Sans', sans-serif",
+                  flexShrink: 0,
+                }}
+                title="Ordina alfabeticamente i progetti di questa area"
+              >
+                Ordina A-Z
+              </button>
+            </div>
 
             <div
               onDrop={handleProjectDrop}
