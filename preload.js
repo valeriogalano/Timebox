@@ -46,6 +46,8 @@ contextBridge.exposeInMainWorld('api', {
   installCli:             ()  => ipcRenderer.invoke('app:installCli'),
   checkMcpServerInstalled: () => ipcRenderer.invoke('app:checkMcpServerInstalled'),
   installMcpServer:       ()  => ipcRenderer.invoke('app:installMcpServer'),
+  checkMcpCodexInstalled: () => ipcRenderer.invoke('app:checkMcpCodexInstalled'),
+  installMcpCodex:        ()  => ipcRenderer.invoke('app:installMcpCodex'),
   checkMcpDesktopInstalled: () => ipcRenderer.invoke('app:checkMcpDesktopInstalled'),
   installMcpDesktop:      ()  => ipcRenderer.invoke('app:installMcpDesktop'),
   checkMcpClaudeCodeInstalled: () => ipcRenderer.invoke('app:checkMcpClaudeCodeInstalled'),

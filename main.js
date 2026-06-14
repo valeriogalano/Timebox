@@ -44,6 +44,19 @@ let _db = null;
 let _dbPath = null;
 let _httpServer = null;
 const HTTP_PORT = 37373;
+const TIMEBOX_MCP_BIN = '/usr/local/bin/timebox-mcp';
+const CLI_CANDIDATES = {
+  codex: [
+    path.join(app.getPath('home'), '.local', 'bin', 'codex'),
+    '/usr/local/bin/codex',
+    '/opt/homebrew/bin/codex',
+  ],
+  claude: [
+    path.join(app.getPath('home'), '.local', 'bin', 'claude'),
+    '/usr/local/bin/claude',
+    '/opt/homebrew/bin/claude',
+  ],
+};
 
 function getConfigPath() {
   return path.join(app.getPath('userData'), 'config.json');
@@ -163,6 +176,80 @@ function installTool(src, dest) {
   });
 }
 
+function runCommand(command, args, options = {}) {
+  return new Promise(resolve => {
+    execFile(command, args, { timeout: 15000, ...options }, (error, stdout = '', stderr = '') => {
+      if (error) return resolve({ ok: false, error, stdout, stderr });
+      resolve({ ok: true, stdout, stderr });
+    });
+  });
+}
+
+async function resolveCommandBinary(command) {
+  const candidates = CLI_CANDIDATES[command] ?? [];
+  for (const candidate of candidates) {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch {}
+  }
+
+  const lookup = await runCommand('/bin/zsh', ['-lic', `command -v ${command}`]);
+  if (lookup.ok) {
+    const resolved = (lookup.stdout || '').trim().split('\n').find(Boolean);
+    if (resolved) return resolved;
+  }
+  return command;
+}
+
+function getMcpServerSource() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'timebox-mcp')
+    : path.join(__dirname, 'cli', 'mcp-server.js');
+}
+
+async function ensureMcpServerInstalled() {
+  const result = await installTool(getMcpServerSource(), TIMEBOX_MCP_BIN);
+  if (!result.ok) return result;
+  try {
+    const real = fs.realpathSync(TIMEBOX_MCP_BIN);
+    fs.accessSync(real, fs.constants.X_OK);
+    return { ok: true };
+  } catch (e) {
+    return { error: `Symlink creato ma il target non è eseguibile: ${e.message}` };
+  }
+}
+
+function formatCommandFailure(command, args, result) {
+  const detail = [result?.stderr, result?.stdout, result?.error?.message]
+    .map(v => (v || '').trim())
+    .find(Boolean);
+  return `Comando non riuscito: ${command} ${args.join(' ')}${detail ? `\n${detail}` : ''}`;
+}
+
+async function isMcpConfiguredViaCommand(command, args) {
+  const bin = await resolveCommandBinary(command);
+  const result = await runCommand(bin, args);
+  return result.ok;
+}
+
+async function configureMcpViaCommand(command, addArgs, checkArgs) {
+  const install = await ensureMcpServerInstalled();
+  if (!install.ok) return install;
+
+  const bin = await resolveCommandBinary(command);
+
+  if (await isMcpConfiguredViaCommand(command, checkArgs)) return { ok: true };
+
+  const addResult = await runCommand(bin, addArgs);
+  if (!addResult.ok && !(await isMcpConfiguredViaCommand(command, checkArgs))) {
+    return { error: formatCommandFailure(bin, addArgs, addResult) };
+  }
+
+  if (await isMcpConfiguredViaCommand(command, checkArgs)) return { ok: true };
+  return { error: `Configurazione ${command} completata ma verifica finale non riuscita.` };
+}
+
 function setupIpc() {
   ipcMain.handle('db:getClients',          ()              => q.getClients());
   ipcMain.handle('db:saveClient',          (_, c)          => q.saveClient(c));
@@ -225,49 +312,31 @@ function setupIpc() {
   });
 
   ipcMain.handle('app:installMcpServer', async () => {
-    const src = app.isPackaged
-      ? path.join(process.resourcesPath, 'timebox-mcp')
-      : path.join(__dirname, 'cli', 'mcp-server.js');
-    const result = await installTool(src, '/usr/local/bin/timebox-mcp');
-    if (!result.ok) return result;
-    try {
-      const real = fs.realpathSync('/usr/local/bin/timebox-mcp');
-      fs.accessSync(real, fs.constants.X_OK);
-      return { ok: true };
-    } catch (e) {
-      return { error: `Symlink creato ma il target non è eseguibile: ${e.message}` };
-    }
+    return ensureMcpServerInstalled();
   });
 
-  ipcMain.handle('app:checkMcpClaudeCodeInstalled', () => {
-    const cfgPath = path.join(app.getPath('home'), '.claude.json');
-    try {
-      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-      const cmd = cfg?.mcpServers?.timebox?.command;
-      if (!cmd) return false;
-      const real = fs.realpathSync(cmd);
-      fs.accessSync(real, fs.constants.X_OK);
-      return true;
-    } catch { return false; }
+  ipcMain.handle('app:checkMcpCodexInstalled', async () => {
+    return isMcpConfiguredViaCommand('codex', ['mcp', 'get', 'timebox']);
+  });
+
+  ipcMain.handle('app:installMcpCodex', async () => {
+    return configureMcpViaCommand(
+      'codex',
+      ['mcp', 'add', 'timebox', '--', TIMEBOX_MCP_BIN],
+      ['mcp', 'get', 'timebox'],
+    );
+  });
+
+  ipcMain.handle('app:checkMcpClaudeCodeInstalled', async () => {
+    return isMcpConfiguredViaCommand('claude', ['mcp', 'get', 'timebox']);
   });
 
   ipcMain.handle('app:installMcpClaudeCode', async () => {
-    const src = app.isPackaged
-      ? path.join(process.resourcesPath, 'timebox-mcp')
-      : path.join(__dirname, 'cli', 'mcp-server.js');
-    const symlink = await installTool(src, '/usr/local/bin/timebox-mcp');
-    if (!symlink.ok) return symlink;
-    const cfgPath = path.join(app.getPath('home'), '.claude.json');
-    try {
-      let cfg = {};
-      try { cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8')); } catch {}
-      if (!cfg.mcpServers) cfg.mcpServers = {};
-      cfg.mcpServers.timebox = { type: 'stdio', command: '/usr/local/bin/timebox-mcp', args: [], env: {} };
-      fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
-      return { ok: true };
-    } catch (e) {
-      return { error: e.message };
-    }
+    return configureMcpViaCommand(
+      'claude',
+      ['mcp', 'add', '-s', 'user', 'timebox', '--', TIMEBOX_MCP_BIN],
+      ['mcp', 'get', 'timebox'],
+    );
   });
 
   ipcMain.handle('app:checkMcpDesktopInstalled', () => {
