@@ -244,6 +244,7 @@ function deleteWeekOverride(weekKey, dayIndex, slot) {
 }
 
 function freezeWeeksBeforeRecurringChange(currentRecurring) {
+  const RECURRING_DAYS = 7;
   const dates = db.prepare('SELECT DISTINCT date FROM entries').all().map(r => r.date);
   if (!dates.length) return;
 
@@ -265,7 +266,7 @@ function freezeWeeksBeforeRecurringChange(currentRecurring) {
 
   db.transaction(() => {
     for (const weekKey of weekKeys) {
-      for (let dayIndex = 0; dayIndex < 5; dayIndex++) {
+      for (let dayIndex = 0; dayIndex < RECURRING_DAYS; dayIndex++) {
         for (const slot of ['am', 'pm']) {
           const id = `${weekKey}-${dayIndex}-${slot}`;
           const blocks = currentRecurring

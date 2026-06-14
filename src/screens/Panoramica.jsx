@@ -7,6 +7,7 @@ const COL_OK    = '#3DB33D';
 
 const TREND_WEEKS  = 8;
 const TREND_MONTHS = 6;
+const PLANNING_DAYS = 7;
 
 function fmtEur(n) {
   if (n == null) return '—';
@@ -125,7 +126,7 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
   const plannedByClientEffective = useMemo(() => {
     const result = {};
     clients.forEach(c => { result[c.id] = 0; });
-    for (let dayIndex = 0; dayIndex < 5; dayIndex++) {
+    for (let dayIndex = 0; dayIndex < PLANNING_DAYS; dayIndex++) {
       for (const slot of ['am', 'pm']) {
         const dayOverride = weekOverrides[dayIndex];
         const blocks = dayOverride && dayOverride[slot] !== undefined
