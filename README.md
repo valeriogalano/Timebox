@@ -2,7 +2,7 @@
 
 > **Personal workflow software.** Timebox is built for the way **I** do timeblocking, time tracking, billing follow-up, and weekly capacity planning as a freelancer. It codifies a subjective, personal process; it is not trying to be a generic productivity system.
 >
-> **Vibe coding project.** Like [podcast-audiogram-generator](https://github.com/valeriogalano/podcast-audiogram-generator), this project is developed through iterative, AI-assisted coding: the human steers intent and product decisions, while AI agents write and revise much of the implementation. It works and has tests, but expect fast evolution and rough edges.
+> **Vibe coding project.** This project is developed through iterative, AI-assisted coding: the human steers intent and product decisions, while AI agents write and revise much of the implementation. It works and has tests, but expect fast evolution and rough edges.
 
 Timebox is a local-first macOS desktop app for freelance work planning. It combines a weekly timeblocking board, per-project time tracking, billable-hour review, budget alerts, Todoist task sync, a local HTTP API, a standalone CLI, and an MCP server for coding agents.
 
