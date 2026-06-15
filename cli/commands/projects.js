@@ -2,15 +2,16 @@
 
 const { getProjects, getClients, getProjectTotals } = require('../../db/queries');
 
-function getProjectsData({ clientFilter, includeArchived, nameSearch } = {}) {
+function getProjectsData({ clientFilter, areaFilter, includeArchived, nameSearch } = {}) {
   const projects = getProjects();
   const clients = getClients();
   const totals = getProjectTotals();
   const clientMap = Object.fromEntries(clients.map(c => [c.id, c]));
 
   let filtered = includeArchived ? projects : projects.filter(p => !p.archived);
-  if (clientFilter) {
-    const search = clientFilter.toLowerCase();
+  const effectiveAreaFilter = areaFilter ?? clientFilter;
+  if (effectiveAreaFilter) {
+    const search = effectiveAreaFilter.toLowerCase();
     filtered = filtered.filter(p =>
       (clientMap[p.clientId]?.name.toLowerCase() || '').includes(search)
     );
@@ -26,6 +27,7 @@ function getProjectsData({ clientFilter, includeArchived, nameSearch } = {}) {
   return filtered.map(p => ({
     id: p.id,
     client: clientMap[p.clientId]?.name || '?',
+    area: clientMap[p.clientId]?.name || '?',
     project: p.name,
     description: p.description || null,
     budgetHours: p.budgetHours,

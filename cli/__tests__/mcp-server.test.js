@@ -72,14 +72,14 @@ describe('MCP server', () => {
     assert.ok(res.result.capabilities.tools !== undefined);
   });
 
-  it('tools/list → 6 tools with required fields', async () => {
+  it('tools/list → tools with required fields', async () => {
     const res = await rpc(mcp, msg('tools/list', {}));
     const { tools } = res.result;
     assert.ok(Array.isArray(tools));
     assert.equal(tools.length, 15);
     const names = tools.map(t => t.name);
-    for (const n of ['today', 'week', 'projects', 'clients', 'status', 'log_hours',
-      'find_client', 'find_project', 'rename_client', 'rename_project', 'update_project',
+    for (const n of ['today', 'week', 'projects', 'areas', 'status', 'log_hours',
+      'find_area', 'find_project', 'rename_area', 'rename_project', 'update_project',
       'move_project', 'create_project', 'delete_project', 'merge_project_entries']) {
       assert.ok(names.includes(n), `missing tool: ${n}`);
     }
@@ -106,15 +106,15 @@ describe('MCP server', () => {
     assert.ok(text.includes('Total:'), 'contains total');
   });
 
-  it('tools/call projects → lists projects with client', async () => {
+  it('tools/call projects → lists projects with area', async () => {
     const res = await rpc(mcp, msg('tools/call', { name: 'projects', arguments: {} }));
     const text = res.result.content[0].text;
     assert.ok(text.length > 0);
-    assert.ok(text.includes('['), 'contains client bracket');
+    assert.ok(text.includes('['), 'contains area bracket');
   });
 
-  it('tools/call clients → 4 seed clients', async () => {
-    const res = await rpc(mcp, msg('tools/call', { name: 'clients', arguments: {} }));
+  it('tools/call areas → 4 seed areas', async () => {
+    const res = await rpc(mcp, msg('tools/call', { name: 'areas', arguments: {} }));
     const lines = res.result.content[0].text.trim().split('\n').filter(Boolean);
     assert.equal(lines.length, 4);
   });

@@ -135,7 +135,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
   }
 
   async function handleResetData() {
-    if (!window.confirm('Cancellare tutti i dati?\n\nQuesta operazione elimina definitivamente clienti, progetti, ore e pianificazione.')) return;
+    if (!window.confirm('Cancellare tutti i dati?\n\nQuesta operazione elimina definitivamente aree, progetti, ore e pianificazione.')) return;
     setBusy(true);
     await window.api.resetAllData();
     window.location.reload();
@@ -259,7 +259,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
               Importa progetti
             </div>
             <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
-              Aggiunge sotto il client "Todoist" tutti i progetti Todoist non ancora presenti in Timebox
+              Aggiunge sotto l'area "Todoist" tutti i progetti Todoist non ancora presenti in Timebox
             </div>
             {importResult && (
               <div style={{ fontSize: 11, marginTop: 6, color: importResult.error ? '#E05252' : '#3DB33D', fontWeight: 700 }}>
@@ -369,7 +369,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
       <Section title="Dati">
         <Row
           label="Carica dati di prova"
-          description="Inserisce clienti, progetti e ore di esempio (sovrascrive i dati esistenti)"
+          description="Inserisce aree, progetti e ore di esempio (sovrascrive i dati esistenti)"
           buttonLabel="Carica dati demo"
           buttonColor="#4A8FE8"
           onClick={handleSeedData}
@@ -377,7 +377,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
         />
         <Row
           label="Cancella tutti i dati"
-          description="Elimina definitivamente clienti, progetti, ore e pianificazione settimanale"
+          description="Elimina definitivamente aree, progetti, ore e pianificazione settimanale"
           buttonLabel="Cancella tutto"
           buttonColor="#E05252"
           onClick={handleResetData}

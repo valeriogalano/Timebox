@@ -386,7 +386,7 @@ export default function PlanningCell({
                 style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--tb-input-border)',
                   fontFamily: "'Open Sans', sans-serif", fontSize: 11, color: 'var(--tb-input-text)',
                   background: 'var(--tb-input-bg)', outline: 'none' }}>
-                <option value="">Cliente…</option>
+                <option value="">Area…</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <div style={{ display: 'flex', gap: 4 }}>

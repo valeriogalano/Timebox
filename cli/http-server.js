@@ -66,12 +66,13 @@ function createHttpServer() {
 
       if (req.method === 'GET' && p === '/projects') {
         const clientFilter = q.get('client') || undefined;
+        const areaFilter = q.get('area') || undefined;
         const includeArchived = q.get('all') === '1';
         const nameSearch = q.get('search') || undefined;
-        return json(res, 200, getProjectsData({ clientFilter, includeArchived, nameSearch }));
+        return json(res, 200, getProjectsData({ clientFilter, areaFilter, includeArchived, nameSearch }));
       }
 
-      if (req.method === 'GET' && p === '/clients') {
+      if (req.method === 'GET' && (p === '/clients' || p === '/areas')) {
         const nameFilter = q.get('search') || undefined;
         return json(res, 200, getClientsData({ nameFilter }));
       }
@@ -110,25 +111,26 @@ function createHttpServer() {
       }
 
       if (req.method === 'POST' && p === '/projects') {
-        const { name, clientId, description, budgetHours, weeklyHours } = await readBody(req);
-        if (!name || !clientId) return json(res, 400, { error: 'name and clientId are required' });
-        const client = getClients().find(c => c.id === clientId);
-        if (!client) return json(res, 400, { error: `Client not found: ${clientId}` });
+        const { name, clientId, areaId, description, budgetHours, weeklyHours } = await readBody(req);
+        const resolvedAreaId = areaId || clientId;
+        if (!name || !resolvedAreaId) return json(res, 400, { error: 'name and areaId/clientId are required' });
+        const client = getClients().find(c => c.id === resolvedAreaId);
+        if (!client) return json(res, 400, { error: `Area not found: ${resolvedAreaId}` });
         const id = randomUUID();
-        saveProject({ id, clientId, name, description: description ?? null, budgetHours: budgetHours ?? null, weeklyHours: weeklyHours ?? null });
+        saveProject({ id, clientId: resolvedAreaId, name, description: description ?? null, budgetHours: budgetHours ?? null, weeklyHours: weeklyHours ?? null });
         emitter.emit('change', 'structure');
-        return json(res, 200, { id, name, client: client.name });
+        return json(res, 200, { id, name, clientId: resolvedAreaId, areaId: resolvedAreaId, client: client.name, area: client.name });
       }
 
-      if (req.method === 'PATCH' && p.startsWith('/clients/') && p !== '/clients/') {
-        const id = p.slice('/clients/'.length);
+      if (req.method === 'PATCH' && ((p.startsWith('/clients/') && p !== '/clients/') || (p.startsWith('/areas/') && p !== '/areas/'))) {
+        const id = p.startsWith('/areas/') ? p.slice('/areas/'.length) : p.slice('/clients/'.length);
         const { name } = await readBody(req);
         if (!name) return json(res, 400, { error: 'name is required' });
         const existing = getClients().find(c => c.id === id);
-        if (!existing) return json(res, 404, { error: `Client not found: ${id}` });
+        if (!existing) return json(res, 404, { error: `Area not found: ${id}` });
         saveClient({ ...existing, name });
         emitter.emit('change', 'structure');
-        return json(res, 200, { id, oldName: existing.name, newName: name });
+        return json(res, 200, { id, oldName: existing.name, newName: name, oldAreaName: existing.name, newAreaName: name });
       }
 
       if (req.method === 'PATCH' && p.startsWith('/projects/') && p !== '/projects/') {
@@ -139,13 +141,14 @@ function createHttpServer() {
         const updated = { ...existing };
         if (body.name !== undefined)        updated.name = body.name;
         if (body.clientId !== undefined)    updated.clientId = body.clientId;
+        if (body.areaId !== undefined)      updated.clientId = body.areaId;
         if ('description' in body)          updated.description = body.description ?? null;
         if ('budgetHours' in body)          updated.budgetHours = body.budgetHours ?? null;
         if ('weeklyHours' in body)          updated.weeklyHours = body.weeklyHours ?? null;
         saveProject(updated);
         const client = getClients().find(c => c.id === updated.clientId);
         emitter.emit('change', 'structure');
-        return json(res, 200, { id, name: updated.name, clientId: updated.clientId, client: client?.name, description: updated.description, budgetHours: updated.budgetHours, weeklyHours: updated.weeklyHours });
+        return json(res, 200, { id, name: updated.name, clientId: updated.clientId, areaId: updated.clientId, client: client?.name, area: client?.name, description: updated.description, budgetHours: updated.budgetHours, weeklyHours: updated.weeklyHours });
       }
 
       if (req.method === 'DELETE' && p.startsWith('/projects/') && p !== '/projects/') {

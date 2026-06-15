@@ -11,6 +11,7 @@ function getClientsData({ nameFilter } = {}) {
   return clients.map(c => ({
     id: c.id,
     name: c.name,
+    area: c.name,
     billable: c.billable,
     billing: c.billing,
     rate: c.rate,

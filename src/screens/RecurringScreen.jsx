@@ -84,7 +84,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
   return (
     <div>
       <p style={{ fontSize: 13, color: 'var(--tb-text-secondary)', marginBottom: 20, maxWidth: 560, lineHeight: 1.6 }}>
-        Il template settimanale definisce i blocchi ricorrenti. Ogni slot può contenere più clienti.
+        Il template settimanale definisce i blocchi ricorrenti. Ogni slot può contenere più aree.
         Le modifiche qui si applicano a tutte le settimane future; puoi sovrascrivere singole settimane dalla vista <strong>Settimana</strong>.
       </p>
 
