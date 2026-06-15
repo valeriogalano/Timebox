@@ -1,35 +1,38 @@
-# Timebox - Build e Packaging
+# Timebox - Build and Packaging
 
-Questa guida spiega come compilare Timebox (Electron + Vite + React) e generare pacchetti installabili su macOS, Windows e Linux.
+This guide explains how to build Timebox (Electron + Vite + React) and produce installable packages for macOS, Windows, and Linux.
 
-## Prerequisiti
+Timebox is personal workflow software built for the maintainer's own timeblocking and time tracking process. It is also a vibe coding project, so keep packaging instructions grounded in the actual scripts and generated artifacts.
 
-- Node.js 20+ (consigliato LTS)
+## Requirements
+
+- Node.js 20+ (LTS recommended)
 - npm 10+
-- Build tools del sistema operativo:
+- Operating-system build tools:
   - macOS: Xcode Command Line Tools
-  - Windows: Visual Studio Build Tools (Desktop development with C++)
-  - Linux: toolchain C/C++ (`build-essential` su Debian/Ubuntu)
+  - Windows: Visual Studio Build Tools with Desktop development with C++
+  - Linux: C/C++ toolchain, for example `build-essential` on Debian/Ubuntu
 
-Il progetto usa `better-sqlite3` (modulo nativo): builda sempre sul sistema target.
+The project uses `better-sqlite3`, a native module. Build on the target operating system whenever possible.
 
-## Installazione dipendenze
+## Install Dependencies
 
 ```bash
 npm ci --ignore-scripts
 npm run rebuild
 ```
 
-`better-sqlite3` è un modulo nativo. Con Node recenti i prebuilt possono non essere
-disponibili: `npm run rebuild` compila il modulo contro le header di Electron 31.
+`better-sqlite3` may not have prebuilt binaries for recent Node versions. `npm run rebuild` compiles it against Electron 31 headers.
 
-## Avvio sviluppo
+## Development
 
 ```bash
 npm run dev
 ```
 
-## Build renderer (frontend)
+This starts the Vite dev server and Electron together.
+
+## Renderer Build
 
 ```bash
 npm run build
@@ -37,27 +40,27 @@ npm run build
 
 Output: `renderer-dist/`
 
-## Packaging applicazione
+## Application Packaging
 
-Eseguire prima la build renderer, poi `electron-builder`.
+Build the renderer first, then run `electron-builder`.
 
-### macOS (.dmg)
+### macOS (.dmg and .zip)
 
 ```bash
 npm run dist:mac
 ```
 
-Output: `release/Timebox-<version>-mac-<arch>.dmg` e `zip`.
+Output: `release/Timebox-<version>-mac-<arch>.dmg` and a `.zip` artifact.
 
-Il target `zip` è necessario per i metadata di auto-update macOS.
+The `.zip` target is required for macOS auto-update metadata.
 
-### Windows (.exe / nsis)
+### Windows (.exe / NSIS)
 
 ```powershell
 npm run dist:win
 ```
 
-Output tipico: `release/Timebox Setup <version>.exe`
+Typical output: `release/Timebox Setup <version>.exe`
 
 ### Linux (.AppImage)
 
@@ -65,55 +68,53 @@ Output tipico: `release/Timebox Setup <version>.exe`
 npm run dist:linux
 ```
 
-Output tipico: `release/Timebox-<version>.AppImage`
+Typical output: `release/Timebox-<version>.AppImage`
 
-## Build per tutte le piattaforme supportate
+## Build All Configured Targets
 
 ```bash
 npm run dist
 ```
 
-Nota: la cross-compilazione non è sempre affidabile con moduli nativi e firma codice.
-Meglio buildare ogni target sul relativo sistema operativo.
+Cross-compilation is not always reliable with native modules and code signing. Prefer building each target on its own operating system.
 
-## Firma e notarizzazione
+## Signing and Notarization
 
-- macOS: per distribuzione esterna servono certificato Apple Developer ID e notarizzazione.
-- Windows: consigliata firma Authenticode per evitare warning SmartScreen.
+- macOS: external distribution requires an Apple Developer ID certificate and notarization.
+- Windows: Authenticode signing is recommended to reduce SmartScreen warnings.
 
-La configurazione attuale genera pacchetti locali; firma/notarizzazione dipendono dalle credenziali del tuo ambiente.
+The current configuration can generate local packages. Signing and notarization depend on credentials available in the build environment.
 
-## Release GitHub e auto-update
+## GitHub Releases and Auto-Update
 
-Le release sono pubblicate da `.github/workflows/release.yml` quando viene pushato un
-tag `v*`.
+Releases are published by `.github/workflows/release.yml` when a `v*` tag is pushed.
 
-Prima di creare un tag:
+Before creating a tag:
 
-1. Aggiorna `version` in `package.json`.
-2. Esegui `npm install --package-lock-only --ignore-scripts` se il lockfile deve recepire i metadata.
-3. Esegui `npm test`.
-4. Esegui `npm run build`.
-5. Crea e pusha il tag semver, ad esempio `v0.4.1`.
+1. Update `version` in `package.json`.
+2. Run `npm install --package-lock-only --ignore-scripts` if the lockfile needs metadata updates.
+3. Run `npm test`.
+4. Run `npm run build`.
+5. Create and push a semver tag, for example `v0.4.1`.
 
-Il workflow usa `GITHUB_TOKEN` con permesso `contents: write` e `electron-builder`
-con publish provider GitHub. Gli artifact e i metadata `latest*.yml` vengono caricati
-nella GitHub Release e usati da `electron-updater`.
+The workflow uses `GITHUB_TOKEN` with `contents: write` and `electron-builder` with GitHub as the publish provider. Installer artifacts and `latest*.yml` metadata are uploaded to the GitHub Release and used by `electron-updater`.
 
-Per un futuro mirror Codeberg, mantenere GitHub come provider update oppure passare
-a provider `generic` con artifact e metadata serviti da un URL HTTPS stabile.
+For a future Codeberg mirror, either keep GitHub as the update provider or switch to a `generic` provider with artifacts and metadata served from a stable HTTPS URL.
 
-## Dove finiscono i file
+## Output Locations
 
-- Renderer web: `renderer-dist/`
-- Artifact installer: `release/`
-- Log runtime app installata (macOS): `~/Library/Application Support/Timebox/logs/timebox.log`
+- Renderer web build: `renderer-dist/`
+- Installer artifacts: `release/`
+- Installed app runtime log on macOS: `~/Library/Application Support/Timebox/logs/timebox.log`
 
-## Troubleshooting rapido
+## Quick Troubleshooting
 
-- Schermata bianca dopo installazione:
-  - verifica che il pacchetto includa `renderer-dist/`
-  - controlla il log runtime (`timebox.log`)
-- Errori su `better-sqlite3`:
-  - esegui `npm ci` sul sistema target
-  - riesegui packaging nello stesso sistema
+Blank screen after installation:
+
+- verify that the package includes `renderer-dist/`;
+- inspect the runtime log at `timebox.log`.
+
+`better-sqlite3` errors:
+
+- run `npm ci` on the target operating system;
+- package again on that same operating system.
