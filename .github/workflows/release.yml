@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: mac
+            command: npx electron-builder --mac --publish always
+          - os: windows-latest
+            target: win
+            command: npx electron-builder --win --publish always
+          - os: ubuntu-latest
+            target: linux
+            command: npx electron-builder --linux --publish always
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Rebuild native modules for Electron
+        run: npm run rebuild
+
+      - name: Test
+        run: npm test
+
+      - name: Rebuild native modules for Electron after tests
+        run: npm run rebuild
+
+      - name: Build renderer
+        run: npm run build
+
+      - name: Publish ${{ matrix.target }} release
+        run: ${{ matrix.command }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

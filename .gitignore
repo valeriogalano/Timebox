@@ -17,6 +17,12 @@ out/
 .playwright-mcp/
 .claude/
 
+# Local audit/export artifacts
+/*.csv
+/*.png
+/timebox/
+!/build/*.png
+
 # OS
 .DS_Store
 
