@@ -14,6 +14,7 @@ out/
 .vscode/
 
 # MCP / tooling
+.codex/
 .playwright-mcp/
 .claude/
 

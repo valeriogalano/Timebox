@@ -8,6 +8,7 @@ node_modules/
 # IDE
 .idea/
 .vscode/
+.codex/
 *.swp
 *.swo
 
