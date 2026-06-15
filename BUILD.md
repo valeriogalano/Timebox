@@ -16,8 +16,12 @@ Il progetto usa `better-sqlite3` (modulo nativo): builda sempre sul sistema targ
 ## Installazione dipendenze
 
 ```bash
-npm ci
+npm ci --ignore-scripts
+npm run rebuild
 ```
+
+`better-sqlite3` è un modulo nativo. Con Node recenti i prebuilt possono non essere
+disponibili: `npm run rebuild` compila il modulo contro le header di Electron 31.
 
 ## Avvio sviluppo
 
@@ -40,17 +44,17 @@ Eseguire prima la build renderer, poi `electron-builder`.
 ### macOS (.dmg)
 
 ```bash
-npm run build
-npx electron-builder --mac dmg
+npm run dist:mac
 ```
 
-Output: `release/Timebox-<version>-arm64.dmg` (o x64 in base alla macchina)
+Output: `release/Timebox-<version>-mac-<arch>.dmg` e `zip`.
+
+Il target `zip` è necessario per i metadata di auto-update macOS.
 
 ### Windows (.exe / nsis)
 
 ```powershell
-npm run build
-npx electron-builder --win nsis
+npm run dist:win
 ```
 
 Output tipico: `release/Timebox Setup <version>.exe`
@@ -58,8 +62,7 @@ Output tipico: `release/Timebox Setup <version>.exe`
 ### Linux (.AppImage)
 
 ```bash
-npm run build
-npx electron-builder --linux AppImage
+npm run dist:linux
 ```
 
 Output tipico: `release/Timebox-<version>.AppImage`
@@ -67,8 +70,7 @@ Output tipico: `release/Timebox-<version>.AppImage`
 ## Build per tutte le piattaforme supportate
 
 ```bash
-npm run build
-npx electron-builder -mwl
+npm run dist
 ```
 
 Nota: la cross-compilazione non è sempre affidabile con moduli nativi e firma codice.
@@ -80,6 +82,26 @@ Meglio buildare ogni target sul relativo sistema operativo.
 - Windows: consigliata firma Authenticode per evitare warning SmartScreen.
 
 La configurazione attuale genera pacchetti locali; firma/notarizzazione dipendono dalle credenziali del tuo ambiente.
+
+## Release GitHub e auto-update
+
+Le release sono pubblicate da `.github/workflows/release.yml` quando viene pushato un
+tag `v*`.
+
+Prima di creare un tag:
+
+1. Aggiorna `version` in `package.json`.
+2. Esegui `npm install --package-lock-only --ignore-scripts` se il lockfile deve recepire i metadata.
+3. Esegui `npm test`.
+4. Esegui `npm run build`.
+5. Crea e pusha il tag semver, ad esempio `v0.4.1`.
+
+Il workflow usa `GITHUB_TOKEN` con permesso `contents: write` e `electron-builder`
+con publish provider GitHub. Gli artifact e i metadata `latest*.yml` vengono caricati
+nella GitHub Release e usati da `electron-updater`.
+
+Per un futuro mirror Codeberg, mantenere GitHub come provider update oppure passare
+a provider `generic` con artifact e metadata serviti da un URL HTTPS stabile.
 
 ## Dove finiscono i file
 

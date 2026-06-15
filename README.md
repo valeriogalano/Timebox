@@ -20,8 +20,10 @@ App desktop macOS per la gestione del tempo lavorativo freelance. Permette di pi
   - [Impostazioni](#impostazioni)
 - [Integrazione Todoist](#integrazione-todoist)
 - [Temi](#temi)
+- [Privacy e dati locali](#privacy-e-dati-locali)
 - [Struttura dati](#struttura-dati)
 - [Build e packaging](#build-e-packaging)
+- [Release e auto-update](#release-e-auto-update)
 
 ---
 
@@ -308,6 +310,19 @@ La preferenza viene salvata in `localStorage` e applicata all'avvio successivo.
 
 ---
 
+## Privacy e dati locali
+
+Timebox è local-first:
+
+- Il database SQLite resta sul Mac dell'utente, nel percorso configurato in Impostazioni.
+- Il token Todoist viene salvato cifrato tramite Electron `safeStorage`.
+- Il server HTTP per CLI/MCP è disponibile solo su `127.0.0.1:37373` e solo mentre l'app è aperta.
+- La sincronizzazione Todoist legge i task aperti via API Todoist e salva in cache locale solo i task abbinati ai progetti Timebox.
+
+Non includere database personali, esportazioni CSV o screenshot reali nelle issue o nelle release pubbliche.
+
+---
+
 ## Struttura dati
 
 Il database SQLite contiene le seguenti tabelle:
@@ -329,15 +344,28 @@ Il database SQLite contiene le seguenti tabelle:
 Vedi [BUILD.md](BUILD.md) per le istruzioni complete su packaging per macOS (.dmg), Windows (.exe) e Linux (.AppImage).
 
 ```bash
-# Build renderer
-npm run build
-
-# Packaging macOS
-npx electron-builder --mac dmg
+# Build renderer + packaging locale
+npm run dist:mac
+npm run dist:win
+npm run dist:linux
 ```
 
 Il log di runtime dell'app installata si trova in:
 - **macOS:** `~/Library/Application Support/Timebox/logs/timebox.log`
+
+---
+
+## Release e auto-update
+
+Le release pubbliche usano tag semver (`v0.4.1`, `v0.5.0`, ...). La versione in `package.json` deve combaciare con il tag.
+
+Gli artifact sono generati da GitHub Actions su runner nativi:
+
+- macOS: `dmg` e `zip`
+- Windows: `nsis`
+- Linux: `AppImage`
+
+L'auto-update usa `electron-updater` con GitHub Releases come provider. Il check parte solo nell'app packaged; in sviluppo viene saltato e scritto nel log. Per macOS production servono firma Developer ID e notarizzazione, altrimenti gli artifact sono build di test e l'esperienza update non è adeguata per utenti finali.
 
 ---
 

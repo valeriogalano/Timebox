@@ -6,6 +6,7 @@ const { initDb } = require('./db/schema');
 const q = require('./db/queries');
 const { createHttpServer } = require('./cli/http-server');
 const { todoistTaskOrder } = require('./lib/todoist-order');
+const { setupAutoUpdater } = require('./lib/updater');
 
 function getAppIcon() {
   const img = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'));
@@ -151,6 +152,8 @@ function createWindow() {
     logger.info('loading production file', { rendererEntry, exists: fs.existsSync(rendererEntry) });
     win.loadFile(rendererEntry);
   }
+
+  return win;
 }
 
 function sh(s) { return "'" + s.replace(/'/g, "'\\''") + "'"; }
@@ -587,7 +590,8 @@ app.whenReady().then(() => {
     if (icon) app.dock.setIcon(icon);
   }
 
-  createWindow();
+  const mainWindow = createWindow();
+  setupAutoUpdater({ app, ipcMain, logger, mainWindow });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

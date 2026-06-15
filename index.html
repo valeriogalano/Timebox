@@ -210,6 +210,9 @@
         installMcpDesktop: async () => ({ ok: true }),
         checkMcpClaudeCodeInstalled: async () => false,
         installMcpClaudeCode: async () => ({ ok: true }),
+        getUpdateStatus: async () => ({ status: 'skipped', info: { reason: 'browser-mock' } }),
+        checkForUpdates: async () => ({ ok: true, skipped: true, reason: 'browser-mock' }),
+        installUpdate: async () => ({ ok: false, error: 'browser-mock' }),
         onDbChanged: () => () => {},
       };
     }

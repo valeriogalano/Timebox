@@ -52,6 +52,9 @@ contextBridge.exposeInMainWorld('api', {
   installMcpDesktop:      ()  => ipcRenderer.invoke('app:installMcpDesktop'),
   checkMcpClaudeCodeInstalled: () => ipcRenderer.invoke('app:checkMcpClaudeCodeInstalled'),
   installMcpClaudeCode:   ()  => ipcRenderer.invoke('app:installMcpClaudeCode'),
+  getUpdateStatus:        ()  => ipcRenderer.invoke('app:getUpdateStatus'),
+  checkForUpdates:        ()  => ipcRenderer.invoke('app:checkForUpdates'),
+  installUpdate:          ()  => ipcRenderer.invoke('app:installUpdate'),
 
   onDbChanged: (cb) => {
     const handler = (_, type) => cb(type);

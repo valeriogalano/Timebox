@@ -2,6 +2,13 @@
   "name": "timebox",
   "version": "0.4.0",
   "description": "Freelance time tracking desktop app",
+  "license": "MIT",
+  "author": "Valerio Galano",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/valeriogalano/Timebox.git"
+  },
+  "homepage": "https://github.com/valeriogalano/Timebox#readme",
   "main": "main.js",
   "bin": {
     "timebox": "./cli/index.js"
@@ -12,11 +19,16 @@
     "start": "npm run dev",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
-    "test": "npm rebuild better-sqlite3 && node --test cli/__tests__/*.test.js"
+    "test": "npm rebuild better-sqlite3 && node --test cli/__tests__/*.test.js",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac dmg zip",
+    "dist:win": "npm run build && electron-builder --win nsis",
+    "dist:linux": "npm run build && electron-builder --linux AppImage"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
     "commander": "^14.0.3",
+    "electron-updater": "^6.8.9",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -31,8 +43,9 @@
     "wait-on": "^8.0.1"
   },
   "build": {
-    "appId": "com.timebox.app",
+    "appId": "dev.valeriogalano.timebox",
     "productName": "Timebox",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "release"
     },
@@ -46,6 +59,14 @@
       "renderer-dist/**/*",
       "package.json"
     ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "valeriogalano",
+        "repo": "Timebox",
+        "releaseType": "release"
+      }
+    ],
     "extraResources": [
       {
         "from": "cli/standalone.js",
@@ -58,7 +79,23 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "category": "Office",
+      "icon": "build/icon.png",
+      "target": [
+        "AppImage"
+      ]
     }
   }
 }
