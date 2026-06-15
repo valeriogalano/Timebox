@@ -121,13 +121,15 @@ describe('HTTP server', () => {
     const p = body[0];
     assert.ok('project' in p, 'has project');
     assert.ok('client' in p, 'has client');
+    assert.ok('area' in p, 'has area');
   });
 
-  it('GET /clients → 4 seed clients', async () => {
-    const { status, body } = await get(port, '/clients');
+  it('GET /areas → 4 seed areas', async () => {
+    const { status, body } = await get(port, '/areas');
     assert.equal(status, 200);
     assert.ok(Array.isArray(body), 'is array');
     assert.equal(body.length, 4);
+    assert.ok('area' in body[0], 'has area field');
   });
 
   it('GET /status → { today, todayTotal, weekTotal, alerts }', async () => {
@@ -188,8 +190,8 @@ describe('HTTP server', () => {
     assert.ok(body.error, 'has error message');
   });
 
-  it('GET /clients?search=acme → filtered by name, has id field', async () => {
-    const { status, body } = await get(port, '/clients?search=acme');
+  it('GET /areas?search=acme → filtered by name, has id field', async () => {
+    const { status, body } = await get(port, '/areas?search=acme');
     assert.equal(status, 200);
     assert.ok(body.length > 0, 'has results');
     assert.ok(body.every(c => c.name.toLowerCase().includes('acme')), 'all match acme');
@@ -207,12 +209,13 @@ describe('HTTP server', () => {
     const clients = getClients();
     const { status, body } = await post(port, '/projects', {
       name: 'Test Project XYZ',
-      clientId: clients[0].id,
+      areaId: clients[0].id,
     });
     assert.equal(status, 200);
     assert.ok(body.id, 'has id');
     assert.equal(body.name, 'Test Project XYZ');
     assert.ok(body.client, 'has client name');
+    assert.equal(body.area, body.client);
   });
 
   it('POST /projects without required fields → 400', async () => {
@@ -220,45 +223,47 @@ describe('HTTP server', () => {
     assert.equal(status, 400);
   });
 
-  it('PATCH /clients/:id → renames client', async () => {
+  it('PATCH /areas/:id → renames area', async () => {
     const clients = getClients();
     const target = clients[0];
-    const { status, body } = await request(port, 'PATCH', `/clients/${target.id}`, { name: 'Renamed Client' });
+    const { status, body } = await request(port, 'PATCH', `/areas/${target.id}`, { name: 'Renamed Area' });
     assert.equal(status, 200);
     assert.equal(body.oldName, target.name);
-    assert.equal(body.newName, 'Renamed Client');
+    assert.equal(body.newName, 'Renamed Area');
+    assert.equal(body.newAreaName, 'Renamed Area');
   });
 
-  it('PATCH /clients/:id with unknown id → 404', async () => {
-    const { status } = await request(port, 'PATCH', '/clients/nonexistent-id', { name: 'X' });
+  it('PATCH /areas/:id with unknown id → 404', async () => {
+    const { status } = await request(port, 'PATCH', '/areas/nonexistent-id', { name: 'X' });
     assert.equal(status, 404);
   });
 
   it('PATCH /projects/:id → renames project', async () => {
     const { body: created } = await post(port, '/projects', {
       name: 'Rename Me',
-      clientId: getClients()[0].id,
+      areaId: getClients()[0].id,
     });
     const { status, body } = await request(port, 'PATCH', `/projects/${created.id}`, { name: 'Renamed Project' });
     assert.equal(status, 200);
     assert.equal(body.name, 'Renamed Project');
   });
 
-  it('PATCH /projects/:id → moves project to another client', async () => {
+  it('PATCH /projects/:id → moves project to another area', async () => {
     const clients = getClients();
     const { body: created } = await post(port, '/projects', {
       name: 'Move Me',
-      clientId: clients[0].id,
+      areaId: clients[0].id,
     });
-    const { status, body } = await request(port, 'PATCH', `/projects/${created.id}`, { clientId: clients[1].id });
+    const { status, body } = await request(port, 'PATCH', `/projects/${created.id}`, { areaId: clients[1].id });
     assert.equal(status, 200);
     assert.equal(body.clientId, clients[1].id);
+    assert.equal(body.areaId, clients[1].id);
   });
 
   it('DELETE /projects/:id (no entries) → 200', async () => {
     const { body: created } = await post(port, '/projects', {
       name: 'Delete Me',
-      clientId: getClients()[0].id,
+      areaId: getClients()[0].id,
     });
     const { status, body } = await request(port, 'DELETE', `/projects/${created.id}`);
     assert.equal(status, 200);
@@ -277,8 +282,8 @@ describe('HTTP server', () => {
   it('POST /projects/merge → merges entries and deletes source', async () => {
     const clients = getClients();
     // Create two fresh projects with no entries
-    const { body: src } = await post(port, '/projects', { name: 'Merge Source', clientId: clients[0].id });
-    const { body: dst } = await post(port, '/projects', { name: 'Merge Dest',   clientId: clients[0].id });
+    const { body: src } = await post(port, '/projects', { name: 'Merge Source', areaId: clients[0].id });
+    const { body: dst } = await post(port, '/projects', { name: 'Merge Dest',   areaId: clients[0].id });
     // Log an entry on source
     await post(port, '/log', { project: 'Merge Source', hours: '1', date: '2025-08-01' });
     const { status, body } = await post(port, '/projects/merge', { fromId: src.id, toId: dst.id });
@@ -290,7 +295,7 @@ describe('HTTP server', () => {
 
   it('POST /projects/merge with unknown fromId → 400', async () => {
     const clients = getClients();
-    const { body: dst } = await post(port, '/projects', { name: 'Merge Dest 2', clientId: clients[0].id });
+    const { body: dst } = await post(port, '/projects', { name: 'Merge Dest 2', areaId: clients[0].id });
     const { status } = await post(port, '/projects/merge', { fromId: 'nonexistent', toId: dst.id });
     assert.equal(status, 400);
   });

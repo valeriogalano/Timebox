@@ -37,6 +37,7 @@ function getStatusData(today) {
       const pct = logged / p.budgetHours;
       return {
         client: clientMap[p.clientId]?.name || '?',
+        area: clientMap[p.clientId]?.name || '?',
         project: p.name,
         logged,
         budget: p.budgetHours,

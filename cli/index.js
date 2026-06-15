@@ -48,14 +48,15 @@ program
         process.stdout.write(JSON.stringify(result) + '\n');
         return;
       }
-      const { action, client, project: proj, hours: h, slot } = result;
+      const { action, area, client, project: proj, hours: h, slot } = result;
+      const areaLabel = area || client;
       if (action === 'deleted') {
-        console.log(`✓ Deleted entry for ${client} › ${proj} on ${date}`);
+        console.log(`✓ Deleted entry for ${areaLabel} › ${proj} on ${date}`);
       } else if (action === 'noop') {
         console.log(`Nothing to do (0h on a non-existing entry).`);
       } else {
         const verb = action === 'created' ? 'Logged' : 'Updated';
-        console.log(`✓ ${verb} ${fmtH(h)} on ${client} › ${proj} [${slot}] ${date}`);
+        console.log(`✓ ${verb} ${fmtH(h)} on ${areaLabel} › ${proj} [${slot}] ${date}`);
       }
     });
   });
@@ -84,7 +85,7 @@ program
           console.log(`    —`);
         } else {
           for (const e of entries) {
-            console.log(`    ${pad(e.client + ' › ' + e.project, 38)} ${fmtH(e.hours)}`);
+            console.log(`    ${pad((e.area || e.client) + ' › ' + e.project, 38)} ${fmtH(e.hours)}`);
           }
           console.log(`    Total: ${fmtH(total)}`);
         }
@@ -119,7 +120,7 @@ program
         const label = fmtDayShort(day.day);
         const hrs = day.total > 0 ? fmtH(day.total) : '—';
         const detail = day.entries
-          .map(e => `${e.client} · ${e.project} ${fmtH(e.hours)}`)
+          .map(e => `${e.area || e.client} · ${e.project} ${fmtH(e.hours)}`)
           .join(', ');
         console.log(`  ${pad(label, 7)} ${pad(hrs, 8)} ${detail || '—'}`);
       }
@@ -132,22 +133,22 @@ program
 program
   .command('projects')
   .description('List projects with budget and logged hours')
-  .option('--client <name>', 'Filter by client name (partial match)')
+  .option('--area <name>', 'Filter by area name (partial match)')
   .option('--all', 'Include archived projects')
   .option('--json', 'Output JSON')
   .action((opts) => {
     run(() => {
-      const data = getProjectsData({ clientFilter: opts.client, includeArchived: opts.all });
+      const data = getProjectsData({ areaFilter: opts.area, clientFilter: opts.client, includeArchived: opts.all });
       if (opts.json) {
         process.stdout.write(JSON.stringify(data) + '\n');
         return;
       }
       const W = [18, 22, 9, 9];
-      const header = [pad('CLIENT', W[0]), pad('PROJECT', W[1]), pad('BUDGET', W[2]), pad('LOGGED', W[3]), 'REMAINING'].join('  ');
+      const header = [pad('AREA', W[0]), pad('PROJECT', W[1]), pad('BUDGET', W[2]), pad('LOGGED', W[3]), 'REMAINING'].join('  ');
       console.log(header);
       console.log('─'.repeat(header.length));
       for (const p of data) {
-        const clientLabel = p.client + (p.archived ? ' [archived]' : '');
+        const clientLabel = (p.area || p.client) + (p.archived ? ' [archived]' : '');
         const remaining = p.budgetHours != null ? Math.max(0, p.budgetHours - p.logged) : null;
         console.log([
           pad(clientLabel, W[0]),
@@ -162,8 +163,9 @@ program
 
 // ── clients ────────────────────────────────────────────────────────────────────
 program
-  .command('clients')
-  .description('List clients')
+  .command('areas')
+  .alias('clients')
+  .description('List areas')
   .option('--json', 'Output JSON')
   .action((opts) => {
     run(() => {
@@ -173,7 +175,7 @@ program
         return;
       }
       const W = [18, 10, 10, 12];
-      const header = [pad('CLIENT', W[0]), pad('BILLABLE', W[1]), pad('BILLING', W[2]), pad('RATE', W[3]), 'LIMIT'].join('  ');
+      const header = [pad('AREA', W[0]), pad('BILLABLE', W[1]), pad('BILLING', W[2]), pad('RATE', W[3]), 'LIMIT'].join('  ');
       console.log(header);
       console.log('─'.repeat(header.length));
       for (const c of data) {
@@ -212,7 +214,7 @@ program
         console.log('\nBudget alerts:');
         for (const a of data.alerts) {
           const pct = Math.round(a.pct * 100);
-          console.log(`  ⚠  ${a.client} › ${a.project} — ${fmtH(a.logged)} / ${fmtH(a.budget)} (${pct}%)`);
+          console.log(`  ⚠  ${a.area || a.client} › ${a.project} — ${fmtH(a.logged)} / ${fmtH(a.budget)} (${pct}%)`);
         }
       }
     });

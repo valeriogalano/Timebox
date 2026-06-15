@@ -27,11 +27,11 @@ function findProject(name) {
   }
 
   const project = matches[0];
-  return { project, client: clientMap[project.clientId] };
+  return { project, client: clientMap[project.clientId], area: clientMap[project.clientId] };
 }
 
 function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) {
-  const { project, client } = findProject(projectName);
+  const { project, client, area } = findProject(projectName);
   const parsed = parseHours(hoursStr);
   const isBillable = client.billing !== 'none';
 
@@ -42,9 +42,9 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
   if (newHours === 0) {
     if (existing) {
       deleteEntry(existing.id);
-      return { action: 'deleted', client: client.name, project: project.name, date };
+      return { action: 'deleted', client: client.name, area: area.name, project: project.name, date };
     }
-    return { action: 'noop', client: client.name, project: project.name, date };
+    return { action: 'noop', client: client.name, area: area.name, project: project.name, date };
   }
 
   let billableHours = existing?.billableHours ?? null;
@@ -69,6 +69,7 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
   return {
     action: existing ? 'updated' : 'created',
     client: client.name,
+    area: area.name,
     project: project.name,
     hours: newHours,
     billableHours,

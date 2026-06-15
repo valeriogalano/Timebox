@@ -88,18 +88,19 @@ const TOOLS = [
   },
   {
     name: 'projects',
-    description: 'List Timebox projects with their client, budget, weekly limit and total logged hours.',
+    description: 'List Timebox projects with their area, budget, weekly limit and total logged hours.',
     inputSchema: {
       type: 'object',
       properties: {
-        client: { type: 'string', description: 'Filter by client name (partial, case-insensitive)' },
+        area: { type: 'string', description: 'Filter by area name (partial, case-insensitive)' },
+        client: { type: 'string', description: 'Deprecated alias for area name (partial, case-insensitive)' },
         all: { type: 'boolean', description: 'Include archived projects (default: false)' },
       },
     },
   },
   {
-    name: 'clients',
-    description: 'List Timebox clients (areas) with their billing type and hourly rate.',
+    name: 'areas',
+    description: 'List Timebox areas with their billing type and hourly rate.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -124,8 +125,8 @@ const TOOLS = [
     },
   },
   {
-    name: 'find_client',
-    description: 'Search Timebox clients by name (partial, case-insensitive). Returns id and name — use id with rename_client.',
+    name: 'find_area',
+    description: 'Search Timebox areas by name (partial, case-insensitive). Returns id and name — use id with rename_area.',
     inputSchema: {
       type: 'object',
       required: ['name'],
@@ -136,7 +137,7 @@ const TOOLS = [
   },
   {
     name: 'find_project',
-    description: 'Search Timebox projects by name or description (partial, case-insensitive). Returns id, name, description and client — use id with rename_project, move_project, delete_project, merge_project_entries.',
+    description: 'Search Timebox projects by name or description (partial, case-insensitive). Returns id, name, description and area — use id with rename_project, move_project, delete_project, merge_project_entries.',
     inputSchema: {
       type: 'object',
       required: ['name'],
@@ -146,13 +147,13 @@ const TOOLS = [
     },
   },
   {
-    name: 'rename_client',
-    description: 'Rename a Timebox client (area). Use find_client to get the id first.',
+    name: 'rename_area',
+    description: 'Rename a Timebox area. Use find_area to get the id first.',
     inputSchema: {
       type: 'object',
       required: ['id', 'name'],
       properties: {
-        id: { type: 'string', description: 'Client id' },
+        id: { type: 'string', description: 'Area id' },
         name: { type: 'string', description: 'New name' },
       },
     },
@@ -186,25 +187,25 @@ const TOOLS = [
   },
   {
     name: 'move_project',
-    description: 'Move a Timebox project to a different client. Use find_project and find_client to get ids first.',
+    description: 'Move a Timebox project to a different area. Use find_project and find_area to get ids first.',
     inputSchema: {
       type: 'object',
-      required: ['id', 'clientId'],
+      required: ['id'],
       properties: {
         id: { type: 'string', description: 'Project id' },
-        clientId: { type: 'string', description: 'Target client id' },
+        areaId: { type: 'string', description: 'Target area id' },
       },
     },
   },
   {
     name: 'create_project',
-    description: 'Create a new project in a Timebox client. Use find_client to get the clientId first.',
+    description: 'Create a new project in a Timebox area. Use find_area to get the areaId first.',
     inputSchema: {
       type: 'object',
-      required: ['name', 'clientId'],
+      required: ['name'],
       properties: {
         name: { type: 'string', description: 'Project name' },
-        clientId: { type: 'string', description: 'Client id to create the project in' },
+        areaId: { type: 'string', description: 'Area id to create the project in' },
         description: { type: 'string', description: 'Project description (optional, searchable)' },
         budgetHours: { type: 'number', description: 'Total budget in hours (optional)' },
         weeklyHours: { type: 'number', description: 'Weekly hours limit (optional)' },
@@ -277,13 +278,13 @@ async function callTool(name, args) {
 
   if (name === 'projects') {
     const params = new URLSearchParams();
-    if (args.client) params.set('client', args.client);
+    if (args.area || args.client) params.set('area', args.area || args.client);
     if (args.all) params.set('all', '1');
     const qs = params.toString() ? `?${params}` : '';
     const d = await httpRequest(`/projects${qs}`);
     if (!d.length) return 'No projects found.';
     return d.map(p => {
-      let line = `${p.project} [${p.client}] — logged: ${p.logged || 0}h`;
+      let line = `${p.project} [${p.area || p.client}] — logged: ${p.logged || 0}h`;
       if (p.budgetHours) line += `, budget: ${p.budgetHours}h`;
       if (p.weeklyHours) line += `, weekly limit: ${p.weeklyHours}h`;
       if (p.archived) line += ' (archived)';
@@ -292,11 +293,11 @@ async function callTool(name, args) {
     }).join('\n');
   }
 
-  if (name === 'clients') {
-    const d = await httpRequest('/clients');
-    if (!d.length) return 'No clients found.';
+  if (name === 'clients' || name === 'areas') {
+    const d = await httpRequest('/areas');
+    if (!d.length) return 'No areas found.';
     return d.map(c => {
-      let line = `${c.name} — ${c.billing || 'no billing'}`;
+      let line = `${c.area || c.name} — ${c.billing || 'no billing'}`;
       if (c.rate) line += ` @ €${c.rate}/h`;
       if (c.limitHours) line += `, limit: ${c.limitHours}h (${c.limitType || ''})`;
       return line;
@@ -337,8 +338,8 @@ async function callTool(name, args) {
     return `${d.action}: ${d.hours}h${billPart} on "${d.project}" (${d.date}, ${d.slot || 'am'})`;
   }
 
-  if (name === 'find_client') {
-    const d = await httpRequest(`/clients?search=${encodeURIComponent(args.name)}`);
+  if (name === 'find_client' || name === 'find_area') {
+    const d = await httpRequest(`/areas?search=${encodeURIComponent(args.name)}`);
     if (!d.length) return 'No matches found.';
     return d.map(c => `[${c.id}] ${c.name}`).join('\n');
   }
@@ -347,15 +348,15 @@ async function callTool(name, args) {
     const d = await httpRequest(`/projects?search=${encodeURIComponent(args.name)}&all=1`);
     if (!d.length) return 'No matches found.';
     return d.map(p => {
-      let line = `[${p.id}] ${p.project} (client: ${p.client})`;
+      let line = `[${p.id}] ${p.project} (area: ${p.area || p.client})`;
       if (p.description) line += `\n  ${p.description}`;
       return line;
     }).join('\n');
   }
 
-  if (name === 'rename_client') {
-    const d = await httpRequest(`/clients/${encodeURIComponent(args.id)}`, 'PATCH', { name: args.name });
-    return `Client '${d.oldName}' renamed to '${d.newName}'.`;
+  if (name === 'rename_client' || name === 'rename_area') {
+    const d = await httpRequest(`/areas/${encodeURIComponent(args.id)}`, 'PATCH', { name: args.name });
+    return `Area '${d.oldAreaName || d.oldName}' renamed to '${d.newAreaName || d.newName}'.`;
   }
 
   if (name === 'rename_project') {
@@ -379,20 +380,24 @@ async function callTool(name, args) {
   }
 
   if (name === 'move_project') {
-    const d = await httpRequest(`/projects/${encodeURIComponent(args.id)}`, 'PATCH', { clientId: args.clientId });
-    return `Project '${d.name}' moved to client '${d.client}'.`;
+    const areaId = args.areaId || args.clientId;
+    if (!areaId) throw new Error('areaId is required');
+    const d = await httpRequest(`/projects/${encodeURIComponent(args.id)}`, 'PATCH', { areaId });
+    return `Project '${d.name}' moved to area '${d.area || d.client}'.`;
   }
 
   if (name === 'create_project') {
+    const areaId = args.areaId || args.clientId;
+    if (!areaId) throw new Error('areaId is required');
     const body = {
       name: args.name,
-      clientId: args.clientId,
+      areaId,
       description: args.description ?? null,
       budgetHours: args.budgetHours ?? null,
       weeklyHours: args.weeklyHours ?? null,
     };
     const d = await httpRequest('/projects', 'POST', body);
-    return `Project '${d.name}' created in client '${d.client}'.`;
+    return `Project '${d.name}' created in area '${d.area || d.client}'.`;
   }
 
   if (name === 'delete_project') {

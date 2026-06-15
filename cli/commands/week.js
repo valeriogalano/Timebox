@@ -29,6 +29,7 @@ function getWeekData(today, offset = 0) {
           billableHours: e.billableHours ?? null,
           project: project?.name || e.projectId,
           client: client?.name || '?',
+          area: client?.name || '?',
           isBillable,
           slot: e.slot,
         };

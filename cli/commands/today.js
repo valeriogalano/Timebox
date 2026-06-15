@@ -21,6 +21,7 @@ function getTodayData(date) {
       billableHours: e.billableHours ?? null,
       project: project?.name || e.projectId,
       client: client?.name || '?',
+      area: client?.name || '?',
       isBillable,
       billed: e.billed,
     });

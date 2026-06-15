@@ -151,7 +151,7 @@ async function cmdWeek(flags) {
 
 async function cmdProjects(flags) {
   const params = new URLSearchParams();
-  if (flags.client) params.set('client', flags.client);
+  if (flags.area || flags.client) params.set('area', flags.area || flags.client);
   if (flags.all) params.set('all', '1');
   const qs = params.toString() ? `?${params}` : '';
   const d = await request(`/projects${qs}`);
@@ -159,7 +159,7 @@ async function cmdProjects(flags) {
 
   const rows = d.map(p => ({
     Project: p.name,
-    Client: p.client,
+    Area: p.area || p.client,
     Logged: fmtH(p.loggedHours || 0),
     Budget: p.budgetHours ? fmtH(p.budgetHours) : '—',
     Weekly: p.weeklyHours ? fmtH(p.weeklyHours) : '—',
@@ -170,11 +170,11 @@ async function cmdProjects(flags) {
 }
 
 async function cmdClients(flags) {
-  const d = await request('/clients');
+  const d = await request('/areas');
   if (flags.json) { console.log(JSON.stringify(d)); return; }
 
   const rows = d.map(c => ({
-    Client: c.name,
+    Area: c.area || c.name,
     Billing: c.billing || c.billable || '—',
     Rate: c.rate ? `€${c.rate}/h` : '—',
     Limit: c.limitHours ? `${c.limitHours}h (${c.limitType || ''})` : '—',
@@ -229,7 +229,7 @@ Commands:
   today             Hours logged today
   week              Weekly summary
   projects          List projects
-  clients           List clients
+  areas             List areas
   status            Quick overview: today, week, alerts
   log <proj> <hrs>  Log hours on a project
 
@@ -243,7 +243,7 @@ Options (week):
   --offset N        Week offset (e.g. -1 = last week)
 
 Options (projects):
-  --client <name>   Filter by client
+  --area <name>     Filter by area
   --all             Include archived projects
 
 Global:
@@ -269,7 +269,7 @@ async function main() {
     if (cmd === 'today')    { await cmdToday(flags); return; }
     if (cmd === 'week')     { await cmdWeek(flags); return; }
     if (cmd === 'projects') { await cmdProjects(flags); return; }
-    if (cmd === 'clients')  { await cmdClients(flags); return; }
+    if (cmd === 'areas' || cmd === 'clients')  { await cmdClients(flags); return; }
     if (cmd === 'status')   { await cmdStatus(flags); return; }
     if (cmd === 'log')      { await cmdLog(positional, flags); return; }
 
