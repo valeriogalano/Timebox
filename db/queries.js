@@ -307,6 +307,39 @@ function getAllTodoistCache() {
     .map(row => ({ dateStr: row.dateStr, tasks: JSON.parse(row.tasksJson), syncedAt: row.syncedAt }));
 }
 
+function getImportedTodoistTasks(dateStr) {
+  const row = db.prepare('SELECT dateStr, tasksJson, syncedAt FROM todoist_cache WHERE dateStr = ?').get(dateStr);
+  if (!row) return { dateStr, syncedAt: null, tasks: [] };
+
+  const projects = getProjects();
+  const clients = getClients();
+  const projectMap = Object.fromEntries(projects.map(project => [project.id, project]));
+  const clientMap = Object.fromEntries(clients.map(client => [client.id, client]));
+  const tasks = JSON.parse(row.tasksJson).map(task => {
+    const project = task.projectId ? projectMap[task.projectId] : null;
+    const client = project ? clientMap[project.clientId] : null;
+    const matchStatus = task.matchStatus
+      ?? (project ? 'matched' : (task.projectId ? 'orphaned' : 'unmatched'));
+
+    return {
+      id: task.id,
+      title: task.title ?? task.content ?? '',
+      todoistProject: task.todoistProjectName ?? task.todoistProject ?? project?.name ?? null,
+      timeboxProjectId: task.projectId ?? null,
+      timeboxProject: task.timeboxProjectName ?? project?.name ?? null,
+      areaId: project?.clientId ?? null,
+      area: client?.name ?? null,
+      slot: task.slot === 'pm' ? 'pm' : 'am',
+      dueDate: task.dueDate ?? null,
+      estimatedHours: task.estimatedHours ?? task.hours ?? null,
+      labels: Array.isArray(task.labels) ? task.labels : [],
+      matchStatus,
+    };
+  });
+
+  return { dateStr: row.dateStr, syncedAt: row.syncedAt, tasks };
+}
+
 // ── Data management ────────────────────────────────────────────────────────────
 function resetAllData() {
   db.exec(`
@@ -383,7 +416,7 @@ module.exports = {
   getEntries, getProjectTotals, saveEntry, deleteEntry,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,
   getSetting, setSetting,
-  getTodoistCache, setTodoistCache, getAllTodoistCache,
+  getTodoistCache, setTodoistCache, getAllTodoistCache, getImportedTodoistTasks,
   importTodoistProjects,
   resetAllData, seedDemoData,
 };

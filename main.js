@@ -460,20 +460,26 @@ function setupIpc() {
       const proj = matchProject(t.project_id);
       if (debug) logger.info('todoist:match', { content: t.content, date, matched: proj?.name ?? null });
       if (!proj) continue;
+      const todoistProject = todoistProjects.find(project => project.id === t.project_id) ?? null;
       const hours = parseDurationHours(t.duration);
       if (!hours) continue;
       if (!byDate[date]) byDate[date] = [];
       byDate[date].push({
         id: t.id,
+        title: t.content ?? '',
         projectId: proj.id,
+        todoistProjectName: todoistProject?.name ?? null,
+        timeboxProjectName: proj.name,
         content: t.content ?? '',
         labels: taskLabels(t),
         hours,
+        estimatedHours: hours,
         slot: taskSlot(t.due),
         dueDate: taskDueValue(t.due),
         dayOrder: t.day_order ?? null,
         childOrder: t.child_order ?? null,
         order: t.order ?? null,
+        matchStatus: 'matched',
         completed: false,
       });
     }
