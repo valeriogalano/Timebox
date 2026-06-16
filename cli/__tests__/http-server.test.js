@@ -5,8 +5,15 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const { createTestDb } = require('./helpers');
 const { createHttpServer } = require('../http-server');
-const { getClients, saveProject } = require('../../db/queries');
-const { randomUUID } = require('crypto');
+const { getClients } = require('../../db/queries');
+
+function currentWeekDate(offset) {
+  const today = new Date();
+  const monday = new Date(today);
+  const dow = monday.getDay();
+  monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1) + offset);
+  return monday.toISOString().slice(0, 10);
+}
 
 function get(port, path) {
   return new Promise((resolve, reject) => {
@@ -92,6 +99,32 @@ describe('HTTP server', () => {
     assert.equal(body.date, '2020-01-01');
     assert.equal(body.amTotal, 0);
     assert.equal(body.pmTotal, 0);
+  });
+
+  it('GET /day-summary?date=2020-01-01 → template blocks, zero tracked and positive residual', async () => {
+    const { status, body } = await get(port, '/day-summary?date=2020-01-01');
+    assert.equal(status, 200);
+    assert.equal(body.date, '2020-01-01');
+    assert.equal(body.slots.am.source, 'template');
+    assert.equal(body.slots.pm.source, 'template');
+    assert.equal(body.trackedHours, 0);
+    assert.equal(body.extraHours, 0);
+    assert.ok(body.plannedCapacity > 0, 'has planned capacity');
+    assert.equal(body.residualCapacity, body.plannedCapacity);
+  });
+
+  it('GET /day-summary for seeded Tuesday → override/template metadata and extra hours', async () => {
+    const overrideDate = currentWeekDate(1);
+    const { status, body } = await get(port, `/day-summary?date=${overrideDate}`);
+    assert.equal(status, 200);
+    assert.equal(body.slots.am.source, 'template');
+    assert.equal(body.slots.pm.source, 'template');
+    assert.equal(body.plannedCapacity, 6);
+    assert.equal(body.trackedHours, 8);
+    assert.equal(body.extraHours, 3);
+    assert.equal(body.residualCapacity, 1);
+    assert.ok(body.extra.some(item => item.area === 'Acme Corp' && item.hours === 0.5), 'includes overflow on planned area');
+    assert.ok(body.extra.some(item => item.area === 'The Blog' && item.hours === 2.5), 'includes overflow on planned pm area');
   });
 
   it('GET /week → has 5 days and total', async () => {

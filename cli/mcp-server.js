@@ -77,6 +77,16 @@ const TOOLS = [
     },
   },
   {
+    name: 'day_summary',
+    description: 'Get the daily Timebox summary for a day: planned blocks from template/override, tracked hours, residual capacity and extra work.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'Date in YYYY-MM-DD format (default: today)' },
+      },
+    },
+  },
+  {
     name: 'week',
     description: 'Get the weekly summary of logged hours in Timebox, day by day.',
     inputSchema: {
@@ -253,6 +263,49 @@ async function callTool(name, args) {
     const total = (d.amTotal || 0) + (d.pmTotal || 0);
     const totalBillable = d.totalBillable ?? null;
     lines.push(`\nTotal: ${fmtBillable(total, totalBillable !== null && Math.abs(totalBillable - total) > 0.001 ? totalBillable : null)}`);
+    return lines.join('\n');
+  }
+
+  if (name === 'day_summary') {
+    const qs = args.date ? `?date=${encodeURIComponent(args.date)}` : '';
+    const d = await httpRequest(`/day-summary${qs}`);
+    const lines = [
+      `Date: ${d.date}`,
+      `Planned: ${d.plannedCapacity}h`,
+      `Tracked: ${fmtBillable(d.trackedHours, d.trackedBillableHours)}`,
+      `Residual: ${d.residualCapacity}h`,
+      `Extra: ${d.extraHours}h`,
+      '',
+    ];
+
+    for (const slot of ['am', 'pm']) {
+      const slotData = d.slots[slot];
+      lines.push(`${slot.toUpperCase()} [${slotData.source}]: planned ${slotData.plannedCapacity}h, tracked ${slotData.trackedHours}h`);
+      if (slotData.plannedBlocks.length) {
+        for (const block of slotData.plannedBlocks) {
+          lines.push(`  plan ${block.area}: ${block.hours}h`);
+        }
+      } else {
+        lines.push('  plan none');
+      }
+
+      if (slotData.trackedEntries.length) {
+        for (const entry of slotData.trackedEntries) {
+          lines.push(`  done ${entry.project} [${entry.area}]: ${fmtBillable(entry.hours, entry.billableHours)}`);
+        }
+      } else {
+        lines.push('  done none');
+      }
+      lines.push('');
+    }
+
+    if (d.extra.length) {
+      lines.push('Extra by area:');
+      for (const extra of d.extra) lines.push(`  ${extra.area}: ${extra.hours}h`);
+    } else {
+      lines.push('Extra by area: none');
+    }
+
     return lines.join('\n');
   }
 
