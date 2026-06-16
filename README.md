@@ -289,6 +289,8 @@ npm run dist:linux
 
 Artifacts are generated with `electron-builder`. GitHub Releases are configured as the `electron-updater` provider. macOS production releases require Developer ID signing and notarization for a proper end-user update experience.
 
+Local commits do not build or publish anything. The CI workflow runs on pull requests and pushes to `main`; the release workflow runs only when a `v*` tag is pushed. For regular development, work on a feature branch and avoid creating version tags until a release is intentional.
+
 ---
 
 ## Development Notes

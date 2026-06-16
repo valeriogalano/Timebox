@@ -89,6 +89,13 @@ The current configuration can generate local packages. Signing and notarization 
 
 Releases are published by `.github/workflows/release.yml` when a `v*` tag is pushed.
 
+Local commits do not start a build. The current GitHub Actions triggers are:
+
+- `.github/workflows/ci.yml`: runs on pull requests and pushes to `main`; it validates the app with install, rebuild, tests, and renderer build.
+- `.github/workflows/release.yml`: runs only on pushed tags matching `v*`; it packages and publishes macOS, Windows, and Linux release artifacts.
+
+For normal development without publishing new versions, use feature branches, commit locally as needed, and avoid pushing `v*` tags. Pushing a feature branch is safe from release publishing; opening or updating a pull request will run CI but will not create a release.
+
 Before creating a tag:
 
 1. Update `version` in `package.json`.

@@ -31,6 +31,25 @@ After `npm test`, run `npm run rebuild` again before launching Electron, because
 
 ---
 
+## Development, CI, and Release Triggers
+
+Local commits do not start builds. Commit freely on feature branches while developing.
+
+GitHub Actions are configured separately from this file:
+
+- `.github/workflows/ci.yml` runs on pull requests and on pushes to `main`. It installs dependencies, rebuilds native modules, runs tests, rebuilds again for Electron, and runs the renderer build.
+- `.github/workflows/release.yml` runs only when a tag matching `v*` is pushed. It builds and publishes release artifacts for macOS, Windows, and Linux.
+
+To develop without publishing new app versions:
+
+1. Work on a dedicated feature branch, not directly on `main`.
+2. Commit locally as needed.
+3. Push the branch when useful; branch pushes do not publish releases.
+4. Open a pull request when ready for CI validation.
+5. Do not create or push `v*` tags until intentionally releasing a new version.
+
+---
+
 ## Project Structure
 
 ```text
