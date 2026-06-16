@@ -76,9 +76,9 @@ describe('MCP server', () => {
     const res = await rpc(mcp, msg('tools/list', {}));
     const { tools } = res.result;
     assert.ok(Array.isArray(tools));
-    assert.equal(tools.length, 15);
+    assert.equal(tools.length, 16);
     const names = tools.map(t => t.name);
-    for (const n of ['today', 'week', 'projects', 'areas', 'status', 'log_hours',
+    for (const n of ['today', 'day_summary', 'week', 'projects', 'areas', 'status', 'log_hours',
       'find_area', 'find_project', 'rename_area', 'rename_project', 'update_project',
       'move_project', 'create_project', 'delete_project', 'merge_project_entries']) {
       assert.ok(names.includes(n), `missing tool: ${n}`);
@@ -97,6 +97,18 @@ describe('MCP server', () => {
     const text = res.result.content[0].text;
     assert.ok(text.includes('2020-01-01'), 'contains date');
     assert.ok(text.includes('Total:'), 'contains total');
+  });
+
+  it('tools/call day_summary → text with planned, residual and extra sections', async () => {
+    const res = await rpc(mcp, msg('tools/call', {
+      name: 'day_summary',
+      arguments: { date: '2020-01-01' },
+    }));
+    const text = res.result.content[0].text;
+    assert.ok(text.includes('Date: 2020-01-01'), 'contains date');
+    assert.ok(text.includes('Planned:'), 'contains planned');
+    assert.ok(text.includes('Residual:'), 'contains residual');
+    assert.ok(text.includes('Extra by area:'), 'contains extra section');
   });
 
   it('tools/call week → text with week range', async () => {
