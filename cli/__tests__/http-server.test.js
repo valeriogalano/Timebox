@@ -127,6 +127,30 @@ describe('HTTP server', () => {
     assert.ok(body.extra.some(item => item.area === 'The Blog' && item.hours === 2.5), 'includes overflow on planned pm area');
   });
 
+  it('GET /todoist-imported for seeded Tuesday → imported tasks with project, area and match status', async () => {
+    const seededDate = currentWeekDate(1);
+    const { status, body } = await get(port, `/todoist-imported?date=${seededDate}`);
+    assert.equal(status, 200);
+    assert.equal(body.dateStr, seededDate);
+    assert.ok(body.syncedAt, 'has sync timestamp');
+    assert.equal(body.tasks.length, 2);
+    assert.deepEqual(body.tasks.map(task => task.slot), ['am', 'pm']);
+    assert.equal(body.tasks[0].title, 'Setup endpoint autenticazione');
+    assert.equal(body.tasks[0].todoistProject, 'API Integration');
+    assert.equal(body.tasks[0].timeboxProject, 'API Integration');
+    assert.equal(body.tasks[0].area, 'Acme Corp');
+    assert.equal(body.tasks[0].estimatedHours, 3.5);
+    assert.equal(body.tasks[0].matchStatus, 'matched');
+  });
+
+  it('GET /todoist-imported for missing day → empty task list', async () => {
+    const { status, body } = await get(port, '/todoist-imported?date=2020-01-01');
+    assert.equal(status, 200);
+    assert.equal(body.dateStr, '2020-01-01');
+    assert.equal(body.syncedAt, null);
+    assert.deepEqual(body.tasks, []);
+  });
+
   it('GET /week → has 5 days and total', async () => {
     const { status, body } = await get(port, '/week');
     assert.equal(status, 200);

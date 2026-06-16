@@ -6,6 +6,7 @@ const { randomUUID } = require('crypto');
 const { getTodayData }    = require('./commands/today');
 const { getWeekData }     = require('./commands/week');
 const { getDaySummaryData } = require('./commands/day-summary');
+const { getImportedTodoistTasksData } = require('./commands/todoist-imported');
 const { getProjectsData } = require('./commands/projects');
 const { getClientsData }  = require('./commands/clients');
 const { getStatusData }   = require('./commands/status');
@@ -63,6 +64,11 @@ function createHttpServer() {
       if (req.method === 'GET' && p === '/day-summary') {
         const date = q.get('date') || fmt(getToday());
         return json(res, 200, getDaySummaryData(date));
+      }
+
+      if (req.method === 'GET' && p === '/todoist-imported') {
+        const date = q.get('date') || fmt(getToday());
+        return json(res, 200, getImportedTodoistTasksData(date));
       }
 
       if (req.method === 'GET' && p === '/week') {

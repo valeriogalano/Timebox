@@ -87,6 +87,16 @@ const TOOLS = [
     },
   },
   {
+    name: 'todoist_imported_tasks',
+    description: 'Get Todoist tasks imported into Timebox for a given day, including Todoist project, matched Timebox project, area, slot, estimated duration and match status.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'Date in YYYY-MM-DD format (default: today)' },
+      },
+    },
+  },
+  {
     name: 'week',
     description: 'Get the weekly summary of logged hours in Timebox, day by day.',
     inputSchema: {
@@ -304,6 +314,45 @@ async function callTool(name, args) {
       for (const extra of d.extra) lines.push(`  ${extra.area}: ${extra.hours}h`);
     } else {
       lines.push('Extra by area: none');
+    }
+
+    return lines.join('\n');
+  }
+
+  if (name === 'todoist_imported_tasks') {
+    const qs = args.date ? `?date=${encodeURIComponent(args.date)}` : '';
+    const d = await httpRequest(`/todoist-imported${qs}`);
+    const lines = [`Date: ${d.dateStr}`];
+    if (d.syncedAt) lines.push(`Synced: ${d.syncedAt}`);
+    if (!d.tasks.length) {
+      lines.push('Tasks: none');
+      return lines.join('\n');
+    }
+
+    const total = d.tasks.reduce((sum, task) => sum + (task.estimatedHours || 0), 0);
+    lines.push(`Tasks: ${d.tasks.length}`);
+    lines.push(`Estimated: ${total}h`);
+    lines.push('');
+
+    for (const slot of ['am', 'pm']) {
+      const tasks = d.tasks.filter(task => task.slot === slot);
+      lines.push(`${slot.toUpperCase()}:`);
+      if (!tasks.length) {
+        lines.push('  none');
+        continue;
+      }
+      for (const task of tasks) {
+        const bits = [
+          `${task.title || '(untitled)'}`,
+          `${task.estimatedHours || 0}h`,
+          `status: ${task.matchStatus}`,
+        ];
+        if (task.todoistProject) bits.push(`Todoist: ${task.todoistProject}`);
+        if (task.timeboxProject) bits.push(`Timebox: ${task.timeboxProject}`);
+        if (task.area) bits.push(`area: ${task.area}`);
+        if (task.dueDate) bits.push(`due: ${task.dueDate}`);
+        lines.push(`  ${bits.join(' | ')}`);
+      }
     }
 
     return lines.join('\n');
