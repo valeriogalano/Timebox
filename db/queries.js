@@ -243,22 +243,54 @@ function deleteWeekOverride(weekKey, dayIndex, slot) {
   db.prepare('DELETE FROM week_overrides WHERE id=?').run(id);
 }
 
+function toMonday(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return fmtDate(d);
+}
+
+function fmtDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+function addDaysToDateStr(dateStr, days) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return fmtDate(d);
+}
+
+function getPastWeekKeysFrom(firstWeekKey) {
+  const currentWeekKey = toMonday(fmtDate(new Date()));
+  const lastPastWeekKey = addDaysToDateStr(currentWeekKey, -7);
+  if (firstWeekKey > lastPastWeekKey) return [];
+
+  const weekKeys = [];
+  for (let weekKey = firstWeekKey; weekKey <= lastPastWeekKey; weekKey = addDaysToDateStr(weekKey, 7)) {
+    weekKeys.push(weekKey);
+  }
+  return weekKeys;
+}
+
+function getUsedWeekKeys() {
+  const dates = [
+    ...db.prepare('SELECT DISTINCT date FROM entries').all().map(r => r.date),
+    ...db.prepare('SELECT DISTINCT dateStr FROM todoist_cache').all().map(r => r.dateStr),
+  ];
+  const explicitWeeks = db.prepare('SELECT DISTINCT weekKey FROM week_overrides').all().map(r => r.weekKey);
+  const seedWeeks = [...new Set([...dates.map(toMonday), ...explicitWeeks])].sort();
+  if (!seedWeeks.length) return [];
+  return [...new Set([...getPastWeekKeysFrom(seedWeeks[0]), ...seedWeeks])].sort();
+}
+
 function freezeWeeksBeforeRecurringChange(currentRecurring) {
   const RECURRING_DAYS = 7;
-  const dates = db.prepare('SELECT DISTINCT date FROM entries').all().map(r => r.date);
-  if (!dates.length) return;
+  const weekKeys = getUsedWeekKeys();
+  if (!weekKeys.length) return;
 
-  function toMonday(dateStr) {
-    const d = new Date(dateStr + 'T00:00:00');
-    const day = d.getDay();
-    d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${dd}`;
-  }
-
-  const weekKeys = [...new Set(dates.map(toMonday))];
   const insert = db.prepare(`
     INSERT OR IGNORE INTO week_overrides (id, weekKey, dayIndex, slot, blocksJson)
     VALUES (?, ?, ?, ?, ?)
