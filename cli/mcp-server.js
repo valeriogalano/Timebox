@@ -87,6 +87,16 @@ const TOOLS = [
     },
   },
   {
+    name: 'day_free_capacity',
+    description: 'Compute daily free capacity after Timebox planning, tracked hours and imported Todoist tasks, separating truly unallocated capacity from capacity still reserved to planned areas without enough tasks.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'Date in YYYY-MM-DD format (default: today)' },
+      },
+    },
+  },
+  {
     name: 'todoist_imported_tasks',
     description: 'Get Todoist tasks imported into Timebox for a given day, including Todoist project, matched Timebox project, area, slot, estimated duration and match status.',
     inputSchema: {
@@ -327,6 +337,57 @@ async function callTool(name, args) {
     }
 
     return lines.join('\n');
+  }
+
+  if (name === 'day_free_capacity') {
+    const qs = args.date ? `?date=${encodeURIComponent(args.date)}` : '';
+    const d = await httpRequest(`/day-free-capacity${qs}`);
+    const lines = [
+      `Date: ${d.date}`,
+      `Planned: ${d.totals.plannedCapacity}h`,
+      `Tracked: ${d.totals.trackedHours}h`,
+      `Todoist estimated: ${d.totals.estimatedHours}h`,
+      `Available after tracked + tasks: ${d.totals.availableAfterTrackedAndTasks}h`,
+      `Reserved without tasks: ${d.totals.reservedWithoutTasksHours}h`,
+      `Actually free (unallocated): ${d.totals.freeUnallocatedHours}h`,
+      '',
+    ];
+
+    if (d.reservedWithoutTasks.length) {
+      lines.push('Reserved capacity still without enough tasks:');
+      for (const block of d.reservedWithoutTasks) {
+        lines.push(`  ${block.slot.toUpperCase()} ${block.area}: reserved ${block.reservedWithoutTasksHours}h after ${block.coveredByTasksHours}h covered by tasks`);
+      }
+      lines.push('');
+    } else {
+      lines.push('Reserved capacity still without enough tasks: none');
+      lines.push('');
+    }
+
+    if (d.tasksWithoutTimeboxProject.length) {
+      lines.push('Todoist tasks without Timebox match:');
+      for (const task of d.tasksWithoutTimeboxProject) {
+        lines.push(`  ${task.title}: ${task.estimatedHours}h (${task.slot}, status: ${task.matchStatus})`);
+      }
+      lines.push('');
+    }
+
+    if (d.tasksOutsidePlannedArea.length) {
+      lines.push('Todoist tasks outside planned area:');
+      for (const task of d.tasksOutsidePlannedArea) {
+        lines.push(`  ${task.title}: ${task.estimatedHours}h in ${task.slot.toUpperCase()} for ${task.area || '?'}`);
+      }
+      lines.push('');
+    }
+
+    if (d.tasksOverReservedCapacity.length) {
+      lines.push('Todoist tasks over reserved capacity:');
+      for (const task of d.tasksOverReservedCapacity) {
+        lines.push(`  ${task.title}: ${task.estimatedHours}h in ${task.slot.toUpperCase()} for ${task.area || '?'}; reserved before task ${task.availableBeforeTask}h, overflow ${task.overflowHours}h`);
+      }
+    }
+
+    return lines.join('\n').trimEnd();
   }
 
   if (name === 'todoist_imported_tasks') {

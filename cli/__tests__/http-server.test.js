@@ -135,6 +135,28 @@ describe('HTTP server', () => {
     assert.ok(body.extra.some(item => item.area === 'The Blog' && item.hours === 2.5), 'includes overflow on planned pm area');
   });
 
+  it('GET /day-free-capacity for custom Todoist cache → separates reserved capacity from actually free capacity', async () => {
+    setTodoistCache('2020-01-08', [
+      { id: 'fc1', projectId: 'p4', content: 'Sensor triage', hours: 1, slot: 'am' },
+      { id: 'fc2', content: 'Inbox follow-up', hours: 1, slot: 'pm', todoistProjectName: 'Inbox' },
+    ], '2026-06-17T09:00:00.000Z');
+
+    const { status, body } = await get(port, '/day-free-capacity?date=2020-01-08');
+    assert.equal(status, 200);
+    assert.equal(body.date, '2020-01-08');
+    assert.equal(body.totals.plannedCapacity, 5.5);
+    assert.equal(body.totals.estimatedHours, 2);
+    assert.equal(body.totals.matchedTaskHours, 1);
+    assert.equal(body.totals.unmatchedTaskHours, 1);
+    assert.equal(body.totals.availableAfterTrackedAndTasks, 3.5);
+    assert.equal(body.totals.reservedWithoutTasksHours, 4.5);
+    assert.equal(body.totals.freeUnallocatedHours, 0);
+    assert.equal(body.counts.reservedWithoutTasks, 2);
+    assert.equal(body.counts.tasksWithoutTimeboxProject, 1);
+    assert.equal(body.reservedWithoutTasks[0].reason, 'insufficient_tasks');
+    assert.equal(body.reservedWithoutTasks[1].reason, 'no_tasks');
+  });
+
   it('GET /todoist-imported for seeded Tuesday → imported tasks with project, area and match status', async () => {
     const seededDate = previousWeekDate(1);
     const { status, body } = await get(port, `/todoist-imported?date=${seededDate}`);
