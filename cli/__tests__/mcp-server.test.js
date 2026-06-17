@@ -3,6 +3,7 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 const { createTestDb } = require('./helpers');
 const { createHttpServer } = require('../http-server');
@@ -11,10 +12,12 @@ const { setTodoistCache } = require('../../db/queries');
 const MCP_SERVER = path.join(__dirname, '..', 'mcp-server.js');
 
 function startMcp(port) {
-  return spawn(process.execPath, [MCP_SERVER], {
+  const proc = spawn(process.execPath, [MCP_SERVER], {
     env: { ...process.env, TIMEBOX_PORT: String(port) },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
+  proc.stderr.resume();
+  return proc;
 }
 
 function rpc(proc, msg) {
@@ -32,7 +35,6 @@ function rpc(proc, msg) {
     }
 
     proc.stdout.on('data', onData);
-    proc.stderr.on('data', d => { /* suppress */ });
     proc.stdin.write(line);
   });
 }
@@ -87,6 +89,21 @@ describe('MCP server', () => {
     for (const t of tools) {
       assert.ok(t.description, `${t.name} has no description`);
       assert.ok(t.inputSchema, `${t.name} has no inputSchema`);
+    }
+  });
+
+  it('README MCP section documents every exposed tool', async () => {
+    const res = await rpc(mcp, msg('tools/list', {}));
+    const toolNames = res.result.tools.map(tool => tool.name);
+    const readme = fs.readFileSync(path.join(__dirname, '..', '..', 'README.md'), 'utf8');
+    const mcpSection = readme.split('## MCP Server')[1]?.split('## Build and Packaging')[0] || '';
+
+    assert.ok(mcpSection.length > 0, 'README MCP section should exist');
+    for (const name of toolNames) {
+      assert.ok(
+        mcpSection.includes('`' + name + '`'),
+        `README MCP section is missing tool documentation for: ${name}`
+      );
     }
   });
 

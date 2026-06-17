@@ -260,6 +260,11 @@ Exposed tools:
 | Tool | Purpose |
 |---|---|
 | `today` | Logged hours for a day. |
+| `day_summary` | Daily plan/tracking summary with planned blocks, tracked work, residual capacity, and extra work. |
+| `day_free_capacity` | Daily free-capacity analysis after planned blocks, tracked hours, and imported Todoist tasks. |
+| `day_ready_blocks` | Blocks that still need enough ready Todoist intention, grouped by area/project. |
+| `todoist_imported_tasks` | Imported Todoist tasks for a day, with match status and Timebox mapping. |
+| `day_mismatches` | Operational mismatches between Timebox planning and imported Todoist tasks. |
 | `week` | Weekly summary. |
 | `projects` | List projects. |
 | `areas` | List areas. |
@@ -274,6 +279,50 @@ Exposed tools:
 | `create_project` | Create a project. |
 | `delete_project` | Delete a project with no entries. |
 | `merge_project_entries` | Move entries into another project and delete the source project. |
+
+### Daily planning tools
+
+These tools are the MCP-oriented daily layer on top of the weekly board and Todoist cache. They are read-only diagnostics except for `log_hours`.
+
+| Tool | Input | Output |
+|---|---|---|
+| `today` | `{ date? }` | Logged entries for one day, grouped by AM/PM, with total tracked and billable hours. |
+| `day_summary` | `{ date? }` | Planned capacity, tracked hours, residual capacity, per-slot block source (`template` or `override`), and extra work by area. |
+| `day_free_capacity` | `{ date? }` | Split between capacity still reserved to planned areas and capacity that is truly free after tracked work and imported Todoist tasks. |
+| `day_ready_blocks` | `{ date? }` | AM/PM blocks that still lack enough ready Todoist work, grouped by area and then by Timebox project. |
+| `todoist_imported_tasks` | `{ date? }` | Imported tasks with Todoist project, matched Timebox project, area, slot, due date, estimate, and match status. |
+| `day_mismatches` | `{ date? }` | Unmapped tasks, tasks outside planned areas, tasks over block capacity, and blocks with insufficient ready-task coverage. |
+
+All `date` inputs use `YYYY-MM-DD` and default to today when omitted.
+
+### Output semantics
+
+- `day_summary` reports each slot as `AM [template]` or `PM [override]` to show whether the plan came from the recurring template or from a week-specific override.
+- `todoist_imported_tasks` and the Todoist-related sections of `day_free_capacity` / `day_mismatches` work from the cached tasks imported into Timebox for that date, not directly from a live Todoist call.
+- `Residual` means planned capacity minus tracked hours for the day.
+- `Available after tracked + tasks` subtracts both tracked work and imported Todoist estimates from planned capacity.
+- `Reserved without tasks` is capacity still assigned to planned areas that do not yet have enough matching Todoist intention.
+- `Actually free (unallocated)` is capacity not reserved by planned blocks after considering tracked work and imported tasks.
+- `day_mismatches` is the main diagnostic tool when planning and imported task data disagree.
+
+### Example MCP calls
+
+```text
+day_summary({ "date": "2026-06-17" })
+day_free_capacity({ "date": "2026-06-17" })
+day_ready_blocks({ "date": "2026-06-17" })
+todoist_imported_tasks({ "date": "2026-06-17" })
+day_mismatches({ "date": "2026-06-17" })
+log_hours({ "project": "website", "hours": "2:30", "slot": "pm", "date": "2026-06-17" })
+```
+
+### Example workflows
+
+1. Review the plan source and residual capacity with `day_summary`.
+2. Check whether the remaining time is really free or still reserved with `day_free_capacity`.
+3. Inspect missing next actions with `day_ready_blocks`.
+4. Audit imported Todoist data with `todoist_imported_tasks`.
+5. Use `day_mismatches` when tasks do not fit the planned blocks cleanly.
 
 ---
 
