@@ -200,6 +200,13 @@
         syncTodoist: async () => ({ byDate: {} }),
         importTodoistProjects: async () => ({ added: 0 }),
         getHttpPort: async () => 37373,
+        getToolInstallInfo: async () => ({
+          platform: 'browser',
+          installDir: '~/.local/bin',
+          cliPath: '~/.local/bin/timebox',
+          mcpPath: '~/.local/bin/timebox-mcp',
+          pathHint: '~/.local/bin',
+        }),
         checkCliInstalled: async () => false,
         installCli: async () => ({ ok: true }),
         checkMcpServerInstalled: async () => false,

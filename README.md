@@ -4,7 +4,7 @@
 >
 > **Vibe coding project.** This project is developed through iterative, AI-assisted coding: the human steers intent and product decisions, while AI agents write and revise much of the implementation. It works and has tests, but expect fast evolution and rough edges.
 
-Timebox is a local-first macOS desktop app for freelance work planning. It combines a weekly timeblocking board, per-project time tracking, billable-hour review, budget alerts, Todoist task sync, a local HTTP API, a standalone CLI, and an MCP server for coding agents.
+Timebox is a local-first desktop app for freelance work planning. It is macOS-first in daily use, with packaging scripts and platform-aware local tooling for Windows and Linux where Electron supports the workflow. It combines a weekly timeblocking board, per-project time tracking, billable-hour review, budget alerts, Todoist task sync, a local HTTP API, a standalone CLI, and an MCP server for coding agents.
 
 **Stack:** Electron 31 · React 18 · Vite 5 · better-sqlite3 12
 
@@ -44,10 +44,12 @@ npm run build
 
 `npm run rebuild` compiles `better-sqlite3` against Electron 31 headers. Do not skip it after installing dependencies if you want the Electron app to open correctly.
 
-The app database is created automatically at:
+The app database is created automatically in Electron's per-user app-data directory. Typical defaults are:
 
 ```text
-~/Library/Application Support/Timebox/timebox.db
+macOS:   ~/Library/Application Support/Timebox/timebox.db
+Windows: %APPDATA%\Timebox\timebox.db
+Linux:   ~/.config/Timebox/timebox.db
 ```
 
 When the database is empty, Timebox seeds demo areas, projects, recurring blocks, entries, and cached Todoist rows so the interface can be explored immediately.
@@ -145,7 +147,7 @@ Todoist tasks are shown only for today and future days in the weekly view. Past 
 
 Timebox is local-first:
 
-- The SQLite database stays on the user's Mac unless the user copies it elsewhere.
+- The SQLite database stays on the user's machine unless the user copies it elsewhere.
 - Todoist tokens are encrypted with Electron `safeStorage`.
 - The HTTP bridge binds to `127.0.0.1:37373` and exists only while the app is open.
 - The CLI and MCP server talk only to that local HTTP bridge.
@@ -206,7 +208,16 @@ curl -X POST http://127.0.0.1:37373/log \
 
 The installable CLI is `cli/standalone.js`. It has no npm runtime dependencies and requires the app to be open.
 
-Install it from **Settings -> CLI and MCP -> Install CLI**. In development the symlink points to the repository file; in packaged builds it points to `Contents/Resources/timebox`.
+Install it from **Settings -> CLI and MCP -> Install CLI**. In development the generated command points to the repository file; in packaged builds it points to the bundled `timebox` resource.
+
+The app installs commands in a user-writable directory:
+
+```text
+macOS/Linux: ~/.local/bin
+Windows:     %APPDATA%\Timebox\bin
+```
+
+Add that directory to `PATH` if your shell cannot find `timebox` after installation. Existing macOS installs in `/usr/local/bin` are still detected, but new installs use the per-user directory.
 
 | Command | Description |
 |---|---|
@@ -241,7 +252,9 @@ Install it from **Settings -> CLI and MCP**. The app can install:
 - the `timebox-mcp` executable;
 - a Codex MCP config;
 - a Claude Code MCP config;
-- a Claude Desktop MCP config.
+- a Claude Desktop MCP config on macOS.
+
+Codex and Claude Code are configured with the absolute path to the installed `timebox-mcp` command. Claude Desktop automatic config currently targets the macOS config file; on Windows and Linux, use your client-specific MCP configuration and point it at the installed command path shown in Settings.
 
 Manual Codex configuration:
 
@@ -336,7 +349,7 @@ npm run dist:win
 npm run dist:linux
 ```
 
-Artifacts are generated with `electron-builder`. GitHub Releases are configured as the `electron-updater` provider. macOS production releases require Developer ID signing and notarization for a proper end-user update experience.
+Artifacts are generated with `electron-builder`. GitHub Releases are configured as the `electron-updater` provider. macOS production releases require Developer ID signing and notarization for a proper end-user update experience. Windows packages should be Authenticode-signed for smoother installation; Linux AppImage builds are unsigned local artifacts unless the release workflow adds distribution-specific signing.
 
 Local commits do not build or publish anything. The CI workflow runs on pull requests and pushes to `main`; the release workflow runs only when a `v*` tag is pushed. For regular development, work on a feature branch and avoid creating version tags until a release is intentional.
 
