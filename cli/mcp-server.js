@@ -97,6 +97,16 @@ const TOOLS = [
     },
   },
   {
+    name: 'day_mismatches',
+    description: 'Find operational mismatches for one day between imported Todoist tasks and Timebox planning: unmapped tasks, tasks outside planned areas, capacity overflows, uncovered blocks and estimates beyond residual capacity.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'Date in YYYY-MM-DD format (default: today)' },
+      },
+    },
+  },
+  {
     name: 'week',
     description: 'Get the weekly summary of logged hours in Timebox, day by day.',
     inputSchema: {
@@ -356,6 +366,66 @@ async function callTool(name, args) {
     }
 
     return lines.join('\n');
+  }
+
+  if (name === 'day_mismatches') {
+    const qs = args.date ? `?date=${encodeURIComponent(args.date)}` : '';
+    const d = await httpRequest(`/day-mismatches${qs}`);
+    const lines = [
+      `Date: ${d.date}`,
+      `Planned: ${d.totals.plannedCapacity}h`,
+      `Tracked: ${d.totals.trackedHours}h`,
+      `Residual: ${d.totals.residualCapacity}h`,
+      `Todoist estimated: ${d.totals.estimatedHours}h`,
+      '',
+    ];
+
+    const countTotal = Object.values(d.counts).reduce((sum, count) => sum + count, 0);
+    if (!countTotal) {
+      lines.push('Mismatches: none');
+      return lines.join('\n');
+    }
+
+    const mismatches = d.mismatches;
+    if (mismatches.tasksWithoutTimeboxProject.length) {
+      lines.push('Todoist tasks without Timebox project:');
+      for (const task of mismatches.tasksWithoutTimeboxProject) {
+        const project = task.todoistProject ? ` | Todoist: ${task.todoistProject}` : '';
+        lines.push(`  ${task.title}: ${task.estimatedHours}h (${task.slot}, status: ${task.matchStatus})${project}`);
+      }
+      lines.push('');
+    }
+
+    if (mismatches.tasksOutsidePlannedArea.length) {
+      lines.push('Tasks outside planned area:');
+      for (const task of mismatches.tasksOutsidePlannedArea) {
+        lines.push(`  ${task.title}: ${task.estimatedHours}h in ${task.slot.toUpperCase()} for ${task.area || '?'} (${task.project || '?'})`);
+      }
+      lines.push('');
+    }
+
+    if (mismatches.tasksOverBlockCapacity.length) {
+      lines.push('Tasks over block capacity:');
+      for (const task of mismatches.tasksOverBlockCapacity) {
+        lines.push(`  ${task.title}: ${task.estimatedHours}h in ${task.slot.toUpperCase()} for ${task.area || '?'}; available ${task.availableBeforeTask}h, overflow ${task.overflowHours}h`);
+      }
+      lines.push('');
+    }
+
+    if (mismatches.blocksWithoutReadyTasks.length) {
+      lines.push('Blocks without enough ready tasks:');
+      for (const block of mismatches.blocksWithoutReadyTasks) {
+        lines.push(`  ${block.slot.toUpperCase()} ${block.area}: available ${block.availableHours}h, Todoist estimated ${block.estimatedHours}h, missing ${block.missingHours}h`);
+      }
+      lines.push('');
+    }
+
+    if (mismatches.estimatedBeyondResidualCapacity) {
+      const cap = mismatches.estimatedBeyondResidualCapacity;
+      lines.push(`Estimated over residual capacity: ${cap.estimatedHours}h estimated vs ${cap.residualCapacity}h residual, overflow ${cap.overflowHours}h`);
+    }
+
+    return lines.join('\n').trimEnd();
   }
 
   if (name === 'week') {

@@ -5,13 +5,21 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const { createTestDb } = require('./helpers');
 const { createHttpServer } = require('../http-server');
-const { getClients } = require('../../db/queries');
+const { getClients, setTodoistCache } = require('../../db/queries');
 
 function currentWeekDate(offset) {
   const today = new Date();
   const monday = new Date(today);
   const dow = monday.getDay();
   monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1) + offset);
+  return monday.toISOString().slice(0, 10);
+}
+
+function previousWeekDate(offset) {
+  const today = new Date();
+  const monday = new Date(today);
+  const dow = monday.getDay();
+  monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1) - 7 + offset);
   return monday.toISOString().slice(0, 10);
 }
 
@@ -128,7 +136,7 @@ describe('HTTP server', () => {
   });
 
   it('GET /todoist-imported for seeded Tuesday → imported tasks with project, area and match status', async () => {
-    const seededDate = currentWeekDate(1);
+    const seededDate = previousWeekDate(1);
     const { status, body } = await get(port, `/todoist-imported?date=${seededDate}`);
     assert.equal(status, 200);
     assert.equal(body.dateStr, seededDate);
@@ -149,6 +157,27 @@ describe('HTTP server', () => {
     assert.equal(body.dateStr, '2020-01-01');
     assert.equal(body.syncedAt, null);
     assert.deepEqual(body.tasks, []);
+  });
+
+  it('GET /day-mismatches for custom Todoist cache → operational mismatch groups', async () => {
+    setTodoistCache('2020-01-01', [
+      { id: 'tm1', content: 'Unmapped inbox task', hours: 1.5, slot: 'am', todoistProjectName: 'Inbox' },
+      { id: 'tm2', projectId: 'p3', content: 'Article outside planned block', hours: 1, slot: 'pm' },
+      { id: 'tm3', projectId: 'p4', content: 'Sensor API over capacity', hours: 4, slot: 'am' },
+    ], '2026-06-16T10:00:00.000Z');
+
+    const { status, body } = await get(port, '/day-mismatches?date=2020-01-01');
+    assert.equal(status, 200);
+    assert.equal(body.date, '2020-01-01');
+    assert.equal(body.counts.tasksWithoutTimeboxProject, 1);
+    assert.equal(body.counts.tasksOutsidePlannedArea, 1);
+    assert.equal(body.counts.tasksOverBlockCapacity, 1);
+    assert.ok(body.counts.blocksWithoutReadyTasks >= 1, 'has uncovered planned blocks');
+    assert.equal(body.counts.estimatedBeyondResidualCapacity, 1);
+    assert.equal(body.mismatches.tasksWithoutTimeboxProject[0].title, 'Unmapped inbox task');
+    assert.equal(body.mismatches.tasksOutsidePlannedArea[0].area, 'The Blog');
+    assert.equal(body.mismatches.tasksOverBlockCapacity[0].overflowHours, 0.5);
+    assert.equal(body.mismatches.estimatedBeyondResidualCapacity.overflowHours, 1);
   });
 
   it('GET /week → has 5 days and total', async () => {
