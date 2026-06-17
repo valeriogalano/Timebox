@@ -45,7 +45,6 @@ let _db = null;
 let _dbPath = null;
 let _httpServer = null;
 const HTTP_PORT = 37373;
-const TIMEBOX_MCP_BIN = '/usr/local/bin/timebox-mcp';
 const CLI_CANDIDATES = {
   codex: [
     path.join(app.getPath('home'), '.local', 'bin', 'codex'),
@@ -58,6 +57,40 @@ const CLI_CANDIDATES = {
     '/opt/homebrew/bin/claude',
   ],
 };
+
+function getToolFileName(name) {
+  return process.platform === 'win32' ? `${name}.cmd` : name;
+}
+
+function getToolInstallDir() {
+  if (process.platform === 'win32') return path.join(app.getPath('appData'), 'Timebox', 'bin');
+  return path.join(app.getPath('home'), '.local', 'bin');
+}
+
+function getToolPath(name) {
+  return path.join(getToolInstallDir(), getToolFileName(name));
+}
+
+function getLegacyToolPath(name) {
+  if (process.platform === 'win32') return null;
+  return path.join('/usr/local/bin', name);
+}
+
+function getMcpBinPath() {
+  return getToolPath('timebox-mcp');
+}
+
+function getToolInstallInfo() {
+  return {
+    platform: process.platform,
+    installDir: getToolInstallDir(),
+    cliPath: getToolPath('timebox'),
+    mcpPath: getMcpBinPath(),
+    pathHint: process.platform === 'win32'
+      ? `%APPDATA%\\Timebox\\bin`
+      : '~/.local/bin',
+  };
+}
 
 function getConfigPath() {
   return path.join(app.getPath('userData'), 'config.json');
@@ -160,22 +193,22 @@ function sh(s) { return "'" + s.replace(/'/g, "'\\''") + "'"; }
 
 function installTool(src, dest) {
   return new Promise(resolve => {
-    // First try without privileges (works if /usr/local/bin is user-writable)
     try {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       try { fs.unlinkSync(dest); } catch (_) {}
-      fs.symlinkSync(src, dest);
-      fs.chmodSync(src, 0o755);
-      return resolve({ ok: true });
-    } catch (_) {}
 
-    // Fall back to osascript admin prompt (macOS)
-    const cmd = `ln -sf ${sh(src)} ${sh(dest)} && chmod 755 ${sh(src)}`;
-    const script = `do shell script "${cmd.replace(/"/g, '\\"')}" with administrator privileges`;
-    execFile('osascript', ['-e', script], err => {
-      if (err) resolve({ error: err.message });
-      else resolve({ ok: true });
-    });
+      if (process.platform === 'win32') {
+        const body = `@echo off\r\nnode "${src}" %*\r\n`;
+        fs.writeFileSync(dest, body, 'utf8');
+      } else {
+        const body = `#!/bin/sh\nexec node ${sh(src)} "$@"\n`;
+        fs.writeFileSync(dest, body, { encoding: 'utf8', mode: 0o755 });
+        fs.chmodSync(dest, 0o755);
+      }
+      return resolve({ ok: true });
+    } catch (err) {
+      resolve({ error: err.message });
+    }
   });
 }
 
@@ -212,14 +245,15 @@ function getMcpServerSource() {
 }
 
 async function ensureMcpServerInstalled() {
-  const result = await installTool(getMcpServerSource(), TIMEBOX_MCP_BIN);
+  const dest = getMcpBinPath();
+  const result = await installTool(getMcpServerSource(), dest);
   if (!result.ok) return result;
   try {
-    const real = fs.realpathSync(TIMEBOX_MCP_BIN);
+    const real = fs.realpathSync(dest);
     fs.accessSync(real, fs.constants.X_OK);
-    return { ok: true };
+    return { ok: true, path: dest };
   } catch (e) {
-    return { error: `Symlink creato ma il target non è eseguibile: ${e.message}` };
+    return { error: `Comando creato ma non eseguibile: ${e.message}` };
   }
 }
 
@@ -282,36 +316,46 @@ function setupIpc() {
   ipcMain.handle('db:seedDemoData',        ()              => q.seedDemoData());
 
   ipcMain.handle('app:getHttpPort', () => HTTP_PORT);
+  ipcMain.handle('app:getToolInstallInfo', () => getToolInstallInfo());
 
   ipcMain.handle('app:checkCliInstalled', () => {
-    try {
-      const real = fs.realpathSync('/usr/local/bin/timebox');
-      fs.accessSync(real, fs.constants.X_OK);
-      return true;
-    } catch { return false; }
+    return [getToolPath('timebox'), getLegacyToolPath('timebox')]
+      .filter(Boolean)
+      .some(candidate => {
+        try {
+          const real = fs.realpathSync(candidate);
+          fs.accessSync(real, fs.constants.X_OK);
+          return true;
+        } catch { return false; }
+      });
   });
 
   ipcMain.handle('app:installCli', async () => {
     const src = app.isPackaged
       ? path.join(process.resourcesPath, 'timebox')
       : path.join(__dirname, 'cli', 'standalone.js');
-    const result = await installTool(src, '/usr/local/bin/timebox');
+    const dest = getToolPath('timebox');
+    const result = await installTool(src, dest);
     if (!result.ok) return result;
     try {
-      const real = fs.realpathSync('/usr/local/bin/timebox');
+      const real = fs.realpathSync(dest);
       fs.accessSync(real, fs.constants.X_OK);
-      return { ok: true };
+      return { ok: true, path: dest };
     } catch (e) {
-      return { error: `Symlink creato ma il target non è eseguibile: ${e.message}` };
+      return { error: `Comando creato ma non eseguibile: ${e.message}` };
     }
   });
 
   ipcMain.handle('app:checkMcpServerInstalled', () => {
-    try {
-      const real = fs.realpathSync('/usr/local/bin/timebox-mcp');
-      fs.accessSync(real, fs.constants.X_OK);
-      return true;
-    } catch { return false; }
+    return [getMcpBinPath(), getLegacyToolPath('timebox-mcp')]
+      .filter(Boolean)
+      .some(candidate => {
+        try {
+          const real = fs.realpathSync(candidate);
+          fs.accessSync(real, fs.constants.X_OK);
+          return true;
+        } catch { return false; }
+      });
   });
 
   ipcMain.handle('app:installMcpServer', async () => {
@@ -325,7 +369,7 @@ function setupIpc() {
   ipcMain.handle('app:installMcpCodex', async () => {
     return configureMcpViaCommand(
       'codex',
-      ['mcp', 'add', 'timebox', '--', TIMEBOX_MCP_BIN],
+      ['mcp', 'add', 'timebox', '--', getMcpBinPath()],
       ['mcp', 'get', 'timebox'],
     );
   });
@@ -337,12 +381,13 @@ function setupIpc() {
   ipcMain.handle('app:installMcpClaudeCode', async () => {
     return configureMcpViaCommand(
       'claude',
-      ['mcp', 'add', '-s', 'user', 'timebox', '--', TIMEBOX_MCP_BIN],
+      ['mcp', 'add', '-s', 'user', 'timebox', '--', getMcpBinPath()],
       ['mcp', 'get', 'timebox'],
     );
   });
 
   ipcMain.handle('app:checkMcpDesktopInstalled', () => {
+    if (process.platform !== 'darwin') return false;
     const configPath = path.join(app.getPath('home'), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
     try {
       const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -355,17 +400,20 @@ function setupIpc() {
   });
 
   ipcMain.handle('app:installMcpDesktop', async () => {
+    if (process.platform !== 'darwin') {
+      return { error: 'La configurazione automatica di Claude Desktop è disponibile solo su macOS.' };
+    }
     const src = app.isPackaged
       ? path.join(process.resourcesPath, 'timebox-mcp')
       : path.join(__dirname, 'cli', 'mcp-server.js');
-    const symlink = await installTool(src, '/usr/local/bin/timebox-mcp');
+    const symlink = await installTool(src, getMcpBinPath());
     if (!symlink.ok) return symlink;
     const configPath = path.join(app.getPath('home'), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
     try {
       let cfg = {};
       try { cfg = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch {}
       if (!cfg.mcpServers) cfg.mcpServers = {};
-      cfg.mcpServers.timebox = { command: '/usr/local/bin/timebox-mcp' };
+      cfg.mcpServers.timebox = { command: getMcpBinPath() };
       fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2), 'utf8');
       return { ok: true };
     } catch (e) {
@@ -568,7 +616,7 @@ app.whenReady().then(() => {
   });
 
   const config = loadConfig();
-  const defaultDbPath = path.join(app.getPath('documents'), 'Timebox', 'timebox.db');
+  const defaultDbPath = path.join(app.getPath('userData'), 'timebox.db');
   try {
     openDatabase(config.dbPath || defaultDbPath);
   } catch (err) {

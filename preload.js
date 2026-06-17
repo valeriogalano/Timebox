@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld('api', {
   importTodoistProjects: ()                         => ipcRenderer.invoke('todoist:importProjects'),
 
   getHttpPort:            ()  => ipcRenderer.invoke('app:getHttpPort'),
+  getToolInstallInfo:     ()  => ipcRenderer.invoke('app:getToolInstallInfo'),
   checkCliInstalled:      ()  => ipcRenderer.invoke('app:checkCliInstalled'),
   installCli:             ()  => ipcRenderer.invoke('app:installCli'),
   checkMcpServerInstalled: () => ipcRenderer.invoke('app:checkMcpServerInstalled'),

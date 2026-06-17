@@ -1,6 +1,6 @@
 # Timebox Technical Guide
 
-Timebox is a macOS desktop app for the maintainer's personal freelance timeblocking, time tracking, billing review, and weekly capacity planning workflow. It intentionally codifies a subjective process instead of a generic productivity methodology.
+Timebox is a macOS-first desktop app for the maintainer's personal freelance timeblocking, time tracking, billing review, and weekly capacity planning workflow. Windows and Linux packages are configured where Electron supports the same workflow, but platform-specific integrations must be explicit. It intentionally codifies a subjective process instead of a generic productivity methodology.
 
 This is also a vibe coding project: development is iterative and AI-assisted. Keep changes grounded in the existing code, verify behavior, and avoid broad rewrites unless the task explicitly calls for them.
 
@@ -141,13 +141,13 @@ The HTTP server runs inside Electron on `127.0.0.1:37373`. It starts in `app.whe
 
 From Settings -> CLI and MCP:
 
-- Install CLI: symlinks `/usr/local/bin/timebox`.
-- Install MCP server: symlinks `/usr/local/bin/timebox-mcp`.
+- Install CLI: creates a wrapper in `~/.local/bin/timebox` on macOS/Linux or `%APPDATA%\Timebox\bin\timebox.cmd` on Windows.
+- Install MCP server: creates a wrapper in `~/.local/bin/timebox-mcp` on macOS/Linux or `%APPDATA%\Timebox\bin\timebox-mcp.cmd` on Windows.
 - Install Codex MCP config.
 - Install Claude Code MCP config.
-- Install Claude Desktop MCP config.
+- Install Claude Desktop MCP config on macOS only.
 
-In development, symlinks point at repository files. In packaged builds, they point at files copied through `package.json -> build.extraResources`.
+In development, wrappers point at repository files. In packaged builds, they point at files copied through `package.json -> build.extraResources`. Existing macOS `/usr/local/bin` installs are still detected for compatibility, but new installs use per-user paths.
 
 ### HTTP Endpoints
 

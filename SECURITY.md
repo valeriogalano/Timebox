@@ -11,11 +11,17 @@ Timebox is pre-1.0. Security fixes are applied to the latest published version o
 ## Local Security Model
 
 - User data is stored in a local SQLite database under the Electron user-data directory, unless the user selects a different database path.
-- Todoist API tokens are stored encrypted through Electron `safeStorage`.
+- Todoist API tokens are stored encrypted through Electron `safeStorage`, which delegates to the available OS credential/encryption backend.
 - The local HTTP API binds to `127.0.0.1:37373` and is available only while the app is running.
 - The standalone CLI and MCP server communicate with Timebox through that local HTTP API.
 - The MCP server can read and mutate Timebox data through its exposed tools, including logging hours and managing projects. Only configure it in clients you trust.
 - Todoist sync calls the Todoist REST API and caches matched task data locally.
+
+Platform notes:
+
+- Timebox is macOS-first, with Windows and Linux packages generated through Electron Builder.
+- CLI and MCP command installers write into per-user directories (`~/.local/bin` on macOS/Linux and `%APPDATA%\Timebox\bin` on Windows) instead of privileged system paths.
+- Claude Desktop automatic MCP configuration is macOS-only; Windows and Linux users should configure their MCP client manually with the command path shown in Settings.
 
 ## Reporting a Vulnerability
 

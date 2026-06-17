@@ -5,9 +5,17 @@ const os = require('os');
 const { initDb } = require('../db/schema');
 const { init } = require('../db/queries');
 
-const DEFAULT_DB_PATH = path.join(
-  os.homedir(), 'Library', 'Application Support', 'Timebox', 'timebox.db'
-);
+function defaultDbPath() {
+  if (process.platform === 'darwin') {
+    return path.join(os.homedir(), 'Library', 'Application Support', 'Timebox', 'timebox.db');
+  }
+  if (process.platform === 'win32') {
+    return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'Timebox', 'timebox.db');
+  }
+  return path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'Timebox', 'timebox.db');
+}
+
+const DEFAULT_DB_PATH = defaultDbPath();
 
 function openDb() {
   const dbPath = process.env.TIMEBOX_DB || DEFAULT_DB_PATH;

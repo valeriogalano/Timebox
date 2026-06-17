@@ -13,6 +13,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
   const [mcpCodexInstalled, setMcpCodexInstalled] = useState(false);
   const [mcpDesktopInstalled, setMcpDesktopInstalled] = useState(false);
   const [mcpClaudeCodeInstalled, setMcpClaudeCodeInstalled] = useState(false);
+  const [toolInstallInfo, setToolInstallInfo] = useState(null);
 
   function toggleTodoistDebug() {
     setTodoistDebug(prev => {
@@ -24,6 +25,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
 
   useEffect(() => {
     window.api.getDbPath().then(p => setDbPath(p || ''));
+    window.api.getToolInstallInfo?.().then(info => setToolInstallInfo(info || null));
     window.api.getTodoistToken().then(t => setTodoistTokenState(t || ''));
     window.api.checkCliInstalled().then(v => setCliInstalled(!!v));
     window.api.checkMcpCodexInstalled().then(v => setMcpCodexInstalled(!!v));
@@ -185,7 +187,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
             Tema
           </div>
           <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginBottom: 12 }}>
-            Scegli l'aspetto dell'interfaccia. "Sistema" segue le impostazioni del tuo macOS.
+            Scegli l'aspetto dell'interfaccia. "Sistema" segue le impostazioni del sistema operativo.
           </div>
           <ThemeSelector theme={theme} setTheme={setTheme} />
         </div>
@@ -202,7 +204,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
               style={{ color: '#4A8FE8', textDecoration: 'none' }}>
               Impostazioni → Integrazioni → Developer
             </a>.
-            Il token viene salvato cifrato con il Keychain di macOS.
+            Il token viene salvato cifrato con Electron safeStorage, usando il sistema di protezione credenziali disponibile.
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
@@ -291,8 +293,8 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
           label="Installa CLI"
           description={
             cliInstalled
-              ? 'Comando timebox disponibile in /usr/local/bin · porta HTTP: 37373'
-              : 'Installa il comando timebox nel terminale per accedere a Timebox da riga di comando (richiede app aperta)'
+              ? `Comando timebox disponibile in ${toolInstallInfo?.installDir || 'directory utente'} · porta HTTP: 37373`
+              : `Installa il comando timebox in ${toolInstallInfo?.pathHint || 'una directory utente'} per accedere da terminale (richiede app aperta)`
           }
           buttonLabel={cliInstalled ? '✓ Installata' : 'Installa…'}
           buttonColor="#4A9A4A"
@@ -328,17 +330,19 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
           description={
             mcpDesktopInstalled
               ? 'Timebox MCP configurato in Claude Desktop (~/Library/Application Support/Claude/claude_desktop_config.json)'
-              : 'Installa il server MCP e lo aggiunge a claude_desktop_config.json per Claude Desktop'
+              : toolInstallInfo?.platform === 'darwin'
+                ? 'Installa il server MCP e lo aggiunge a claude_desktop_config.json per Claude Desktop'
+                : 'Configurazione automatica disponibile solo su macOS; su Windows/Linux usa la configurazione generica'
           }
           buttonLabel={mcpDesktopInstalled ? '✓ Configurato' : 'Configura…'}
           buttonColor="#4A8FE8"
           onClick={handleInstallMcpDesktop}
-          disabled={busy || mcpDesktopInstalled}
+          disabled={busy || mcpDesktopInstalled || toolInstallInfo?.platform !== 'darwin'}
         />
         <InfoRow
           label="Configurazione generica"
-          description="Per altri agenti o client MCP, registra Timebox come server stdio usando il comando seguente."
-          code="timebox-mcp"
+          description={`Per altri agenti o client MCP, registra Timebox come server stdio usando il comando seguente. Se non è nel PATH, aggiungi ${toolInstallInfo?.pathHint || 'la directory di installazione'} al PATH.`}
+          code={toolInstallInfo?.mcpPath || 'timebox-mcp'}
         />
       </Section>
       <Section title="Database">

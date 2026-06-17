@@ -15,6 +15,8 @@ Timebox is personal workflow software built for the maintainer's own timeblockin
 
 The project uses `better-sqlite3`, a native module. Build on the target operating system whenever possible.
 
+Current support stance: Timebox is macOS-first for the maintainer's daily workflow. Windows and Linux packages are configured and should be built on their target operating systems; platform-specific integrations are documented where they differ.
+
 ## Install Dependencies
 
 ```bash
@@ -112,7 +114,15 @@ For a future Codeberg mirror, either keep GitHub as the update provider or switc
 
 - Renderer web build: `renderer-dist/`
 - Installer artifacts: `release/`
-- Installed app runtime log on macOS: `~/Library/Application Support/Timebox/logs/timebox.log`
+- Installed app runtime log:
+  - macOS: `~/Library/Application Support/Timebox/logs/timebox.log`
+  - Windows: `%APPDATA%\Timebox\logs\timebox.log`
+  - Linux: `~/.config/Timebox/logs/timebox.log`
+- Installed CLI/MCP commands:
+  - macOS/Linux: `~/.local/bin/timebox` and `~/.local/bin/timebox-mcp`
+  - Windows: `%APPDATA%\Timebox\bin\timebox.cmd` and `%APPDATA%\Timebox\bin\timebox-mcp.cmd`
+
+Claude Desktop automatic MCP configuration is currently macOS-only because the app writes Claude's macOS config file. Codex and Claude Code use their CLIs and are configured with the absolute path to `timebox-mcp`.
 
 ## Quick Troubleshooting
 
