@@ -30,18 +30,37 @@ function findProject(name) {
   return { project, client: clientMap[project.clientId], area: clientMap[project.clientId] };
 }
 
+function effectiveBillable(entry) {
+  return entry.billableHours ?? entry.hours;
+}
+
+function mergeEntries(entries) {
+  if (entries.length === 0) return null;
+
+  const first = entries[0];
+  const hours = entries.reduce((sum, entry) => sum + entry.hours, 0);
+  const billableTotal = entries.reduce((sum, entry) => sum + effectiveBillable(entry), 0);
+
+  return {
+    ...first,
+    hours,
+    billableHours: Math.abs(billableTotal - hours) < 0.001 ? null : billableTotal,
+    billed: entries.every(entry => entry.billed),
+  };
+}
+
 function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) {
   const { project, client, area } = findProject(projectName);
   const parsed = parseHours(hoursStr);
   const isBillable = client.billing !== 'none';
 
-  const entries = getEntries(date, date);
-  const existing = entries.find(e => e.projectId === project.id);
+  const entries = getEntries(date, date).filter(e => e.projectId === project.id);
+  const existing = mergeEntries(entries);
   const newHours = add && existing ? existing.hours + parsed : parsed;
 
   if (newHours === 0) {
-    if (existing) {
-      deleteEntry(existing.id);
+    if (entries.length > 0) {
+      entries.forEach(entry => deleteEntry(entry.id));
       return { action: 'deleted', client: client.name, area: area.name, project: project.name, date };
     }
     return { action: 'noop', client: client.name, area: area.name, project: project.name, date };
@@ -56,7 +75,7 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
   }
 
   const resolvedSlot = slot || (new Date().getHours() < 12 ? 'am' : 'pm');
-  saveEntry({
+  const nextEntry = {
     id: existing?.id || randomUUID(),
     projectId: project.id,
     date,
@@ -64,6 +83,10 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
     billableHours,
     slot: resolvedSlot,
     billed: existing?.billed || false,
+  };
+  saveEntry(nextEntry);
+  entries.forEach(entry => {
+    if (entry.id !== nextEntry.id) deleteEntry(entry.id);
   });
 
   return {
