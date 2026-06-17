@@ -34,6 +34,25 @@ function ExpandIcon()   { return <svg width="16" height="16" viewBox="0 0 16 16"
 
 const ACCENT = '#3DB33D';
 
+function mergeProjectDayEntries(entries, projectId) {
+  const matches = entries.filter(entry => entry.projectId === projectId);
+  if (matches.length === 0) return { matches: [], merged: null };
+
+  const first = matches[0];
+  const hours = matches.reduce((sum, entry) => sum + entry.hours, 0);
+  const billableTotal = matches.reduce((sum, entry) => sum + (entry.billableHours ?? entry.hours), 0);
+
+  return {
+    matches,
+    merged: {
+      ...first,
+      hours,
+      billableHours: Math.abs(billableTotal - hours) < 0.001 ? null : billableTotal,
+      billed: matches.every(entry => entry.billed),
+    },
+  };
+}
+
 export default function App() {
   const [screen, setScreen]     = useState('weekly');
   const [weekOffset, setWeekOffset] = useState(0);
@@ -195,13 +214,17 @@ export default function App() {
   async function addHoursToToday(projectId, addHours) {
     const today = fmt(getToday());
     const entries = await window.api.getEntries(today, today);
-    const existing = entries.find(e => e.projectId === projectId);
-    const newHours = (existing?.hours || 0) + addHours;
-    const slot = existing?.slot || (new Date().getHours() < 12 ? 'am' : 'pm');
-    const entry = existing
-      ? { ...existing, hours: newHours }
+    const { matches, merged } = mergeProjectDayEntries(entries, projectId);
+    const newHours = (merged?.hours || 0) + addHours;
+    const slot = merged?.slot || (new Date().getHours() < 12 ? 'am' : 'pm');
+    const entry = merged
+      ? { ...merged, hours: newHours }
       : { id: crypto.randomUUID(), projectId, date: today, hours: newHours, billableHours: null, slot, billed: false };
     await window.api.saveEntry(entry);
+    for (const match of matches) {
+      if (match.id === entry.id) continue;
+      await window.api.deleteEntry(match.id);
+    }
     setWeekRefreshTick(t => t + 1);
   }
 

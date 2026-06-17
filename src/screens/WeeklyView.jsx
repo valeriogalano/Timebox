@@ -9,6 +9,30 @@ const PLANNING_MODES = ['full', 'compact', 'hidden'];
 
 function getWeekKey(monday) { return fmt(monday); }
 
+function mergeProjectDayEntries(entries) {
+  const grouped = new Map();
+
+  for (const entry of entries) {
+    const key = `${entry.projectId}::${entry.date}`;
+    const list = grouped.get(key) ?? [];
+    list.push(entry);
+    grouped.set(key, list);
+  }
+
+  return Array.from(grouped.values()).map(group => {
+    const first = group[0];
+    const hours = group.reduce((sum, entry) => sum + entry.hours, 0);
+    const billableTotal = group.reduce((sum, entry) => sum + effBillable(entry), 0);
+
+    return {
+      ...first,
+      hours,
+      billableHours: Math.abs(billableTotal - hours) < 0.001 ? null : billableTotal,
+      billed: group.every(entry => entry.billed),
+    };
+  });
+}
+
 function getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, slot) {
   const dayOverride = weekOverrides[weekKey]?.[dayIndex];
   if (dayOverride && dayOverride[slot] !== undefined) return dayOverride[slot];
@@ -183,6 +207,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     return getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, slot);
   }
 
+  const displayWeekEntries = mergeProjectDayEntries(weekEntries);
+  const validClientIds = new Set(clients.map(client => client.id));
+
   function setSlotOverride(dayIndex, slot, newBlocks) {
     setWeekOverrides(prev => {
       const weekData = prev[weekKey] ?? {};
@@ -254,13 +281,14 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   }
 
   async function saveEntry(projectId, dateStr, payload, slot) {
-    const existing = weekEntries.find(e => e.projectId === projectId && e.date === dateStr);
+    const matches = weekEntries.filter(e => e.projectId === projectId && e.date === dateStr);
+    const existing = displayWeekEntries.find(e => e.projectId === projectId && e.date === dateStr);
     const hours = typeof payload === 'object' ? payload.hours : payload;
     const billableHours = typeof payload === 'object' ? (payload.billableHours ?? null) : (existing?.billableHours ?? null);
     if (hours === 0) {
       setWeekEntries(prev => prev.filter(e => !(e.projectId === projectId && e.date === dateStr)));
-      if (existing) {
-        await window.api.deleteEntry(existing.id);
+      if (matches.length > 0) {
+        for (const match of matches) await window.api.deleteEntry(match.id);
         window.api.getProjectTotals().then(setProjectTotals);
       }
     } else {
@@ -287,36 +315,54 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       const entry = existing
         ? { ...existing, hours, billableHours }
         : { id: crypto.randomUUID(), projectId, date: dateStr, hours, billableHours, slot: resolvedSlot, billed: false };
-      setWeekEntries(prev =>
-        existing
-          ? prev.map(e => e.projectId === projectId && e.date === dateStr ? entry : e)
-          : [...prev, entry]
-      );
+      setWeekEntries(prev => [
+        ...prev.filter(e => !(e.projectId === projectId && e.date === dateStr)),
+        entry,
+      ]);
       await window.api.saveEntry(entry);
+      for (const match of matches) {
+        if (match.id === entry.id) continue;
+        await window.api.deleteEntry(match.id);
+      }
       window.api.getProjectTotals().then(setProjectTotals);
     }
     onEntryChange?.();
   }
 
   async function resetBillable(projectId, dateStr) {
-    const existing = weekEntries.find(e => e.projectId === projectId && e.date === dateStr);
+    const matches = weekEntries.filter(e => e.projectId === projectId && e.date === dateStr);
+    const existing = displayWeekEntries.find(e => e.projectId === projectId && e.date === dateStr);
     if (!existing) return;
     const entry = { ...existing, billableHours: null };
-    setWeekEntries(prev => prev.map(e => e.id === existing.id ? entry : e));
+    setWeekEntries(prev => [
+      ...prev.filter(e => !(e.projectId === projectId && e.date === dateStr)),
+      entry,
+    ]);
     await window.api.saveEntry(entry);
+    for (const match of matches) {
+      if (match.id === entry.id) continue;
+      await window.api.deleteEntry(match.id);
+    }
     onEntryChange?.();
   }
 
-  function toggleBilled(projectId, dateStr) {
+  async function toggleBilled(projectId, dateStr) {
     const project = projects.find(p => p.id === projectId);
     const client = project ? clients.find(c => c.id === project.clientId) : null;
     if (!client || client.billing === 'none') return;
-    setWeekEntries(prev => prev.map(e => {
-      if (e.projectId !== projectId || e.date !== dateStr) return e;
-      const updated = { ...e, billed: !e.billed };
-      window.api.saveEntry(updated);
-      return updated;
-    }));
+    const matches = weekEntries.filter(e => e.projectId === projectId && e.date === dateStr);
+    const existing = displayWeekEntries.find(e => e.projectId === projectId && e.date === dateStr);
+    if (!existing) return;
+    const updated = { ...existing, billed: !existing.billed };
+    setWeekEntries(prev => [
+      ...prev.filter(e => !(e.projectId === projectId && e.date === dateStr)),
+      updated,
+    ]);
+    await window.api.saveEntry(updated);
+    for (const match of matches) {
+      if (match.id === updated.id) continue;
+      await window.api.deleteEntry(match.id);
+    }
   }
 
   const hasOverride = !!weekOverrides[weekKey] && Object.keys(weekOverrides[weekKey]).length > 0;
@@ -327,7 +373,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const isToday = dateStr === fmt(getToday());
     const isFuture = date > getToday();
     const isWeekend = i >= 5;
-    const dayEntries = weekEntries.filter(e => e.date === dateStr);
+    const dayEntries = displayWeekEntries.filter(e => e.date === dateStr);
     const dayHours = dayEntries.reduce((s, e) => s + e.hours, 0);
     const dayBillable = dayEntries.reduce((s, e) => {
       const proj = projects.find(p => p.id === e.projectId);
@@ -343,13 +389,18 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     });
     const amBlocks = effectiveBlocks(i, 'am');
     const pmBlocks = effectiveBlocks(i, 'pm');
-    const plannedTotal = [...amBlocks, ...pmBlocks].reduce((s, b) => s + b.hours, 0);
+    const visibleAmBlocks = amBlocks.filter(block => validClientIds.has(block.clientId));
+    const visiblePmBlocks = pmBlocks.filter(block => validClientIds.has(block.clientId));
+    const visibleBlocks = [...visibleAmBlocks, ...visiblePmBlocks];
+    const plannedTotal = visibleBlocks.reduce((s, b) => s + b.hours, 0);
     const delta = dayHours - plannedTotal;
-    const recurringTotal = recurring.filter(r => r.day === i).reduce((s, r) => s + r.hours, 0);
+    const recurringTotal = recurring
+      .filter(r => r.day === i && validClientIds.has(r.clientId))
+      .reduce((s, r) => s + r.hours, 0);
     const pianificazioneExtra = Math.max(0, plannedTotal - recurringTotal);
 
     const clientPlanned = {};
-    for (const b of [...amBlocks, ...pmBlocks]) {
+    for (const b of visibleBlocks) {
       clientPlanned[b.clientId] = (clientPlanned[b.clientId] || 0) + b.hours;
     }
     const clientLogged = {};
@@ -380,7 +431,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     // Sequential fill: AM blocks first, then PM blocks, per client in order
     const blockFill = {};
     const clientRemainder = { ...clientLogged };
-    for (const block of [...amBlocks, ...pmBlocks]) {
+    for (const block of visibleBlocks) {
       const cid = block.clientId;
       const hasExtra = (clientLogged[cid] ?? 0) > (clientPlanned[cid] ?? 0);
       const remaining = clientRemainder[cid] ?? 0;
@@ -404,9 +455,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const lastSync = todoistSync[dateStr] ?? null;
 
     const amPlanned = {};
-    amBlocks.forEach(b => { amPlanned[b.clientId] = (amPlanned[b.clientId] ?? 0) + b.hours; });
+    visibleAmBlocks.forEach(b => { amPlanned[b.clientId] = (amPlanned[b.clientId] ?? 0) + b.hours; });
     const pmPlanned = {};
-    pmBlocks.forEach(b => { pmPlanned[b.clientId] = (pmPlanned[b.clientId] ?? 0) + b.hours; });
+    visiblePmBlocks.forEach(b => { pmPlanned[b.clientId] = (pmPlanned[b.clientId] ?? 0) + b.hours; });
     function leftoverTasks(tasks, capacity) {
       let cap = capacity;
       const leftover = [];
@@ -452,10 +503,12 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   days.forEach(d => {
     // Planned: AM + PM blocks
-    [...d.amBlocks, ...d.pmBlocks].forEach(b => {
+    [...d.amBlocks, ...d.pmBlocks]
+      .filter(block => validClientIds.has(block.clientId))
+      .forEach(b => {
       if (!weekTotalSummary[b.clientId]) weekTotalSummary[b.clientId] = { planned: 0, actual: 0 };
       weekTotalSummary[b.clientId].planned += b.hours;
-    });
+      });
     // Actual: All entries (planned + extra)
     d.dayEntries.forEach(e => {
       const p = projects.find(p2 => p2.id === e.projectId);
@@ -472,7 +525,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const planningVisible = planningMode !== 'hidden';
 
   // Weekly hours per project (for alert dot + banner)
-  const weekProjectHours = weekEntries.reduce((acc, e) => {
+  const weekProjectHours = displayWeekEntries.reduce((acc, e) => {
     acc[e.projectId] = (acc[e.projectId] ?? 0) + e.hours;
     return acc;
   }, {});
@@ -497,7 +550,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   );
 
   // Hours done this week per client
-  const weekClientHours = weekEntries.reduce((acc, e) => {
+  const weekClientHours = displayWeekEntries.reduce((acc, e) => {
     const proj = projects.find(p => p.id === e.projectId);
     if (proj) acc[proj.clientId] = (acc[proj.clientId] ?? 0) + e.hours;
     return acc;
@@ -829,7 +882,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           {/* Project rows */}
           {projectsInView.map(client =>
             client.projects.map((project, pi) => {
-              const projectEntries = weekEntries.filter(e => e.projectId === project.id);
+              const projectEntries = displayWeekEntries.filter(e => e.projectId === project.id);
               const clientBillable = client.billing !== 'none';
               const weekTotalTracked  = projectEntries.reduce((s, e) => s + e.hours, 0);
               const weekTotalBillable = clientBillable
@@ -858,7 +911,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                     projectTotals={projectTotals} weekProjectHours={weekProjectHours}
                   />
                   {days.map((d, i) => {
-                    const entry = weekEntries.find(e => e.projectId === project.id && e.date === d.dateStr);
+                    const entry = displayWeekEntries.find(e => e.projectId === project.id && e.date === d.dateStr);
                     return (
                       <div key={i} style={{
                         borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)', borderTop: topBorder,

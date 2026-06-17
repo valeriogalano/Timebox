@@ -4,7 +4,7 @@ const { test, describe, before } = require('node:test');
 const assert = require('node:assert/strict');
 const { createTestDb } = require('./helpers');
 const { logHours, findProject } = require('../commands/log');
-const { getEntries } = require('../../db/queries');
+const { getEntries, saveEntry } = require('../../db/queries');
 
 const TEST_DATE = '2020-06-15';
 
@@ -126,5 +126,25 @@ describe('logHours', () => {
       slot: 'am', date: '2020-07-04', add: false,
     });
     assert.equal(result.billableHours, null);
+  });
+
+  test('collapses duplicate entries for the same project and date', () => {
+    saveEntry({ id: 'dup-1', projectId: 'p1', date: '2020-07-05', hours: 1, billableHours: null, slot: 'am', billed: false });
+    saveEntry({ id: 'dup-2', projectId: 'p1', date: '2020-07-05', hours: 2, billableHours: 1.5, slot: 'pm', billed: true });
+
+    const result = logHours({
+      projectName: 'website',
+      hoursStr: '4',
+      billableHoursStr: '3:30',
+      slot: 'am',
+      date: '2020-07-05',
+      add: false,
+    });
+
+    assert.equal(result.action, 'updated');
+    const entries = getEntries('2020-07-05', '2020-07-05').filter(entry => entry.projectId === 'p1');
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].hours, 4);
+    assert.equal(entries[0].billableHours, 3.5);
   });
 });
