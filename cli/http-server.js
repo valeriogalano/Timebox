@@ -7,6 +7,7 @@ const { getTodayData }    = require('./commands/today');
 const { getWeekData }     = require('./commands/week');
 const { getDaySummaryData } = require('./commands/day-summary');
 const { getDayFreeCapacityData } = require('./commands/day-free-capacity');
+const { getDayReadyBlocksData } = require('./commands/day-ready-blocks');
 const { getImportedTodoistTasksData } = require('./commands/todoist-imported');
 const { getDayMismatchesData } = require('./commands/day-mismatches');
 const { getProjectsData } = require('./commands/projects');
@@ -71,6 +72,11 @@ function createHttpServer() {
       if (req.method === 'GET' && p === '/day-free-capacity') {
         const date = q.get('date') || fmt(getToday());
         return json(res, 200, getDayFreeCapacityData(date));
+      }
+
+      if (req.method === 'GET' && p === '/day-ready-blocks') {
+        const date = q.get('date') || fmt(getToday());
+        return json(res, 200, getDayReadyBlocksData(date));
       }
 
       if (req.method === 'GET' && p === '/todoist-imported') {

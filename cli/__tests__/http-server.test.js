@@ -157,6 +157,26 @@ describe('HTTP server', () => {
     assert.equal(body.reservedWithoutTasks[1].reason, 'no_tasks');
   });
 
+  it('GET /day-ready-blocks for custom Todoist cache → groups uncovered blocks by area and project', async () => {
+    setTodoistCache('2020-01-08', [
+      { id: 'rb1', projectId: 'p4', content: 'Sensor triage', hours: 1, slot: 'am' },
+      { id: 'rb2', content: 'Inbox follow-up', hours: 1, slot: 'pm', todoistProjectName: 'Inbox' },
+    ], '2026-06-17T09:00:00.000Z');
+
+    const { status, body } = await get(port, '/day-ready-blocks?date=2020-01-08');
+    assert.equal(status, 200);
+    assert.equal(body.date, '2020-01-08');
+    assert.equal(body.counts.groups, 2);
+    assert.equal(body.groups[0].area, 'GreenTech SA');
+    assert.equal(body.groups[0].projects[0].project, 'Dashboard MVP');
+    assert.equal(body.groups[0].projects[0].taskCount, 1);
+    assert.equal(body.groups[0].projects[0].estimatedHours, 1);
+    assert.ok(body.groups[0].projects.some(project => project.project === 'Mobile App' && project.taskCount === 0));
+    assert.equal(body.groups[1].area, 'Studio Nova');
+    assert.equal(body.groups[1].projects[0].project, 'Brand Identity');
+    assert.equal(body.groups[1].projects[0].taskCount, 0);
+  });
+
   it('GET /todoist-imported for seeded Tuesday → imported tasks with project, area and match status', async () => {
     const seededDate = previousWeekDate(1);
     const { status, body } = await get(port, `/todoist-imported?date=${seededDate}`);

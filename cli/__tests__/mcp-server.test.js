@@ -6,6 +6,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const { createTestDb } = require('./helpers');
 const { createHttpServer } = require('../http-server');
+const { setTodoistCache } = require('../../db/queries');
 
 const MCP_SERVER = path.join(__dirname, '..', 'mcp-server.js');
 
@@ -76,9 +77,9 @@ describe('MCP server', () => {
     const res = await rpc(mcp, msg('tools/list', {}));
     const { tools } = res.result;
     assert.ok(Array.isArray(tools));
-    assert.equal(tools.length, 19);
+    assert.equal(tools.length, 20);
     const names = tools.map(t => t.name);
-    for (const n of ['today', 'day_summary', 'day_free_capacity', 'todoist_imported_tasks', 'day_mismatches', 'week', 'projects', 'areas', 'status', 'log_hours',
+    for (const n of ['today', 'day_summary', 'day_free_capacity', 'day_ready_blocks', 'todoist_imported_tasks', 'day_mismatches', 'week', 'projects', 'areas', 'status', 'log_hours',
       'find_area', 'find_project', 'rename_area', 'rename_project', 'update_project',
       'move_project', 'create_project', 'delete_project', 'merge_project_entries']) {
       assert.ok(names.includes(n), `missing tool: ${n}`);
@@ -121,6 +122,24 @@ describe('MCP server', () => {
     assert.ok(text.includes('Available after tracked + tasks:'), 'contains available capacity');
     assert.ok(text.includes('Reserved without tasks:'), 'contains reserved capacity');
     assert.ok(text.includes('Actually free (unallocated):'), 'contains actual free capacity');
+  });
+
+  it('tools/call day_ready_blocks → text with uncovered blocks grouped by project', async () => {
+    setTodoistCache('2020-01-08', [
+      { id: 'rb1', projectId: 'p4', content: 'Sensor triage', hours: 1, slot: 'am' },
+      { id: 'rb2', content: 'Inbox follow-up', hours: 1, slot: 'pm', todoistProjectName: 'Inbox' },
+    ], '2026-06-17T09:00:00.000Z');
+
+    const res = await rpc(mcp, msg('tools/call', {
+      name: 'day_ready_blocks',
+      arguments: { date: '2020-01-08' },
+    }));
+    const text = res.result.content[0].text;
+    assert.ok(text.includes('Date: 2020-01-08'), 'contains date');
+    assert.ok(text.includes('GreenTech SA'), 'contains first area');
+    assert.ok(text.includes('Dashboard MVP: 1 task(s), 1h'), 'contains project with ready task');
+    assert.ok(text.includes('Mobile App: no ready tasks'), 'contains sibling project without tasks');
+    assert.ok(text.includes('Brand Identity: no ready tasks'), 'contains area with no tasks');
   });
 
   it('tools/call todoist_imported_tasks → text with imported task details', async () => {

@@ -97,6 +97,16 @@ const TOOLS = [
     },
   },
   {
+    name: 'day_ready_blocks',
+    description: 'List today\'s operational Timebox blocks that still lack enough ready Todoist intention, grouped by area and Timebox project to help turn reserved capacity into next actions.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'Date in YYYY-MM-DD format (default: today)' },
+      },
+    },
+  },
+  {
     name: 'todoist_imported_tasks',
     description: 'Get Todoist tasks imported into Timebox for a given day, including Todoist project, matched Timebox project, area, slot, estimated duration and match status.',
     inputSchema: {
@@ -385,6 +395,44 @@ async function callTool(name, args) {
       for (const task of d.tasksOverReservedCapacity) {
         lines.push(`  ${task.title}: ${task.estimatedHours}h in ${task.slot.toUpperCase()} for ${task.area || '?'}; reserved before task ${task.availableBeforeTask}h, overflow ${task.overflowHours}h`);
       }
+    }
+
+    return lines.join('\n').trimEnd();
+  }
+
+  if (name === 'day_ready_blocks') {
+    const qs = args.date ? `?date=${encodeURIComponent(args.date)}` : '';
+    const d = await httpRequest(`/day-ready-blocks${qs}`);
+    const lines = [`Date: ${d.date}`];
+    if (d.syncedAt) lines.push(`Synced: ${d.syncedAt}`);
+
+    if (!d.groups.length) {
+      lines.push('Blocks needing ready Todoist tasks: none');
+      return lines.join('\n');
+    }
+
+    lines.push(`Blocks needing ready Todoist tasks: ${d.groups.length}`);
+    lines.push('');
+
+    for (const group of d.groups) {
+      lines.push(
+        `${group.slot.toUpperCase()} ${group.area}: available ${group.availableHours}h, Todoist estimated ${group.estimatedHours}h, missing ${group.missingHours}h`
+      );
+      if (!group.projects.length) {
+        lines.push('  projects: none');
+        lines.push('');
+        continue;
+      }
+
+      for (const project of group.projects) {
+        if (!project.hasReadyTasks) {
+          lines.push(`  ${project.project}: no ready tasks`);
+          continue;
+        }
+        const taskTitles = project.tasks.map(task => `${task.title} (${task.estimatedHours}h)`).join(', ');
+        lines.push(`  ${project.project}: ${project.taskCount} task(s), ${project.estimatedHours}h${taskTitles ? ` -> ${taskTitles}` : ''}`);
+      }
+      lines.push('');
     }
 
     return lines.join('\n').trimEnd();
