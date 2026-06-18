@@ -132,8 +132,18 @@ function initDb(dbPath) {
       tasksJson TEXT NOT NULL DEFAULT '[]',
       syncedAt TEXT
     );
+    CREATE TABLE IF NOT EXISTS todoist_imports (
+      todoistTaskId TEXT PRIMARY KEY,
+      projectId TEXT NOT NULL,
+      date TEXT NOT NULL,
+      hours REAL NOT NULL,
+      titleSnapshot TEXT,
+      importedAt TEXT NOT NULL
+    );
     CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(date);
     CREATE INDEX IF NOT EXISTS idx_overrides_weekkey ON week_overrides(weekKey);
+    CREATE INDEX IF NOT EXISTS idx_todoist_imports_date ON todoist_imports(date);
+    CREATE INDEX IF NOT EXISTS idx_todoist_imports_project_date ON todoist_imports(projectId, date);
   `);
 
   // Migrations
