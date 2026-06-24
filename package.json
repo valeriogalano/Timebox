@@ -1,6 +1,6 @@
 {
   "name": "timebox",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Freelance time tracking desktop app",
   "license": "MIT",
   "author": "Valerio Galano",
@@ -46,6 +46,7 @@
     "appId": "dev.valeriogalano.timebox",
     "productName": "Timebox",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "afterPack": "build/after-pack.js",
     "directories": {
       "output": "release"
     },
@@ -80,6 +81,7 @@
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "build/icon.png",
+      "identity": null,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.inherit.plist",
       "target": [
