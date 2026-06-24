@@ -31,16 +31,24 @@ export function fmt(date) {
 
 export function fmtH(h) {
   if (!h || h === 0) return '0h';
-  const hh = Math.floor(Math.abs(h));
-  const mm = Math.round((Math.abs(h) - hh) * 60);
+  let hh = Math.floor(Math.abs(h));
+  let mm = Math.round((Math.abs(h) - hh) * 60);
+  if (mm === 60) {
+    hh += 1;
+    mm = 0;
+  }
   const sign = h < 0 ? '-' : '';
   return mm === 0 ? `${sign}${hh}h` : `${sign}${hh}h ${mm}m`;
 }
 
 export function toHHMM(hours) {
   if (!hours || hours === 0) return '';
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
+  let h = Math.floor(hours);
+  let m = Math.round((hours - h) * 60);
+  if (m === 60) {
+    h += 1;
+    m = 0;
+  }
   return `${h}:${m.toString().padStart(2, '0')}`;
 }
 
