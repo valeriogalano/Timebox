@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const { createTestDb } = require('./helpers');
 const { createHttpServer } = require('../http-server');
-const { getClients, setTodoistCache } = require('../../db/queries');
+const { getClients, getEntries, setTodoistCache } = require('../../db/queries');
 
 function currentWeekDate(offset) {
   const today = new Date();
@@ -294,6 +294,29 @@ describe('HTTP server', () => {
     assert.equal(status, 200);
     assert.equal(body.hours, 4);
     assert.equal(body.billableHours, 3.5);
+  });
+
+  it('POST /log with zero hours → deletes entry', async () => {
+    const date = '2025-09-12';
+    await post(port, '/log', {
+      project: 'website',
+      hours: '2',
+      slot: 'am',
+      date,
+      add: false,
+    });
+
+    const { status, body } = await post(port, '/log', {
+      project: 'website',
+      hours: 0,
+      slot: 'am',
+      date,
+      add: false,
+    });
+
+    assert.equal(status, 200);
+    assert.equal(body.action, 'deleted');
+    assert.equal(getEntries(date, date).some(e => e.projectId === body.projectId), false);
   });
 
   it('GET /today includes billableHours and totalBillable fields', async () => {
