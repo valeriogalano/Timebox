@@ -349,7 +349,7 @@ npm run dist:win
 npm run dist:linux
 ```
 
-Artifacts are generated with `electron-builder`. GitHub Releases are configured as the `electron-updater` provider. macOS production releases require Developer ID signing and notarization for a proper end-user update experience. Windows packages should be Authenticode-signed for smoother installation; Linux AppImage builds are unsigned local artifacts unless the release workflow adds distribution-specific signing.
+Artifacts are generated with `electron-builder`. GitHub Releases are configured as the `electron-updater` provider. macOS packages are intended for personal installation without Apple notarization; if Gatekeeper reports the app as damaged after installing it in `/Applications`, remove the download quarantine with `xattr -dr com.apple.quarantine /Applications/Timebox.app`. Windows packages should be Authenticode-signed for smoother installation; Linux AppImage builds are unsigned local artifacts unless the release workflow adds distribution-specific signing.
 
 Local commits do not build or publish anything. The CI workflow runs on pull requests and pushes to `main`; the release workflow runs only when a `v*` tag is pushed. For regular development, work on a feature branch and avoid creating version tags until a release is intentional.
 
