@@ -56,6 +56,8 @@ Output: `release/Timebox-<version>-mac-<arch>.dmg` and a `.zip` artifact.
 
 The `.zip` target is required for macOS auto-update metadata.
 
+macOS builds use `electron-builder` to create a DMG and ZIP artifact. Without Apple Developer ID notarization, downloaded artifacts are still usable for personal installation, but macOS Gatekeeper may require an explicit open action or quarantine removal.
+
 ### Windows (.exe / NSIS)
 
 ```powershell
@@ -82,10 +84,14 @@ Cross-compilation is not always reliable with native modules and code signing. P
 
 ## Signing and Notarization
 
-- macOS: external distribution requires an Apple Developer ID certificate and notarization.
+- macOS: broad external distribution requires an Apple Developer ID Application certificate and notarization. Personal/internal builds can be produced without Apple ID through `electron-builder`, with the usual Gatekeeper warning for downloaded apps.
 - Windows: Authenticode signing is recommended to reduce SmartScreen warnings.
 
-The current configuration can generate local packages. Signing and notarization depend on credentials available in the build environment.
+This project does not require `APPLE_ID` or notarization secrets in GitHub Actions. If a downloaded macOS build is blocked, install it by opening the DMG, dragging Timebox to `/Applications`, then using Finder's contextual **Open** action on first launch. For a local personal machine, quarantine can also be removed explicitly:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Timebox.app
+```
 
 ## GitHub Releases and Auto-Update
 
