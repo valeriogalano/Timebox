@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Cross-platform update notifier (`lib/update-notifier.js`): on macOS, where `electron-updater` cannot install unsigned/ad-hoc builds without an Apple Developer ID, the app now checks the latest GitHub release and prompts the user to open the download page instead of failing silently. Windows (NSIS) and Linux (AppImage) keep native auto-update.
+
 ## [0.5.2] - 2026-06-24
 
 ### Fixed
