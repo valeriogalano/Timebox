@@ -17,6 +17,12 @@ Timebox is pre-1.0. Security fixes are applied to the latest published version o
 - The MCP server can read and mutate Timebox data through its exposed tools, including logging hours and managing projects. Only configure it in clients you trust.
 - Todoist sync calls the Todoist REST API and caches matched task data locally.
 
+### Accepted risk: HTTP API has no authentication
+
+The local HTTP API has no token, session, or `Origin`/`Host` check. Any process running as the same local user can read and mutate Timebox data through it, and (in principle) a malicious web page could attempt a no-CORS request or DNS-rebinding attack against `127.0.0.1:37373`.
+
+This is accepted for now: Timebox is single-user local software, and the realistic threat model is another process on the same machine, which already has broader access (e.g. to the SQLite file itself). If this assumption changes — e.g. the API is ever exposed beyond loopback, or Timebox starts handling more sensitive data — revisit this with a `Host`/`Origin` allowlist or a shared local token before widening exposure.
+
 Platform notes:
 
 - Timebox is macOS-first, with Windows and Linux packages generated through Electron Builder.

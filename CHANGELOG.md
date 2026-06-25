@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 - Documented that converting a Todoist task's due datetime to local time before the am/pm split is intentional, and that ordering by the parsed timestamp is already timezone-independent — closing out the open question on possible timezone bugs in slot/order logic.
+- Documented the local HTTP API's lack of authentication as an accepted risk for single-user local software, with a pointer to revisit it if exposure ever widens beyond loopback.
 
 ### Fixed
 - Aligned the AM/PM cutoff used by Todoist sync and CLI log defaults to noon, so 12:00-12:59 tasks are consistently treated as PM.
