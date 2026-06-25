@@ -23,8 +23,8 @@ function getStatusData(today) {
   const todayBillable = billableSum(todayEntries, projectMap, clientMap);
 
   const monday = getMondayOfWeek(new Date(today + 'T00:00:00'));
-  const friday = addDays(monday, 4);
-  const weekEntries = getEntries(fmt(monday), fmt(friday));
+  const sunday = addDays(monday, 6);
+  const weekEntries = getEntries(fmt(monday), fmt(sunday));
   const weekTotal = weekEntries.reduce((s, e) => s + e.hours, 0);
   const weekBillable = billableSum(weekEntries, projectMap, clientMap);
 

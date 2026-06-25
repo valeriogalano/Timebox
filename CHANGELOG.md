@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed `fmtH`/`toHHMM` rounding minutes up to 60 without carrying the extra minute into the hour (e.g. `2h 60m` instead of `3h`), in both the renderer (`src/utils.js`) and the CLI (`cli/format.js`).
 
 - Stopped project/area deletion from leaving orphaned time entries: `deleteProject` now removes the project's entries in the same transaction, so they no longer keep counting in week/day totals with an unresolved area.
+- Extended the CLI/HTTP/MCP weekly summary (`getWeekData`, `/week`, `timebox week`, `getStatusData`'s `weekTotal`) from Monday-Friday to the full Monday-Sunday week, so hours logged on Saturday/Sunday are no longer silently excluded from weekly totals. The `friday` field in the week payload is now `sunday`. The renderer's weekly view already included the weekend.
 
 ## [0.5.2] - 2026-06-24
 

@@ -222,14 +222,14 @@ describe('HTTP server', () => {
     assert.equal(body.mismatches.estimatedBeyondResidualCapacity.overflowHours, 1);
   });
 
-  it('GET /week → has 5 days and total', async () => {
+  it('GET /week → has 7 days and total', async () => {
     const { status, body } = await get(port, '/week');
     assert.equal(status, 200);
     assert.ok(Array.isArray(body.days), 'days is array');
-    assert.equal(body.days.length, 5);
+    assert.equal(body.days.length, 7);
     assert.ok('total' in body, 'has total');
     assert.ok(body.monday, 'has monday');
-    assert.ok(body.friday, 'has friday');
+    assert.ok(body.sunday, 'has sunday');
   });
 
   it('GET /week?offset=-1 → different week from /week', async () => {

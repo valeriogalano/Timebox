@@ -540,7 +540,7 @@ async function callTool(name, args) {
   if (name === 'week') {
     const offset = args.offset ?? 0;
     const d = await httpRequest(`/week?offset=${offset}`);
-    const lines = [`Week ${d.monday} – ${d.friday}\n`];
+    const lines = [`Week ${d.monday} – ${d.sunday}\n`];
     for (const day of d.days) {
       const label = day.label || day.day;
       const total = day.total || 0;

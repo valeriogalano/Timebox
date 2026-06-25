@@ -132,7 +132,7 @@ async function cmdWeek(flags) {
   const d = await request(`/week?offset=${offset}`);
   if (flags.json) { console.log(JSON.stringify(d)); return; }
 
-  console.log(`\nWeek ${d.monday} – ${d.friday}\n`);
+  console.log(`\nWeek ${d.monday} – ${d.sunday}\n`);
   const rows = d.days.map(day => {
     const tot = day.total || 0;
     const totBill = day.totalBillable != null && Math.abs(day.totalBillable - tot) > 0.001 ? day.totalBillable : null;

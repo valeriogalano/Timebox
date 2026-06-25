@@ -109,7 +109,7 @@ program
         const json = {
           ...data,
           monday: fmt(data.monday),
-          friday: fmt(data.friday),
+          sunday: fmt(data.sunday),
           days: data.days.map(d => ({ ...d, day: fmt(d.day) })),
         };
         process.stdout.write(JSON.stringify(json) + '\n');

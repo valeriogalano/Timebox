@@ -33,6 +33,13 @@ describe('getStatusData', () => {
     assert.equal(data.weekTotal, 5);
   });
 
+  test('weekTotal includes hours logged on the weekend', () => {
+    // 2020-09-01 is a Tuesday; Sunday of that week is 2020-09-06
+    logHours({ projectName: 'website', hoursStr: '1', slot: 'am', date: '2020-09-06', add: false });
+    const data = getStatusData(TEST_DATE);
+    assert.equal(data.weekTotal, 6);
+  });
+
   test('alerts are empty when no project exceeds 80% of budget', () => {
     // Fresh DB: seed data logged hours are well below budgets for most projects
     createTestDb();
