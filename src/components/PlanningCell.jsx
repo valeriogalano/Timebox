@@ -130,8 +130,8 @@ function PlanningBlock({
 
       </div>
 
-      {/* Todoist task tooltip */}
-      {hasTodoistSync && todoistH > 0 && hover && (isToday || isFuture) && todoistTasks && todoistTasks.length > 0 && (
+      {/* Todoist task tooltip — hidden once any hours are tracked in this block */}
+      {hasTodoistSync && todoistH > 0 && hover && (isToday || isFuture) && logged === 0 && todoistTasks && todoistTasks.length > 0 && (
         <TodoistTaskTooltip anchorRef={blockRef} tasks={todoistTasks} color={cl.color} />
       )}
 

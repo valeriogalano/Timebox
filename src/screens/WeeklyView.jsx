@@ -373,6 +373,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const isToday = dateStr === fmt(getToday());
     const isFuture = date > getToday();
     const isWeekend = i >= 5;
+    const isDayOverridden = !!weekOverrides[weekKey]?.[i];
     const dayEntries = displayWeekEntries.filter(e => e.date === dateStr);
     const dayHours = dayEntries.reduce((s, e) => s + e.hours, 0);
     const dayBillable = dayEntries.reduce((s, e) => {
@@ -481,7 +482,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       });
     }
 
-    return { date, dateStr, isToday, isFuture, isWeekend, dayHours, dayBillable, dayDivergent, plannedTotal, delta, loggedInPlan, bilancioExtra, pianificazioneExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill, todoistByCS, todoistTasksByCS, lastSync, orphanTodoist };
+    return { date, dateStr, isToday, isFuture, isWeekend, isDayOverridden, dayHours, dayBillable, dayDivergent, plannedTotal, delta, loggedInPlan, bilancioExtra, pianificazioneExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill, todoistByCS, todoistTasksByCS, lastSync, orphanTodoist };
   });
 
   const weekPlanned  = days.reduce((s, d) => s + d.plannedTotal, 0);
@@ -708,7 +709,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   <div style={{ fontSize: planningCompact ? 11 : 12, fontWeight: 700, color: d.isToday ? '#3DB33D' : 'var(--tb-text-secondary)', lineHeight: 1.1 }}>
                     {d.date.getDate()}
                   </div>
-                  {d.isToday && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3DB33D', margin: planningCompact ? '2px auto 0' : '3px auto 0' }} />}
+                  {d.isToday
+                    ? <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3DB33D', margin: planningCompact ? '2px auto 0' : '3px auto 0' }} />
+                    : d.isDayOverridden && <div title="Giorno modificato rispetto al template" style={{ width: 5, height: 5, borderRadius: '50%', background: '#E07B3A', margin: planningCompact ? '2px auto 0' : '3px auto 0' }} />
+                  }
                 </div>
               ))}
               <div style={{

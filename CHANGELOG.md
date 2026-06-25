@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - Documented that converting a Todoist task's due datetime to local time before the am/pm split is intentional, and that ordering by the parsed timestamp is already timezone-independent — closing out the open question on possible timezone bugs in slot/order logic.
 - Documented the local HTTP API's lack of authentication as an accepted risk for single-user local software, with a pointer to revisit it if exposure ever widens beyond loopback.
+### Added
+- Added a per-day override indicator (orange dot) in the planning column header: days that deviate from the recurring template now show a dot distinct from the week-level "↩ Ripristina template" button.
 
 ### Fixed
 - Aligned the AM/PM cutoff used by Todoist sync and CLI log defaults to noon, so 12:00-12:59 tasks are consistently treated as PM.
@@ -18,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Stopped project/area deletion from leaving orphaned time entries: `deleteProject` now removes the project's entries in the same transaction, so they no longer keep counting in week/day totals with an unresolved area.
 - Extended the CLI/HTTP/MCP weekly summary (`getWeekData`, `/week`, `timebox week`, `getStatusData`'s `weekTotal`) from Monday-Friday to the full Monday-Sunday week, so hours logged on Saturday/Sunday are no longer silently excluded from weekly totals. The `friday` field in the week payload is now `sunday`. The renderer's weekly view already included the weekend.
+- Stopped the Todoist "tasks to do" tooltip from appearing on hover in planning blocks that already have tracked hours, since pending tasks are no longer actionable once work has been recorded.
 
 ## [0.5.2] - 2026-06-24
 
