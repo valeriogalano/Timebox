@@ -337,6 +337,16 @@ The weekly view syncs only today and future dates. Past cached tasks are still v
 
 ---
 
+## Update Behavior
+
+Update handling is split by platform in `main.js` (`app.whenReady`):
+
+- **macOS (`darwin`)** uses `lib/update-notifier.js`. Squirrel.Mac refuses any update that is not signed with a valid Apple Developer ID, so an unsigned/ad-hoc build can never auto-update in place. The notifier checks the latest GitHub release via `api.github.com`, compares it with `app.getVersion()` (`compareVersions` tolerates a leading `v` and missing components), and shows a native dialog offering to open the download page. Installation stays manual.
+- **Windows (NSIS) and Linux (AppImage)** use `lib/updater.js` with `electron-updater`, which works without code signing. `autoDownload` is `false`: the app prompts before downloading and again before restarting to install. Both updaters expose the same IPC channels (`app:getUpdateStatus`, `app:checkForUpdates`, `app:installUpdate`), so `preload.js` and the renderer stay platform-agnostic; on the notifier path `installUpdate` opens the release page instead of installing.
+- Both paths skip entirely when `!app.isPackaged` (development).
+
+---
+
 ## Adding Features
 
 ### New Field on an Existing Entity

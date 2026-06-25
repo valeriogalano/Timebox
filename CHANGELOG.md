@@ -5,10 +5,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+> **Fork versioning.** This is the `Pitz72/Timebox` fork. Fork builds use SemVer
+> build-metadata versions of the form `<upstream-base>+fork.<n>` (e.g.
+> `0.6.0+fork.1`) so they stay distinct from upstream `valeriogalano/Timebox`
+> releases while preserving SemVer precedence. Fork entries are dated and follow
+> the same Keep a Changelog sections used upstream.
+
 ## [Unreleased]
 
+## [0.6.0+fork.1] - 2026-06-25
+
 ### Added
-- Cross-platform update notifier (`lib/update-notifier.js`): on macOS, where `electron-updater` cannot install unsigned/ad-hoc builds without an Apple Developer ID, the app now checks the latest GitHub release and prompts the user to open the download page instead of failing silently. Windows (NSIS) and Linux (AppImage) keep native auto-update.
+- Cross-platform update notifier (`lib/update-notifier.js`): on macOS, where `electron-updater` (Squirrel.Mac) cannot install unsigned/ad-hoc builds without an Apple Developer ID, the app now checks the latest GitHub release, compares versions, and prompts the user to open the download page instead of failing silently. Wired in `main.js` only on `darwin`.
+
+### Changed
+- On Windows (NSIS) and Linux (AppImage), where `electron-updater` works without code signing, updates are no longer downloaded silently: `autoDownload` is now `false` and the app asks for confirmation before downloading (`Scarica` / `Più tardi`) and again before restarting to install (`Riavvia e installa` / `Più tardi`). See `lib/updater.js`.
 
 ## [0.5.2] - 2026-06-24
 

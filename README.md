@@ -351,6 +351,13 @@ npm run dist:linux
 
 Artifacts are generated with `electron-builder`. GitHub Releases are configured as the `electron-updater` provider. macOS packages are intended for personal installation without Apple notarization; if Gatekeeper reports the app as damaged after installing it in `/Applications`, remove the download quarantine with `xattr -dr com.apple.quarantine /Applications/Timebox.app`. Windows packages should be Authenticode-signed for smoother installation; Linux AppImage builds are unsigned local artifacts unless the release workflow adds distribution-specific signing.
 
+### Updates
+
+Update behavior depends on the platform, because in-place auto-update requires code signing on macOS:
+
+- **macOS:** an unsigned/ad-hoc build cannot auto-update (Squirrel.Mac rejects it without an Apple Developer ID). The app instead checks the latest GitHub release and, when a newer version exists, shows a notice offering to open the download page; you then install manually (`xattr -dr com.apple.quarantine ...` as above).
+- **Windows and Linux:** `electron-updater` updates without signing. The app does not download silently: it asks for confirmation before downloading the update and again before restarting to install it.
+
 Local commits do not build or publish anything. The CI workflow runs on pull requests and pushes to `main`; the release workflow runs only when a `v*` tag is pushed. For regular development, work on a feature branch and avoid creating version tags until a release is intentional.
 
 ---
