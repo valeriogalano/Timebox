@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extended the CLI/HTTP/MCP weekly summary (`getWeekData`, `/week`, `timebox week`, `getStatusData`'s `weekTotal`) from Monday-Friday to the full Monday-Sunday week, so hours logged on Saturday/Sunday are no longer silently excluded from weekly totals. The `friday` field in the week payload is now `sunday`. The renderer's weekly view already included the weekend.
 - Stopped the Todoist "tasks to do" tooltip from appearing on hover in planning blocks that already have tracked hours, since pending tasks are no longer actionable once work has been recorded.
 - Wired `mainWindow` into `setupAutoUpdater` so auto-update state changes are now propagated to the renderer via `auto-update-state` IPC events; previously the renderer had no way to know an update was available or downloaded.
+### Added
+- Cross-platform update notifier (`lib/update-notifier.js`): on macOS, where `electron-updater` cannot install unsigned/ad-hoc builds without an Apple Developer ID, the app now checks the latest GitHub release and prompts the user to open the download page instead of failing silently. Windows (NSIS) and Linux (AppImage) keep native auto-update.
 
 ## [0.5.2] - 2026-06-24
 
