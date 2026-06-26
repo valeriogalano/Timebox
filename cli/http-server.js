@@ -19,6 +19,8 @@ const {
   getClients, saveClient,
   getProjects, saveProject, deleteProject,
   hasProjectEntries, mergeProjectEntries,
+  getRecurring, saveRecurring, deleteRecurring,
+  getWeekOverrides, saveWeekOverride, deleteWeekOverride,
 } = require('../db/queries');
 
 function serializeWeek(data) {
@@ -194,6 +196,55 @@ function createHttpServer() {
         deleteProject(id);
         emitter.emit('change', 'structure');
         return json(res, 200, { id, name: existing.name });
+      }
+
+      // ── Recurring template ──────────────────────────────────────────────────
+      if (req.method === 'GET' && p === '/recurring') {
+        return json(res, 200, getRecurring());
+      }
+
+      if (req.method === 'POST' && p === '/recurring') {
+        const { id, clientId, slot, day, hours, position } = await readBody(req);
+        if (!clientId || !slot || day == null || !hours) return json(res, 400, { error: 'clientId, slot, day and hours are required' });
+        const client = getClients().find(c => c.id === clientId);
+        if (!client) return json(res, 400, { error: `Area not found: ${clientId}` });
+        const rid = id || randomUUID();
+        saveRecurring({ id: rid, clientId, slot, day, hours, position: position ?? 0 });
+        emitter.emit('change', 'structure');
+        return json(res, 200, { id: rid, clientId, slot, day, hours, position: position ?? 0 });
+      }
+
+      if (req.method === 'DELETE' && p.startsWith('/recurring/') && p !== '/recurring/') {
+        const id = p.slice('/recurring/'.length);
+        deleteRecurring(id);
+        emitter.emit('change', 'structure');
+        return json(res, 200, { id });
+      }
+
+      // ── Week overrides ───────────────────────────────────────────────────────
+      if (req.method === 'GET' && p === '/overrides') {
+        const week = q.get('week');
+        if (!week) return json(res, 400, { error: 'week query param required (YYYY-MM-DD Monday)' });
+        return json(res, 200, getWeekOverrides(week));
+      }
+
+      if (req.method === 'POST' && p === '/overrides') {
+        const { weekKey, dayIndex, slot, blocks } = await readBody(req);
+        if (!weekKey || dayIndex == null || !slot || !Array.isArray(blocks))
+          return json(res, 400, { error: 'weekKey, dayIndex, slot and blocks[] are required' });
+        saveWeekOverride({ weekKey, dayIndex, slot, blocks });
+        emitter.emit('change', 'structure');
+        return json(res, 200, { weekKey, dayIndex, slot, blocks });
+      }
+
+      if (req.method === 'DELETE' && p === '/overrides') {
+        const week = q.get('week');
+        const day  = q.get('day');
+        const slot = q.get('slot');
+        if (!week || day == null || !slot) return json(res, 400, { error: 'week, day and slot query params required' });
+        deleteWeekOverride(week, Number(day), slot);
+        emitter.emit('change', 'structure');
+        return json(res, 200, { weekKey: week, dayIndex: Number(day), slot });
       }
 
       json(res, 404, { error: 'Not found' });

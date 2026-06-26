@@ -79,11 +79,12 @@ describe('MCP server', () => {
     const res = await rpc(mcp, msg('tools/list', {}));
     const { tools } = res.result;
     assert.ok(Array.isArray(tools));
-    assert.equal(tools.length, 20);
+    assert.equal(tools.length, 25);
     const names = tools.map(t => t.name);
     for (const n of ['today', 'day_summary', 'day_free_capacity', 'day_ready_blocks', 'todoist_imported_tasks', 'day_mismatches', 'week', 'projects', 'areas', 'status', 'log_hours',
       'find_area', 'find_project', 'rename_area', 'rename_project', 'update_project',
-      'move_project', 'create_project', 'delete_project', 'merge_project_entries']) {
+      'move_project', 'create_project', 'delete_project', 'merge_project_entries',
+      'get_recurring', 'set_recurring_slot', 'get_week_overrides', 'set_week_override', 'clear_week_override']) {
       assert.ok(names.includes(n), `missing tool: ${n}`);
     }
     for (const t of tools) {

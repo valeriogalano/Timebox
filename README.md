@@ -292,6 +292,11 @@ Exposed tools:
 | `create_project` | Create a project. |
 | `delete_project` | Delete a project with no entries. |
 | `merge_project_entries` | Move entries into another project and delete the source project. |
+| `get_recurring` | List all recurring template blocks (day, slot, area, hours). |
+| `set_recurring_slot` | Replace all recurring blocks for one day+slot (e.g. Mon AM). |
+| `get_week_overrides` | List overrides for a specific week (weekKey = Monday ISO date). |
+| `set_week_override` | Set an override for one slot of one day of a specific week. |
+| `clear_week_override` | Remove an override, reverting that slot to the recurring template. |
 
 ### Daily planning tools
 
