@@ -9,6 +9,8 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
   const [todoistDebug, setTodoistDebug] = useState(() => {
     try { return localStorage.getItem('timebox-todoist-debug') === 'true'; } catch { return false; }
   });
+  const [updateStatus, setUpdateStatus] = useState(null);
+  const [updateBusy, setUpdateBusy] = useState(false);
   const [cliInstalled, setCliInstalled] = useState(false);
   const [mcpCodexInstalled, setMcpCodexInstalled] = useState(false);
   const [mcpDesktopInstalled, setMcpDesktopInstalled] = useState(false);
@@ -31,6 +33,9 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
     window.api.checkMcpCodexInstalled().then(v => setMcpCodexInstalled(!!v));
     window.api.checkMcpDesktopInstalled().then(v => setMcpDesktopInstalled(!!v));
     window.api.checkMcpClaudeCodeInstalled().then(v => setMcpClaudeCodeInstalled(!!v));
+    window.api.getUpdateStatus?.().then(s => s && setUpdateStatus(s));
+    const off = window.api.onUpdateState?.(s => setUpdateStatus(s));
+    return () => off?.();
   }, []);
 
   async function handleInstallMcpCodex() {
@@ -134,6 +139,17 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
     setBusy(false);
     setTokenSaved(true);
     setTimeout(() => setTokenSaved(false), 2000);
+  }
+
+  async function handleCheckForUpdates() {
+    setUpdateBusy(true);
+    const result = await window.api.checkForUpdates?.();
+    if (result?.state) setUpdateStatus(result.state);
+    setUpdateBusy(false);
+  }
+
+  async function handleInstallUpdate() {
+    await window.api.installUpdate?.();
   }
 
   async function handleResetData() {
@@ -388,7 +404,72 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
           disabled={busy}
         />
       </Section>
+
+      <Section title="Aggiornamenti">
+        <UpdateSection
+          status={updateStatus}
+          busy={updateBusy}
+          onCheck={handleCheckForUpdates}
+          onInstall={handleInstallUpdate}
+        />
+      </Section>
     </div>
+  );
+}
+
+const UPDATE_STATUS_LABELS = {
+  idle:          { text: 'Non verificato', color: 'var(--tb-text-muted)' },
+  checking:      { text: 'Controllo in corso…', color: 'var(--tb-text-muted)' },
+  skipped:       { text: 'Controllo saltato (app non pacchettizzata)', color: 'var(--tb-text-muted)' },
+  'not-available': { text: 'L\'app è aggiornata', color: '#3DB33D' },
+  available:     { text: 'Aggiornamento disponibile – download in corso', color: '#E07B3A' },
+  downloading:   { text: 'Download aggiornamento in corso…', color: '#E07B3A' },
+  downloaded:    { text: 'Aggiornamento pronto – riavvia per installare', color: '#4A8FE8' },
+  error:         { text: 'Errore durante il controllo aggiornamenti', color: '#E05252' },
+};
+
+function UpdateSection({ status, busy, onCheck, onInstall }) {
+  const label = UPDATE_STATUS_LABELS[status?.status] ?? UPDATE_STATUS_LABELS.idle;
+  return (
+    <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 3 }}>Stato aggiornamento automatico</div>
+        <div style={{ fontSize: 11, color: label.color, fontWeight: 600 }}>{label.text}</div>
+        {status?.error?.message && (
+          <div style={{ fontSize: 10, color: '#E05252', marginTop: 4, fontFamily: 'monospace' }}>{status.error.message}</div>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        {status?.status === 'downloaded' ? (
+          <ActionButton onClick={onInstall} color="#4A8FE8">Installa e riavvia</ActionButton>
+        ) : (
+          <ActionButton onClick={onCheck} disabled={busy || status?.status === 'checking'} color="#4A8FE8">
+            {busy || status?.status === 'checking' ? 'Controllo…' : 'Controlla aggiornamenti'}
+          </ActionButton>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ActionButton({ onClick, disabled, color, children }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        padding: '7px 16px', borderRadius: 6, border: 'none',
+        background: disabled ? 'var(--tb-border)' : hover ? color : color + 'dd',
+        color: 'white', fontSize: 12, fontWeight: 700,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontFamily: "'Open Sans', sans-serif",
+        transition: 'background 0.12s',
+      }}>
+      {children}
+    </button>
   );
 }
 

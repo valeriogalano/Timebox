@@ -57,6 +57,12 @@ contextBridge.exposeInMainWorld('api', {
   checkForUpdates:        ()  => ipcRenderer.invoke('app:checkForUpdates'),
   installUpdate:          ()  => ipcRenderer.invoke('app:installUpdate'),
 
+  onUpdateState: (cb) => {
+    const handler = (_, s) => cb(s);
+    ipcRenderer.on('auto-update-state', handler);
+    return () => ipcRenderer.removeListener('auto-update-state', handler);
+  },
+
   onDbChanged: (cb) => {
     const handler = (_, type) => cb(type);
     ipcRenderer.on('db:changed', handler);
