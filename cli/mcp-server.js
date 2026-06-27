@@ -3,6 +3,7 @@
 
 const http = require('node:http');
 const readline = require('node:readline');
+const { randomUUID } = require('node:crypto');
 
 const PORT = parseInt(process.env.TIMEBOX_PORT || '37373', 10);
 
@@ -282,6 +283,84 @@ const TOOLS = [
       properties: {
         fromId: { type: 'string', description: 'Source project id (will be deleted)' },
         toId: { type: 'string', description: 'Destination project id' },
+      },
+    },
+  },
+  {
+    name: 'get_recurring',
+    description: 'Return all recurring template blocks (the weekly planning base). Each block has id, clientId, slot (am|pm), day (0=Mon…6=Sun), hours, position.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'set_recurring_slot',
+    description: 'Replace all recurring blocks for a given day+slot combination. Use this to update the weekly template for one slot without touching the others.',
+    inputSchema: {
+      type: 'object',
+      required: ['day', 'slot', 'blocks'],
+      properties: {
+        day:    { type: 'integer', minimum: 0, maximum: 6, description: '0=Mon … 6=Sun' },
+        slot:   { type: 'string', enum: ['am', 'pm'] },
+        blocks: {
+          type: 'array',
+          description: 'New blocks for this slot (replaces existing ones). Pass [] to clear.',
+          items: {
+            type: 'object',
+            required: ['clientId', 'hours'],
+            properties: {
+              clientId: { type: 'string' },
+              hours:    { type: 'number' },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
+    name: 'get_week_overrides',
+    description: 'Return all overrides for a given week. weekKey is the ISO date of Monday (YYYY-MM-DD).',
+    inputSchema: {
+      type: 'object',
+      required: ['weekKey'],
+      properties: {
+        weekKey: { type: 'string', description: 'Monday date of the target week, e.g. 2026-06-23' },
+      },
+    },
+  },
+  {
+    name: 'set_week_override',
+    description: 'Set an override for one slot of one day of a specific week, replacing the recurring template for that slot. weekKey is the Monday ISO date.',
+    inputSchema: {
+      type: 'object',
+      required: ['weekKey', 'dayIndex', 'slot', 'blocks'],
+      properties: {
+        weekKey:  { type: 'string', description: 'Monday date of the target week, e.g. 2026-06-23' },
+        dayIndex: { type: 'integer', minimum: 0, maximum: 6, description: '0=Mon … 6=Sun' },
+        slot:     { type: 'string', enum: ['am', 'pm'] },
+        blocks: {
+          type: 'array',
+          description: 'Override blocks for this slot. Pass [] to mark the slot as explicitly empty.',
+          items: {
+            type: 'object',
+            required: ['clientId', 'hours'],
+            properties: {
+              clientId: { type: 'string' },
+              hours:    { type: 'number' },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
+    name: 'clear_week_override',
+    description: 'Remove the override for one slot of one day, reverting it to the recurring template. weekKey is the Monday ISO date.',
+    inputSchema: {
+      type: 'object',
+      required: ['weekKey', 'dayIndex', 'slot'],
+      properties: {
+        weekKey:  { type: 'string', description: 'Monday date of the target week, e.g. 2026-06-23' },
+        dayIndex: { type: 'integer', minimum: 0, maximum: 6, description: '0=Mon … 6=Sun' },
+        slot:     { type: 'string', enum: ['am', 'pm'] },
       },
     },
   },
@@ -689,6 +768,69 @@ async function callTool(name, args) {
   if (name === 'merge_project_entries') {
     const d = await httpRequest('/projects/merge', 'POST', { fromId: args.fromId, toId: args.toId });
     return `Merged ${d.count} entries from '${d.from}' into '${d.to}'. Project '${d.from}' deleted.`;
+  }
+
+  if (name === 'get_recurring') {
+    const blocks = await httpRequest('/recurring');
+    if (!blocks.length) return 'No recurring blocks defined.';
+    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const clients = await httpRequest('/areas');
+    const clientMap = Object.fromEntries(clients.map(c => [c.id, c.name]));
+    const lines = [];
+    for (let day = 0; day <= 6; day++) {
+      for (const slot of ['am', 'pm']) {
+        const dayBlocks = blocks.filter(b => b.day === day && b.slot === slot).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+        if (dayBlocks.length) {
+          lines.push(`${DAYS[day]} ${slot.toUpperCase()}: ${dayBlocks.map(b => `${clientMap[b.clientId] ?? b.clientId} ${b.hours}h`).join(', ')}`);
+        }
+      }
+    }
+    return lines.join('\n');
+  }
+
+  if (name === 'set_recurring_slot') {
+    const { day, slot, blocks } = args;
+    const existing = await httpRequest('/recurring');
+    const toDelete = existing.filter(b => b.day === day && b.slot === slot);
+    for (const b of toDelete) await httpRequest(`/recurring/${b.id}`, 'DELETE');
+    const created = [];
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      const result = await httpRequest('/recurring', 'POST', { clientId: b.clientId, slot, day, hours: b.hours, position: i });
+      created.push(result);
+    }
+    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return `${DAYS[day]} ${slot.toUpperCase()} template updated: ${created.length} block(s) set (${toDelete.length} removed).`;
+  }
+
+  if (name === 'get_week_overrides') {
+    const overrides = await httpRequest(`/overrides?week=${encodeURIComponent(args.weekKey)}`);
+    if (!overrides.length) return `No overrides for week ${args.weekKey} (using template).`;
+    const clients = await httpRequest('/areas');
+    const clientMap = Object.fromEntries(clients.map(c => [c.id, c.name]));
+    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const lines = [`Week ${args.weekKey} overrides:`];
+    for (const o of overrides) {
+      const blockSummary = o.blocks.length ? o.blocks.map(b => `${clientMap[b.clientId] ?? b.clientId} ${b.hours}h`).join(', ') : '(empty)';
+      lines.push(`  ${DAYS[o.dayIndex] ?? o.dayIndex} ${o.slot.toUpperCase()}: ${blockSummary}`);
+    }
+    return lines.join('\n');
+  }
+
+  if (name === 'set_week_override') {
+    const { weekKey, dayIndex, slot, blocks } = args;
+    const blocksWithIds = blocks.map(b => ({ id: randomUUID(), clientId: b.clientId, hours: b.hours }));
+    await httpRequest('/overrides', 'POST', { weekKey, dayIndex, slot, blocks: blocksWithIds });
+    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const summary = blocks.length ? blocks.map(b => `${b.clientId} ${b.hours}h`).join(', ') : '(empty slot)';
+    return `Override set for week ${weekKey}, ${DAYS[dayIndex]} ${slot.toUpperCase()}: ${summary}`;
+  }
+
+  if (name === 'clear_week_override') {
+    const { weekKey, dayIndex, slot } = args;
+    await httpRequest(`/overrides?week=${encodeURIComponent(weekKey)}&day=${dayIndex}&slot=${slot}`, 'DELETE');
+    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return `Override removed for week ${weekKey}, ${DAYS[dayIndex]} ${slot.toUpperCase()}. Now using recurring template.`;
   }
 
   throw new Error(`Unknown tool: ${name}`);
