@@ -5,8 +5,12 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 function fmtH(h) {
   if (!h || h === 0) return '0h';
-  const hh = Math.floor(Math.abs(h));
-  const mm = Math.round((Math.abs(h) - hh) * 60);
+  let hh = Math.floor(Math.abs(h));
+  let mm = Math.round((Math.abs(h) - hh) * 60);
+  if (mm === 60) {
+    hh += 1;
+    mm = 0;
+  }
   const sign = h < 0 ? '-' : '';
   return mm === 0 ? `${sign}${hh}h` : `${sign}${hh}h ${mm}m`;
 }
