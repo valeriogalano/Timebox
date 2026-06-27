@@ -6,6 +6,7 @@ const { initDb } = require('./db/schema');
 const q = require('./db/queries');
 const { createHttpServer } = require('./cli/http-server');
 const { todoistTaskOrder } = require('./lib/todoist-order');
+const { slotForDueValue } = require('./lib/time-slots');
 const { setupAutoUpdater } = require('./lib/updater');
 
 function getAppIcon() {
@@ -487,10 +488,7 @@ function setupIpc() {
     }
 
     function taskSlot(due) {
-      const dueValue = taskDueValue(due);
-      if (!dueValue) return 'am';
-      const dt = dueValue.length > 10 ? new Date(dueValue) : null;
-      return dt && dt.getHours() < 13 ? 'am' : 'pm';
+      return slotForDueValue(taskDueValue(due));
     }
 
     function taskLabels(task) {

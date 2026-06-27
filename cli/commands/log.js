@@ -2,6 +2,7 @@
 
 const { randomUUID } = require('crypto');
 const { getProjects, getClients, getEntries, saveEntry, deleteEntry } = require('../../db/queries');
+const { currentSlot } = require('../../lib/time-slots');
 const { parseHours } = require('../format');
 
 function findProject(name) {
@@ -74,7 +75,7 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
     billableHours = null;
   }
 
-  const resolvedSlot = slot || (new Date().getHours() < 12 ? 'am' : 'pm');
+  const resolvedSlot = slot || currentSlot();
   const nextEntry = {
     id: existing?.id || randomUUID(),
     projectId: project.id,
