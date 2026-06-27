@@ -218,8 +218,9 @@
         checkMcpClaudeCodeInstalled: async () => false,
         installMcpClaudeCode: async () => ({ ok: true }),
         getUpdateStatus: async () => ({ status: 'skipped', info: { reason: 'browser-mock' } }),
-        checkForUpdates: async () => ({ ok: true, skipped: true, reason: 'browser-mock' }),
+        checkForUpdates: async () => ({ ok: true, skipped: true, reason: 'browser-mock', state: { status: 'skipped', info: { reason: 'browser-mock' } } }),
         installUpdate: async () => ({ ok: false, error: 'browser-mock' }),
+        onUpdateState: () => () => {},
         onDbChanged: () => () => {},
       };
     }
