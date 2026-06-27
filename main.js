@@ -8,6 +8,7 @@ const { createHttpServer } = require('./cli/http-server');
 const { todoistTaskOrder } = require('./lib/todoist-order');
 const { slotForDueValue } = require('./lib/time-slots');
 const { setupAutoUpdater } = require('./lib/updater');
+const { setupUpdateNotifier } = require('./lib/update-notifier');
 
 function getAppIcon() {
   const img = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'));
@@ -760,7 +761,15 @@ app.whenReady().then(() => {
   }
 
   const mainWindow = createWindow();
-  setupAutoUpdater({ app, ipcMain, logger, mainWindow });
+  // macOS auto-update via electron-updater (Squirrel.Mac) requires a valid
+  // Apple Developer ID signature; an unsigned/ad-hoc build can never update in
+  // place there. Fall back to a notifier that points the user at the download
+  // page. Windows (NSIS) and Linux (AppImage) update natively without signing.
+  if (process.platform === 'darwin') {
+    setupUpdateNotifier({ app, ipcMain, logger, mainWindow });
+  } else {
+    setupAutoUpdater({ app, ipcMain, logger, mainWindow });
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

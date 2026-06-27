@@ -7,28 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Documentation
-- Documented that converting a Todoist task's due datetime to local time before the am/pm split is intentional, and that ordering by the parsed timestamp is already timezone-independent — closing out the open question on possible timezone bugs in slot/order logic.
-- Documented the local HTTP API's lack of authentication as an accepted risk for single-user local software, with a pointer to revisit it if exposure ever widens beyond loopback.
 ### Added
+- Added a cross-platform update notifier: on macOS (where `electron-updater`/Squirrel.Mac requires an Apple Developer ID), the app now checks the latest GitHub release and shows a native dialog to open the download page instead of failing silently (`lib/update-notifier.js`). On Windows/Linux the existing `electron-updater` path is used but now asks for confirmation before downloading and again before restarting to install.
 - Added a per-day override indicator (orange dot) in the planning column header: days that deviate from the recurring template now show a dot distinct from the week-level "↩ Ripristina template" button.
-### Added
 - Added an "Aggiornamenti" section to Settings with live auto-update status and "Controlla aggiornamenti" / "Installa e riavvia" buttons.
-### Added
 - Added write tools to the MCP server: `get_recurring`, `set_recurring_slot`, `get_week_overrides`, `set_week_override`, `clear_week_override`. Claude can now read and update the weekly recurring template and week-specific overrides directly, without opening the UI.
 - Added corresponding HTTP endpoints: `GET/POST/DELETE /recurring` and `GET/POST/DELETE /overrides`.
-### Added
 - Added an "Importa completati" action to the weekly view that fetches completed Todoist tasks, lets you review/edit the hours per task before confirming, and merges them into the matching project/date entry. A `todoist_imports` ledger tracks already-imported task IDs so re-running the import never double-counts hours; tasks left with no time are simply skipped and stay available for the next import.
 
 ### Fixed
 - Aligned the AM/PM cutoff used by Todoist sync and CLI log defaults to noon, so 12:00-12:59 tasks are consistently treated as PM.
 - Allowed the local HTTP `/log` endpoint to accept `hours: 0`, so CLI/MCP clients can delete existing entries consistently with the direct log command.
 - Fixed `fmtH`/`toHHMM` rounding minutes up to 60 without carrying the extra minute into the hour (e.g. `2h 60m` instead of `3h`), in both the renderer (`src/utils.js`) and the CLI (`cli/format.js`).
-
 - Stopped project/area deletion from leaving orphaned time entries: `deleteProject` now removes the project's entries in the same transaction, so they no longer keep counting in week/day totals with an unresolved area.
-- Extended the CLI/HTTP/MCP weekly summary (`getWeekData`, `/week`, `timebox week`, `getStatusData`'s `weekTotal`) from Monday-Friday to the full Monday-Sunday week, so hours logged on Saturday/Sunday are no longer silently excluded from weekly totals. The `friday` field in the week payload is now `sunday`. The renderer's weekly view already included the weekend.
-- Stopped the Todoist "tasks to do" tooltip from appearing on hover in planning blocks that already have tracked hours, since pending tasks are no longer actionable once work has been recorded.
-- Wired `mainWindow` into `setupAutoUpdater` so auto-update state changes are now propagated to the renderer via `auto-update-state` IPC events; previously the renderer had no way to know an update was available or downloaded.
+- Extended the CLI/HTTP/MCP weekly summary from Monday-Friday to the full Monday-Sunday week, so hours logged on Saturday/Sunday are no longer silently excluded from weekly totals. The `friday` field in the week payload is now `sunday`.
+- Stopped the Todoist "tasks to do" tooltip from appearing on hover in planning blocks that already have tracked hours.
+- Wired `mainWindow` into the auto-updater so state changes (available, downloading, downloaded) are propagated to the renderer via IPC events.
+
+### Documentation
+- Documented that converting a Todoist task's due datetime to local time before the am/pm split is intentional.
+- Documented the local HTTP API's lack of authentication as an accepted risk for single-user local software.
 
 ## [0.5.2] - 2026-06-24
 
