@@ -81,6 +81,71 @@ function getMcpBinPath() {
   return getToolPath('timebox-mcp');
 }
 
+function decryptTodoistToken() {
+  const enc = q.getSetting('todoist_token_enc');
+  if (!enc || !safeStorage.isEncryptionAvailable()) return null;
+  try { return safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch { return null; }
+}
+
+function formatLocalDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function addDaysToDateStr(dateStr, days) {
+  const date = new Date(`${dateStr}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return formatLocalDate(date);
+}
+
+function localDateStartIso(dateStr) {
+  return new Date(`${dateStr}T00:00:00`).toISOString();
+}
+
+function parseTodoistDurationHours(duration) {
+  if (!duration) return null;
+  if (typeof duration === 'object') {
+    if (duration.unit === 'minute') return (duration.amount ?? 0) / 60 || null;
+    if (duration.unit === 'day') return (duration.amount ?? 0) * 8 || null;
+    return (duration.amount ?? 60) / 60 || null;
+  }
+  const h = duration.match(/(\d+)\s*h/);
+  const m = duration.match(/(\d+)\s*m/);
+  return (h ? parseInt(h[1]) : 0) + (m ? parseInt(m[1]) / 60 : 0) || null;
+}
+
+function taskDueValue(due) {
+  return due?.datetime ?? due?.date ?? null;
+}
+
+function taskSlotFromDateTime(dateTime) {
+  if (!dateTime) return 'am';
+  const date = new Date(dateTime);
+  return Number.isNaN(date.getTime()) ? 'am' : (date.getHours() < 12 ? 'am' : 'pm');
+}
+
+function taskSlot(due, completedAt) {
+  const dueValue = taskDueValue(due);
+  if (!dueValue) return taskSlotFromDateTime(completedAt);
+  return slotForDueValue(dueValue);
+}
+
+function taskLabels(task) {
+  if (Array.isArray(task.labels)) return task.labels;
+  if (Array.isArray(task.label_names)) return task.label_names;
+  if (Array.isArray(task.labelNames)) return task.labelNames;
+  return [];
+}
+
+async function fetchTodoistProjects(headers) {
+  const projRes = await fetch('https://api.todoist.com/api/v1/projects?limit=200', { headers });
+  if (!projRes.ok) return { error: 'api_error', status: projRes.status, projects: [] };
+  const projData = await projRes.json();
+  return { projects: projData.results ?? projData.projects ?? [] };
+}
+
 function getToolInstallInfo() {
   return {
     platform: process.platform,
@@ -437,12 +502,13 @@ function setupIpc() {
   ipcMain.handle('db:getTodoistCache',     (_, dates)               => q.getTodoistCache(dates));
   ipcMain.handle('db:setTodoistCache',     (_, dateStr, tasks, syncedAt) => q.setTodoistCache(dateStr, tasks, syncedAt));
   ipcMain.handle('db:getAllTodoistCache',  ()                       => q.getAllTodoistCache());
+  ipcMain.handle('db:getTodoistImports',   (_, from, to)             => q.getTodoistImports(from, to));
+  ipcMain.handle('db:saveTodoistImport',   (_, todoistImport)        => q.saveTodoistImport(todoistImport));
+  ipcMain.handle('db:importCompletedTodoistTasks', (_, imports)      => q.importCompletedTodoistTasks(imports));
 
   ipcMain.handle('todoist:sync', async (_, timboxProjects, dates, debug) => {
-    const enc = q.getSetting('todoist_token_enc');
-    if (!enc || !safeStorage.isEncryptionAvailable()) return { error: 'no_token' };
-    let token;
-    try { token = safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch { return { error: 'no_token' }; }
+    const token = decryptTodoistToken();
+    if (!token) return { error: 'no_token' };
 
     const headers = { Authorization: `Bearer ${token}` };
     const dateSet = new Set(dates);
@@ -462,10 +528,8 @@ function setupIpc() {
       cursor = data.next_cursor ?? null;
     } while (cursor);
 
-    // Fetch projects (single page)
-    const projRes = await fetch('https://api.todoist.com/api/v1/projects?limit=200', { headers });
-    const projData = projRes.ok ? await projRes.json() : {};
-    const todoistProjects = projData.results ?? projData.projects ?? [];
+    const projectsResult = await fetchTodoistProjects(headers);
+    const todoistProjects = projectsResult.projects;
 
     logger.info('todoist:sync tasks', { open: openTasks.length, projects: todoistProjects.length });
 
@@ -473,29 +537,6 @@ function setupIpc() {
       const tp = todoistProjects.find(p => p.id === todoistProjectId);
       if (!tp) return null;
       return timboxProjects.find(p => p.name === tp.name) ?? null;
-    }
-
-    function parseDurationHours(duration) {
-      if (!duration) return null;
-      if (typeof duration === 'object') return (duration.amount ?? 60) / 60;
-      const h = duration.match(/(\d+)\s*h/);
-      const m = duration.match(/(\d+)\s*m/);
-      return (h ? parseInt(h[1]) : 0) + (m ? parseInt(m[1]) / 60 : 0) || null;
-    }
-
-    function taskDueValue(due) {
-      return due?.datetime ?? due?.date ?? null;
-    }
-
-    function taskSlot(due) {
-      return slotForDueValue(taskDueValue(due));
-    }
-
-    function taskLabels(task) {
-      if (Array.isArray(task.labels)) return task.labels;
-      if (Array.isArray(task.label_names)) return task.label_names;
-      if (Array.isArray(task.labelNames)) return task.labelNames;
-      return [];
     }
 
     const byDate = {};
@@ -507,7 +548,7 @@ function setupIpc() {
       if (debug) logger.info('todoist:match', { content: t.content, date, matched: proj?.name ?? null });
       if (!proj) continue;
       const todoistProject = todoistProjects.find(project => project.id === t.project_id) ?? null;
-      const hours = parseDurationHours(t.duration);
+      const hours = parseTodoistDurationHours(t.duration);
       if (!hours) continue;
       if (!byDate[date]) byDate[date] = [];
       byDate[date].push({
@@ -534,17 +575,93 @@ function setupIpc() {
     return { byDate };
   });
 
-  ipcMain.handle('todoist:importProjects', async () => {
-    const enc = q.getSetting('todoist_token_enc');
-    if (!enc || !safeStorage.isEncryptionAvailable()) return { error: 'no_token' };
-    let token;
-    try { token = safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch { return { error: 'no_token' }; }
+  ipcMain.handle('todoist:getCompletedTasks', async (_, timboxProjects, dates, debug) => {
+    const token = decryptTodoistToken();
+    if (!token) return { error: 'no_token' };
+    if (!dates || dates.length === 0) return { tasks: [] };
 
     const headers = { Authorization: `Bearer ${token}` };
-    const projRes = await fetch('https://api.todoist.com/api/v1/projects?limit=200', { headers });
-    if (!projRes.ok) return { error: 'api_error', status: projRes.status };
-    const projData = await projRes.json();
-    const todoistProjects = projData.results ?? projData.projects ?? [];
+    const sortedDates = [...dates].sort();
+    const dateSet = new Set(sortedDates);
+    const since = localDateStartIso(sortedDates[0]);
+    const until = localDateStartIso(addDaysToDateStr(sortedDates[sortedDates.length - 1], 1));
+
+    logger.info('todoist:completed dates', { dates: sortedDates, since, until });
+
+    const completedTasks = [];
+    let cursor = null;
+    do {
+      const params = new URLSearchParams({ since, until, limit: '200' });
+      if (cursor) params.set('cursor', cursor);
+      const url = `https://api.todoist.com/api/v1/tasks/completed/by_completion_date?${params}`;
+      const res = await fetch(url, { headers });
+      if (!res.ok) {
+        logger.info('todoist:completed error', { status: res.status });
+        return { error: 'api_error', status: res.status };
+      }
+      const data = await res.json();
+      completedTasks.push(...(data.items ?? data.results ?? data.tasks ?? []));
+      cursor = data.next_cursor ?? null;
+    } while (cursor);
+
+    const projectsResult = await fetchTodoistProjects(headers);
+    if (projectsResult.error) return { error: projectsResult.error, status: projectsResult.status };
+    const todoistProjects = projectsResult.projects;
+    const importedIds = new Set(q.getTodoistImportIds(completedTasks.map(task => task.id)));
+
+    function matchProject(todoistProjectId) {
+      const tp = todoistProjects.find(p => p.id === todoistProjectId);
+      if (!tp) return null;
+      return timboxProjects.find(p => p.name === tp.name) ?? null;
+    }
+
+    const tasks = [];
+    for (const t of completedTasks) {
+      if (!t.id || importedIds.has(t.id)) continue;
+      const completedAt = t.completed_at ?? t.completedAt ?? null;
+      if (!completedAt) continue;
+      const date = formatLocalDate(new Date(completedAt));
+      if (!dateSet.has(date)) continue;
+      const proj = matchProject(t.project_id);
+      if (debug) logger.info('todoist:completed match', { content: t.content, date, matched: proj?.name ?? null });
+      if (!proj) continue;
+      const todoistProject = todoistProjects.find(project => project.id === t.project_id) ?? null;
+      const hours = parseTodoistDurationHours(t.duration);
+      tasks.push({
+        id: t.id,
+        title: t.content ?? '',
+        content: t.content ?? '',
+        projectId: proj.id,
+        todoistProjectName: todoistProject?.name ?? null,
+        timeboxProjectName: proj.name,
+        labels: taskLabels(t),
+        hours,
+        estimatedHours: hours,
+        slot: taskSlot(t.due, completedAt),
+        dueDate: taskDueValue(t.due),
+        completedAt,
+        completedDate: date,
+        dayOrder: t.day_order ?? null,
+        childOrder: t.child_order ?? null,
+        order: t.order ?? null,
+        matchStatus: 'matched',
+        completed: true,
+      });
+    }
+
+    tasks.sort((a, b) => a.completedDate.localeCompare(b.completedDate) || todoistTaskOrder(a, b));
+    logger.info('todoist:completed tasks', { fetched: completedTasks.length, candidates: tasks.length });
+    return { tasks };
+  });
+
+  ipcMain.handle('todoist:importProjects', async () => {
+    const token = decryptTodoistToken();
+    if (!token) return { error: 'no_token' };
+
+    const headers = { Authorization: `Bearer ${token}` };
+    const projectsResult = await fetchTodoistProjects(headers);
+    if (projectsResult.error) return { error: projectsResult.error, status: projectsResult.status };
+    const todoistProjects = projectsResult.projects;
 
     return q.importTodoistProjects(todoistProjects);
   });

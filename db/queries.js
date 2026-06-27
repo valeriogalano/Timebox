@@ -213,6 +213,81 @@ function normalizeEntry(row) {
   return { ...row, billed: row.billed === 1, billableHours: row.billableHours ?? null };
 }
 
+// ── Todoist imports ───────────────────────────────────────────────────────────
+function getTodoistImportIds(taskIds) {
+  if (!taskIds || taskIds.length === 0) return [];
+  const placeholders = taskIds.map(() => '?').join(',');
+  return db.prepare(`SELECT todoistTaskId FROM todoist_imports WHERE todoistTaskId IN (${placeholders})`)
+    .all(...taskIds)
+    .map(row => row.todoistTaskId);
+}
+
+function getTodoistImports(dateFrom, dateTo) {
+  return db.prepare(`
+    SELECT * FROM todoist_imports
+    WHERE date BETWEEN ? AND ?
+    ORDER BY date, importedAt
+  `).all(dateFrom, dateTo);
+}
+
+function saveTodoistImport(todoistImport) {
+  db.prepare(`
+    INSERT INTO todoist_imports (todoistTaskId,projectId,date,hours,titleSnapshot,importedAt)
+    VALUES (@todoistTaskId,@projectId,@date,@hours,@titleSnapshot,@importedAt)
+    ON CONFLICT(todoistTaskId) DO NOTHING
+  `).run({ titleSnapshot: null, ...todoistImport });
+}
+
+function importCompletedTodoistTasks(imports) {
+  const insertImport = db.prepare(`
+    INSERT INTO todoist_imports (todoistTaskId,projectId,date,hours,titleSnapshot,importedAt)
+    VALUES (@todoistTaskId,@projectId,@date,@hours,@titleSnapshot,@importedAt)
+    ON CONFLICT(todoistTaskId) DO NOTHING
+  `);
+  const findEntries = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? ORDER BY rowid');
+  const updateEntry = db.prepare(`
+    UPDATE entries
+    SET hours = ?, billableHours = ?, slot = ?, billed = ?
+    WHERE id = ?
+  `);
+  const insertEntry = db.prepare(`
+    INSERT INTO entries (id,projectId,date,hours,billableHours,slot,billed)
+    VALUES (?,?,?,?,?,?,?)
+  `);
+  const deleteEntry = db.prepare('DELETE FROM entries WHERE id = ?');
+
+  return db.transaction(items => {
+    let importedCount = 0;
+    let importedHours = 0;
+
+    for (const item of items) {
+      if (!(item.hours > 0)) continue;
+      const result = insertImport.run({ titleSnapshot: null, ...item });
+      if (result.changes === 0) continue;
+
+      const matches = findEntries.all(item.projectId, item.date);
+      if (matches.length === 0) {
+        insertEntry.run(randomUUID(), item.projectId, item.date, item.hours, null, item.slot === 'pm' ? 'pm' : 'am', 0);
+      } else {
+        const first = matches[0];
+        const existingHours = matches.reduce((sum, entry) => sum + entry.hours, 0);
+        const hasBillableOverride = matches.some(entry => entry.billableHours != null);
+        const existingBillable = hasBillableOverride
+          ? matches.reduce((sum, entry) => sum + (entry.billableHours ?? entry.hours), 0)
+          : null;
+        const billed = matches.every(entry => entry.billed === 1) ? 1 : 0;
+        updateEntry.run(existingHours + item.hours, existingBillable, first.slot ?? item.slot ?? 'am', billed, first.id);
+        for (const duplicate of matches.slice(1)) deleteEntry.run(duplicate.id);
+      }
+
+      importedCount++;
+      importedHours += item.hours;
+    }
+
+    return { importedCount, importedHours };
+  })(imports);
+}
+
 // ── Week Overrides ─────────────────────────────────────────────────────────────
 function getWeekOverrides(weekKey) {
   return db.prepare(
@@ -380,6 +455,7 @@ function resetAllData() {
   db.exec(`
     DELETE FROM entries;
     DELETE FROM week_overrides;
+    DELETE FROM todoist_imports;
     DELETE FROM recurring;
     DELETE FROM projects;
     DELETE FROM clients;
@@ -449,6 +525,7 @@ module.exports = {
   getProjects, saveProject, deleteProject, hasProjectEntries, mergeProjectEntries,
   getRecurring, saveRecurring, deleteRecurring, deleteRecurringByClient,
   getEntries, getProjectTotals, saveEntry, deleteEntry,
+  getTodoistImportIds, getTodoistImports, saveTodoistImport, importCompletedTodoistTasks,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,
   getSetting, setSetting,
   getTodoistCache, setTodoistCache, getAllTodoistCache, getImportedTodoistTasks,

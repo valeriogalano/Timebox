@@ -169,6 +169,10 @@
       const today = new Date(); today.setHours(0,0,0,0);
       const monday = new Date(today); const dow = monday.getDay(); monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1));
       function d(n) { const dt = new Date(monday); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); }
+      function localD(n) {
+        const dt = new Date(monday); dt.setDate(dt.getDate()+n);
+        return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+      }
       const ENTRIES = [
         { id:'e1', projectId:'p1', date:d(0), hours:3.5, billableHours:null, slot:'am', billed:true },
         { id:'e2', projectId:'p3', date:d(0), hours:2,   billableHours:null, slot:'pm', billed:true },
@@ -176,6 +180,12 @@
         { id:'e5', projectId:'p4', date:d(2), hours:2,   billableHours:0,    slot:'am', billed:false },
       ];
       let entries = [...ENTRIES];
+      const todoistImports = [];
+      const completedTodoistTasks = [
+        { id:'ct1', projectId:'p1', content:'Revisione finale homepage', hours:2, estimatedHours:2, slot:'am', completedDate:localD(0), completed:true },
+        { id:'ct2', projectId:'p2', content:'Verifica errori autenticazione', hours:null, estimatedHours:null, slot:'pm', completedDate:localD(0), completed:true },
+        { id:'ct3', projectId:'p3', content:'Correzioni articolo newsletter', hours:0.5, estimatedHours:0.5, slot:'pm', completedDate:localD(1), completed:true },
+      ];
       window.api = {
         getClients: async () => CLIENTS, saveClient: async () => {}, deleteClient: async () => {},
         getProjects: async () => PROJECTS, saveProject: async () => {}, deleteProject: async () => {},
@@ -197,7 +207,34 @@
         getTodoistCache: async (dates) => dates.map(d => ({ dateStr: d, tasks: [], syncedAt: null })),
         getAllTodoistCache: async () => [],
         setTodoistCache: async () => {},
+        getTodoistImports: async (from, to) => todoistImports.filter(item => item.date >= from && item.date <= to),
+        saveTodoistImport: async (item) => { if (!todoistImports.some(existing => existing.todoistTaskId === item.todoistTaskId)) todoistImports.push(item); },
+        importCompletedTodoistTasks: async (items) => {
+          let importedCount = 0;
+          let importedHours = 0;
+          for (const item of items) {
+            if (!(item.hours > 0) || todoistImports.some(existing => existing.todoistTaskId === item.todoistTaskId)) continue;
+            todoistImports.push(item);
+            const matches = entries.filter(entry => entry.projectId === item.projectId && entry.date === item.date);
+            const existing = matches[0];
+            if (existing) {
+              existing.hours = matches.reduce((sum, entry) => sum + entry.hours, 0) + item.hours;
+              entries = entries.filter(entry => entry === existing || !(entry.projectId === item.projectId && entry.date === item.date));
+            } else {
+              entries.push({ id:crypto.randomUUID(), projectId:item.projectId, date:item.date, hours:item.hours, billableHours:null, slot:item.slot || 'am', billed:false });
+            }
+            importedCount++;
+            importedHours += item.hours;
+          }
+          return { importedCount, importedHours };
+        },
         syncTodoist: async () => ({ byDate: {} }),
+        getCompletedTodoistTasks: async (_projects, dates) => ({
+          tasks: completedTodoistTasks.filter(task =>
+            dates.includes(task.completedDate) &&
+            !todoistImports.some(item => item.todoistTaskId === task.id)
+          ),
+        }),
         importTodoistProjects: async () => ({ added: 0 }),
         getHttpPort: async () => 37373,
         getToolInstallInfo: async () => ({

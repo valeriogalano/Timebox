@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added write tools to the MCP server: `get_recurring`, `set_recurring_slot`, `get_week_overrides`, `set_week_override`, `clear_week_override`. Claude can now read and update the weekly recurring template and week-specific overrides directly, without opening the UI.
 - Added corresponding HTTP endpoints: `GET/POST/DELETE /recurring` and `GET/POST/DELETE /overrides`.
+### Added
+- Added an "Importa completati" action to the weekly view that fetches completed Todoist tasks, lets you review/edit the hours per task before confirming, and merges them into the matching project/date entry. A `todoist_imports` ledger tracks already-imported task IDs so re-running the import never double-counts hours; tasks left with no time are simply skipped and stay available for the next import.
 
 ### Fixed
 - Aligned the AM/PM cutoff used by Todoist sync and CLI log defaults to noon, so 12:00-12:59 tasks are consistently treated as PM.
