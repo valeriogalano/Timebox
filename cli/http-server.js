@@ -47,6 +47,10 @@ function readBody(req) {
   });
 }
 
+// No auth/token/Origin check by design: accepted risk for local single-user
+// software, documented in SECURITY.md ("Accepted risk: HTTP API has no
+// authentication"). Add a Host/Origin allowlist or shared token before this
+// server is ever exposed beyond loopback.
 function createHttpServer() {
   const emitter = new EventEmitter();
   const server = http.createServer(async (req, res) => {
