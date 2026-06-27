@@ -48,7 +48,10 @@ function saveProject(project) {
 }
 
 function deleteProject(id) {
-  db.prepare('DELETE FROM projects WHERE id=?').run(id);
+  db.transaction(() => {
+    db.prepare('DELETE FROM entries WHERE projectId=?').run(id);
+    db.prepare('DELETE FROM projects WHERE id=?').run(id);
+  })();
 }
 
 function hasProjectEntries(id) {
