@@ -67,13 +67,13 @@ function fmtDayShort(date) {
   return `${DAYS[dayIdx]} ${date.getDate()}`;
 }
 
-// Returns e.g. "May 11–15 2026" or "Apr 28 – May 2 2026"
+// Returns e.g. "May 11–17 2026" or "Apr 28 – May 4 2026"
 function fmtWeekRange(monday) {
-  const friday = addDays(monday, 4);
-  if (monday.getMonth() === friday.getMonth()) {
-    return `${MONTHS[monday.getMonth()]} ${monday.getDate()}–${friday.getDate()} ${friday.getFullYear()}`;
+  const sunday = addDays(monday, 6);
+  if (monday.getMonth() === sunday.getMonth()) {
+    return `${MONTHS[monday.getMonth()]} ${monday.getDate()}–${sunday.getDate()} ${sunday.getFullYear()}`;
   }
-  return `${MONTHS[monday.getMonth()]} ${monday.getDate()} – ${MONTHS[friday.getMonth()]} ${friday.getDate()} ${friday.getFullYear()}`;
+  return `${MONTHS[monday.getMonth()]} ${monday.getDate()} – ${MONTHS[sunday.getMonth()]} ${sunday.getDate()} ${sunday.getFullYear()}`;
 }
 
 function effBillable(entry) {
