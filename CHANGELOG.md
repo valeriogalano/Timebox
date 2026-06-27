@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-27
+
 ### Added
 - Added a cross-platform update notifier: on macOS (where `electron-updater`/Squirrel.Mac requires an Apple Developer ID), the app now checks the latest GitHub release and shows a native dialog to open the download page instead of failing silently (`lib/update-notifier.js`). On Windows/Linux the existing `electron-updater` path is used but now asks for confirmation before downloading and again before restarting to install.
 - Added a per-day override indicator (orange dot) in the planning column header: days that deviate from the recurring template now show a dot distinct from the week-level "↩ Ripristina template" button.

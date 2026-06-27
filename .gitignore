@@ -24,6 +24,11 @@ out/
 /timebox/
 !/build/*.png
 
+# User database (may be placed in project root for dev access)
+/*.db
+/*.db-wal
+/*.db-shm
+
 # OS
 .DS_Store
 
