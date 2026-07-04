@@ -213,8 +213,20 @@ describe('MCP server', () => {
 
   it('tools/call areas → 4 seed areas', async () => {
     const res = await rpc(mcp, msg('tools/call', { name: 'areas', arguments: {} }));
-    const lines = res.result.content[0].text.trim().split('\n').filter(Boolean);
+    const text = res.result.content[0].text;
+    const lines = text.trim().split('\n').filter(Boolean);
     assert.equal(lines.length, 4);
+    assert.ok(text.includes('#'), 'contains area colors');
+  });
+
+  it('tools/call find_area → includes color', async () => {
+    const res = await rpc(mcp, msg('tools/call', {
+      name: 'find_area',
+      arguments: { name: 'acme' },
+    }));
+    const text = res.result.content[0].text;
+    assert.ok(text.includes('Acme Corp'));
+    assert.ok(text.includes('#'), 'contains area color');
   });
 
   it('tools/call status → today and week totals', async () => {

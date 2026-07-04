@@ -151,7 +151,7 @@ const TOOLS = [
   },
   {
     name: 'areas',
-    description: 'List Timebox areas with their billing type and hourly rate.',
+    description: 'List Timebox areas with their color, billing type and hourly rate.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -177,7 +177,7 @@ const TOOLS = [
   },
   {
     name: 'find_area',
-    description: 'Search Timebox areas by name (partial, case-insensitive). Returns id and name — use id with rename_area.',
+    description: 'Search Timebox areas by name (partial, case-insensitive). Returns id, name and color — use id with rename_area.',
     inputSchema: {
       type: 'object',
       required: ['name'],
@@ -657,7 +657,9 @@ async function callTool(name, args) {
     const d = await httpRequest('/areas');
     if (!d.length) return 'No areas found.';
     return d.map(c => {
-      let line = `${c.area || c.name} — ${c.billing || 'no billing'}`;
+      let line = `${c.area || c.name}`;
+      if (c.color) line += ` (${c.color})`;
+      line += ` — ${c.billing || 'no billing'}`;
       if (c.rate) line += ` @ €${c.rate}/h`;
       if (c.limitHours) line += `, limit: ${c.limitHours}h (${c.limitType || ''})`;
       return line;
@@ -701,7 +703,11 @@ async function callTool(name, args) {
   if (name === 'find_client' || name === 'find_area') {
     const d = await httpRequest(`/areas?search=${encodeURIComponent(args.name)}`);
     if (!d.length) return 'No matches found.';
-    return d.map(c => `[${c.id}] ${c.name}`).join('\n');
+    return d.map(c => {
+      let line = `[${c.id}] ${c.name}`;
+      if (c.color) line += ` (${c.color})`;
+      return line;
+    }).join('\n');
   }
 
   if (name === 'find_project') {
