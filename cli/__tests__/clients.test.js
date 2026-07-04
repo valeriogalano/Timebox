@@ -18,6 +18,7 @@ describe('getClientsData', () => {
     const data = getClientsData();
     for (const c of data) {
       assert.ok('name' in c);
+      assert.ok('color' in c);
       assert.ok('billable' in c);
       assert.ok('billing' in c);
       assert.ok('rate' in c);
@@ -38,5 +39,11 @@ describe('getClientsData', () => {
   test('billable is a boolean', () => {
     const data = getClientsData();
     assert.ok(data.every(c => typeof c.billable === 'boolean'));
+  });
+
+  test('color is exposed', () => {
+    const data = getClientsData();
+    assert.ok(data.every(c => typeof c.color === 'string'));
+    assert.ok(data.every(c => c.color.startsWith('#')));
   });
 });

@@ -12,6 +12,7 @@ function getClientsData({ nameFilter } = {}) {
     id: c.id,
     name: c.name,
     area: c.name,
+    color: c.color,
     billable: c.billable,
     billing: c.billing,
     rate: c.rate,

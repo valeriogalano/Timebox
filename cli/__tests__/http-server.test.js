@@ -258,6 +258,7 @@ describe('HTTP server', () => {
     assert.ok(Array.isArray(body), 'is array');
     assert.equal(body.length, 4);
     assert.ok('area' in body[0], 'has area field');
+    assert.ok('color' in body[0], 'has color field');
   });
 
   it('GET /status → { today, todayTotal, weekTotal, alerts }', async () => {
@@ -347,6 +348,7 @@ describe('HTTP server', () => {
     assert.ok(body.length > 0, 'has results');
     assert.ok(body.every(c => c.name.toLowerCase().includes('acme')), 'all match acme');
     assert.ok('id' in body[0], 'has id field');
+    assert.ok('color' in body[0], 'has color field');
   });
 
   it('GET /projects?search=website → filtered by project name', async () => {
