@@ -1,6 +1,8 @@
 # Timebox Technical Guide
 
-Timebox is a macOS-first desktop app for the maintainer's personal freelance timeblocking, time tracking, billing review, and weekly capacity planning workflow. Windows and Linux packages are configured where Electron supports the same workflow, but platform-specific integrations must be explicit. It intentionally codifies a subjective process instead of a generic productivity methodology.
+Timebox is a macOS-first desktop app for the maintainer's personal capacity planning, timeblocking, time tracking, billing review, and weekly review workflow. Windows and Linux packages are configured where Electron supports the same workflow, but platform-specific integrations must be explicit. It intentionally codifies a subjective process instead of a generic productivity methodology.
+
+The product framing is capacity-first. Billing is a supporting workflow for billable areas, not the center of the app, and new features should make the maintainer's manual planning/review process visible in the GUI rather than turning the app into a generic productivity methodology or an agent-only automation layer.
 
 This is also a vibe coding project: development is iterative and AI-assisted. Keep changes grounded in the existing code, verify behavior, and avoid broad rewrites unless the task explicitly calls for them.
 

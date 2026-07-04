@@ -4,7 +4,7 @@
 >
 > **Vibe coding project.** This project is developed through iterative, AI-assisted coding: the human steers intent and product decisions, while AI agents write and revise much of the implementation. It works and has tests, but expect fast evolution and rough edges.
 
-Timebox is a local-first desktop app for freelance work planning. It is macOS-first in daily use, with packaging scripts and platform-aware local tooling for Windows and Linux where Electron supports the workflow. It combines a weekly timeblocking board, per-project time tracking, billable-hour review, budget alerts, Todoist task sync, a local HTTP API, a standalone CLI, and an MCP server for coding agents.
+Timebox is a local-first desktop app for personal capacity planning. It is macOS-first in daily use, with packaging scripts and platform-aware local tooling for Windows and Linux where Electron supports the workflow. It combines a weekly timeblocking board, per-project time tracking, optional billable-hour review for client work, budget and capacity alerts, Todoist task sync, a local HTTP API, a standalone CLI, and an MCP server for coding agents.
 
 **Stack:** Electron 31 · React 18 · Vite 5 · better-sqlite3 12
 
@@ -58,7 +58,7 @@ When the database is empty, Timebox seeds demo areas, projects, recurring blocks
 
 ## Core Concepts
 
-- **Areas:** the app's top-level buckets. In the UI they behave like clients, but they can also represent retainers, internal work, or any personal work area.
+- **Areas:** the app's top-level capacity buckets. In the UI they behave like clients, but they can also represent retainers, internal work, personal maintenance, study, health, or any area that needs planned time.
 - **Projects:** work streams inside an area. Projects can have a total budget, a weekly limit, a description, an order, and an archived state.
 - **Recurring blocks:** the default weekly timeblocking template, defined Monday-Friday and split into AM/PM slots.
 - **Week overrides:** per-week replacements for recurring blocks. Editing a block in the weekly view changes that week only.
@@ -90,7 +90,7 @@ The dashboard summarizes weekly workload, billable value, area status, and proje
 
 ### Billing
 
-The billing screen reviews billable entries by month, quarter, or custom range. It groups entries by area and project, distinguishes billed from unbilled work, supports single-row and bulk billed toggles, and respects the `billableHours` override when present.
+The billing screen is a supporting workflow for billable areas, not the center of the product. It reviews billable entries by month, quarter, or custom range, groups entries by area and project, distinguishes billed from unbilled work, supports single-row and bulk billed toggles, and respects the `billableHours` override when present.
 
 ### Entries
 
