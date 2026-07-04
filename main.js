@@ -5,6 +5,7 @@ const { execFile } = require('child_process');
 const { initDb } = require('./db/schema');
 const q = require('./db/queries');
 const { createHttpServer } = require('./cli/http-server');
+const { getDayInsightsData } = require('./cli/commands/day-insights');
 const { todoistTaskOrder } = require('./lib/todoist-order');
 const { slotForDueValue } = require('./lib/time-slots');
 const { setupAutoUpdater } = require('./lib/updater');
@@ -506,6 +507,7 @@ function setupIpc() {
   ipcMain.handle('db:getTodoistImports',   (_, from, to)             => q.getTodoistImports(from, to));
   ipcMain.handle('db:saveTodoistImport',   (_, todoistImport)        => q.saveTodoistImport(todoistImport));
   ipcMain.handle('db:importCompletedTodoistTasks', (_, imports)      => q.importCompletedTodoistTasks(imports));
+  ipcMain.handle('db:getDayInsights',       (_, date)                 => getDayInsightsData(date || formatLocalDate(new Date())));
 
   ipcMain.handle('todoist:sync', async (_, timboxProjects, dates, debug) => {
     const token = decryptTodoistToken();

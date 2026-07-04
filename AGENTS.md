@@ -74,6 +74,7 @@ TimeBox/
     db.js           Opens the developer CLI database
     format.js       Shared formatting and date utilities for CLI commands
     commands/
+      day-insights.js
       today.js
       week.js
       projects.js
@@ -89,6 +90,7 @@ TimeBox/
     App.jsx         App shell, navigation, global state, sidebar
     utils.js        Renderer formatting and date utilities
     screens/
+      TodayView.jsx
       WeeklyView.jsx
       Panoramica.jsx
       Dashboard.jsx
@@ -157,6 +159,7 @@ In development, wrappers point at repository files. In packaged builds, they poi
 |---|---|---|
 | `GET` | `/ping` | Health check. |
 | `GET` | `/today?date=` | `getTodayData(date)`. |
+| `GET` | `/day/insights?date=` | Aggregated daily diagnostics for `TodayView`. |
 | `GET` | `/week?offset=` | `getWeekData(today, offset)`. |
 | `GET` | `/projects?area=&client=&search=&all=` | `getProjectsData(...)`. |
 | `GET` | `/clients?search=` | `getClientsData(...)`. |
@@ -209,7 +212,7 @@ An empty database is seeded with demo clients, projects, recurring blocks, sampl
 - Loads `clients`, `projects`, and `recurring` on mount.
 - Holds navigation state: `screen`, `weekOffset`, and theme.
 - Refreshes shared data on `db:changed` events.
-- Renders `WeeklyView`, `Panoramica`, `BillingScreen`, `ClientsScreen`, `RecurringScreen`, `EntriesScreen`, `TodoistLog`, and `SettingsScreen`.
+- Renders `TodayView`, `WeeklyView`, `Panoramica`, `BillingScreen`, `ClientsScreen`, `RecurringScreen`, `EntriesScreen`, `TodoistLog`, and `SettingsScreen`.
 
 ### WeeklyView.jsx
 

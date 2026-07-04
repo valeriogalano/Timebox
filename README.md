@@ -69,6 +69,10 @@ When the database is empty, Timebox seeds demo areas, projects, recurring blocks
 
 ## Main Screens
 
+### Oggi
+
+The Oggi screen surfaces daily operational diagnostics from the same logic used by the MCP tools: free capacity after tracked work and Todoist estimates, planned blocks still missing ready Todoist work, and sync mismatches.
+
 ### Weekly Timesheet
 
 The primary screen combines planning and tracking:
@@ -181,6 +185,7 @@ While the app is open, a local API is available at `http://127.0.0.1:37373`.
 |---|---|---|
 | `GET` | `/ping` | Health check. |
 | `GET` | `/today?date=YYYY-MM-DD` | Logged hours for one day. |
+| `GET` | `/day/insights?date=YYYY-MM-DD` | Aggregated daily diagnostics for the Oggi screen. |
 | `GET` | `/week?offset=N` | Weekly summary; `0` is current week, `-1` is last week. |
 | `GET` | `/projects?area=&client=&search=&all=1` | Project list with budgets and logged totals. |
 | `GET` | `/clients?search=` | Area/client list. |
