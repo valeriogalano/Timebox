@@ -2,7 +2,8 @@
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { fmtH } = require('../format');
+const { fmtH, parseHours } = require('../format');
+const domain = require('../../lib/domain');
 
 describe('fmtH', () => {
   test('rolls minutes into the next hour instead of showing 60m', () => {
@@ -20,5 +21,12 @@ describe('fmtH', () => {
 
   test('formats negative hours', () => {
     assert.equal(fmtH(-2.999), '-3h');
+  });
+});
+
+describe('format shared domain wrappers', () => {
+  test('CLI format reuses shared domain functions', () => {
+    assert.equal(fmtH, domain.fmtH);
+    assert.equal(parseHours, domain.parseHours);
   });
 });

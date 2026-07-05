@@ -7,6 +7,11 @@ const { version } = JSON.parse(readFileSync('./package.json', 'utf-8'));
 export default defineConfig({
   plugins: [react()],
   base: './',
-  build: { outDir: 'renderer-dist' },
+  build: {
+    outDir: 'renderer-dist',
+    commonjsOptions: {
+      include: [/node_modules/, /lib\/domain\.js/],
+    },
+  },
   define: { __APP_VERSION__: JSON.stringify(version) },
 });
