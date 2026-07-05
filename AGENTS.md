@@ -344,6 +344,21 @@ Dependency-free inline Markdown renderer used for Todoist task text. Supports bo
 
 The weekly view syncs only today and future dates. Past cached tasks are still visible in TodoistLog.
 
+### Explicit Todoist Mapping Decision
+
+Do not add a manual Todoist-project-to-Timebox-project mapping layer unless the maintainer reports concrete recurring sync friction.
+
+The rejected R4 idea was to add a persistent mapping between Todoist project IDs and Timebox project IDs, with a UI for maintaining the relationship and sync logic that overrides name matching. It is technically feasible, but it is not implemented because it adds model, migration, settings UI, and long-term maintenance for a workflow that is currently served well enough by matching project names.
+
+Why this stays out for now:
+
+- The app is personal and capacity-first; adding a mapping console makes Todoist sync feel like an integration admin surface.
+- Name matching is transparent: if Todoist and Timebox project names match, sync works; if not, diagnostics show the mismatch.
+- The current mismatch tools already make sync problems visible without introducing another data model.
+- Extra mapping metadata would need lifecycle handling for renamed, archived, deleted, or imported Todoist projects.
+
+Reopen this decision only when real usage shows repeated ambiguity or broken matching that cannot be solved by keeping project names aligned.
+
 ---
 
 ## Update Behavior
