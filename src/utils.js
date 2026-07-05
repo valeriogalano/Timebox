@@ -64,5 +64,6 @@ export function parseHHMM(str) {
     const [h, m] = str.split(':').map(s => parseInt(s) || 0);
     return h + m / 60;
   }
-  return parseFloat(str.replace(',', '.')) || 0;
+  const numeric = parseFloat(str.replace(',', '.')) || 0;
+  return numeric > 12 ? numeric / 60 : numeric;
 }
