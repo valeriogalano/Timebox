@@ -147,6 +147,21 @@ Timebox reads open Todoist tasks through the Todoist REST API v1.
 
 Todoist tasks are shown only for today and future days in the weekly view. Past cached data remains available in the Todoist log.
 
+### Product decision: no explicit Todoist-to-project mapping
+
+Timebox intentionally does not implement a separate manual mapping table between Todoist projects and Timebox projects.
+
+The idea was to add an explicit mapping layer so a Todoist project could be linked to a specific Timebox project without relying on equal names. A possible design would have introduced a table such as `todoist_project_mappings`, a settings UI to connect Todoist project IDs to Timebox project IDs, and sync logic that preferred the explicit mapping over the current name-based match.
+
+That design is not implemented for now. The current name-based matching is deliberately simpler and fits the app's personal workflow better:
+
+- It keeps project setup lightweight. Creating a Timebox project with the same name as the Todoist project is enough.
+- It avoids adding another maintenance screen for a problem that is not causing regular friction.
+- It preserves the current local-first sync model without storing additional Todoist relationship metadata.
+- It keeps planning visible in the weekly board instead of turning Todoist sync into a separate configuration system.
+
+The decision can be revisited only if real usage shows repeated sync friction, such as frequent ambiguous project names, renamed Todoist projects breaking planning, or multiple Todoist projects needing to feed one Timebox project. Until then, the supported workflow is: keep Todoist and Timebox project names aligned when automatic matching is desired, and inspect mismatches with the Oggi diagnostics or MCP daily tools.
+
 ---
 
 ## Local Data and Privacy
