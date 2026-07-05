@@ -12,9 +12,9 @@ import EntriesScreen from './screens/EntriesScreen';
 import TodoistLog from './screens/TodoistLog';
 
 const NAV_ITEMS = [
-  { id: 'today',      label: 'Oggi',           icon: TodayIcon     },
   { id: 'weekly',     label: 'Timesheet',      icon: WeekIcon      },
   { id: 'panoramica', label: 'Dashboard',       icon: ChartIcon     },
+  { id: 'today',      label: 'Oggi',           icon: TodayIcon     },
   { id: 'billing',    label: 'Rendiconto',      icon: BillingIcon   },
   { id: 'entries',    label: 'Registro',        icon: ListIcon      },
   { id: 'todoist-log', label: 'Task Todoist',   icon: TodoistIcon   },
