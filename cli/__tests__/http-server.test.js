@@ -247,6 +247,35 @@ describe('HTTP server', () => {
     assert.ok('total' in body, 'has total');
     assert.ok(body.monday, 'has monday');
     assert.ok(body.sunday, 'has sunday');
+    assert.ok(Array.isArray(body.areaStatuses), 'has weekly area statuses');
+    assert.ok(body.areaStatuses.some(item => item.area === 'Acme Corp' && item.status === 'active'), 'defaults areas to active');
+  });
+
+  it('GET/POST /area-statuses → persists weekly area state and exposes it in week/day-summary', async () => {
+    const weekKey = currentWeekDate(0);
+    const save = await post(port, '/area-statuses', { weekKey, areaId: 'c3', status: 'minimal' });
+    assert.equal(save.status, 200);
+    assert.deepEqual(save.body, { weekKey, areaId: 'c3', status: 'minimal' });
+
+    const statuses = await get(port, `/area-statuses?week=${weekKey}`);
+    assert.equal(statuses.status, 200);
+    assert.ok(statuses.body.some(row => row.areaId === 'c3' && row.status === 'minimal'));
+
+    const week = await get(port, '/week');
+    assert.equal(week.status, 200);
+    assert.ok(week.body.areaStatuses.some(row => row.areaId === 'c3' && row.status === 'minimal'));
+
+    const summary = await get(port, `/day-summary?date=${currentWeekDate(2)}`);
+    assert.equal(summary.status, 200);
+    assert.ok(summary.body.areaStatuses.some(row => row.areaId === 'c3' && row.status === 'minimal'));
+    assert.ok(summary.body.slots.am.plannedBlocks.some(block => block.clientId === 'c3' && block.areaStatus === 'minimal'));
+
+    const reset = await post(port, '/area-statuses', { weekKey, areaId: 'c3', status: 'active' });
+    assert.equal(reset.status, 200);
+    assert.deepEqual(reset.body, { weekKey, areaId: 'c3', status: 'active' });
+    const resetStatuses = await get(port, `/area-statuses?week=${weekKey}`);
+    assert.equal(resetStatuses.status, 200);
+    assert.ok(!resetStatuses.body.some(row => row.areaId === 'c3'), 'active is stored implicitly');
   });
 
   it('GET /week?offset=-1 → different week from /week', async () => {

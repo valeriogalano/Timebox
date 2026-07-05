@@ -6,6 +6,7 @@ const {
   getClients,
   getRecurring,
   getWeekOverrides,
+  getWeekAreaStatuses,
 } = require('../../db/queries');
 const { fmt, getMondayOfWeek, effBillable } = require('../format');
 
@@ -27,17 +28,18 @@ function buildOverrideMap(rows) {
   }, {});
 }
 
-function mapBlock(block, clientMap) {
+function mapBlock(block, clientMap, areaStatusMap) {
   const client = clientMap[block.clientId];
   return {
     id: block.id,
     clientId: block.clientId,
     area: client?.name || '?',
+    areaStatus: areaStatusMap[block.clientId] ?? 'active',
     hours: block.hours,
   };
 }
 
-function mapEntry(entry, projectMap, clientMap) {
+function mapEntry(entry, projectMap, clientMap, areaStatusMap) {
   const project = projectMap[entry.projectId];
   const client = project ? clientMap[project.clientId] : null;
   const isBillable = client && client.billing !== 'none';
@@ -47,6 +49,7 @@ function mapEntry(entry, projectMap, clientMap) {
     project: project?.name || entry.projectId,
     clientId: project?.clientId || null,
     area: client?.name || '?',
+    areaStatus: project ? (areaStatusMap[project.clientId] ?? 'active') : 'active',
     slot: entry.slot === 'pm' ? 'pm' : 'am',
     hours: entry.hours,
     billableHours: entry.billableHours ?? null,
@@ -66,6 +69,12 @@ function getDaySummaryData(date) {
   const clients = getClients();
   const projectMap = Object.fromEntries(projects.map(project => [project.id, project]));
   const clientMap = Object.fromEntries(clients.map(client => [client.id, client]));
+  const areaStatusMap = Object.fromEntries(getWeekAreaStatuses(weekKey).map(row => [row.areaId, row.status]));
+  const areaStatuses = clients.map(client => ({
+    areaId: client.id,
+    area: client.name,
+    status: areaStatusMap[client.id] ?? 'active',
+  }));
 
   const plannedBlocks = {
     am: getEffectiveBlocks(recurring, overrides, weekKey, dayIndex, 'am'),
@@ -78,7 +87,7 @@ function getDaySummaryData(date) {
 
   const slotEntries = { am: [], pm: [] };
   for (const entry of entries) {
-    const mapped = mapEntry(entry, projectMap, clientMap);
+    const mapped = mapEntry(entry, projectMap, clientMap, areaStatusMap);
     slotEntries[mapped.slot].push(mapped);
   }
 
@@ -122,17 +131,18 @@ function getDaySummaryData(date) {
     date,
     weekKey,
     dayIndex,
+    areaStatuses,
     slots: {
       am: {
         source: sourceBySlot.am,
-        plannedBlocks: plannedBlocks.am.map(block => mapBlock(block, clientMap)),
+        plannedBlocks: plannedBlocks.am.map(block => mapBlock(block, clientMap, areaStatusMap)),
         trackedEntries: slotEntries.am,
         plannedCapacity: plannedBlocks.am.reduce((sum, block) => sum + block.hours, 0),
         trackedHours: slotEntries.am.reduce((sum, entry) => sum + entry.hours, 0),
       },
       pm: {
         source: sourceBySlot.pm,
-        plannedBlocks: plannedBlocks.pm.map(block => mapBlock(block, clientMap)),
+        plannedBlocks: plannedBlocks.pm.map(block => mapBlock(block, clientMap, areaStatusMap)),
         trackedEntries: slotEntries.pm,
         plannedCapacity: plannedBlocks.pm.reduce((sum, block) => sum + block.hours, 0),
         trackedHours: slotEntries.pm.reduce((sum, entry) => sum + entry.hours, 0),
@@ -147,6 +157,7 @@ function getDaySummaryData(date) {
     extra: Object.entries(extraByClient).map(([clientId, hours]) => ({
       clientId,
       area: clientMap[clientId]?.name || '?',
+      areaStatus: areaStatusMap[clientId] ?? 'active',
       hours,
     })),
   };

@@ -22,6 +22,7 @@ const {
   hasProjectEntries, mergeProjectEntries,
   getRecurring, saveRecurring, deleteRecurring,
   getWeekOverrides, saveWeekOverride, deleteWeekOverride,
+  getWeekAreaStatuses, saveWeekAreaStatus,
 } = require('../db/queries');
 
 function serializeWeek(data) {
@@ -251,6 +252,23 @@ function createHttpServer() {
         deleteWeekOverride(week, Number(day), slot);
         emitter.emit('change', 'structure');
         return json(res, 200, { weekKey: week, dayIndex: Number(day), slot });
+      }
+
+      // ── Week area status ───────────────────────────────────────────────────
+      if (req.method === 'GET' && p === '/area-statuses') {
+        const week = q.get('week');
+        if (!week) return json(res, 400, { error: 'week query param required (YYYY-MM-DD Monday)' });
+        return json(res, 200, getWeekAreaStatuses(week));
+      }
+
+      if (req.method === 'POST' && p === '/area-statuses') {
+        const { weekKey, areaId, status } = await readBody(req);
+        if (!weekKey || !areaId) return json(res, 400, { error: 'weekKey and areaId are required' });
+        const existing = getClients().find(c => c.id === areaId);
+        if (!existing) return json(res, 404, { error: `Area not found: ${areaId}` });
+        const result = saveWeekAreaStatus({ weekKey, areaId, status });
+        emitter.emit('change', 'structure');
+        return json(res, 200, result);
       }
 
       json(res, 404, { error: 'Not found' });

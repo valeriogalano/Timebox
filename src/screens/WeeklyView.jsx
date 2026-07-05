@@ -6,6 +6,11 @@ import TimeCell from '../components/TimeCell';
 import DivergenceDot from '../components/DivergenceDot';
 
 const PLANNING_MODES = ['full', 'compact', 'hidden'];
+const AREA_STATUS_OPTIONS = [
+  { key: 'active', label: 'Attiva', color: '#3DB33D', title: 'Area attiva questa settimana' },
+  { key: 'minimal', label: 'Minima', color: '#E07B3A', title: 'Area da mantenere al minimo questa settimana' },
+  { key: 'closed', label: 'Chiusa', color: '#E05252', title: 'Area chiusa questa settimana' },
+];
 
 function getWeekKey(monday) { return fmt(monday); }
 
@@ -65,6 +70,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   const [weekEntries, setWeekEntries] = useState([]);
   const [weekOverrides, setWeekOverrides] = useState({});
+  const [weekAreaStatuses, setWeekAreaStatuses] = useState({});
   const [projectTotals, setProjectTotals] = useState({});
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [dragging, setDragging] = useState(null);
@@ -209,6 +215,12 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       });
       setWeekOverrides(prev => ({ ...prev, [weekKey]: map }));
     });
+    window.api.getWeekAreaStatuses(weekKey).then(rows => {
+      setWeekAreaStatuses(prev => ({
+        ...prev,
+        [weekKey]: Object.fromEntries(rows.map(row => [row.areaId, row.status])),
+      }));
+    });
 
     const dates = Array.from({ length: 7 }, (_, i) => {
       const d = addDays(monday, i);
@@ -228,6 +240,21 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   const displayWeekEntries = mergeProjectDayEntries(weekEntries);
   const validClientIds = new Set(clients.map(client => client.id));
+  const currentAreaStatuses = weekAreaStatuses[weekKey] ?? {};
+
+  function areaStatus(areaId) {
+    return currentAreaStatuses[areaId] ?? 'active';
+  }
+
+  function setAreaStatus(areaId, status) {
+    setWeekAreaStatuses(prev => {
+      const weekData = { ...(prev[weekKey] ?? {}) };
+      if (status === 'active') delete weekData[areaId];
+      else weekData[areaId] = status;
+      return { ...prev, [weekKey]: weekData };
+    });
+    window.api.saveWeekAreaStatus({ weekKey, areaId, status });
+  }
 
   function setSlotOverride(dayIndex, slot, newBlocks) {
     setWeekOverrides(prev => {
@@ -532,7 +559,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   const weekDateStrs = days.map(d => d.dateStr);
   const clientsWithProjects = clients.map(c => ({
-    ...c, projects: projects.filter(p => p.clientId === c.id && !p.archived),
+    ...c,
+    areaStatus: areaStatus(c.id),
+    projects: projects.filter(p => p.clientId === c.id && !p.archived),
   })).filter(c => c.projects.length > 0);
 
   // Weekly summaries per client (unified AM + PM + Extra)
@@ -722,6 +751,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <PlanningModeToggle value={planningMode} onChange={setPlanningModePersisted} />
+          <AreaStatusPanel clients={clientsWithProjects} statuses={currentAreaStatuses} onChange={setAreaStatus} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <ProjectVisibilityToggle value={hideEmpty ? 'worked' : 'all'} onChange={(next) => {
@@ -1094,6 +1124,7 @@ function ProjectLabel({ project, client, alertColor, rowActive, topBorder, proje
   const labelRef = useRef();
   const weekH = weekProjectHours[project.id] ?? 0;
   const totalH = projectTotals[project.id] ?? 0;
+  const statusInfo = AREA_STATUS_OPTIONS.find(option => option.key === client.areaStatus) ?? AREA_STATUS_OPTIONS[0];
 
   function handleMouseEnter() {
     const rect = labelRef.current?.getBoundingClientRect();
@@ -1118,7 +1149,28 @@ function ProjectLabel({ project, client, alertColor, rowActive, topBorder, proje
           maxWidth: 155, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {project.name}
         </div>
-        <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>{client.name}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+          <span style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.name}</span>
+          {client.areaStatus !== 'active' && (
+            <span
+              title={statusInfo.title}
+              style={{
+                fontSize: 8,
+                fontWeight: 800,
+                lineHeight: 1,
+                color: statusInfo.color,
+                border: `1px solid ${statusInfo.color}55`,
+                background: `${statusInfo.color}14`,
+                borderRadius: 4,
+                padding: '2px 4px',
+                textTransform: 'uppercase',
+                flexShrink: 0,
+              }}
+            >
+              {statusInfo.label}
+            </span>
+          )}
+        </div>
       </div>
       {alertColor && (
         <div style={{
@@ -1172,6 +1224,82 @@ function ProjectLabel({ project, client, alertColor, rowActive, topBorder, proje
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function AreaStatusPanel({ clients, statuses, onChange }) {
+  if (!clients.length) return null;
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      flexWrap: 'wrap',
+      paddingLeft: 2,
+    }}>
+      {clients.map(client => {
+        const current = statuses[client.id] ?? 'active';
+        return (
+          <div
+            key={client.id}
+            title={`Stato settimanale area: ${client.name}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              minHeight: 24,
+              border: '1px solid var(--tb-border)',
+              borderRadius: 5,
+              overflow: 'hidden',
+              background: 'var(--tb-panel-bg)',
+            }}
+          >
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              maxWidth: 120,
+              padding: '0 7px',
+              fontSize: 10,
+              fontWeight: 700,
+              color: 'var(--tb-text-muted)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{client.name}</span>
+            </span>
+            {AREA_STATUS_OPTIONS.map(option => {
+              const active = current === option.key;
+              return (
+                <button
+                  key={option.key}
+                  onClick={() => onChange(client.id, option.key)}
+                  title={option.title}
+                  style={{
+                    minWidth: 22,
+                    height: 22,
+                    padding: '0 6px',
+                    border: 'none',
+                    borderLeft: '1px solid var(--tb-border)',
+                    background: active ? option.color : 'transparent',
+                    color: active ? '#fff' : 'var(--tb-text-faint)',
+                    cursor: 'pointer',
+                    fontSize: 9,
+                    fontWeight: 800,
+                    fontFamily: "'Open Sans', sans-serif",
+                    lineHeight: 1,
+                  }}
+                >
+                  {option.label[0]}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }

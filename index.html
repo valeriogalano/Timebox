@@ -180,6 +180,7 @@
         { id:'e5', projectId:'p4', date:d(2), hours:2,   billableHours:0,    slot:'am', billed:false },
       ];
       let entries = [...ENTRIES];
+      const weekAreaStatuses = {};
       const todoistImports = [];
       const completedTodoistTasks = [
         { id:'ct1', projectId:'p1', content:'Revisione finale homepage', hours:2, estimatedHours:2, slot:'am', completedDate:localD(0), completed:true },
@@ -196,6 +197,13 @@
         deleteEntry: async (id) => { entries = entries.filter(e => e.id !== id); },
         getWeekOverrides: async () => [], getWeekOverridesRange: async () => [],
         saveWeekOverride: async () => {}, deleteWeekOverride: async () => {},
+        getWeekAreaStatuses: async (weekKey) => Object.entries(weekAreaStatuses[weekKey] || {}).map(([areaId, status]) => ({ weekKey, areaId, status })),
+        saveWeekAreaStatus: async ({ weekKey, areaId, status }) => {
+          if (!weekAreaStatuses[weekKey]) weekAreaStatuses[weekKey] = {};
+          if (status === 'active') delete weekAreaStatuses[weekKey][areaId];
+          else weekAreaStatuses[weekKey][areaId] = status;
+          return { weekKey, areaId, status: status || 'active' };
+        },
         freezeWeeksBeforeRecurringChange: async () => {},
         resetAllData: async () => {}, seedDemoData: async () => {},
         getDbPath: async () => '/Users/demo/Documents/Timebox/timebox.db',
