@@ -42,6 +42,23 @@ function getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, slot) {
     .map(r => ({ id: r.id, clientId: r.clientId, hours: r.hours }));
 }
 
+function summarizeBlocksByClient(blocks, validClientIds) {
+  const summary = {};
+  for (const block of blocks) {
+    if (!validClientIds.has(block.clientId)) continue;
+    summary[block.clientId] = (summary[block.clientId] ?? 0) + block.hours;
+  }
+  return summary;
+}
+
+function blockSummariesDiffer(a, b) {
+  const clientIds = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const clientId of clientIds) {
+    if (Math.abs((a[clientId] ?? 0) - (b[clientId] ?? 0)) > 0.001) return true;
+  }
+  return false;
+}
+
 export default function WeeklyView({ clients, projects, recurring, weekOffset, setWeekOffset, onEntryChange, externalRefreshTick, autoFocusProject, onAutoFocusConsumed }) {
   const monday = addDays(getMondayOfWeek(getToday()), weekOffset * 7);
   const weekKey = getWeekKey(monday);
@@ -496,6 +513,23 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const endSun = addDays(monday, 6);
   const weekLabel = `${monday.getDate()} ${MONTHS_IT[monday.getMonth()]} – ${endSun.getDate()} ${MONTHS_IT[endSun.getMonth()]} ${endSun.getFullYear()}`;
 
+  const templateDivergence = days.reduce((acc, d, dayIndex) => {
+    for (const slot of ['am', 'pm']) {
+      const effectiveSummary = summarizeBlocksByClient(d[`${slot}Blocks`], validClientIds);
+      const templateBlocks = recurring.filter(r => r.day === dayIndex && r.slot === slot);
+      const templateSummary = summarizeBlocksByClient(templateBlocks, validClientIds);
+      const effectiveTotal = Object.values(effectiveSummary).reduce((s, h) => s + h, 0);
+      const templateTotal = Object.values(templateSummary).reduce((s, h) => s + h, 0);
+      const delta = effectiveTotal - templateTotal;
+      const differs = blockSummariesDiffer(effectiveSummary, templateSummary);
+      if (!differs) continue;
+      acc.deltaHours += delta;
+      acc.divergentSlots += 1;
+      acc.details.push(`${DAY_SHORT[dayIndex]} ${slot.toUpperCase()}: ${delta >= 0 ? '+' : ''}${fmtH(delta)}`);
+    }
+    return acc;
+  }, { deltaHours: 0, divergentSlots: 0, totalSlots: 14, details: [] });
+
   const weekDateStrs = days.map(d => d.dateStr);
   const clientsWithProjects = clients.map(c => ({
     ...c, projects: projects.filter(p => p.clientId === c.id && !p.archived),
@@ -653,14 +687,17 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           <NavBtn onClick={() => setWeekOffset(o => o + 1)}>›</NavBtn>
           {weekOffset !== 0 && <NavBtn small onClick={() => setWeekOffset(0)}>Oggi</NavBtn>}
           {hasOverride && (
-            <button onClick={resetWeekToTemplate}
-              style={{
-                fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 5,
-                background: 'var(--tb-reset-btn-bg)', border: '1px solid #E07B3A55', color: '#E07B3A',
-                cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
-              }}>
-              ↩ Ripristina template
-            </button>
+            <>
+              <TemplateDivergenceBadge summary={templateDivergence} />
+              <button onClick={resetWeekToTemplate}
+                style={{
+                  fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 5,
+                  background: 'var(--tb-reset-btn-bg)', border: '1px solid #E07B3A55', color: '#E07B3A',
+                  cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
+                }}>
+                ↩ Ripristina template
+              </button>
+            </>
           )}
           <TodoistSyncButton
             days={days}
@@ -1174,6 +1211,40 @@ function NavBtn({ children, onClick, small }) {
       }}>
       {children}
     </button>
+  );
+}
+
+function TemplateDivergenceBadge({ summary }) {
+  if (!summary.divergentSlots) return null;
+  const deltaLabel = `${summary.deltaHours >= 0 ? '+' : ''}${fmtH(summary.deltaHours)}`;
+  const title = [
+    `Differenza dal template ricorrente: ${deltaLabel}`,
+    `${summary.divergentSlots}/${summary.totalSlots} slot modificati`,
+    ...summary.details,
+  ].join('\n');
+
+  return (
+    <span
+      title={title}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        minHeight: 22,
+        padding: '3px 8px',
+        borderRadius: 5,
+        border: '1px solid #E07B3A55',
+        background: '#E07B3A12',
+        color: '#E07B3A',
+        fontSize: 10,
+        fontWeight: 800,
+        lineHeight: 1.2,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#E07B3A' }} />
+      <span>Δ template {deltaLabel} · {summary.divergentSlots}/{summary.totalSlots}</span>
+    </span>
   );
 }
 

@@ -1,6 +1,8 @@
 # Timebox Technical Guide
 
-Timebox is a macOS-first desktop app for the maintainer's personal freelance timeblocking, time tracking, billing review, and weekly capacity planning workflow. Windows and Linux packages are configured where Electron supports the same workflow, but platform-specific integrations must be explicit. It intentionally codifies a subjective process instead of a generic productivity methodology.
+Timebox is a macOS-first desktop app for the maintainer's personal capacity planning, timeblocking, time tracking, billing review, and weekly review workflow. Windows and Linux packages are configured where Electron supports the same workflow, but platform-specific integrations must be explicit. It intentionally codifies a subjective process instead of a generic productivity methodology.
+
+The product framing is capacity-first. Billing is a supporting workflow for billable areas, not the center of the app, and new features should make the maintainer's manual planning/review process visible in the GUI rather than turning the app into a generic productivity methodology or an agent-only automation layer.
 
 This is also a vibe coding project: development is iterative and AI-assisted. Keep changes grounded in the existing code, verify behavior, and avoid broad rewrites unless the task explicitly calls for them.
 
@@ -72,6 +74,7 @@ TimeBox/
     db.js           Opens the developer CLI database
     format.js       Shared formatting and date utilities for CLI commands
     commands/
+      day-insights.js
       today.js
       week.js
       projects.js
@@ -87,6 +90,7 @@ TimeBox/
     App.jsx         App shell, navigation, global state, sidebar
     utils.js        Renderer formatting and date utilities
     screens/
+      TodayView.jsx
       WeeklyView.jsx
       Panoramica.jsx
       Dashboard.jsx
@@ -155,6 +159,7 @@ In development, wrappers point at repository files. In packaged builds, they poi
 |---|---|---|
 | `GET` | `/ping` | Health check. |
 | `GET` | `/today?date=` | `getTodayData(date)`. |
+| `GET` | `/day/insights?date=` | Aggregated daily diagnostics for `TodayView`. |
 | `GET` | `/week?offset=` | `getWeekData(today, offset)`. |
 | `GET` | `/projects?area=&client=&search=&all=` | `getProjectsData(...)`. |
 | `GET` | `/clients?search=` | `getClientsData(...)`. |
@@ -207,7 +212,7 @@ An empty database is seeded with demo clients, projects, recurring blocks, sampl
 - Loads `clients`, `projects`, and `recurring` on mount.
 - Holds navigation state: `screen`, `weekOffset`, and theme.
 - Refreshes shared data on `db:changed` events.
-- Renders `WeeklyView`, `Panoramica`, `BillingScreen`, `ClientsScreen`, `RecurringScreen`, `EntriesScreen`, `TodoistLog`, and `SettingsScreen`.
+- Renders `TodayView`, `WeeklyView`, `Panoramica`, `BillingScreen`, `ClientsScreen`, `RecurringScreen`, `EntriesScreen`, `TodoistLog`, and `SettingsScreen`.
 
 ### WeeklyView.jsx
 

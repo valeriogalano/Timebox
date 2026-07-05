@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getToday, MONTHS_IT, fmtH, fmt } from './utils';
 import QuickLogModal from './components/QuickLogModal';
+import TodayView from './screens/TodayView';
 import WeeklyView from './screens/WeeklyView';
 import Panoramica from './screens/Panoramica';
 import BillingScreen from './screens/BillingScreen';
@@ -13,6 +14,7 @@ import TodoistLog from './screens/TodoistLog';
 const NAV_ITEMS = [
   { id: 'weekly',     label: 'Timesheet',      icon: WeekIcon      },
   { id: 'panoramica', label: 'Dashboard',       icon: ChartIcon     },
+  { id: 'today',      label: 'Oggi',           icon: TodayIcon     },
   { id: 'billing',    label: 'Rendiconto',      icon: BillingIcon   },
   { id: 'entries',    label: 'Registro',        icon: ListIcon      },
   { id: 'todoist-log', label: 'Task Todoist',   icon: TodoistIcon   },
@@ -21,6 +23,7 @@ const NAV_ITEMS = [
   { id: 'settings',   label: 'Impostazioni',    icon: SettingsIcon  },
 ];
 
+function TodayIcon()    { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 4v3.6l2.4 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function WeekIcon()     { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="3" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M1 6h13" stroke="currentColor" strokeWidth="1.4"/><path d="M5 1v2M10 1v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function ChartIcon()    { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="8" width="3" height="6" rx="1" fill="currentColor"/><rect x="6" y="5" width="3" height="9" rx="1" fill="currentColor"/><rect x="11" y="2" width="3" height="12" rx="1" fill="currentColor"/></svg>; }
 function ClientsIcon()  { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="2" y="4" width="11" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 4V2.5C5 1.67 5.67 1 6.5 1H8.5C9.33 1 10 1.67 10 2.5V4" stroke="currentColor" strokeWidth="1.4"/><path d="M2 7.5h11" stroke="currentColor" strokeWidth="1.4"/></svg>; }
@@ -273,7 +276,7 @@ export default function App() {
               </div>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-sidebar-text)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>Timebox</div>
-                <div style={{ fontSize: 9, color: ACCENT, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Freelance</div>
+                <div style={{ fontSize: 9, color: ACCENT, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Capacity</div>
               </div>
             </div>
           )}
@@ -357,6 +360,15 @@ export default function App() {
 
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+          {screen === 'today' && (
+            <TodayView
+              externalRefreshTick={weekRefreshTick}
+              onOpenTimesheet={() => {
+                setScreen('weekly');
+                setWeekOffset(0);
+              }}
+            />
+          )}
           {screen === 'weekly' && (
             <WeeklyView
               clients={clients} projects={projects} recurring={recurring}
@@ -408,7 +420,7 @@ function KeyboardHelp({ onClose }) {
     ['⌥ ← / →', 'In una cella del timesheet: salva e si sposta di giorno sulla stessa riga'],
     ['⌘ B',     'Espande / riduce la sidebar'],
     ['⌘ ,',     'Impostazioni'],
-    ['⌘ 1–8',   'Naviga alle schermate in ordine sidebar'],
+    ['⌘ 1–9',   'Naviga alle schermate in ordine sidebar'],
     ['⌘ ⇧ H',  'Nascondi / mostra vuoti nel Timesheet'],
     ['⌘ ⇧ P',  'Cicla Completa / Compatta / Nascosta'],
     ['⌘ ⇧ V',  'Alterna Ore tracciate / Ore fatturabili'],

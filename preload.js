@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('api', {
   getTodoistImports:  (from, to)                  => ipcRenderer.invoke('db:getTodoistImports', from, to),
   saveTodoistImport:  (todoistImport)             => ipcRenderer.invoke('db:saveTodoistImport', todoistImport),
   importCompletedTodoistTasks: (imports)          => ipcRenderer.invoke('db:importCompletedTodoistTasks', imports),
+  getDayInsights:     (date)                      => ipcRenderer.invoke('db:getDayInsights', date),
   syncTodoist:        (projects, dates, debug)      => ipcRenderer.invoke('todoist:sync', projects, dates, debug),
   getCompletedTodoistTasks: (projects, dates, debug) => ipcRenderer.invoke('todoist:getCompletedTasks', projects, dates, debug),
   importTodoistProjects: ()                         => ipcRenderer.invoke('todoist:importProjects'),

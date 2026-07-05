@@ -228,6 +228,80 @@
           }
           return { importedCount, importedHours };
         },
+        getDayInsights: async (date) => ({
+          date,
+          syncedAt: new Date().toISOString(),
+          freeCapacity: {
+            totals: {
+              plannedCapacity: 6,
+              trackedHours: 3.5,
+              trackedInPlan: 3.5,
+              residualCapacity: 2.5,
+              estimatedHours: 1,
+              matchedTaskHours: 1,
+              unmatchedTaskHours: 0,
+              outsidePlannedTaskHours: 0,
+              overflowTaskHours: 0,
+              availableAfterTrackedAndTasks: 1.5,
+              reservedWithoutTasksHours: 1.5,
+              freeUnallocatedHours: 0,
+            },
+            counts: {
+              reservedWithoutTasks: 1,
+              tasksWithoutTimeboxProject: 0,
+              tasksOutsidePlannedArea: 0,
+              tasksOverReservedCapacity: 0,
+            },
+            reservedWithoutTasks: [],
+            tasksWithoutTimeboxProject: [],
+            tasksOutsidePlannedArea: [],
+            tasksOverReservedCapacity: [],
+          },
+          readyBlocks: {
+            counts: { groups: 1, projectsWithReadyTasks: 1, projectsWithoutReadyTasks: 1 },
+            groups: [{
+              slot: 'pm',
+              areaId: 'c2',
+              area: 'The Blog',
+              blockHours: 2.5,
+              trackedHours: 0,
+              availableHours: 2.5,
+              estimatedHours: 1,
+              missingHours: 1.5,
+              reason: 'insufficient_tasks',
+              projects: [
+                { projectId: 'p3', project: 'Monthly Articles', taskCount: 1, estimatedHours: 1, hasReadyTasks: true, tasks: [] },
+              ],
+            }],
+          },
+          mismatches: {
+            totals: { plannedCapacity: 6, trackedHours: 3.5, residualCapacity: 2.5, estimatedHours: 1 },
+            counts: {
+              tasksWithoutTimeboxProject: 0,
+              tasksOutsidePlannedArea: 0,
+              tasksOverBlockCapacity: 0,
+              blocksWithoutReadyTasks: 1,
+              estimatedBeyondResidualCapacity: 0,
+            },
+            mismatches: {
+              tasksWithoutTimeboxProject: [],
+              tasksOutsidePlannedArea: [],
+              tasksOverBlockCapacity: [],
+              blocksWithoutReadyTasks: [{
+                slot: 'pm',
+                areaId: 'c2',
+                area: 'The Blog',
+                blockHours: 2.5,
+                trackedHours: 0,
+                availableHours: 2.5,
+                estimatedHours: 1,
+                missingHours: 1.5,
+                reason: 'insufficient_tasks',
+              }],
+              estimatedBeyondResidualCapacity: null,
+            },
+          },
+        }),
         syncTodoist: async () => ({ byDate: {} }),
         getCompletedTodoistTasks: async (_projects, dates) => ({
           tasks: completedTodoistTasks.filter(task =>

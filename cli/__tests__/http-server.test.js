@@ -222,6 +222,23 @@ describe('HTTP server', () => {
     assert.equal(body.mismatches.estimatedBeyondResidualCapacity.overflowHours, 1);
   });
 
+  it('GET /day/insights → aggregates GUI-ready daily diagnostics', async () => {
+    setTodoistCache('2020-01-08', [
+      { id: 'di1', projectId: 'p4', content: 'Sensor triage', hours: 1, slot: 'am' },
+      { id: 'di2', content: 'Inbox follow-up', hours: 1, slot: 'pm', todoistProjectName: 'Inbox' },
+    ], '2026-06-17T09:00:00.000Z');
+
+    const { status, body } = await get(port, '/day/insights?date=2020-01-08');
+    assert.equal(status, 200);
+    assert.equal(body.date, '2020-01-08');
+    assert.equal(body.syncedAt, '2026-06-17T09:00:00.000Z');
+    assert.equal(body.freeCapacity.totals.estimatedHours, 2);
+    assert.equal(body.readyBlocks.counts.groups, 2);
+    assert.equal(body.mismatches.counts.tasksWithoutTimeboxProject, 1);
+    assert.ok(Array.isArray(body.readyBlocks.groups), 'ready block groups are available');
+    assert.ok(body.mismatches.mismatches.blocksWithoutReadyTasks.length >= 1, 'uncovered blocks are available');
+  });
+
   it('GET /week → has 7 days and total', async () => {
     const { status, body } = await get(port, '/week');
     assert.equal(status, 200);
