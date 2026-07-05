@@ -7,7 +7,9 @@ const {
   freezeWeeksBeforeRecurringChange,
   getWeekOverrides,
   resetAllData,
+  saveClient,
   saveEntry,
+  saveProject,
   saveWeekOverride,
   setTodoistCache,
 } = require('../../db/queries');
@@ -38,6 +40,10 @@ describe('recurring freeze', () => {
   it('materializes used weeks before recurring template changes', () => {
     createTestDb();
     resetAllData();
+    saveClient({ id: 'c1', name: 'Area 1', color: '#3B82F6', billable: true, billing: 'hourly', rate: 85, limitType: 'weekly', limitHours: null, position: 0 });
+    saveClient({ id: 'c2', name: 'Area 2', color: '#F97316', billable: true, billing: 'hourly', rate: 85, limitType: 'weekly', limitHours: null, position: 1 });
+    saveClient({ id: 'c3', name: 'Area 3', color: '#06B6D4', billable: false, billing: 'none', rate: 0, limitType: 'none', limitHours: null, position: 2 });
+    saveProject({ id: 'p1', clientId: 'c1', name: 'Project 1', description: null, budgetHours: null, weeklyHours: null, position: 0, archived: false });
 
     const currentMonday = getMonday(new Date());
     const firstUsedMonday = addDays(currentMonday, -70);

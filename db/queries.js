@@ -24,7 +24,19 @@ function saveClient(client) {
 }
 
 function deleteClient(id) {
-  db.prepare('DELETE FROM clients WHERE id=?').run(id);
+  db.transaction(() => {
+    const projectIds = db.prepare('SELECT id FROM projects WHERE clientId=?').all(id).map(row => row.id);
+    const deleteEntries = db.prepare('DELETE FROM entries WHERE projectId=?');
+    const deleteImports = db.prepare('DELETE FROM todoist_imports WHERE projectId=?');
+    for (const projectId of projectIds) {
+      deleteEntries.run(projectId);
+      deleteImports.run(projectId);
+    }
+    db.prepare('DELETE FROM recurring WHERE clientId=?').run(id);
+    db.prepare('DELETE FROM week_area_status WHERE areaId=?').run(id);
+    db.prepare('DELETE FROM projects WHERE clientId=?').run(id);
+    db.prepare('DELETE FROM clients WHERE id=?').run(id);
+  })();
 }
 
 function normalizeClient(row) {
@@ -50,6 +62,7 @@ function saveProject(project) {
 function deleteProject(id) {
   db.transaction(() => {
     db.prepare('DELETE FROM entries WHERE projectId=?').run(id);
+    db.prepare('DELETE FROM todoist_imports WHERE projectId=?').run(id);
     db.prepare('DELETE FROM projects WHERE id=?').run(id);
   })();
 }

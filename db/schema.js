@@ -78,6 +78,7 @@ function initDb(dbPath) {
   // WAL mode avoids journal-file conflicts with iCloud's sync daemon.
   db.pragma('locking_mode = EXCLUSIVE');
   db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = OFF');
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS clients (
@@ -93,15 +94,17 @@ function initDb(dbPath) {
     );
     CREATE TABLE IF NOT EXISTS projects (
       id TEXT PRIMARY KEY,
-      clientId TEXT,
+      clientId TEXT REFERENCES clients(id) ON DELETE CASCADE,
       name TEXT,
       budgetHours REAL,
+      weeklyHours REAL,
+      description TEXT,
       position INTEGER DEFAULT 0,
       archived INTEGER DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS recurring (
       id TEXT PRIMARY KEY,
-      clientId TEXT,
+      clientId TEXT REFERENCES clients(id) ON DELETE CASCADE,
       slot TEXT,
       day INTEGER,
       hours REAL,
@@ -109,7 +112,7 @@ function initDb(dbPath) {
     );
     CREATE TABLE IF NOT EXISTS entries (
       id TEXT PRIMARY KEY,
-      projectId TEXT,
+      projectId TEXT REFERENCES projects(id) ON DELETE CASCADE,
       date TEXT,
       hours REAL,
       billableHours REAL,
@@ -126,7 +129,7 @@ function initDb(dbPath) {
     CREATE TABLE IF NOT EXISTS week_area_status (
       id TEXT PRIMARY KEY,
       weekKey TEXT NOT NULL,
-      areaId TEXT NOT NULL,
+      areaId TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
       status TEXT NOT NULL CHECK(status IN ('active', 'minimal', 'closed'))
     );
     CREATE TABLE IF NOT EXISTS settings (
@@ -140,7 +143,7 @@ function initDb(dbPath) {
     );
     CREATE TABLE IF NOT EXISTS todoist_imports (
       todoistTaskId TEXT PRIMARY KEY,
-      projectId TEXT NOT NULL,
+      projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       date TEXT NOT NULL,
       hours REAL NOT NULL,
       titleSnapshot TEXT,
@@ -217,7 +220,142 @@ function initDb(dbPath) {
       ON entries(projectId, date, slot);
   `);
 
+  cleanupOrphans(db);
+  rebuildForeignKeyTables(db);
+  ensureIndexes(db);
+  db.pragma('foreign_keys = ON');
+
   return db;
+}
+
+function cleanupOrphans(db) {
+  db.exec(`
+    DELETE FROM entries
+    WHERE projectId IS NOT NULL
+      AND projectId NOT IN (SELECT id FROM projects);
+
+    DELETE FROM todoist_imports
+    WHERE projectId NOT IN (SELECT id FROM projects);
+
+    DELETE FROM recurring
+    WHERE clientId IS NOT NULL
+      AND clientId NOT IN (SELECT id FROM clients);
+
+    DELETE FROM week_area_status
+    WHERE areaId NOT IN (SELECT id FROM clients);
+
+    DELETE FROM projects
+    WHERE clientId IS NOT NULL
+      AND clientId NOT IN (SELECT id FROM clients);
+  `);
+}
+
+function tableHasForeignKeys(db, tableName) {
+  return db.prepare(`PRAGMA foreign_key_list('${tableName}')`).all().length > 0;
+}
+
+function rebuildTable(db, tableName, createSql, columns) {
+  const tmpName = `${tableName}_fk_migration`;
+  const existingColumns = new Set(db.prepare(`PRAGMA table_info('${tableName}')`).all().map(column => column.name));
+  const selectColumns = columns.map(column => {
+    if (existingColumns.has(column)) return column;
+    if (column === 'position' || column === 'archived') return `0 AS ${column}`;
+    if (column === 'billed') return `0 AS ${column}`;
+    return `NULL AS ${column}`;
+  });
+  db.exec(`DROP TABLE IF EXISTS ${tmpName};`);
+  db.exec(createSql.replace(`CREATE TABLE ${tableName}`, `CREATE TABLE ${tmpName}`));
+  db.exec(`
+    INSERT INTO ${tmpName} (${columns.join(', ')})
+    SELECT ${selectColumns.join(', ')} FROM ${tableName};
+    DROP TABLE ${tableName};
+    ALTER TABLE ${tmpName} RENAME TO ${tableName};
+  `);
+}
+
+function rebuildForeignKeyTables(db) {
+  const tables = [
+    {
+      name: 'projects',
+      columns: ['id', 'clientId', 'name', 'description', 'budgetHours', 'weeklyHours', 'position', 'archived'],
+      sql: `CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        clientId TEXT REFERENCES clients(id) ON DELETE CASCADE,
+        name TEXT,
+        description TEXT,
+        budgetHours REAL,
+        weeklyHours REAL,
+        position INTEGER DEFAULT 0,
+        archived INTEGER DEFAULT 0
+      )`,
+    },
+    {
+      name: 'recurring',
+      columns: ['id', 'clientId', 'slot', 'day', 'hours', 'position'],
+      sql: `CREATE TABLE recurring (
+        id TEXT PRIMARY KEY,
+        clientId TEXT REFERENCES clients(id) ON DELETE CASCADE,
+        slot TEXT,
+        day INTEGER,
+        hours REAL,
+        position INTEGER DEFAULT 0
+      )`,
+    },
+    {
+      name: 'entries',
+      columns: ['id', 'projectId', 'date', 'hours', 'billableHours', 'slot', 'billed'],
+      sql: `CREATE TABLE entries (
+        id TEXT PRIMARY KEY,
+        projectId TEXT REFERENCES projects(id) ON DELETE CASCADE,
+        date TEXT,
+        hours REAL,
+        billableHours REAL,
+        slot TEXT,
+        billed INTEGER DEFAULT 0
+      )`,
+    },
+    {
+      name: 'week_area_status',
+      columns: ['id', 'weekKey', 'areaId', 'status'],
+      sql: `CREATE TABLE week_area_status (
+        id TEXT PRIMARY KEY,
+        weekKey TEXT NOT NULL,
+        areaId TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        status TEXT NOT NULL CHECK(status IN ('active', 'minimal', 'closed'))
+      )`,
+    },
+    {
+      name: 'todoist_imports',
+      columns: ['todoistTaskId', 'projectId', 'date', 'hours', 'titleSnapshot', 'importedAt'],
+      sql: `CREATE TABLE todoist_imports (
+        todoistTaskId TEXT PRIMARY KEY,
+        projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        hours REAL NOT NULL,
+        titleSnapshot TEXT,
+        importedAt TEXT NOT NULL
+      )`,
+    },
+  ];
+
+  for (const table of tables) {
+    if (!tableHasForeignKeys(db, table.name)) {
+      rebuildTable(db, table.name, table.sql, table.columns);
+    }
+  }
+}
+
+function ensureIndexes(db) {
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(date);
+    CREATE INDEX IF NOT EXISTS idx_overrides_weekkey ON week_overrides(weekKey);
+    CREATE INDEX IF NOT EXISTS idx_week_area_status_weekkey ON week_area_status(weekKey);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_week_area_status_unique ON week_area_status(weekKey, areaId);
+    CREATE INDEX IF NOT EXISTS idx_todoist_imports_date ON todoist_imports(date);
+    CREATE INDEX IF NOT EXISTS idx_todoist_imports_project_date ON todoist_imports(projectId, date);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_project_date_slot
+      ON entries(projectId, date, slot);
+  `);
 }
 
 module.exports = { initDb, INIT_CLIENTS, INIT_PROJECTS, INIT_RECURRING, getSeedEntries };
