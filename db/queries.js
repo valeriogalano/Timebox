@@ -202,6 +202,9 @@ function saveEntry(entry) {
       projectId=excluded.projectId, date=excluded.date,
       hours=excluded.hours, billableHours=excluded.billableHours,
       slot=excluded.slot, billed=excluded.billed
+    ON CONFLICT(projectId,date,slot) DO UPDATE SET
+      id=excluded.id, hours=excluded.hours,
+      billableHours=excluded.billableHours, billed=excluded.billed
   `).run({ billableHours: null, ...entry, billed: entry.billed ? 1 : 0 });
 }
 
@@ -244,7 +247,7 @@ function importCompletedTodoistTasks(imports) {
     VALUES (@todoistTaskId,@projectId,@date,@hours,@titleSnapshot,@importedAt)
     ON CONFLICT(todoistTaskId) DO NOTHING
   `);
-  const findEntries = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? ORDER BY rowid');
+  const findEntries = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? AND slot = ? ORDER BY rowid');
   const updateEntry = db.prepare(`
     UPDATE entries
     SET hours = ?, billableHours = ?, slot = ?, billed = ?
@@ -265,9 +268,10 @@ function importCompletedTodoistTasks(imports) {
       const result = insertImport.run({ titleSnapshot: null, ...item });
       if (result.changes === 0) continue;
 
-      const matches = findEntries.all(item.projectId, item.date);
+      const slot = item.slot === 'pm' ? 'pm' : 'am';
+      const matches = findEntries.all(item.projectId, item.date, slot);
       if (matches.length === 0) {
-        insertEntry.run(randomUUID(), item.projectId, item.date, item.hours, null, item.slot === 'pm' ? 'pm' : 'am', 0);
+        insertEntry.run(randomUUID(), item.projectId, item.date, item.hours, null, slot, 0);
       } else {
         const first = matches[0];
         const existingHours = matches.reduce((sum, entry) => sum + entry.hours, 0);

@@ -261,10 +261,10 @@ Extra blocks are computed from entries whose project area is not present in plan
 `saveEntry` in `WeeklyView.jsx` handles upsert behavior:
 
 - `hours === 0` deletes the entry.
-- Existing `projectId + date` updates the row.
+- Existing `projectId + date + slot` updates the row.
 - New rows use `crypto.randomUUID()`.
 
-There is one entry per `projectId + date` by application logic, not by a database unique constraint.
+There is one entry per `projectId + date + slot`; the database enforces this with a unique index on `entries(projectId, date, slot)`.
 
 ### Billable Hours and Billed State
 
