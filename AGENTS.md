@@ -125,7 +125,7 @@ Renderer (React)
 
 `window.api` is available only inside Electron. `index.html` defines a mock `window.api` only when the preload has not already injected one. This mock is for browser preview and test workflows; do not remove it.
 
-Important exposed APIs are in `preload.js`: entity CRUD, entries, week overrides, Todoist sync/cache, database file actions, CLI/MCP installation, update status, update checks, and `onDbChanged`.
+Important exposed APIs are in `preload.js`: entity CRUD, entries, week overrides, weekly area status, Todoist sync/cache, database file actions, CLI/MCP installation, update status, update checks, and `onDbChanged`.
 
 ---
 
@@ -161,6 +161,8 @@ In development, wrappers point at repository files. In packaged builds, they poi
 | `GET` | `/today?date=` | `getTodayData(date)`. |
 | `GET` | `/day/insights?date=` | Aggregated daily diagnostics for `TodayView`. |
 | `GET` | `/week?offset=` | `getWeekData(today, offset)`. |
+| `GET` | `/area-statuses?week=` | Weekly area status rows for a Monday `weekKey`. |
+| `POST` | `/area-statuses` | Save `{ weekKey, areaId, status }`; `active` removes the explicit row. |
 | `GET` | `/projects?area=&client=&search=&all=` | `getProjectsData(...)`. |
 | `GET` | `/clients?search=` | `getClientsData(...)`. |
 | `GET` | `/areas?search=` | Alias for clients/areas. |
@@ -195,6 +197,7 @@ projects       (id, clientId, name, description, budgetHours, weeklyHours, posit
 recurring      (id, clientId, slot, day, hours, position)
 entries        (id, projectId, date, hours, billableHours, slot, billed)
 week_overrides (id, weekKey, dayIndex, slot, blocksJson)
+week_area_status (id, weekKey, areaId, status)
 settings       (key, value)
 todoist_cache  (dateStr, tasksJson, syncedAt)
 ```
@@ -224,6 +227,7 @@ An empty database is seeded with demo clients, projects, recurring blocks, sampl
 ```
 
 - Saves edits optimistically through `window.api`.
+- Loads and saves per-week area status as sparse rows; missing row means `active`.
 
 ### Dashboard, Billing, Entries, TodoistLog
 

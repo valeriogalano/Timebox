@@ -321,6 +321,43 @@ function deleteWeekOverride(weekKey, dayIndex, slot) {
   db.prepare('DELETE FROM week_overrides WHERE id=?').run(id);
 }
 
+// ── Week Area Status ──────────────────────────────────────────────────────────
+const WEEK_AREA_STATUSES = new Set(['active', 'minimal', 'closed']);
+
+function normalizeWeekAreaStatus(row) {
+  return {
+    weekKey: row.weekKey,
+    areaId: row.areaId,
+    status: WEEK_AREA_STATUSES.has(row.status) ? row.status : 'active',
+  };
+}
+
+function getWeekAreaStatuses(weekKey) {
+  return db.prepare(
+    'SELECT weekKey, areaId, status FROM week_area_status WHERE weekKey=? ORDER BY areaId'
+  ).all(weekKey).map(normalizeWeekAreaStatus);
+}
+
+function getWeekAreaStatusMap(weekKey) {
+  return Object.fromEntries(getWeekAreaStatuses(weekKey).map(row => [row.areaId, row.status]));
+}
+
+function saveWeekAreaStatus({ weekKey, areaId, status }) {
+  if (!weekKey || !areaId) throw new Error('weekKey and areaId are required');
+  const normalized = WEEK_AREA_STATUSES.has(status) ? status : 'active';
+  const id = `${weekKey}-${areaId}`;
+  if (normalized === 'active') {
+    db.prepare('DELETE FROM week_area_status WHERE id=?').run(id);
+    return { weekKey, areaId, status: 'active' };
+  }
+  db.prepare(`
+    INSERT INTO week_area_status (id,weekKey,areaId,status)
+    VALUES (?,?,?,?)
+    ON CONFLICT(id) DO UPDATE SET status=excluded.status
+  `).run(id, weekKey, areaId, normalized);
+  return { weekKey, areaId, status: normalized };
+}
+
 function toMonday(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
   const day = d.getDay();
@@ -455,6 +492,7 @@ function resetAllData() {
   db.exec(`
     DELETE FROM entries;
     DELETE FROM week_overrides;
+    DELETE FROM week_area_status;
     DELETE FROM todoist_imports;
     DELETE FROM recurring;
     DELETE FROM projects;
@@ -527,6 +565,7 @@ module.exports = {
   getEntries, getProjectTotals, saveEntry, deleteEntry,
   getTodoistImportIds, getTodoistImports, saveTodoistImport, importCompletedTodoistTasks,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,
+  getWeekAreaStatuses, getWeekAreaStatusMap, saveWeekAreaStatus,
   getSetting, setSetting,
   getTodoistCache, setTodoistCache, getAllTodoistCache, getImportedTodoistTasks,
   importTodoistProjects,

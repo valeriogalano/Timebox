@@ -1,6 +1,6 @@
 'use strict';
 
-const { getEntries, getProjects, getClients } = require('../../db/queries');
+const { getEntries, getProjects, getClients, getWeekAreaStatuses } = require('../../db/queries');
 const { getMondayOfWeek, addDays, fmt, effBillable } = require('../format');
 
 function getWeekData(today, offset = 0) {
@@ -13,6 +13,13 @@ function getWeekData(today, offset = 0) {
   const clients = getClients();
   const projectMap = Object.fromEntries(projects.map(p => [p.id, p]));
   const clientMap = Object.fromEntries(clients.map(c => [c.id, c]));
+  const weekKey = fmt(monday);
+  const areaStatusMap = Object.fromEntries(getWeekAreaStatuses(weekKey).map(row => [row.areaId, row.status]));
+  const areaStatuses = clients.map(client => ({
+    areaId: client.id,
+    area: client.name,
+    status: areaStatusMap[client.id] ?? 'active',
+  }));
 
   const days = [];
   for (let i = 0; i < 7; i++) {
@@ -30,6 +37,7 @@ function getWeekData(today, offset = 0) {
           project: project?.name || e.projectId,
           client: client?.name || '?',
           area: client?.name || '?',
+          areaStatus: project ? (areaStatusMap[project.clientId] ?? 'active') : 'active',
           isBillable,
           slot: e.slot,
         };
@@ -48,6 +56,7 @@ function getWeekData(today, offset = 0) {
   return {
     monday,
     sunday,
+    areaStatuses,
     days,
     total: days.reduce((s, d) => s + d.total, 0),
     totalBillable: days.reduce((s, d) => s + d.totalBillable, 0),

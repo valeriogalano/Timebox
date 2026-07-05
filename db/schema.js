@@ -123,6 +123,12 @@ function initDb(dbPath) {
       slot TEXT NOT NULL,
       blocksJson TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS week_area_status (
+      id TEXT PRIMARY KEY,
+      weekKey TEXT NOT NULL,
+      areaId TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('active', 'minimal', 'closed'))
+    );
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT
@@ -142,6 +148,8 @@ function initDb(dbPath) {
     );
     CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(date);
     CREATE INDEX IF NOT EXISTS idx_overrides_weekkey ON week_overrides(weekKey);
+    CREATE INDEX IF NOT EXISTS idx_week_area_status_weekkey ON week_area_status(weekKey);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_week_area_status_unique ON week_area_status(weekKey, areaId);
     CREATE INDEX IF NOT EXISTS idx_todoist_imports_date ON todoist_imports(date);
     CREATE INDEX IF NOT EXISTS idx_todoist_imports_project_date ON todoist_imports(projectId, date);
   `);

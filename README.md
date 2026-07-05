@@ -62,6 +62,7 @@ When the database is empty, Timebox seeds demo areas, projects, recurring blocks
 - **Projects:** work streams inside an area. Projects can have a total budget, a weekly limit, a description, an order, and an archived state.
 - **Recurring blocks:** the default weekly timeblocking template, defined Monday-Friday and split into AM/PM slots.
 - **Week overrides:** per-week replacements for recurring blocks. Editing a block in the weekly view changes that week only.
+- **Weekly area status:** per-week markers for areas: active, minimal, or closed. They make the weekly planning decision visible without changing the recurring template.
 - **Entries:** logged work, one project/date record managed by application logic, with slot, hours, optional billable-hours override, and billed status.
 - **Todoist cache:** local task snapshots grouped by due date and used to overlay planned Todoist work onto Timebox blocks.
 
@@ -83,6 +84,7 @@ The primary screen combines planning and tracking:
 - Inline `hh:mm` editing for project entries.
 - A green `€` billed badge and hover toggle for billable entries.
 - Weekly navigation, current-day highlighting, and keyboard shortcuts.
+- A per-area weekly status selector for active, minimal, or closed areas.
 - Budget and capacity alert banners.
 - Drag and drop for moving planned blocks between days and slots.
 - A "reset to template" action that deletes the current week's overrides.
@@ -169,6 +171,7 @@ projects       (id, clientId, name, description, budgetHours, weeklyHours, posit
 recurring      (id, clientId, slot, day, hours, position)
 entries        (id, projectId, date, hours, billableHours, slot, billed)
 week_overrides (id, weekKey, dayIndex, slot, blocksJson)
+week_area_status (id, weekKey, areaId, status)
 settings       (key, value)
 todoist_cache  (dateStr, tasksJson, syncedAt)
 ```
@@ -187,6 +190,8 @@ While the app is open, a local API is available at `http://127.0.0.1:37373`.
 | `GET` | `/today?date=YYYY-MM-DD` | Logged hours for one day. |
 | `GET` | `/day/insights?date=YYYY-MM-DD` | Aggregated daily diagnostics for the Oggi screen. |
 | `GET` | `/week?offset=N` | Weekly summary; `0` is current week, `-1` is last week. |
+| `GET` | `/area-statuses?week=YYYY-MM-DD` | Weekly area statuses for a Monday week key. |
+| `POST` | `/area-statuses` | Save an area status: `{ weekKey, areaId, status }`; `active` is implicit. |
 | `GET` | `/projects?area=&client=&search=&all=1` | Project list with budgets and logged totals. |
 | `GET` | `/clients?search=` | Area/client list. |
 | `GET` | `/areas?search=` | Alias for `/clients`. |
