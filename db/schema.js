@@ -61,7 +61,7 @@ function getSeedEntries() {
     { id: 'e3',  projectId: 'p2', date: d(1),  hours: 4,   billableHours: 3.5,  slot: 'am', billed: 0 }, // arrotondamento contrattuale
     { id: 'e4',  projectId: 'p3', date: d(1),  hours: 2,   billableHours: null, slot: 'pm', billed: 1 },
     { id: 'e5',  projectId: 'p4', date: d(2),  hours: 2.5, billableHours: 2,    slot: 'am', billed: 0 }, // cap fisso raggiunto
-    { id: 'e11', projectId: 'p3', date: d(1),  hours: 2,   billableHours: 0,    slot: 'pm', billed: 0 }, // lavoro interno
+    { id: 'e11', projectId: 'p3', date: d(1),  hours: 2,   billableHours: 0,    slot: 'am', billed: 0 }, // lavoro interno
     { id: 'e12', projectId: 'p6', date: d(2),  hours: 2,   billableHours: 1.5,  slot: 'pm', billed: 0 }, // sconto di cortesia
     { id: 'e6',  projectId: 'p1', date: pd(0), hours: 3.5, billableHours: null, slot: 'am', billed: 1 },
     { id: 'e7',  projectId: 'p6', date: pd(1), hours: 2,   billableHours: null, slot: 'pm', billed: 1 },
@@ -171,6 +171,51 @@ function initDb(dbPath) {
   try { db.exec('ALTER TABLE projects ADD COLUMN weeklyHours REAL'); } catch (_) {}
   try { db.exec('ALTER TABLE projects ADD COLUMN description TEXT'); } catch (_) {}
   try { db.exec('ALTER TABLE entries ADD COLUMN billableHours REAL'); } catch (_) {}
+  db.exec(`
+    UPDATE entries
+    SET slot = 'am'
+    WHERE slot IS NULL OR slot NOT IN ('am', 'pm');
+
+    CREATE TEMP TABLE entry_slot_dedupe AS
+    SELECT
+      MIN(rowid) AS keepRowid,
+      projectId,
+      date,
+      slot,
+      SUM(hours) AS hours,
+      CASE
+        WHEN SUM(CASE WHEN billableHours IS NOT NULL THEN 1 ELSE 0 END) > 0
+        THEN SUM(COALESCE(billableHours, hours))
+        ELSE NULL
+      END AS billableHours,
+      MIN(COALESCE(billed, 0)) AS billed
+    FROM entries
+    GROUP BY projectId, date, slot
+    HAVING COUNT(*) > 1;
+
+    UPDATE entries
+    SET
+      hours = (SELECT hours FROM entry_slot_dedupe WHERE keepRowid = entries.rowid),
+      billableHours = (SELECT billableHours FROM entry_slot_dedupe WHERE keepRowid = entries.rowid),
+      billed = (SELECT billed FROM entry_slot_dedupe WHERE keepRowid = entries.rowid)
+    WHERE rowid IN (SELECT keepRowid FROM entry_slot_dedupe);
+
+    DELETE FROM entries
+    WHERE rowid IN (
+      SELECT entries.rowid
+      FROM entries
+      JOIN entry_slot_dedupe
+        ON entries.projectId = entry_slot_dedupe.projectId
+       AND entries.date = entry_slot_dedupe.date
+       AND entries.slot = entry_slot_dedupe.slot
+       AND entries.rowid != entry_slot_dedupe.keepRowid
+    );
+
+    DROP TABLE entry_slot_dedupe;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_project_date_slot
+      ON entries(projectId, date, slot);
+  `);
 
   return db;
 }

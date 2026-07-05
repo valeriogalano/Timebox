@@ -128,23 +128,24 @@ describe('logHours', () => {
     assert.equal(result.billableHours, null);
   });
 
-  test('collapses duplicate entries for the same project and date', () => {
-    saveEntry({ id: 'dup-1', projectId: 'p1', date: '2020-07-05', hours: 1, billableHours: null, slot: 'am', billed: false });
-    saveEntry({ id: 'dup-2', projectId: 'p1', date: '2020-07-05', hours: 2, billableHours: 1.5, slot: 'pm', billed: true });
+  test('updates only the selected slot when another slot exists', () => {
+    saveEntry({ id: 'slot-am', projectId: 'p1', date: '2020-07-05', hours: 1, billableHours: null, slot: 'am', billed: true });
 
     const result = logHours({
       projectName: 'website',
       hoursStr: '4',
       billableHoursStr: '3:30',
-      slot: 'am',
+      slot: 'pm',
       date: '2020-07-05',
       add: false,
     });
 
-    assert.equal(result.action, 'updated');
+    assert.equal(result.action, 'created');
     const entries = getEntries('2020-07-05', '2020-07-05').filter(entry => entry.projectId === 'p1');
-    assert.equal(entries.length, 1);
-    assert.equal(entries[0].hours, 4);
-    assert.equal(entries[0].billableHours, 3.5);
+    assert.equal(entries.length, 2);
+    assert.deepEqual(entries.map(entry => [entry.slot, entry.hours, entry.billableHours, entry.billed]).sort(), [
+      ['am', 1, null, true],
+      ['pm', 4, 3.5, false],
+    ]);
   });
 });

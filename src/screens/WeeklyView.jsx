@@ -327,42 +327,45 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   }
 
   async function saveEntry(projectId, dateStr, payload, slot) {
-    const matches = weekEntries.filter(e => e.projectId === projectId && e.date === dateStr);
-    const existing = displayWeekEntries.find(e => e.projectId === projectId && e.date === dateStr);
     const hours = typeof payload === 'object' ? payload.hours : payload;
-    const billableHours = typeof payload === 'object' ? (payload.billableHours ?? null) : (existing?.billableHours ?? null);
+    let resolvedSlot = slot;
+    if (!resolvedSlot) {
+      const project = projects.find(p => p.id === projectId);
+      if (project) {
+        const clientId = project.clientId;
+        const dateIndex = days.findIndex(d => d.dateStr === dateStr);
+        if (dateIndex >= 0) {
+          const amBlocks = effectiveBlocks(dateIndex, 'am');
+          const pmBlocks = effectiveBlocks(dateIndex, 'pm');
+          const hasAMBlock = amBlocks.some(b => b.clientId === clientId);
+          const hasPMBlock = pmBlocks.some(b => b.clientId === clientId);
+          if (!hasAMBlock && hasPMBlock) resolvedSlot = 'pm';
+          else resolvedSlot = 'am';
+        } else {
+          resolvedSlot = 'am';
+        }
+      } else {
+        resolvedSlot = 'am';
+      }
+    }
+    const matches = weekEntries.filter(e => (
+      e.projectId === projectId && e.date === dateStr && e.slot === resolvedSlot
+    ));
+    const existing = matches[0] ?? null;
+    const displayExisting = displayWeekEntries.find(e => e.projectId === projectId && e.date === dateStr);
+    const billableHours = typeof payload === 'object' ? (payload.billableHours ?? null) : (existing?.billableHours ?? displayExisting?.billableHours ?? null);
     if (hours === 0) {
-      setWeekEntries(prev => prev.filter(e => !(e.projectId === projectId && e.date === dateStr)));
+      setWeekEntries(prev => prev.filter(e => !(e.projectId === projectId && e.date === dateStr && e.slot === resolvedSlot)));
       if (matches.length > 0) {
         for (const match of matches) await window.api.deleteEntry(match.id);
         window.api.getProjectTotals().then(setProjectTotals);
       }
     } else {
-      let resolvedSlot = slot;
-      if (!resolvedSlot) {
-        const project = projects.find(p => p.id === projectId);
-        if (project) {
-          const clientId = project.clientId;
-          const dateIndex = days.findIndex(d => d.dateStr === dateStr);
-          if (dateIndex >= 0) {
-            const amBlocks = effectiveBlocks(dateIndex, 'am');
-            const pmBlocks = effectiveBlocks(dateIndex, 'pm');
-            const hasAMBlock = amBlocks.some(b => b.clientId === clientId);
-            const hasPMBlock = pmBlocks.some(b => b.clientId === clientId);
-            if (!hasAMBlock && hasPMBlock) resolvedSlot = 'pm';
-            else resolvedSlot = 'am';
-          } else {
-            resolvedSlot = 'am';
-          }
-        } else {
-          resolvedSlot = 'am';
-        }
-      }
       const entry = existing
         ? { ...existing, hours, billableHours }
         : { id: crypto.randomUUID(), projectId, date: dateStr, hours, billableHours, slot: resolvedSlot, billed: false };
       setWeekEntries(prev => [
-        ...prev.filter(e => !(e.projectId === projectId && e.date === dateStr)),
+        ...prev.filter(e => !(e.projectId === projectId && e.date === dateStr && e.slot === resolvedSlot)),
         entry,
       ]);
       await window.api.saveEntry(entry);
@@ -375,13 +378,15 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     onEntryChange?.();
   }
 
-  async function resetBillable(projectId, dateStr) {
-    const matches = weekEntries.filter(e => e.projectId === projectId && e.date === dateStr);
-    const existing = displayWeekEntries.find(e => e.projectId === projectId && e.date === dateStr);
+  async function resetBillable(projectId, dateStr, slot) {
+    const matches = weekEntries.filter(e => (
+      e.projectId === projectId && e.date === dateStr && e.slot === slot
+    ));
+    const existing = matches[0] ?? displayWeekEntries.find(e => e.projectId === projectId && e.date === dateStr && e.slot === slot);
     if (!existing) return;
     const entry = { ...existing, billableHours: null };
     setWeekEntries(prev => [
-      ...prev.filter(e => !(e.projectId === projectId && e.date === dateStr)),
+      ...prev.filter(e => !(e.projectId === projectId && e.date === dateStr && e.slot === slot)),
       entry,
     ]);
     await window.api.saveEntry(entry);
@@ -392,16 +397,18 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     onEntryChange?.();
   }
 
-  async function toggleBilled(projectId, dateStr) {
+  async function toggleBilled(projectId, dateStr, slot) {
     const project = projects.find(p => p.id === projectId);
     const client = project ? clients.find(c => c.id === project.clientId) : null;
     if (!client || client.billing === 'none') return;
-    const matches = weekEntries.filter(e => e.projectId === projectId && e.date === dateStr);
-    const existing = displayWeekEntries.find(e => e.projectId === projectId && e.date === dateStr);
+    const matches = weekEntries.filter(e => (
+      e.projectId === projectId && e.date === dateStr && e.slot === slot
+    ));
+    const existing = matches[0] ?? displayWeekEntries.find(e => e.projectId === projectId && e.date === dateStr && e.slot === slot);
     if (!existing) return;
     const updated = { ...existing, billed: !existing.billed };
     setWeekEntries(prev => [
-      ...prev.filter(e => !(e.projectId === projectId && e.date === dateStr)),
+      ...prev.filter(e => !(e.projectId === projectId && e.date === dateStr && e.slot === slot)),
       updated,
     ]);
     await window.api.saveEntry(updated);
@@ -1006,7 +1013,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                           projectId={project.id}
                           viewMode={viewMode}
                           onSave={payload => saveEntry(project.id, d.dateStr, payload, entry?.slot)}
-                          onResetBillable={() => resetBillable(project.id, d.dateStr)}
+                          onResetBillable={() => resetBillable(project.id, d.dateStr, entry?.slot)}
                           onEditStart={() => startEditingProject(project.id)}
                           onEditEnd={() => setEditingProject(null)} />
                       </div>

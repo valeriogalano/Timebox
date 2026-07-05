@@ -54,8 +54,11 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
   const { project, client, area } = findProject(projectName);
   const parsed = parseHours(hoursStr);
   const isBillable = client.billing !== 'none';
+  const resolvedSlot = slot || currentSlot();
 
-  const entries = getEntries(date, date).filter(e => e.projectId === project.id);
+  const entries = getEntries(date, date).filter(e => (
+    e.projectId === project.id && e.slot === resolvedSlot
+  ));
   const existing = mergeEntries(entries);
   const newHours = add && existing ? existing.hours + parsed : parsed;
 
@@ -75,7 +78,6 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
     billableHours = null;
   }
 
-  const resolvedSlot = slot || currentSlot();
   const nextEntry = {
     id: existing?.id || randomUUID(),
     projectId: project.id,

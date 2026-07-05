@@ -97,7 +97,9 @@ describe('Todoist import ledger', () => {
     assert.deepEqual(first, { importedCount: 1, importedHours: 2 });
     assert.deepEqual(second, { importedCount: 1, importedHours: 2 });
     const entries = getEntries('2025-05-13', '2025-05-13').filter(entry => entry.projectId === 'p2');
-    assert.equal(entries.length, 1);
-    assert.equal(entries[0].hours, 5);
+    assert.equal(entries.length, 2);
+    const bySlot = Object.fromEntries(entries.map(entry => [entry.slot, entry]));
+    assert.equal(bySlot.am.hours, 3);
+    assert.equal(bySlot.pm.hours, 2);
   });
 });
