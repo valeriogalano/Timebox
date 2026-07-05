@@ -181,7 +181,7 @@
       ];
       let entries = [...ENTRIES];
       const weekAreaStatuses = {};
-      const todoistImports = [];
+      let todoistImports = [];
       const completedTodoistTasks = [
         { id:'ct1', projectId:'p1', content:'Revisione finale homepage', hours:2, estimatedHours:2, slot:'am', completedDate:localD(0), completed:true },
         { id:'ct2', projectId:'p2', content:'Verifica errori autenticazione', hours:null, estimatedHours:null, slot:'pm', completedDate:localD(0), completed:true },
@@ -217,19 +217,31 @@
         setTodoistCache: async () => {},
         getTodoistImports: async (from, to) => todoistImports.filter(item => item.date >= from && item.date <= to),
         saveTodoistImport: async (item) => { if (!todoistImports.some(existing => existing.todoistTaskId === item.todoistTaskId)) todoistImports.push(item); },
+        updateTodoistImport: async (item) => {
+          const index = todoistImports.findIndex(existing => existing.todoistTaskId === item.todoistTaskId);
+          if (index < 0) return { updated:false };
+          todoistImports[index] = { ...todoistImports[index], ...item, slot:item.slot === 'pm' ? 'pm' : 'am' };
+          return { updated:true };
+        },
+        deleteTodoistImport: async (todoistTaskId) => {
+          const before = todoistImports.length;
+          todoistImports = todoistImports.filter(item => item.todoistTaskId !== todoistTaskId);
+          return { deleted:todoistImports.length < before };
+        },
         importCompletedTodoistTasks: async (items) => {
           let importedCount = 0;
           let importedHours = 0;
           for (const item of items) {
             if (!(item.hours > 0) || todoistImports.some(existing => existing.todoistTaskId === item.todoistTaskId)) continue;
-            todoistImports.push(item);
-            const matches = entries.filter(entry => entry.projectId === item.projectId && entry.date === item.date);
+            const slot = item.slot === 'pm' ? 'pm' : 'am';
+            todoistImports.push({ note:'', ...item, slot });
+            const matches = entries.filter(entry => entry.projectId === item.projectId && entry.date === item.date && entry.slot === slot);
             const existing = matches[0];
             if (existing) {
               existing.hours = matches.reduce((sum, entry) => sum + entry.hours, 0) + item.hours;
-              entries = entries.filter(entry => entry === existing || !(entry.projectId === item.projectId && entry.date === item.date));
+              entries = entries.filter(entry => entry === existing || !(entry.projectId === item.projectId && entry.date === item.date && entry.slot === slot));
             } else {
-              entries.push({ id:crypto.randomUUID(), projectId:item.projectId, date:item.date, hours:item.hours, billableHours:null, slot:item.slot || 'am', billed:false });
+              entries.push({ id:crypto.randomUUID(), projectId:item.projectId, date:item.date, hours:item.hours, billableHours:null, slot, billed:false });
             }
             importedCount++;
             importedHours += item.hours;

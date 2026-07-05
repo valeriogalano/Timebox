@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { id: 'today',      label: 'Oggi',           icon: TodayIcon     },
   { id: 'billing',    label: 'Rendiconto',      icon: BillingIcon   },
   { id: 'entries',    label: 'Registro',        icon: ListIcon      },
-  { id: 'todoist-log', label: 'Task Todoist',   icon: TodoistIcon   },
+  { id: 'todoist-log', label: 'Import Todoist', icon: TodoistIcon   },
   { id: 'clients',    label: 'Aree',            icon: ClientsIcon   },
   { id: 'recurring',  label: 'Ricorrenza',      icon: RepeatIcon    },
   { id: 'settings',   label: 'Impostazioni',    icon: SettingsIcon  },

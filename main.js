@@ -508,6 +508,8 @@ function setupIpc() {
   ipcMain.handle('db:getAllTodoistCache',  ()                       => q.getAllTodoistCache());
   ipcMain.handle('db:getTodoistImports',   (_, from, to)             => q.getTodoistImports(from, to));
   ipcMain.handle('db:saveTodoistImport',   (_, todoistImport)        => q.saveTodoistImport(todoistImport));
+  ipcMain.handle('db:updateTodoistImport', (_, todoistImport)        => q.updateTodoistImport(todoistImport));
+  ipcMain.handle('db:deleteTodoistImport', (_, todoistTaskId)        => q.deleteTodoistImport(todoistTaskId));
   ipcMain.handle('db:importCompletedTodoistTasks', (_, imports)      => q.importCompletedTodoistTasks(imports));
   ipcMain.handle('db:getDayInsights',       (_, date)                 => getDayInsightsData(date || formatLocalDate(new Date())));
 

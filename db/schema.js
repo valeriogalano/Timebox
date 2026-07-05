@@ -146,7 +146,9 @@ function initDb(dbPath) {
       projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       date TEXT NOT NULL,
       hours REAL NOT NULL,
+      slot TEXT NOT NULL DEFAULT 'am',
       titleSnapshot TEXT,
+      note TEXT,
       importedAt TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(date);
@@ -174,6 +176,9 @@ function initDb(dbPath) {
   try { db.exec('ALTER TABLE projects ADD COLUMN weeklyHours REAL'); } catch (_) {}
   try { db.exec('ALTER TABLE projects ADD COLUMN description TEXT'); } catch (_) {}
   try { db.exec('ALTER TABLE entries ADD COLUMN billableHours REAL'); } catch (_) {}
+  try { db.exec("ALTER TABLE todoist_imports ADD COLUMN slot TEXT NOT NULL DEFAULT 'am'"); } catch (_) {}
+  try { db.exec('ALTER TABLE todoist_imports ADD COLUMN note TEXT'); } catch (_) {}
+  db.exec("UPDATE todoist_imports SET slot = 'am' WHERE slot IS NULL OR slot NOT IN ('am', 'pm')");
   db.exec(`
     UPDATE entries
     SET slot = 'am'
@@ -326,13 +331,15 @@ function rebuildForeignKeyTables(db) {
     },
     {
       name: 'todoist_imports',
-      columns: ['todoistTaskId', 'projectId', 'date', 'hours', 'titleSnapshot', 'importedAt'],
+      columns: ['todoistTaskId', 'projectId', 'date', 'hours', 'slot', 'titleSnapshot', 'note', 'importedAt'],
       sql: `CREATE TABLE todoist_imports (
         todoistTaskId TEXT PRIMARY KEY,
         projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
         date TEXT NOT NULL,
         hours REAL NOT NULL,
+        slot TEXT NOT NULL DEFAULT 'am',
         titleSnapshot TEXT,
+        note TEXT,
         importedAt TEXT NOT NULL
       )`,
     },
