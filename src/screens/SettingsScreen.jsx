@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { normalizeSlotCapacityHours } from '../slot-capacity';
 
-export default function SettingsScreen({ theme, setTheme, onDataChange }) {
+export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapacityHours, onSlotCapacityChange }) {
   const [busy, setBusy] = useState(false);
   const [dbPath, setDbPath] = useState('');
   const [todoistToken, setTodoistTokenState] = useState('');
   const [tokenSaved, setTokenSaved] = useState(false);
+  const [slotCapacityDraft, setSlotCapacityDraft] = useState(String(slotCapacityHours));
+  const [slotCapacitySaved, setSlotCapacitySaved] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [todoistDebug, setTodoistDebug] = useState(() => {
     try { return localStorage.getItem('timebox-todoist-debug') === 'true'; } catch { return false; }
@@ -24,6 +27,10 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
       return next;
     });
   }
+
+  useEffect(() => {
+    setSlotCapacityDraft(String(slotCapacityHours));
+  }, [slotCapacityHours]);
 
   useEffect(() => {
     window.api.getDbPath().then(p => setDbPath(p || ''));
@@ -141,6 +148,14 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
     setTimeout(() => setTokenSaved(false), 2000);
   }
 
+  async function handleSaveSlotCapacity() {
+    const normalized = normalizeSlotCapacityHours(slotCapacityDraft);
+    setSlotCapacityDraft(String(normalized));
+    await onSlotCapacityChange?.(normalized);
+    setSlotCapacitySaved(true);
+    setTimeout(() => setSlotCapacitySaved(false), 2000);
+  }
+
   async function handleCheckForUpdates() {
     setUpdateBusy(true);
     const result = await window.api.checkForUpdates?.();
@@ -206,6 +221,49 @@ export default function SettingsScreen({ theme, setTheme, onDataChange }) {
             Scegli l'aspetto dell'interfaccia. "Sistema" segue le impostazioni del sistema operativo.
           </div>
           <ThemeSelector theme={theme} setTheme={setTheme} />
+        </div>
+      </Section>
+      <Section title="Pianificazione">
+        <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 6 }}>
+              Capacità slot AM/PM
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
+              Target usato dalle barre di capacità in Timesheet e Ricorrenza
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <input
+              type="number"
+              min="0.5"
+              max="12"
+              step="0.25"
+              value={slotCapacityDraft}
+              onChange={e => { setSlotCapacityDraft(e.target.value); setSlotCapacitySaved(false); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleSaveSlotCapacity(); }}
+              style={{
+                width: 76, padding: '7px 9px', borderRadius: 6, fontSize: 12,
+                border: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg-soft)',
+                color: 'var(--tb-text-primary)', fontFamily: "'Open Sans', sans-serif",
+                outline: 'none', textAlign: 'right',
+              }}
+            />
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>h</span>
+            <button
+              onClick={handleSaveSlotCapacity}
+              disabled={busy}
+              style={{
+                padding: '7px 16px', borderRadius: 6, border: 'none',
+                background: slotCapacitySaved ? '#3DB33D' : '#4A8FE8',
+                color: 'white', fontSize: 12, fontWeight: 700,
+                cursor: busy ? 'not-allowed' : 'pointer',
+                fontFamily: "'Open Sans', sans-serif",
+                transition: 'background 0.2s',
+              }}>
+              {slotCapacitySaved ? '✓ Salvato' : 'Salva'}
+            </button>
+          </div>
         </div>
       </Section>
       <Section title="Todoist">

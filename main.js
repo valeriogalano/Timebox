@@ -503,6 +503,12 @@ function setupIpc() {
     q.setSetting('todoist_token_enc', enc.toString('base64'));
   });
 
+  ipcMain.handle('settings:get', (_, key) => q.getSetting(key));
+  ipcMain.handle('settings:set', (_, key, value) => {
+    q.setSetting(key, value);
+    return { ok: true };
+  });
+
   ipcMain.handle('db:getTodoistCache',     (_, dates)               => q.getTodoistCache(dates));
   ipcMain.handle('db:setTodoistCache',     (_, dateStr, tasks, syncedAt) => q.setTodoistCache(dateStr, tasks, syncedAt));
   ipcMain.handle('db:getAllTodoistCache',  ()                       => q.getAllTodoistCache());

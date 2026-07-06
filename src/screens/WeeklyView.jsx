@@ -4,6 +4,7 @@ import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
 import TimeCell from '../components/TimeCell';
 import DivergenceDot from '../components/DivergenceDot';
+import SlotCapacityBar from '../components/SlotCapacityBar';
 
 const PLANNING_MODES = ['full', 'compact', 'hidden'];
 const AREA_STATUS_OPTIONS = [
@@ -64,7 +65,7 @@ function blockSummariesDiffer(a, b) {
   return false;
 }
 
-export default function WeeklyView({ clients, projects, recurring, weekOffset, setWeekOffset, onEntryChange, externalRefreshTick, autoFocusProject, onAutoFocusConsumed }) {
+export default function WeeklyView({ clients, projects, recurring, weekOffset, setWeekOffset, onEntryChange, externalRefreshTick, autoFocusProject, slotCapacityHours, onAutoFocusConsumed }) {
   const monday = addDays(getMondayOfWeek(getToday()), weekOffset * 7);
   const weekKey = getWeekKey(monday);
 
@@ -427,6 +428,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const isFuture = date > getToday();
     const isWeekend = i >= 5;
     const isDayOverridden = !!weekOverrides[weekKey]?.[i];
+    const rawDayEntries = weekEntries.filter(e => e.date === dateStr);
     const dayEntries = displayWeekEntries.filter(e => e.date === dateStr);
     const dayHours = dayEntries.reduce((s, e) => s + e.hours, 0);
     const dayBillable = dayEntries.reduce((s, e) => {
@@ -446,6 +448,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const visibleAmBlocks = amBlocks.filter(block => validClientIds.has(block.clientId));
     const visiblePmBlocks = pmBlocks.filter(block => validClientIds.has(block.clientId));
     const visibleBlocks = [...visibleAmBlocks, ...visiblePmBlocks];
+    const amLogged = rawDayEntries.filter(e => e.slot !== 'pm').reduce((s, e) => s + e.hours, 0);
+    const pmLogged = rawDayEntries.filter(e => e.slot === 'pm').reduce((s, e) => s + e.hours, 0);
     const plannedTotal = visibleBlocks.reduce((s, b) => s + b.hours, 0);
     const delta = dayHours - plannedTotal;
     const recurringTotal = recurring
@@ -535,7 +539,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       });
     }
 
-    return { date, dateStr, isToday, isFuture, isWeekend, isDayOverridden, dayHours, dayBillable, dayDivergent, plannedTotal, delta, loggedInPlan, bilancioExtra, pianificazioneExtra, amBlocks, pmBlocks, extraBlocks, dayEntries, blockFill, todoistByCS, todoistTasksByCS, lastSync, orphanTodoist };
+    return { date, dateStr, isToday, isFuture, isWeekend, isDayOverridden, dayHours, dayBillable, dayDivergent, plannedTotal, delta, loggedInPlan, bilancioExtra, pianificazioneExtra, amBlocks, pmBlocks, amLogged, pmLogged, extraBlocks, dayEntries, blockFill, todoistByCS, todoistTasksByCS, lastSync, orphanTodoist };
   });
 
   const weekPlanned  = days.reduce((s, d) => s + d.plannedTotal, 0);
@@ -831,9 +835,12 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                       onReorder={newBlocks => setSlotOverride(i, 'am', newBlocks)}
                       onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'am', cid, h)}
                       draggingId={dragging?.blockId} />
-                    <div style={{ textAlign: 'center', fontSize: planningCompact ? 8 : 9, fontWeight: 700, color: 'var(--tb-text-faint)', minHeight: planningCompact ? 10 : 14 }}>
-                      {amTotal > 0 ? toHHMM(amTotal) : ''}
-                    </div>
+                    <SlotCapacityBar
+                      plannedHours={amTotal}
+                      loggedHours={d.amLogged}
+                      capacityHours={slotCapacityHours}
+                      compact={planningCompact}
+                    />
                   </div>
                 );
               })}
@@ -873,9 +880,12 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                       onReorder={newBlocks => setSlotOverride(i, 'pm', newBlocks)}
                       onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'pm', cid, h)}
                       draggingId={dragging?.blockId} />
-                    <div style={{ textAlign: 'center', fontSize: planningCompact ? 8 : 9, fontWeight: 700, color: 'var(--tb-text-faint)', minHeight: planningCompact ? 10 : 14 }}>
-                      {pmTotal > 0 ? toHHMM(pmTotal) : ''}
-                    </div>
+                    <SlotCapacityBar
+                      plannedHours={pmTotal}
+                      loggedHours={d.pmLogged}
+                      capacityHours={slotCapacityHours}
+                      compact={planningCompact}
+                    />
                   </div>
                 );
               })}

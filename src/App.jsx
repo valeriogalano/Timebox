@@ -10,6 +10,7 @@ import RecurringScreen from './screens/RecurringScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import EntriesScreen from './screens/EntriesScreen';
 import TodoistLog from './screens/TodoistLog';
+import { DEFAULT_SLOT_CAPACITY_HOURS, SLOT_CAPACITY_SETTING_KEY, normalizeSlotCapacityHours } from './slot-capacity';
 
 const NAV_ITEMS = [
   { id: 'weekly',     label: 'Timesheet',      icon: WeekIcon      },
@@ -71,6 +72,7 @@ export default function App() {
   const [quickLogOpen, setQuickLogOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [autoFocusProject, setAutoFocusProject] = useState(null);
+  const [slotCapacityHours, setSlotCapacityHours] = useState(DEFAULT_SLOT_CAPACITY_HOURS);
   const refreshSidebar = useCallback(() => setSidebarKey(k => k + 1), []);
 
   const [theme, setThemeState] = useState(() => {
@@ -121,6 +123,18 @@ export default function App() {
   useEffect(() => {
     refreshData().then(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    window.api.getSetting?.(SLOT_CAPACITY_SETTING_KEY)
+      .then(value => setSlotCapacityHours(normalizeSlotCapacityHours(value)))
+      .catch(() => setSlotCapacityHours(DEFAULT_SLOT_CAPACITY_HOURS));
+  }, []);
+
+  async function updateSlotCapacityHours(value) {
+    const normalized = normalizeSlotCapacityHours(value);
+    setSlotCapacityHours(normalized);
+    await window.api.setSetting?.(SLOT_CAPACITY_SETTING_KEY, String(normalized));
+  }
 
   useEffect(() => {
     return window.api.onDbChanged(type => {
@@ -376,6 +390,7 @@ export default function App() {
               onEntryChange={refreshSidebar}
               externalRefreshTick={weekRefreshTick}
               autoFocusProject={autoFocusProject}
+              slotCapacityHours={slotCapacityHours}
               onAutoFocusConsumed={() => setAutoFocusProject(null)} />
           )}
           {screen === 'panoramica' && (
@@ -391,13 +406,22 @@ export default function App() {
           )}
           {screen === 'recurring' && (
             <RecurringScreen
-              clients={clients} recurring={recurring} setRecurring={setRecurring} />
+              clients={clients} recurring={recurring} setRecurring={setRecurring}
+              slotCapacityHours={slotCapacityHours} />
           )}
           {screen === 'entries' && (
             <EntriesScreen clients={clients} projects={projects} onEntryChange={refreshSidebar} />
           )}
           {screen === 'todoist-log' && <TodoistLog clients={clients} projects={projects} />}
-          {screen === 'settings' && <SettingsScreen theme={theme} setTheme={setTheme} onDataChange={refreshData} />}
+          {screen === 'settings' && (
+            <SettingsScreen
+              theme={theme}
+              setTheme={setTheme}
+              onDataChange={refreshData}
+              slotCapacityHours={slotCapacityHours}
+              onSlotCapacityChange={updateSlotCapacityHours}
+            />
+          )}
         </div>
       </div>
     </div>
