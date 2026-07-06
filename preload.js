@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('api', {
 
   getTodoistToken:    ()                          => ipcRenderer.invoke('settings:getTodoistToken'),
   setTodoistToken:    (token)                     => ipcRenderer.invoke('settings:setTodoistToken', token),
+  getSetting:         (key)                       => ipcRenderer.invoke('settings:get', key),
+  setSetting:         (key, value)                => ipcRenderer.invoke('settings:set', key, value),
   getTodoistCache:    (dates)                     => ipcRenderer.invoke('db:getTodoistCache', dates),
   getAllTodoistCache: ()                           => ipcRenderer.invoke('db:getAllTodoistCache'),
   setTodoistCache:    (dateStr, tasks, syncedAt)  => ipcRenderer.invoke('db:setTodoistCache', dateStr, tasks, syncedAt),

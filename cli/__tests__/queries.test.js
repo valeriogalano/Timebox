@@ -18,6 +18,8 @@ const {
   deleteClient,
   deleteProject,
   hasProjectEntries,
+  getSetting,
+  setSetting,
 } = require('../../db/queries');
 
 describe('deleteProject', () => {
@@ -62,6 +64,17 @@ describe('referential integrity', () => {
     assert.equal(getRecurring().some(row => row.clientId === client.id), false);
     assert.equal(getWeekAreaStatuses('2026-06-22').some(row => row.areaId === client.id), false);
     assert.equal(getEntries('2000-01-01', '2999-12-31').some(row => projectIds.includes(row.projectId)), false);
+  });
+});
+
+describe('settings', () => {
+  test('persists the slot capacity setting as a generic key/value row', () => {
+    createTestDb();
+
+    assert.equal(getSetting('slotCapacityHours'), null);
+    setSetting('slotCapacityHours', '4.5');
+
+    assert.equal(getSetting('slotCapacityHours'), '4.5');
   });
 });
 

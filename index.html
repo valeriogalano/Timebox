@@ -181,6 +181,7 @@
       ];
       let entries = [...ENTRIES];
       const weekAreaStatuses = {};
+      const settings = { slotCapacityHours: '4' };
       let todoistImports = [];
       const completedTodoistTasks = [
         { id:'ct1', projectId:'p1', content:'Revisione finale homepage', hours:2, estimatedHours:2, slot:'am', completedDate:localD(0), completed:true },
@@ -212,6 +213,8 @@
         saveDbCopy: async () => null,
         getTodoistToken: async () => '',
         setTodoistToken: async () => {},
+        getSetting: async (key) => settings[key] ?? null,
+        setSetting: async (key, value) => { settings[key] = value; return { ok:true }; },
         getTodoistCache: async (dates) => dates.map(d => ({ dateStr: d, tasks: [], syncedAt: null })),
         getAllTodoistCache: async () => [],
         setTodoistCache: async () => {},

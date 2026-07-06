@@ -4,7 +4,7 @@ import MultiSlotCell from '../components/MultiSlotCell';
 
 const RECURRING_DAYS = DAY_SHORT.length;
 
-export default function RecurringScreen({ clients, recurring, setRecurring }) {
+export default function RecurringScreen({ clients, recurring, setRecurring, slotCapacityHours }) {
   const [dragging, setDragging] = useState(null); // { blockId, fromDay, fromSlot, clientId, hours }
   const [dragOver, setDragOver] = useState(null); // { day, slot }
 
@@ -125,6 +125,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
                 onDragOver={() => setDragOver({ day: i, slot: 'am' })}
                 onDragLeave={() => setDragOver(null)}
                 onDrop={() => handleDrop(i, 'am')}
+                capacityHours={slotCapacityHours}
                 style={{ borderLeft: '1px solid var(--tb-border-soft)', borderBottom: '2px solid var(--tb-border)' }}
               />
             );
@@ -153,6 +154,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring }) {
                 onDragOver={() => setDragOver({ day: i, slot: 'pm' })}
                 onDragLeave={() => setDragOver(null)}
                 onDrop={() => handleDrop(i, 'pm')}
+                capacityHours={slotCapacityHours}
                 style={{ borderLeft: '1px solid var(--tb-border-soft)' }}
               />
             );

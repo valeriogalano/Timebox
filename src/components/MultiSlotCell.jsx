@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import RecurringBlockRow from './RecurringBlockRow';
+import SlotCapacityBar from './SlotCapacityBar';
 
 export default function MultiSlotCell({
   blocks, clients, onAdd, onUpdate, onRemove, onDuplicate, onReorder,
   onDragStart, draggingId, isDropTarget, onDragOver, onDragLeave, onDrop,
+  capacityHours,
   style,
 }) {
   const [addOpen, setAddOpen] = useState(false);
@@ -29,6 +31,7 @@ export default function MultiSlotCell({
 
   // Is the dragged block one that lives in this cell?
   const isInternalDrag = draggingId != null && blocks.some(b => b.id === draggingId);
+  const plannedHours = blocks.reduce((sum, block) => sum + block.hours, 0);
 
   function computeInsertIndex(mouseY) {
     for (let i = 0; i < blockRefs.current.length; i++) {
@@ -100,6 +103,7 @@ export default function MultiSlotCell({
         ...style,
       }}
     >
+      <SlotCapacityBar plannedHours={plannedHours} capacityHours={capacityHours} compact />
       {blocks.map((block, i) => {
         const cl = clients.find(c => c.id === block.clientId);
         if (!cl) return null;
