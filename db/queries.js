@@ -243,34 +243,136 @@ function getTodoistImports(dateFrom, dateTo) {
     SELECT * FROM todoist_imports
     WHERE date BETWEEN ? AND ?
     ORDER BY date, importedAt
-  `).all(dateFrom, dateTo);
+  `).all(dateFrom, dateTo).map(normalizeTodoistImport);
 }
 
 function saveTodoistImport(todoistImport) {
   db.prepare(`
-    INSERT INTO todoist_imports (todoistTaskId,projectId,date,hours,titleSnapshot,importedAt)
-    VALUES (@todoistTaskId,@projectId,@date,@hours,@titleSnapshot,@importedAt)
+    INSERT INTO todoist_imports (todoistTaskId,projectId,date,hours,slot,titleSnapshot,note,importedAt)
+    VALUES (@todoistTaskId,@projectId,@date,@hours,@slot,@titleSnapshot,@note,@importedAt)
     ON CONFLICT(todoistTaskId) DO NOTHING
-  `).run({ titleSnapshot: null, ...todoistImport });
+  `).run(normalizeTodoistImportInput(todoistImport));
+}
+
+function normalizeTodoistImport(row) {
+  return {
+    ...row,
+    slot: row.slot === 'pm' ? 'pm' : 'am',
+    note: row.note ?? '',
+  };
+}
+
+function normalizeTodoistImportInput(todoistImport) {
+  return {
+    titleSnapshot: null,
+    note: null,
+    ...todoistImport,
+    slot: todoistImport.slot === 'pm' ? 'pm' : 'am',
+  };
+}
+
+function addImportedHours(projectId, date, slot, hours) {
+  if (!(hours > 0)) return;
+  const matches = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? AND slot = ? ORDER BY rowid').all(projectId, date, slot);
+  if (matches.length === 0) {
+    db.prepare(`
+      INSERT INTO entries (id,projectId,date,hours,billableHours,slot,billed)
+      VALUES (?,?,?,?,?,?,?)
+    `).run(randomUUID(), projectId, date, hours, null, slot, 0);
+    return;
+  }
+
+  const first = matches[0];
+  const existingHours = matches.reduce((sum, entry) => sum + entry.hours, 0);
+  const hasBillableOverride = matches.some(entry => entry.billableHours != null);
+  const existingBillable = hasBillableOverride
+    ? matches.reduce((sum, entry) => sum + (entry.billableHours ?? entry.hours), 0)
+    : null;
+  const billed = matches.every(entry => entry.billed === 1) ? 1 : 0;
+  db.prepare(`
+    UPDATE entries
+    SET hours = ?, billableHours = ?, slot = ?, billed = ?
+    WHERE id = ?
+  `).run(existingHours + hours, existingBillable, first.slot ?? slot, billed, first.id);
+  const deleteEntryStmt = db.prepare('DELETE FROM entries WHERE id = ?');
+  for (const duplicate of matches.slice(1)) deleteEntryStmt.run(duplicate.id);
+}
+
+function subtractImportedHours(projectId, date, slot, hours) {
+  if (!(hours > 0)) return;
+  const matches = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? AND slot = ? ORDER BY rowid').all(projectId, date, slot);
+  if (matches.length === 0) return;
+
+  const first = matches[0];
+  const existingHours = matches.reduce((sum, entry) => sum + entry.hours, 0);
+  const nextHours = Math.max(0, existingHours - hours);
+  const hasBillableOverride = matches.some(entry => entry.billableHours != null);
+  const existingBillable = hasBillableOverride
+    ? matches.reduce((sum, entry) => sum + (entry.billableHours ?? entry.hours), 0)
+    : null;
+  const deleteEntryStmt = db.prepare('DELETE FROM entries WHERE id = ?');
+
+  if (nextHours <= 0.001) {
+    for (const entry of matches) deleteEntryStmt.run(entry.id);
+    return;
+  }
+
+  db.prepare(`
+    UPDATE entries
+    SET hours = ?, billableHours = ?
+    WHERE id = ?
+  `).run(nextHours, existingBillable != null && Math.abs(existingBillable - nextHours) > 0.001 ? existingBillable : null, first.id);
+  for (const duplicate of matches.slice(1)) deleteEntryStmt.run(duplicate.id);
+}
+
+function updateTodoistImport(todoistImport) {
+  return db.transaction(item => {
+    const current = db.prepare('SELECT * FROM todoist_imports WHERE todoistTaskId = ?').get(item.todoistTaskId);
+    if (!current) return { updated: false };
+
+    const previous = normalizeTodoistImport(current);
+    const next = normalizeTodoistImportInput({
+      ...previous,
+      ...item,
+      hours: Number(item.hours),
+    });
+    if (!(next.hours > 0)) return { updated: false, error: 'invalid_hours' };
+
+    subtractImportedHours(previous.projectId, previous.date, previous.slot, previous.hours);
+    addImportedHours(next.projectId, next.date, next.slot, next.hours);
+
+    db.prepare(`
+      UPDATE todoist_imports
+      SET projectId = @projectId,
+          date = @date,
+          hours = @hours,
+          slot = @slot,
+          titleSnapshot = @titleSnapshot,
+          note = @note
+      WHERE todoistTaskId = @todoistTaskId
+    `).run(next);
+
+    return { updated: true };
+  })(todoistImport);
+}
+
+function deleteTodoistImport(todoistTaskId) {
+  return db.transaction(id => {
+    const current = db.prepare('SELECT * FROM todoist_imports WHERE todoistTaskId = ?').get(id);
+    if (!current) return { deleted: false };
+    const previous = normalizeTodoistImport(current);
+    subtractImportedHours(previous.projectId, previous.date, previous.slot, previous.hours);
+    db.prepare('DELETE FROM todoist_imports WHERE todoistTaskId = ?').run(id);
+    return { deleted: true };
+  })(todoistTaskId);
 }
 
 function importCompletedTodoistTasks(imports) {
   const insertImport = db.prepare(`
-    INSERT INTO todoist_imports (todoistTaskId,projectId,date,hours,titleSnapshot,importedAt)
-    VALUES (@todoistTaskId,@projectId,@date,@hours,@titleSnapshot,@importedAt)
+    INSERT INTO todoist_imports (todoistTaskId,projectId,date,hours,slot,titleSnapshot,note,importedAt)
+    VALUES (@todoistTaskId,@projectId,@date,@hours,@slot,@titleSnapshot,@note,@importedAt)
     ON CONFLICT(todoistTaskId) DO NOTHING
   `);
-  const findEntries = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? AND slot = ? ORDER BY rowid');
-  const updateEntry = db.prepare(`
-    UPDATE entries
-    SET hours = ?, billableHours = ?, slot = ?, billed = ?
-    WHERE id = ?
-  `);
-  const insertEntry = db.prepare(`
-    INSERT INTO entries (id,projectId,date,hours,billableHours,slot,billed)
-    VALUES (?,?,?,?,?,?,?)
-  `);
-  const deleteEntry = db.prepare('DELETE FROM entries WHERE id = ?');
 
   return db.transaction(items => {
     let importedCount = 0;
@@ -278,27 +380,14 @@ function importCompletedTodoistTasks(imports) {
 
     for (const item of items) {
       if (!(item.hours > 0)) continue;
-      const result = insertImport.run({ titleSnapshot: null, ...item });
+      const normalized = normalizeTodoistImportInput(item);
+      const result = insertImport.run(normalized);
       if (result.changes === 0) continue;
 
-      const slot = item.slot === 'pm' ? 'pm' : 'am';
-      const matches = findEntries.all(item.projectId, item.date, slot);
-      if (matches.length === 0) {
-        insertEntry.run(randomUUID(), item.projectId, item.date, item.hours, null, slot, 0);
-      } else {
-        const first = matches[0];
-        const existingHours = matches.reduce((sum, entry) => sum + entry.hours, 0);
-        const hasBillableOverride = matches.some(entry => entry.billableHours != null);
-        const existingBillable = hasBillableOverride
-          ? matches.reduce((sum, entry) => sum + (entry.billableHours ?? entry.hours), 0)
-          : null;
-        const billed = matches.every(entry => entry.billed === 1) ? 1 : 0;
-        updateEntry.run(existingHours + item.hours, existingBillable, first.slot ?? item.slot ?? 'am', billed, first.id);
-        for (const duplicate of matches.slice(1)) deleteEntry.run(duplicate.id);
-      }
+      addImportedHours(normalized.projectId, normalized.date, normalized.slot, normalized.hours);
 
       importedCount++;
-      importedHours += item.hours;
+      importedHours += normalized.hours;
     }
 
     return { importedCount, importedHours };
@@ -580,7 +669,7 @@ module.exports = {
   getProjects, saveProject, deleteProject, hasProjectEntries, mergeProjectEntries,
   getRecurring, saveRecurring, deleteRecurring, deleteRecurringByClient,
   getEntries, getProjectTotals, saveEntry, deleteEntry,
-  getTodoistImportIds, getTodoistImports, saveTodoistImport, importCompletedTodoistTasks,
+  getTodoistImportIds, getTodoistImports, saveTodoistImport, updateTodoistImport, deleteTodoistImport, importCompletedTodoistTasks,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,
   getWeekAreaStatuses, getWeekAreaStatusMap, saveWeekAreaStatus,
   getSetting, setSetting,
