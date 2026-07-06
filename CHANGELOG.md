@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added AM/PM slot capacity bars to the weekly planning grid and recurring template grid, with overflow highlighting and a configurable slot capacity target in Settings (default: 4h).
+
+### Fixed
+- Kept renderer date/time utility helpers compatible with the Vite dev server by defining them as native ESM, preventing a black screen caused by loading the CommonJS domain module directly in the browser.
+
 ## [0.6.0] - 2026-06-27
 
 ### Added
@@ -70,7 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 First documented release. Electron + React + SQLite time-tracking app with project/client management, weekly timesheets, recurring schedules, and Todoist integration.
 
-[Unreleased]: https://github.com/valeriogalano/TimeBox/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/valeriogalano/TimeBox/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/valeriogalano/TimeBox/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/valeriogalano/TimeBox/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/valeriogalano/TimeBox/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/valeriogalano/TimeBox/compare/v0.4.0...v0.5.0
