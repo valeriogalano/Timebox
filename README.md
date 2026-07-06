@@ -66,6 +66,21 @@ When the database is empty, Timebox seeds demo areas, projects, recurring blocks
 - **Entries:** logged work, one project/date record managed by application logic, with slot, hours, optional billable-hours override, and billed status.
 - **Todoist cache:** local task snapshots grouped by due date and used to overlay planned Todoist work onto Timebox blocks.
 
+### Product decision: prepaid hour packages via one project per package
+
+Some client work is sold as **prepaid hour packages**: the client commissions work for a fixed amount, which is converted into a fixed number of hours (for example a 60-hour package, later followed by a separate 40-hour package). The packages are **not cumulative** — they must not merge into a single 100-hour pool — and unused hours in a package are **lost, not carried over**. The recurring need is only to see, per package, how much has been consumed and whether it is over or under its quota.
+
+Timebox intentionally does **not** implement a dedicated hour-package model (a `project_budget_packages` table, sequential active-package accounting, per-package variance views). The supported workflow is to model **one project per package** under the client's area:
+
+- **Area = client**, **project = package/order** (for example `API Integration — Ord.1` with `budgetHours = 60`, then `API Integration — Ord.2` with `budgetHours = 40`).
+- Non-cumulative by construction: each project keeps its own budget and logged total; the area aggregates them when the cumulative view is wanted.
+- Over/under is already visible per project via logged-vs-`budgetHours` and the budget alert banners.
+- Auditable per package: each project is one package, with its own entries and history.
+- Manual package switch: start logging on the new project when the new order arrives; **archive** the finished project (archiving preserves historical entries), so unused hours are simply dropped with no carryover.
+- Re-attaching a package is covered by the existing move-project-between-areas and merge-projects actions.
+
+This keeps the app's existing Area → Project → `budgetHours` hierarchy as the package model and avoids building new schema, accounting logic, and a dedicated view for a personal tool. The decision can be revisited only if real usage shows measured friction, such as package fragmentation making a single logical work stream hard to follow, or a genuine need for a "packages of this project" audit view that the per-project view does not cover.
+
 ---
 
 ## Main Screens
