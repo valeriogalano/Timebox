@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-07-09
+
 ### Added
-- Add single-day planning column to Oggi view
+- Added a single-day planning column to the Oggi view.
+
+### Fixed
+- Synced the Today view refresh button state with Todoist sync.
+- Moved the Oggi menu item below Timesheet and dropped the redundant timesheet button.
+- Stopped showing "download in corso" on macOS for unsigned builds, which can never auto-update in place.
 
 ## [0.7.0] - 2026-07-06
 
@@ -81,7 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 First documented release. Electron + React + SQLite time-tracking app with project/client management, weekly timesheets, recurring schedules, and Todoist integration.
 
-[Unreleased]: https://github.com/valeriogalano/TimeBox/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/valeriogalano/TimeBox/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/valeriogalano/TimeBox/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/valeriogalano/TimeBox/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/valeriogalano/TimeBox/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/valeriogalano/TimeBox/compare/v0.5.1...v0.5.2
