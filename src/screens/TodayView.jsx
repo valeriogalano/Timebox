@@ -16,10 +16,11 @@ function mismatchTotal(counts = {}) {
     + (counts.estimatedBeyondResidualCapacity || 0);
 }
 
-export default function TodayView({ externalRefreshTick }) {
+export default function TodayView({ externalRefreshTick, projects, onSynced }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [syncing, setSyncing] = useState(false);
   const today = fmt(getToday());
 
   async function load() {
@@ -38,6 +39,27 @@ export default function TodayView({ externalRefreshTick }) {
     load();
   }, [today, externalRefreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  async function syncFromTodoist() {
+    setSyncing(true);
+    try {
+      const debug = localStorage.getItem('timebox-todoist-debug') === 'true';
+      const result = await window.api.syncTodoist(projects, [today], debug);
+      if (result.error === 'no_token') {
+        alert('Token Todoist non configurato. Vai in Impostazioni → Todoist per inserirlo.');
+        return;
+      }
+      const now = new Date().toISOString();
+      const tasks = result.byDate[today] ?? [];
+      await window.api.setTodoistCache(today, tasks, now);
+      await load();
+      onSynced?.();
+    } catch (err) {
+      alert(`Errore sincronizzazione Todoist: ${err.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   const totals = data?.freeCapacity?.totals ?? {};
   const readyGroups = data?.readyBlocks?.groups ?? [];
   const counts = data?.mismatches?.counts ?? {};
@@ -55,7 +77,7 @@ export default function TodayView({ externalRefreshTick }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <ActionButton onClick={load} disabled={loading}>Aggiorna</ActionButton>
+          <TodoistSyncButton onClick={syncFromTodoist} busy={syncing} />
         </div>
       </div>
 
@@ -114,25 +136,23 @@ export default function TodayView({ externalRefreshTick }) {
   );
 }
 
-function ActionButton({ children, onClick, primary, disabled }) {
+function TodoistSyncButton({ onClick, busy }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
+    <button onClick={onClick} disabled={busy}
+      title="Aggiorna i task da Todoist per oggi"
       style={{
-        fontSize: 11,
-        fontWeight: 800,
-        padding: '6px 11px',
-        borderRadius: 6,
-        border: primary ? '1px solid #3DB33D' : '1px solid var(--tb-border)',
-        background: primary ? '#3DB33D' : 'var(--tb-panel-bg)',
-        color: primary ? '#fff' : 'var(--tb-text-secondary)',
-        cursor: disabled ? 'wait' : 'pointer',
-        fontFamily: "'Open Sans', sans-serif",
-        opacity: disabled ? 0.6 : 1,
-      }}
-    >
-      {children}
+        display: 'flex', alignItems: 'center', gap: 6,
+        fontSize: 10, fontWeight: 700, padding: '4px 9px', borderRadius: 5,
+        background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border)', color: 'var(--tb-text-secondary)',
+        cursor: busy ? 'wait' : 'pointer', fontFamily: "'Open Sans', sans-serif",
+        opacity: busy ? 0.6 : 1, transition: 'opacity 0.15s',
+      }}>
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
+        style={{ animation: busy ? 'tbspin 0.8s linear infinite' : 'none', flexShrink: 0 }}>
+        <path d="M9 5a4 4 0 1 1-1.2-2.8M9 1.5V3.5H7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      </svg>
+      <span>Aggiorna da Todoist</span>
+      <style>{`@keyframes tbspin { to { transform: rotate(360deg); } }`}</style>
     </button>
   );
 }

@@ -375,7 +375,11 @@ export default function App() {
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
           {screen === 'today' && (
-            <TodayView externalRefreshTick={weekRefreshTick} />
+            <TodayView
+              externalRefreshTick={weekRefreshTick}
+              projects={projects}
+              onSynced={() => setWeekRefreshTick(t => t + 1)}
+            />
           )}
           {screen === 'weekly' && (
             <WeeklyView
