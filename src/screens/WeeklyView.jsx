@@ -668,10 +668,12 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   <div style={{ fontSize: planningCompact ? 11 : 12, fontWeight: 700, color: d.isToday ? '#3DB33D' : 'var(--tb-text-secondary)', lineHeight: 1.1 }}>
                     {d.date.getDate()}
                   </div>
-                  {d.isToday
-                    ? <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3DB33D', margin: planningCompact ? '2px auto 0' : '3px auto 0' }} />
-                    : d.isDayOverridden && <div title="Giorno modificato rispetto al template" style={{ width: 5, height: 5, borderRadius: '50%', background: '#E07B3A', margin: planningCompact ? '2px auto 0' : '3px auto 0' }} />
-                  }
+                  {(d.isToday || d.isDayOverridden) && (
+                    <div style={{ display: 'flex', gap: 3, justifyContent: 'center', margin: planningCompact ? '2px 0 0' : '3px 0 0' }}>
+                      {d.isToday && <div title="Oggi" style={{ width: 5, height: 5, borderRadius: '50%', background: '#3DB33D' }} />}
+                      {d.isDayOverridden && <div title="Giorno modificato rispetto al template" style={{ width: 5, height: 5, borderRadius: '50%', background: '#E07B3A' }} />}
+                    </div>
+                  )}
                 </div>
               ))}
               <div style={{
