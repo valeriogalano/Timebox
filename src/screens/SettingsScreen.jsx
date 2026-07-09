@@ -481,6 +481,7 @@ const UPDATE_STATUS_LABELS = {
   skipped:       { text: 'Controllo saltato (app non pacchettizzata)', color: 'var(--tb-text-muted)' },
   'not-available': { text: 'L\'app è aggiornata', color: '#3DB33D' },
   available:     { text: 'Aggiornamento disponibile – download in corso', color: '#E07B3A' },
+  'available-manual': { text: 'Aggiornamento disponibile su GitHub', color: '#E07B3A' },
   downloading:   { text: 'Download aggiornamento in corso…', color: '#E07B3A' },
   downloaded:    { text: 'Aggiornamento pronto – riavvia per installare', color: '#4A8FE8' },
   error:         { text: 'Errore durante il controllo aggiornamenti', color: '#E05252' },
@@ -500,6 +501,8 @@ function UpdateSection({ status, busy, onCheck, onInstall }) {
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
         {status?.status === 'downloaded' ? (
           <ActionButton onClick={onInstall} color="#4A8FE8">Installa e riavvia</ActionButton>
+        ) : status?.status === 'available-manual' ? (
+          <ActionButton onClick={onInstall} color="#4A8FE8">Apri pagina download</ActionButton>
         ) : (
           <ActionButton onClick={onCheck} disabled={busy || status?.status === 'checking'} color="#4A8FE8">
             {busy || status?.status === 'checking' ? 'Controllo…' : 'Controlla aggiornamenti'}
