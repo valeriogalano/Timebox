@@ -16,7 +16,7 @@ function mismatchTotal(counts = {}) {
     + (counts.estimatedBeyondResidualCapacity || 0);
 }
 
-export default function TodayView({ onOpenTimesheet, externalRefreshTick }) {
+export default function TodayView({ externalRefreshTick }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -56,7 +56,6 @@ export default function TodayView({ onOpenTimesheet, externalRefreshTick }) {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <ActionButton onClick={load} disabled={loading}>Aggiorna</ActionButton>
-          <ActionButton onClick={onOpenTimesheet} primary>Timesheet</ActionButton>
         </div>
       </div>
 
