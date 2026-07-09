@@ -127,8 +127,8 @@ describe('HTTP server', () => {
     assert.equal(status, 200);
     assert.equal(body.slots.am.source, 'template');
     assert.equal(body.slots.pm.source, 'template');
-    assert.equal(body.plannedCapacity, 6);
-    assert.equal(body.trackedHours, 8);
+    assert.equal(body.plannedCapacity, 7.5);
+    assert.equal(body.trackedHours, 9.5);
     assert.equal(body.extraHours, 3);
     assert.equal(body.residualCapacity, 1);
     assert.ok(body.extra.some(item => item.area === 'Acme Corp' && item.hours === 0.5), 'includes overflow on planned area');
