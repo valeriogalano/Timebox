@@ -14,8 +14,8 @@ import { DEFAULT_SLOT_CAPACITY_HOURS, SLOT_CAPACITY_SETTING_KEY, normalizeSlotCa
 
 const NAV_ITEMS = [
   { id: 'weekly',     label: 'Timesheet',      icon: WeekIcon      },
-  { id: 'panoramica', label: 'Dashboard',       icon: ChartIcon     },
   { id: 'today',      label: 'Oggi',           icon: TodayIcon     },
+  { id: 'panoramica', label: 'Dashboard',       icon: ChartIcon     },
   { id: 'billing',    label: 'Rendiconto',      icon: BillingIcon   },
   { id: 'entries',    label: 'Registro',        icon: ListIcon      },
   { id: 'todoist-log', label: 'Import Todoist', icon: TodoistIcon   },
@@ -375,13 +375,7 @@ export default function App() {
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
           {screen === 'today' && (
-            <TodayView
-              externalRefreshTick={weekRefreshTick}
-              onOpenTimesheet={() => {
-                setScreen('weekly');
-                setWeekOffset(0);
-              }}
-            />
+            <TodayView externalRefreshTick={weekRefreshTick} />
           )}
           {screen === 'weekly' && (
             <WeeklyView
