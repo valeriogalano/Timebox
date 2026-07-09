@@ -30,6 +30,8 @@ const INIT_RECURRING = [
   { id: 'r8',  clientId: 'c4', slot: 'pm', day: 2, hours: 2,   position: 0 },
   { id: 'r9',  clientId: 'c4', slot: 'pm', day: 3, hours: 2,   position: 0 },
   { id: 'r10', clientId: 'c2', slot: 'pm', day: 4, hours: 2.5, position: 0 },
+  { id: 'r14', clientId: 'c3', slot: 'sera', day: 1, hours: 1.5, position: 0 },
+  { id: 'r15', clientId: 'c4', slot: 'sera', day: 3, hours: 1,   position: 0 },
 ];
 
 function getSeedEntries() {
@@ -68,6 +70,8 @@ function getSeedEntries() {
     { id: 'e8',  projectId: 'p4', date: pd(2), hours: 3.5, billableHours: null, slot: 'am', billed: 0 },
     { id: 'e9',  projectId: 'p5', date: pd(3), hours: 2,   billableHours: null, slot: 'pm', billed: 0 },
     { id: 'e10', projectId: 'p3', date: pd(4), hours: 2.5, billableHours: null, slot: 'pm', billed: 1 },
+    { id: 'e13', projectId: 'p4', date: d(1),  hours: 1.5, billableHours: null, slot: 'sera', billed: 0 }, // sessione serale
+    { id: 'e14', projectId: 'p6', date: pd(3), hours: 1,   billableHours: null, slot: 'sera', billed: 1 },
   ];
 }
 
