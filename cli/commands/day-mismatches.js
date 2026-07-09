@@ -3,7 +3,7 @@
 const { getDaySummaryData } = require('./day-summary');
 const { getImportedTodoistTasksData } = require('./todoist-imported');
 
-const SLOTS = ['am', 'pm'];
+const { SLOTS, normalizeSlot } = require('../../lib/domain');
 
 function roundHours(hours) {
   return Math.round((hours + Number.EPSILON) * 100) / 100;
@@ -61,7 +61,7 @@ function getDayMismatchesData(date) {
 
   for (const task of tasks) {
     const hours = taskHours(task);
-    const slot = task.slot === 'pm' ? 'pm' : 'am';
+    const slot = normalizeSlot(task.slot);
 
     if (!task.timeboxProjectId || task.matchStatus !== 'matched') {
       tasksWithoutTimeboxProject.push({

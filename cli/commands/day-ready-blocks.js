@@ -3,6 +3,7 @@
 const { getProjects } = require('../../db/queries');
 const { getDayMismatchesData } = require('./day-mismatches');
 const { getImportedTodoistTasksData } = require('./todoist-imported');
+const { normalizeSlot } = require('../../lib/domain');
 
 function roundHours(hours) {
   return Math.round((hours + Number.EPSILON) * 100) / 100;
@@ -41,7 +42,7 @@ function getDayReadyBlocksData(date) {
   for (const task of imported.tasks || []) {
     if (!task.timeboxProjectId || task.matchStatus !== 'matched') continue;
 
-    const slot = task.slot === 'pm' ? 'pm' : 'am';
+    const slot = normalizeSlot(task.slot);
     const key = areaKey(slot, task.areaId);
     const estimatedHours = roundHours(Number(task.estimatedHours || 0));
     if (!taskGroups.has(key)) taskGroups.set(key, new Map());

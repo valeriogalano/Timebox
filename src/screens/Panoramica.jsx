@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable } from '../utils';
+import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
 
 const COL_OVER  = '#E05252';
 const COL_UNDER = '#E8B339';
@@ -127,7 +127,7 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
     const result = {};
     clients.forEach(c => { result[c.id] = 0; });
     for (let dayIndex = 0; dayIndex < PLANNING_DAYS; dayIndex++) {
-      for (const slot of ['am', 'pm']) {
+      for (const slot of SLOTS) {
         const dayOverride = weekOverrides[dayIndex];
         const blocks = dayOverride && dayOverride[slot] !== undefined
           ? dayOverride[slot]

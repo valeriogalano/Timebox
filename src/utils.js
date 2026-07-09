@@ -71,3 +71,24 @@ export function effBillable(entry) {
   if (!entry) return 0;
   return entry.billableHours == null ? entry.hours : entry.billableHours;
 }
+
+// Two thresholds split the day: am < 13, pm 13–18, sera >= 18.
+export const AM_END_HOUR = 13;
+export const PM_END_HOUR = 18;
+export const SLOTS = ['am', 'pm', 'sera'];
+export const SLOT_LABELS = { am: 'AM', pm: 'PM', sera: 'Sera' };
+
+export function normalizeSlot(slot) {
+  return SLOTS.includes(slot) ? slot : 'am';
+}
+
+export function slotForDate(date) {
+  const h = date.getHours();
+  if (h < AM_END_HOUR) return 'am';
+  if (h < PM_END_HOUR) return 'pm';
+  return 'sera';
+}
+
+export function currentSlot() {
+  return slotForDate(new Date());
+}

@@ -1,4 +1,5 @@
 const { INIT_CLIENTS, INIT_PROJECTS, INIT_RECURRING, getSeedEntries } = require('./schema');
+const { SLOTS, normalizeSlot } = require('../lib/domain');
 const { randomUUID } = require('crypto');
 
 let db;
@@ -257,7 +258,7 @@ function saveTodoistImport(todoistImport) {
 function normalizeTodoistImport(row) {
   return {
     ...row,
-    slot: row.slot === 'pm' ? 'pm' : 'am',
+    slot: normalizeSlot(row.slot),
     note: row.note ?? '',
   };
 }
@@ -267,7 +268,7 @@ function normalizeTodoistImportInput(todoistImport) {
     titleSnapshot: null,
     note: null,
     ...todoistImport,
-    slot: todoistImport.slot === 'pm' ? 'pm' : 'am',
+    slot: normalizeSlot(todoistImport.slot),
   };
 }
 
@@ -520,7 +521,7 @@ function freezeWeeksBeforeRecurringChange(currentRecurring) {
   db.transaction(() => {
     for (const weekKey of weekKeys) {
       for (let dayIndex = 0; dayIndex < RECURRING_DAYS; dayIndex++) {
-        for (const slot of ['am', 'pm']) {
+        for (const slot of SLOTS) {
           const id = `${weekKey}-${dayIndex}-${slot}`;
           const blocks = currentRecurring
             .filter(r => r.day === dayIndex && r.slot === slot)
@@ -582,7 +583,7 @@ function getImportedTodoistTasks(dateStr) {
       timeboxProject: task.timeboxProjectName ?? project?.name ?? null,
       areaId: project?.clientId ?? null,
       area: client?.name ?? null,
-      slot: task.slot === 'pm' ? 'pm' : 'am',
+      slot: normalizeSlot(task.slot),
       dueDate: task.dueDate ?? null,
       estimatedHours: task.estimatedHours ?? task.hours ?? null,
       labels: Array.isArray(task.labels) ? task.labels : [],
@@ -614,11 +615,25 @@ function seedDemoData() {
   const insertProject   = db.prepare('INSERT INTO projects (id,clientId,name,description,budgetHours,weeklyHours,position) VALUES (?,?,?,?,?,?,?)');
   const insertRecurring = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours,position) VALUES (?,?,?,?,?,?)');
   const insertEntry     = db.prepare('INSERT INTO entries (id,projectId,date,hours,billableHours,slot,billed) VALUES (?,?,?,?,?,?,?)');
+  const insertOverride  = db.prepare('INSERT INTO week_overrides (id,weekKey,dayIndex,slot,blocksJson) VALUES (?,?,?,?,?)');
 
   const today = new Date();
   const prevMonday = new Date(today);
   const dow = prevMonday.getDay();
   prevMonday.setDate(prevMonday.getDate() - (dow === 0 ? 6 : dow - 1) - 7);
+
+  // weekKey uses local date parts to match the renderer's fmt() (WeeklyView.getWeekKey).
+  const curMonday = new Date(prevMonday);
+  curMonday.setDate(curMonday.getDate() + 7);
+  const curWeekKey = `${curMonday.getFullYear()}-${String(curMonday.getMonth() + 1).padStart(2, '0')}-${String(curMonday.getDate()).padStart(2, '0')}`;
+  const todayIdx = (today.getDay() + 6) % 7; // Mon=0 .. Sun=6
+  const otherIdx = todayIdx === 2 ? 3 : 2;
+  const weekOverrides = [
+    // Modifica dell'AM di oggi rispetto al template → mostra i due pallini (oggi + modificato).
+    { weekKey: curWeekKey, dayIndex: todayIdx, slot: 'am',   blocks: [{ id: 'ov1', clientId: 'c1', hours: 1 }, { id: 'ov2', clientId: 'c4', hours: 2 }] },
+    // Slot serale aggiunto a mano in un altro giorno → giorno modificato rispetto al template.
+    { weekKey: curWeekKey, dayIndex: otherIdx, slot: 'sera', blocks: [{ id: 'ov3', clientId: 'c3', hours: 2 }] },
+  ];
   function pd(offset) {
     const dt = new Date(prevMonday);
     dt.setDate(dt.getDate() + offset);
@@ -660,6 +675,8 @@ function seedDemoData() {
       insertEntry.run(e.id, e.projectId, e.date, e.hours, e.billableHours ?? null, e.slot, e.billed);
     for (const { date, tasks } of todoistDays)
       db.prepare('INSERT OR REPLACE INTO todoist_cache (dateStr,tasksJson,syncedAt) VALUES (?,?,?)').run(date, JSON.stringify(tasks), now);
+    for (const o of weekOverrides)
+      insertOverride.run(`${o.weekKey}-${o.dayIndex}-${o.slot}`, o.weekKey, o.dayIndex, o.slot, JSON.stringify(o.blocks));
   })();
 }
 

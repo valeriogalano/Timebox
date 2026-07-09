@@ -9,6 +9,7 @@ const {
   getWeekAreaStatuses,
 } = require('../../db/queries');
 const { fmt, getMondayOfWeek, effBillable } = require('../format');
+const { SLOTS, normalizeSlot } = require('../../lib/domain');
 
 function getEffectiveBlocks(recurring, overrideMap, weekKey, dayIndex, slot) {
   const dayOverride = overrideMap[weekKey]?.[dayIndex];
@@ -50,7 +51,7 @@ function mapEntry(entry, projectMap, clientMap, areaStatusMap) {
     clientId: project?.clientId || null,
     area: client?.name || '?',
     areaStatus: project ? (areaStatusMap[project.clientId] ?? 'active') : 'active',
-    slot: entry.slot === 'pm' ? 'pm' : 'am',
+    slot: normalizeSlot(entry.slot),
     hours: entry.hours,
     billableHours: entry.billableHours ?? null,
     effectiveBillableHours: isBillable ? effBillable(entry) : 0,
@@ -76,30 +77,28 @@ function getDaySummaryData(date) {
     status: areaStatusMap[client.id] ?? 'active',
   }));
 
-  const plannedBlocks = {
-    am: getEffectiveBlocks(recurring, overrides, weekKey, dayIndex, 'am'),
-    pm: getEffectiveBlocks(recurring, overrides, weekKey, dayIndex, 'pm'),
-  };
-  const sourceBySlot = {
-    am: overrides[weekKey]?.[dayIndex]?.am !== undefined ? 'override' : 'template',
-    pm: overrides[weekKey]?.[dayIndex]?.pm !== undefined ? 'override' : 'template',
-  };
-
-  const slotEntries = { am: [], pm: [] };
+  const plannedBlocks = {};
+  const sourceBySlot = {};
+  const slotEntries = {};
+  for (const slot of SLOTS) {
+    plannedBlocks[slot] = getEffectiveBlocks(recurring, overrides, weekKey, dayIndex, slot);
+    sourceBySlot[slot] = overrides[weekKey]?.[dayIndex]?.[slot] !== undefined ? 'override' : 'template';
+    slotEntries[slot] = [];
+  }
   for (const entry of entries) {
     const mapped = mapEntry(entry, projectMap, clientMap, areaStatusMap);
     slotEntries[mapped.slot].push(mapped);
   }
+  const allBlocks = SLOTS.flatMap(slot => plannedBlocks[slot]);
+  const allEntries = SLOTS.flatMap(slot => slotEntries[slot]);
 
   const clientPlanned = {};
-  for (const slot of ['am', 'pm']) {
-    for (const block of plannedBlocks[slot]) {
-      clientPlanned[block.clientId] = (clientPlanned[block.clientId] || 0) + block.hours;
-    }
+  for (const block of allBlocks) {
+    clientPlanned[block.clientId] = (clientPlanned[block.clientId] || 0) + block.hours;
   }
 
   const clientLogged = {};
-  for (const entry of [...slotEntries.am, ...slotEntries.pm]) {
+  for (const entry of allEntries) {
     if (!entry.clientId) continue;
     clientLogged[entry.clientId] = (clientLogged[entry.clientId] || 0) + entry.hours;
   }
@@ -110,7 +109,7 @@ function getDaySummaryData(date) {
 
   const extraByClient = {};
   const plannedClientIds = new Set(Object.keys(clientPlanned));
-  for (const entry of [...slotEntries.am, ...slotEntries.pm]) {
+  for (const entry of allEntries) {
     if (!entry.clientId) continue;
     if (!plannedClientIds.has(entry.clientId)) {
       extraByClient[entry.clientId] = (extraByClient[entry.clientId] || 0) + entry.hours;
@@ -121,9 +120,9 @@ function getDaySummaryData(date) {
     if (logged > planned) extraByClient[clientId] = (extraByClient[clientId] || 0) + (logged - planned);
   }
 
-  const plannedCapacity = [...plannedBlocks.am, ...plannedBlocks.pm].reduce((sum, block) => sum + block.hours, 0);
-  const trackedHours = [...slotEntries.am, ...slotEntries.pm].reduce((sum, entry) => sum + entry.hours, 0);
-  const trackedBillableHours = [...slotEntries.am, ...slotEntries.pm].reduce((sum, entry) => sum + entry.effectiveBillableHours, 0);
+  const plannedCapacity = allBlocks.reduce((sum, block) => sum + block.hours, 0);
+  const trackedHours = allEntries.reduce((sum, entry) => sum + entry.hours, 0);
+  const trackedBillableHours = allEntries.reduce((sum, entry) => sum + entry.effectiveBillableHours, 0);
   const extraHours = Object.values(extraByClient).reduce((sum, hours) => sum + hours, 0);
   const residualCapacity = Math.max(0, plannedCapacity - trackedInPlan);
 
@@ -132,22 +131,13 @@ function getDaySummaryData(date) {
     weekKey,
     dayIndex,
     areaStatuses,
-    slots: {
-      am: {
-        source: sourceBySlot.am,
-        plannedBlocks: plannedBlocks.am.map(block => mapBlock(block, clientMap, areaStatusMap)),
-        trackedEntries: slotEntries.am,
-        plannedCapacity: plannedBlocks.am.reduce((sum, block) => sum + block.hours, 0),
-        trackedHours: slotEntries.am.reduce((sum, entry) => sum + entry.hours, 0),
-      },
-      pm: {
-        source: sourceBySlot.pm,
-        plannedBlocks: plannedBlocks.pm.map(block => mapBlock(block, clientMap, areaStatusMap)),
-        trackedEntries: slotEntries.pm,
-        plannedCapacity: plannedBlocks.pm.reduce((sum, block) => sum + block.hours, 0),
-        trackedHours: slotEntries.pm.reduce((sum, entry) => sum + entry.hours, 0),
-      },
-    },
+    slots: Object.fromEntries(SLOTS.map(slot => [slot, {
+      source: sourceBySlot[slot],
+      plannedBlocks: plannedBlocks[slot].map(block => mapBlock(block, clientMap, areaStatusMap)),
+      trackedEntries: slotEntries[slot],
+      plannedCapacity: plannedBlocks[slot].reduce((sum, block) => sum + block.hours, 0),
+      trackedHours: slotEntries[slot].reduce((sum, entry) => sum + entry.hours, 0),
+    }])),
     plannedCapacity,
     trackedHours,
     trackedBillableHours,

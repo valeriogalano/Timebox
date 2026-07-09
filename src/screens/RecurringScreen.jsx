@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { DAY_SHORT, fmtH } from '../utils';
+import { DAY_SHORT, fmtH, SLOTS } from '../utils';
 import MultiSlotCell from '../components/MultiSlotCell';
 
 const RECURRING_DAYS = DAY_SHORT.length;
+const SLOT_ROW_LABELS = { am: 'Mattina', pm: 'Pomeriggio', sera: 'Sera' };
 
 export default function RecurringScreen({ clients, recurring, setRecurring, slotCapacityHours }) {
   const [dragging, setDragging] = useState(null); // { blockId, fromDay, fromSlot, clientId, hours }
@@ -102,61 +103,40 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
             </div>
           ))}
 
-          {/* AM row */}
-          <div style={{ padding: '14px 14px 12px', borderBottom: '2px solid var(--tb-border)', display: 'flex', alignItems: 'flex-start' }}>
-            <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', paddingTop: 4 }}>Mattina</div>
-          </div>
-          {Array.from({ length: RECURRING_DAYS }, (_, i) => {
-            const blocks = recurring.filter(r => r.day === i && r.slot === 'am').sort((a, b) => a.position - b.position);
-            const isDropTarget = dragOver?.day === i && dragOver?.slot === 'am';
+          {/* One row per slot (AM / PM / Sera) */}
+          {SLOTS.map((slot, si) => {
+            const isLast = si === SLOTS.length - 1;
+            const rowBottom = isLast ? {} : { borderBottom: '2px solid var(--tb-border)' };
             return (
-              <MultiSlotCell
-                key={i}
-                blocks={blocks}
-                clients={clients}
-                onAdd={(cid, h) => addBlock(i, 'am', cid, h)}
-                onUpdate={updateBlock}
-                onRemove={removeBlock}
-                onDuplicate={duplicateBlock}
-                onReorder={reorderBlocks}
-                onDragStart={(blockId, cid, h) => setDragging({ blockId, fromDay: i, fromSlot: 'am', clientId: cid, hours: h })}
-                draggingId={dragging?.blockId}
-                isDropTarget={isDropTarget}
-                onDragOver={() => setDragOver({ day: i, slot: 'am' })}
-                onDragLeave={() => setDragOver(null)}
-                onDrop={() => handleDrop(i, 'am')}
-                capacityHours={slotCapacityHours}
-                style={{ borderLeft: '1px solid var(--tb-border-soft)', borderBottom: '2px solid var(--tb-border)' }}
-              />
-            );
-          })}
-
-          {/* PM row */}
-          <div style={{ padding: '14px 14px 12px', display: 'flex', alignItems: 'flex-start' }}>
-            <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', paddingTop: 4 }}>Pomeriggio</div>
-          </div>
-          {Array.from({ length: RECURRING_DAYS }, (_, i) => {
-            const blocks = recurring.filter(r => r.day === i && r.slot === 'pm').sort((a, b) => a.position - b.position);
-            const isDropTarget = dragOver?.day === i && dragOver?.slot === 'pm';
-            return (
-              <MultiSlotCell
-                key={i}
-                blocks={blocks}
-                clients={clients}
-                onAdd={(cid, h) => addBlock(i, 'pm', cid, h)}
-                onUpdate={updateBlock}
-                onRemove={removeBlock}
-                onDuplicate={duplicateBlock}
-                onReorder={reorderBlocks}
-                onDragStart={(blockId, cid, h) => setDragging({ blockId, fromDay: i, fromSlot: 'pm', clientId: cid, hours: h })}
-                draggingId={dragging?.blockId}
-                isDropTarget={isDropTarget}
-                onDragOver={() => setDragOver({ day: i, slot: 'pm' })}
-                onDragLeave={() => setDragOver(null)}
-                onDrop={() => handleDrop(i, 'pm')}
-                capacityHours={slotCapacityHours}
-                style={{ borderLeft: '1px solid var(--tb-border-soft)' }}
-              />
+              <React.Fragment key={slot}>
+                <div style={{ padding: '14px 14px 12px', display: 'flex', alignItems: 'flex-start', ...rowBottom }}>
+                  <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', paddingTop: 4 }}>{SLOT_ROW_LABELS[slot]}</div>
+                </div>
+                {Array.from({ length: RECURRING_DAYS }, (_, i) => {
+                  const blocks = recurring.filter(r => r.day === i && r.slot === slot).sort((a, b) => a.position - b.position);
+                  const isDropTarget = dragOver?.day === i && dragOver?.slot === slot;
+                  return (
+                    <MultiSlotCell
+                      key={i}
+                      blocks={blocks}
+                      clients={clients}
+                      onAdd={(cid, h) => addBlock(i, slot, cid, h)}
+                      onUpdate={updateBlock}
+                      onRemove={removeBlock}
+                      onDuplicate={duplicateBlock}
+                      onReorder={reorderBlocks}
+                      onDragStart={(blockId, cid, h) => setDragging({ blockId, fromDay: i, fromSlot: slot, clientId: cid, hours: h })}
+                      draggingId={dragging?.blockId}
+                      isDropTarget={isDropTarget}
+                      onDragOver={() => setDragOver({ day: i, slot })}
+                      onDragLeave={() => setDragOver(null)}
+                      onDrop={() => handleDrop(i, slot)}
+                      capacityHours={slotCapacityHours}
+                      style={{ borderLeft: '1px solid var(--tb-border-soft)', ...rowBottom }}
+                    />
+                  );
+                })}
+              </React.Fragment>
             );
           })}
         </div>
