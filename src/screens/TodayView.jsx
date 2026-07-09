@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fmt, fmtH, getToday, getMondayOfWeek } from '../utils';
+import { fmt, fmtH, getToday, getMondayOfWeek, SLOTS } from '../utils';
 import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks } from '../dayPlanning';
 import PlanningCell from '../components/PlanningCell';
 import SlotCapacityBar from '../components/SlotCapacityBar';
@@ -144,8 +144,10 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
     todoistTasks,
   });
   const validClientIds = new Set(clients.map(c => c.id));
-  const amTotal = planning.amBlocks.filter(b => validClientIds.has(b.clientId)).reduce((s, b) => s + b.hours, 0);
-  const pmTotal = planning.pmBlocks.filter(b => validClientIds.has(b.clientId)).reduce((s, b) => s + b.hours, 0);
+  const slotPlannedTotals = Object.fromEntries(SLOTS.map(slot => [
+    slot,
+    (planning.slotBlocks[slot] || []).filter(b => validClientIds.has(b.clientId)).reduce((s, b) => s + b.hours, 0),
+  ]));
 
   const totals = data?.freeCapacity?.totals ?? {};
   const readyGroups = data?.readyBlocks?.groups ?? [];
@@ -178,7 +180,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
         <DayPlanningPanel
           loading={loading}
           clients={clients} projects={projects} projectTotals={projectTotals}
-          planning={planning} amTotal={amTotal} pmTotal={pmTotal}
+          planning={planning} slotPlannedTotals={slotPlannedTotals}
           slotCapacityHours={slotCapacityHours} hasTodoistSync={!!syncedAt}
           addBlockToSlot={addBlockToSlot} updateBlockInSlot={updateBlockInSlot}
           removeBlockFromSlot={removeBlockFromSlot} setSlotOverride={setSlotOverride}
@@ -256,22 +258,32 @@ function TodoistSyncButton({ onClick, busy }) {
   );
 }
 
+const SLOT_META = {
+  am: { label: 'Mattina', timeLabel: 'fino alle 13:00' },
+  pm: { label: 'Pomeriggio', timeLabel: '13:00 – 18:00' },
+  sera: { label: 'Sera', timeLabel: 'dalle 18:00' },
+};
+
 function DayPlanningPanel({
-  loading, clients, projects, projectTotals, planning, amTotal, pmTotal,
+  loading, clients, projects, projectTotals, planning, slotPlannedTotals,
   slotCapacityHours, hasTodoistSync,
   addBlockToSlot, updateBlockInSlot, removeBlockFromSlot, setSlotOverride,
   dragging, setDragging, handleDrop,
 }) {
-  const slots = [
-    { key: 'am', label: 'Mattina', timeLabel: 'fino alle 13:00', blocks: planning.amBlocks, planned: amTotal, logged: planning.amLogged },
-    { key: 'pm', label: 'Pomeriggio', timeLabel: null, blocks: planning.pmBlocks, planned: pmTotal, logged: planning.pmLogged },
-  ];
+  const slots = SLOTS.map(key => ({
+    key,
+    label: SLOT_META[key].label,
+    timeLabel: SLOT_META[key].timeLabel,
+    blocks: planning.slotBlocks[key],
+    planned: slotPlannedTotals[key],
+    logged: planning.slotLogged[key],
+  }));
 
   return (
     <section style={{ width: 300, flexShrink: 0, border: '1px solid var(--tb-border)', borderRadius: 8, background: 'var(--tb-panel-bg)', overflow: 'hidden' }}>
       <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg-soft)' }}>
         <h2 style={{ fontSize: 12, fontWeight: 850, color: 'var(--tb-text-primary)' }}>Blocchi di oggi</h2>
-        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-faint)' }}>trascina tra Mattina e Pomeriggio · override solo per oggi</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-faint)' }}>trascina tra Mattina, Pomeriggio e Sera · override solo per oggi</span>
       </div>
       <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {slots.map(slot => {

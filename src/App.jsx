@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getToday, fmt, getMondayOfWeek } from './utils';
+import { getToday, fmt, getMondayOfWeek, currentSlot } from './utils';
 import QuickLogModal from './components/QuickLogModal';
 import TodayView from './screens/TodayView';
 import WeeklyView, { AreaStatusPanel } from './screens/WeeklyView';
@@ -233,7 +233,7 @@ export default function App() {
     const entries = await window.api.getEntries(today, today);
     const { matches, merged } = mergeProjectDayEntries(entries, projectId);
     const newHours = (merged?.hours || 0) + addHours;
-    const slot = merged?.slot || (new Date().getHours() < 12 ? 'am' : 'pm');
+    const slot = merged?.slot || currentSlot();
     const entry = merged
       ? { ...merged, hours: newHours }
       : { id: crypto.randomUUID(), projectId, date: today, hours: newHours, billableHours: null, slot, billed: false };

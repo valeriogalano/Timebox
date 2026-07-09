@@ -2,7 +2,7 @@
 // TodayView (single day). Keeps the intricate block-fill / Todoist-coverage /
 // orphan logic in one place so the two screens can't drift apart.
 
-import { effBillable } from './utils';
+import { effBillable, SLOTS, normalizeSlot } from './utils';
 
 // Collapses the AM/PM rows a project may have on the same day into one entry
 // with summed hours (used for per-project timesheet + planning fill).
@@ -61,15 +61,23 @@ export function computeDayPlanning({
   todoistTasks = [],
 }) {
   const validClientIds = new Set(clients.map(c => c.id));
-  const amBlocks = getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, 'am');
-  const pmBlocks = getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, 'pm');
-  const visibleAmBlocks = amBlocks.filter(b => validClientIds.has(b.clientId));
-  const visiblePmBlocks = pmBlocks.filter(b => validClientIds.has(b.clientId));
-  const visibleBlocks = [...visibleAmBlocks, ...visiblePmBlocks];
+  const slotBlocks = {};
+  const visibleSlotBlocks = {};
+  for (const slot of SLOTS) {
+    slotBlocks[slot] = getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, slot);
+    visibleSlotBlocks[slot] = slotBlocks[slot].filter(b => validClientIds.has(b.clientId));
+  }
+  const { am: amBlocks, pm: pmBlocks, sera: seraBlocks } = slotBlocks;
+  const visibleBlocks = SLOTS.flatMap(slot => visibleSlotBlocks[slot]);
 
   const dayHours = dayEntries.reduce((s, e) => s + e.hours, 0);
-  const amLogged = rawDayEntries.filter(e => e.slot !== 'pm').reduce((s, e) => s + e.hours, 0);
-  const pmLogged = rawDayEntries.filter(e => e.slot === 'pm').reduce((s, e) => s + e.hours, 0);
+  const slotLogged = {};
+  for (const slot of SLOTS) {
+    slotLogged[slot] = rawDayEntries
+      .filter(e => normalizeSlot(e.slot) === slot)
+      .reduce((s, e) => s + e.hours, 0);
+  }
+  const { am: amLogged, pm: pmLogged, sera: seraLogged } = slotLogged;
   const plannedTotal = visibleBlocks.reduce((s, b) => s + b.hours, 0);
   const delta = dayHours - plannedTotal;
   const recurringTotal = recurring
@@ -118,37 +126,36 @@ export function computeDayPlanning({
   }
 
   // Todoist coverage per slot per clientId
-  const todoistByCS = { am: {}, pm: {} };
-  const todoistTasksByCS = { am: {}, pm: {} };
+  const todoistByCS = Object.fromEntries(SLOTS.map(slot => [slot, {}]));
+  const todoistTasksByCS = Object.fromEntries(SLOTS.map(slot => [slot, {}]));
   todoistTasks.forEach(t => {
     const proj = projects.find(p => p.id === t.projectId);
     if (!proj) return;
-    const s = t.slot || 'am';
+    const s = normalizeSlot(t.slot);
     todoistByCS[s][proj.clientId] = (todoistByCS[s][proj.clientId] ?? 0) + t.hours;
     if (!todoistTasksByCS[s][proj.clientId]) todoistTasksByCS[s][proj.clientId] = [];
     todoistTasksByCS[s][proj.clientId].push({ ...t, projectName: proj.name });
   });
 
-  const amPlanned = {};
-  visibleAmBlocks.forEach(b => { amPlanned[b.clientId] = (amPlanned[b.clientId] ?? 0) + b.hours; });
-  const pmPlanned = {};
-  visiblePmBlocks.forEach(b => { pmPlanned[b.clientId] = (pmPlanned[b.clientId] ?? 0) + b.hours; });
+  const slotPlanned = {};
+  for (const slot of SLOTS) {
+    slotPlanned[slot] = {};
+    visibleSlotBlocks[slot].forEach(b => { slotPlanned[slot][b.clientId] = (slotPlanned[slot][b.clientId] ?? 0) + b.hours; });
+  }
 
   const orphanTodoist = [];
   if (isToday || isFuture) {
-    Object.entries(todoistByCS.am).forEach(([cid, h]) => {
-      const remaining = h - (amPlanned[cid] ?? 0);
-      if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'am', tasks: leftoverTasks(todoistTasksByCS.am[cid] ?? [], amPlanned[cid] ?? 0) });
-    });
-    Object.entries(todoistByCS.pm).forEach(([cid, h]) => {
-      const remaining = h - (pmPlanned[cid] ?? 0);
-      if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'pm', tasks: leftoverTasks(todoistTasksByCS.pm[cid] ?? [], pmPlanned[cid] ?? 0) });
-    });
+    for (const slot of SLOTS) {
+      Object.entries(todoistByCS[slot]).forEach(([cid, h]) => {
+        const remaining = h - (slotPlanned[slot][cid] ?? 0);
+        if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot, tasks: leftoverTasks(todoistTasksByCS[slot][cid] ?? [], slotPlanned[slot][cid] ?? 0) });
+      });
+    }
   }
 
   return {
-    amBlocks, pmBlocks, visibleBlocks,
-    dayHours, amLogged, pmLogged, plannedTotal, delta,
+    amBlocks, pmBlocks, seraBlocks, slotBlocks, visibleBlocks,
+    dayHours, amLogged, pmLogged, seraLogged, slotLogged, plannedTotal, delta,
     pianificazioneExtra, clientPlanned, clientLogged, loggedInPlan, bilancioExtra,
     extraBlocks, blockFill, todoistByCS, todoistTasksByCS, orphanTodoist,
   };

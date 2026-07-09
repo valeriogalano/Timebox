@@ -178,11 +178,11 @@ function initDb(dbPath) {
   try { db.exec('ALTER TABLE entries ADD COLUMN billableHours REAL'); } catch (_) {}
   try { db.exec("ALTER TABLE todoist_imports ADD COLUMN slot TEXT NOT NULL DEFAULT 'am'"); } catch (_) {}
   try { db.exec('ALTER TABLE todoist_imports ADD COLUMN note TEXT'); } catch (_) {}
-  db.exec("UPDATE todoist_imports SET slot = 'am' WHERE slot IS NULL OR slot NOT IN ('am', 'pm')");
+  db.exec("UPDATE todoist_imports SET slot = 'am' WHERE slot IS NULL OR slot NOT IN ('am', 'pm', 'sera')");
   db.exec(`
     UPDATE entries
     SET slot = 'am'
-    WHERE slot IS NULL OR slot NOT IN ('am', 'pm');
+    WHERE slot IS NULL OR slot NOT IN ('am', 'pm', 'sera');
 
     CREATE TEMP TABLE entry_slot_dedupe AS
     SELECT

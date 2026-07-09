@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM, parseHHMM, effBillable } from '../utils';
+import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM, parseHHMM, effBillable, SLOTS } from '../utils';
 import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
 import TimeCell from '../components/TimeCell';
@@ -8,6 +8,11 @@ import SlotCapacityBar from '../components/SlotCapacityBar';
 import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries } from '../dayPlanning';
 
 const PLANNING_MODES = ['full', 'compact', 'hidden'];
+const SLOT_ROW_META = {
+  am: { label: 'Mattina', timeLabel: 'fino alle 13:00' },
+  pm: { label: 'Pomeriggio', timeLabel: '13:00 – 18:00' },
+  sera: { label: 'Sera', timeLabel: 'dalle 18:00' },
+};
 export const AREA_STATUS_OPTIONS = [
   { key: 'active', label: 'Attiva', color: '#3DB33D', title: 'Area attiva questa settimana' },
   { key: 'minimal', label: 'Minima', color: '#E07B3A', title: 'Area da mantenere al minimo questa settimana' },
@@ -279,7 +284,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       return next;
     });
     for (let d = 0; d < 7; d++) {
-      for (const slot of ['am', 'pm']) {
+      for (const slot of SLOTS) {
         window.api.deleteWeekOverride(weekKey, d, slot);
       }
     }
@@ -422,7 +427,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const weekLabel = `${monday.getDate()} ${MONTHS_IT[monday.getMonth()]} – ${endSun.getDate()} ${MONTHS_IT[endSun.getMonth()]} ${endSun.getFullYear()}`;
 
   const templateDivergence = days.reduce((acc, d, dayIndex) => {
-    for (const slot of ['am', 'pm']) {
+    for (const slot of SLOTS) {
       const effectiveSummary = summarizeBlocksByClient(d[`${slot}Blocks`], validClientIds);
       const templateBlocks = recurring.filter(r => r.day === dayIndex && r.slot === slot);
       const templateSummary = summarizeBlocksByClient(templateBlocks, validClientIds);
@@ -436,7 +441,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       acc.details.push(`${DAY_SHORT[dayIndex]} ${slot.toUpperCase()}: ${delta >= 0 ? '+' : ''}${fmtH(delta)}`);
     }
     return acc;
-  }, { deltaHours: 0, divergentSlots: 0, totalSlots: 14, details: [] });
+  }, { deltaHours: 0, divergentSlots: 0, totalSlots: SLOTS.length * 7, details: [] });
 
   const weekDateStrs = days.map(d => d.dateStr);
   const clientsWithProjects = clients.map(c => ({
@@ -449,8 +454,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const weekTotalSummary = {};
 
   days.forEach(d => {
-    // Planned: AM + PM blocks
-    [...d.amBlocks, ...d.pmBlocks]
+    // Planned: blocks across all slots
+    SLOTS.flatMap(slot => d.slotBlocks[slot])
       .filter(block => validClientIds.has(block.clientId))
       .forEach(b => {
       if (!weekTotalSummary[b.clientId]) weekTotalSummary[b.clientId] = { planned: 0, actual: 0 };
@@ -675,89 +680,56 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
               }}>Tot</div>
 
-              {/* AM row */}
-              <GridLabel border compact={planningCompact} timeLabel="fino alle 13:00">Mattina</GridLabel>
-              {days.map((d, i) => {
-                const isDropTarget = dragOver?.day === i && dragOver?.slot === 'am';
-                const amTotal = d.amBlocks.filter(b => clients.some(c => c.id === b.clientId)).reduce((s, b) => s + b.hours, 0);
-                return (
-                  <div key={i}
-                    onDragOver={e => { e.preventDefault(); setDragOver({ day: i, slot: 'am' }); }}
-                    onDragLeave={() => setDragOver(null)}
-                    onDrop={() => handleDrop(i, 'am')}
-                    style={{
-                      borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)',
-                      background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: planningCompact ? 3 : 4,
-                      transition: 'background 0.1s',
-                      outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
-                      display: 'flex', flexDirection: 'column', gap: 3,
+              {/* One row per slot (AM / PM / Sera) */}
+              {SLOTS.map((slot, si) => (
+                <React.Fragment key={slot}>
+                  <GridLabel border compact={planningCompact} timeLabel={SLOT_ROW_META[slot].timeLabel}>{SLOT_ROW_META[slot].label}</GridLabel>
+                  {days.map((d, i) => {
+                    const isDropTarget = dragOver?.day === i && dragOver?.slot === slot;
+                    const plannedTotal = d.slotBlocks[slot].filter(b => clients.some(c => c.id === b.clientId)).reduce((s, b) => s + b.hours, 0);
+                    return (
+                      <div key={i}
+                        onDragOver={e => { e.preventDefault(); setDragOver({ day: i, slot }); }}
+                        onDragLeave={() => setDragOver(null)}
+                        onDrop={() => handleDrop(i, slot)}
+                        style={{
+                          borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)',
+                          background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: planningCompact ? 3 : 4,
+                          transition: 'background 0.1s',
+                          outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
+                          display: 'flex', flexDirection: 'column', gap: 3,
+                        }}>
+                        <PlanningCell slot={slot} dayIndex={i} blocks={d.slotBlocks[slot]}
+                          compact={planningCompact}
+                          clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
+                          blockFill={d.blockFill}
+                          todoistByClient={d.todoistByCS[slot]} todoistTasksByClient={d.todoistTasksByCS[slot]} hasTodoistSync={!!d.lastSync}
+                          isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
+                          onAddBlock={(cid, h) => addBlockToSlot(i, slot, cid, h)}
+                          onUpdateBlock={(bid, h) => updateBlockInSlot(i, slot, bid, h)}
+                          onRemoveBlock={bid => removeBlockFromSlot(i, slot, bid)}
+                          onReorder={newBlocks => setSlotOverride(i, slot, newBlocks)}
+                          onDragStart={(bid, cid, h) => handleDragStart(bid, i, slot, cid, h)}
+                          draggingId={dragging?.blockId} />
+                        <SlotCapacityBar
+                          plannedHours={plannedTotal}
+                          loggedHours={d.slotLogged[slot]}
+                          capacityHours={slotCapacityHours}
+                          compact={planningCompact}
+                        />
+                      </div>
+                    );
+                  })}
+                  {si === 0 && (
+                    <div style={{
+                      borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)',
+                      background: 'var(--tb-panel-bg-soft)', gridRow: `span ${SLOTS.length + 1}`,
                     }}>
-                    <PlanningCell slot="am" dayIndex={i} blocks={d.amBlocks}
-                      compact={planningCompact}
-                      clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
-                      blockFill={d.blockFill}
-                      todoistByClient={d.todoistByCS.am} todoistTasksByClient={d.todoistTasksByCS.am} hasTodoistSync={!!d.lastSync}
-                      isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
-                      onAddBlock={(cid, h) => addBlockToSlot(i, 'am', cid, h)}
-                      onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'am', bid, h)}
-                      onRemoveBlock={bid => removeBlockFromSlot(i, 'am', bid)}
-                      onReorder={newBlocks => setSlotOverride(i, 'am', newBlocks)}
-                      onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'am', cid, h)}
-                      draggingId={dragging?.blockId} />
-                    <SlotCapacityBar
-                      plannedHours={amTotal}
-                      loggedHours={d.amLogged}
-                      capacityHours={slotCapacityHours}
-                      compact={planningCompact}
-                    />
-                  </div>
-                );
-              })}
-              <div style={{
-                borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border-soft)',
-                background: 'var(--tb-panel-bg-soft)', gridRow: 'span 3',
-              }}>
-                <SlotSummary summary={weekTotalSummary} clients={clients} compact={planningCompact} />
-              </div>
-
-              {/* PM row */}
-              <GridLabel border compact={planningCompact}>Pomeriggio</GridLabel>
-              {days.map((d, i) => {
-                const isDropTarget = dragOver?.day === i && dragOver?.slot === 'pm';
-                const pmTotal = d.pmBlocks.filter(b => clients.some(c => c.id === b.clientId)).reduce((s, b) => s + b.hours, 0);
-                return (
-                  <div key={i}
-                    onDragOver={e => { e.preventDefault(); setDragOver({ day: i, slot: 'pm' }); }}
-                    onDragLeave={() => setDragOver(null)}
-                    onDrop={() => handleDrop(i, 'pm')}
-                    style={{
-                      borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)',
-                      background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: planningCompact ? 3 : 4,
-                      transition: 'background 0.1s',
-                      outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
-                      display: 'flex', flexDirection: 'column', gap: 3,
-                    }}>
-                    <PlanningCell slot="pm" dayIndex={i} blocks={d.pmBlocks}
-                      compact={planningCompact}
-                      clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
-                      blockFill={d.blockFill}
-                      todoistByClient={d.todoistByCS.pm} todoistTasksByClient={d.todoistTasksByCS.pm} hasTodoistSync={!!d.lastSync}
-                      isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
-                      onAddBlock={(cid, h) => addBlockToSlot(i, 'pm', cid, h)}
-                      onUpdateBlock={(bid, h) => updateBlockInSlot(i, 'pm', bid, h)}
-                      onRemoveBlock={bid => removeBlockFromSlot(i, 'pm', bid)}
-                      onReorder={newBlocks => setSlotOverride(i, 'pm', newBlocks)}
-                      onDragStart={(bid, cid, h) => handleDragStart(bid, i, 'pm', cid, h)}
-                      draggingId={dragging?.blockId} />
-                    <SlotCapacityBar
-                      plannedHours={pmTotal}
-                      loggedHours={d.pmLogged}
-                      capacityHours={slotCapacityHours}
-                      compact={planningCompact}
-                    />
-                  </div>
-                );
-              })}
+                      <SlotSummary summary={weekTotalSummary} clients={clients} compact={planningCompact} />
+                    </div>
+                  )}
+                </React.Fragment>
+              ))}
 
               {/* Extra row */}
               <div style={{

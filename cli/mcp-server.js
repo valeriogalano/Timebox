@@ -6,6 +6,7 @@ const readline = require('node:readline');
 const { randomUUID } = require('node:crypto');
 
 const PORT = parseInt(process.env.TIMEBOX_PORT || '37373', 10);
+const SLOTS = ['am', 'pm', 'sera'];
 
 function fmtBillable(hours, billableHours) {
   if (billableHours == null || Math.abs(billableHours - hours) < 0.001) return `${hours}h`;
@@ -169,7 +170,7 @@ const TOOLS = [
         project: { type: 'string', description: 'Project name (partial match, must be unambiguous)' },
         hours: { type: 'string', description: 'Hours to log — "2", "2.5", or "2:30"' },
         billable_hours: { type: 'string', description: 'Billable hours override (optional). Same format as hours. Defaults to identical to hours.' },
-        slot: { type: 'string', enum: ['am', 'pm'], description: 'Time slot (default: am)' },
+        slot: { type: 'string', enum: ['am', 'pm', 'sera'], description: 'Time slot (default: am)' },
         date: { type: 'string', description: 'Date in YYYY-MM-DD format (default: today)' },
         add: { type: 'boolean', description: 'Add to existing hours instead of replacing (default: false)' },
       },
@@ -299,7 +300,7 @@ const TOOLS = [
       required: ['day', 'slot', 'blocks'],
       properties: {
         day:    { type: 'integer', minimum: 0, maximum: 6, description: '0=Mon … 6=Sun' },
-        slot:   { type: 'string', enum: ['am', 'pm'] },
+        slot:   { type: 'string', enum: ['am', 'pm', 'sera'] },
         blocks: {
           type: 'array',
           description: 'New blocks for this slot (replaces existing ones). Pass [] to clear.',
@@ -335,7 +336,7 @@ const TOOLS = [
       properties: {
         weekKey:  { type: 'string', description: 'Monday date of the target week, e.g. 2026-06-23' },
         dayIndex: { type: 'integer', minimum: 0, maximum: 6, description: '0=Mon … 6=Sun' },
-        slot:     { type: 'string', enum: ['am', 'pm'] },
+        slot:     { type: 'string', enum: ['am', 'pm', 'sera'] },
         blocks: {
           type: 'array',
           description: 'Override blocks for this slot. Pass [] to mark the slot as explicitly empty.',
@@ -360,7 +361,7 @@ const TOOLS = [
       properties: {
         weekKey:  { type: 'string', description: 'Monday date of the target week, e.g. 2026-06-23' },
         dayIndex: { type: 'integer', minimum: 0, maximum: 6, description: '0=Mon … 6=Sun' },
-        slot:     { type: 'string', enum: ['am', 'pm'] },
+        slot:     { type: 'string', enum: ['am', 'pm', 'sera'] },
       },
     },
   },
@@ -373,13 +374,13 @@ async function callTool(name, args) {
     const qs = args.date ? `?date=${encodeURIComponent(args.date)}` : '';
     const d = await httpRequest(`/today${qs}`);
     const lines = [`Date: ${d.date}\n`];
-    for (const slot of ['am', 'pm']) {
+    for (const slot of SLOTS) {
       const entries = d.slots[slot];
       if (!entries.length) continue;
       lines.push(`${slot.toUpperCase()}:`);
       for (const e of entries) lines.push(`  ${e.project}: ${fmtBillable(e.hours, e.billableHours)}`);
     }
-    const total = (d.amTotal || 0) + (d.pmTotal || 0);
+    const total = d.total || 0;
     const totalBillable = d.totalBillable ?? null;
     lines.push(`\nTotal: ${fmtBillable(total, totalBillable !== null && Math.abs(totalBillable - total) > 0.001 ? totalBillable : null)}`);
     return lines.join('\n');
@@ -397,7 +398,7 @@ async function callTool(name, args) {
       '',
     ];
 
-    for (const slot of ['am', 'pm']) {
+    for (const slot of SLOTS) {
       const slotData = d.slots[slot];
       lines.push(`${slot.toUpperCase()} [${slotData.source}]: planned ${slotData.plannedCapacity}h, tracked ${slotData.trackedHours}h`);
       if (slotData.plannedBlocks.length) {
@@ -532,7 +533,7 @@ async function callTool(name, args) {
     lines.push(`Estimated: ${total}h`);
     lines.push('');
 
-    for (const slot of ['am', 'pm']) {
+    for (const slot of SLOTS) {
       const tasks = d.tasks.filter(task => task.slot === slot);
       lines.push(`${slot.toUpperCase()}:`);
       if (!tasks.length) {
@@ -784,7 +785,7 @@ async function callTool(name, args) {
     const clientMap = Object.fromEntries(clients.map(c => [c.id, c.name]));
     const lines = [];
     for (let day = 0; day <= 6; day++) {
-      for (const slot of ['am', 'pm']) {
+      for (const slot of SLOTS) {
         const dayBlocks = blocks.filter(b => b.day === day && b.slot === slot).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
         if (dayBlocks.length) {
           lines.push(`${DAYS[day]} ${slot.toUpperCase()}: ${dayBlocks.map(b => `${clientMap[b.clientId] ?? b.clientId} ${b.hours}h`).join(', ')}`);

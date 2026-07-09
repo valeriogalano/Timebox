@@ -70,10 +70,10 @@ describe('recurring freeze', () => {
 
     freezeWeeksBeforeRecurringChange(RECURRING);
 
-    assert.equal(getWeekOverrides(fmtDate(firstUsedMonday)).length, 14);
-    assert.equal(getWeekOverrides(fmtDate(emptyPastMonday)).length, 14);
-    assert.equal(getWeekOverrides(fmtDate(addDays(firstUsedMonday, 21))).length, 14);
-    assert.equal(getWeekOverrides(fmtDate(addDays(firstUsedMonday, 35))).length, 14);
+    assert.equal(getWeekOverrides(fmtDate(firstUsedMonday)).length, 21);
+    assert.equal(getWeekOverrides(fmtDate(emptyPastMonday)).length, 21);
+    assert.equal(getWeekOverrides(fmtDate(addDays(firstUsedMonday, 21))).length, 21);
+    assert.equal(getWeekOverrides(fmtDate(addDays(firstUsedMonday, 35))).length, 21);
     assert.deepEqual(
       getWeekOverrides(fmtDate(addDays(firstUsedMonday, 35))).find(row => row.dayIndex === 2 && row.slot === 'am').blocks,
       [{ id: 'manual', clientId: 'c3', hours: 4 }],

@@ -60,7 +60,7 @@ When the database is empty, Timebox seeds demo areas, projects, recurring blocks
 
 - **Areas:** the app's top-level capacity buckets. In the UI they behave like clients, but they can also represent retainers, internal work, personal maintenance, study, health, or any area that needs planned time.
 - **Projects:** work streams inside an area. Projects can have a total budget, a weekly limit, a description, an order, and an archived state.
-- **Recurring blocks:** the default weekly timeblocking template, defined Monday-Friday and split into AM/PM slots.
+- **Recurring blocks:** the default weekly timeblocking template, defined Monday-Friday and split into AM (<13:00), PM (13:00–18:00) and Sera (from 18:00) slots.
 - **Week overrides:** per-week replacements for recurring blocks. Editing a block in the weekly view changes that week only.
 - **Weekly area status:** per-week markers for areas: active, minimal, or closed. They make the weekly planning decision visible without changing the recurring template.
 - **Entries:** logged work, one project/date record managed by application logic, with slot, hours, optional billable-hours override, and billed status.

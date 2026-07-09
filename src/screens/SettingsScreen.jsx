@@ -227,7 +227,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
         <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 6 }}>
-              Capacità slot AM/PM
+              Capacità per slot
             </div>
             <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
               Target usato dalle barre di capacità in Timesheet e Ricorrenza

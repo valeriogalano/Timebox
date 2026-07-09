@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { toHHMM } from '../utils';
+import { toHHMM, SLOT_LABELS, normalizeSlot } from '../utils';
 import TodoistTaskTooltip from './TodoistTaskTooltip';
 
 function OrphanBlock({ orphan, cl, isToday, isFuture, compact }) {
@@ -30,7 +30,7 @@ function OrphanBlock({ orphan, cl, isToday, isFuture, compact }) {
       <span style={{
         fontSize: compact ? 8 : 9, fontWeight: 700, color: cl.color, opacity: 0.7, flexShrink: 0,
         textTransform: 'uppercase', letterSpacing: '0.06em',
-      }}>{orphan.slot === 'pm' ? 'PM' : 'AM'}</span>
+      }}>{SLOT_LABELS[normalizeSlot(orphan.slot)]}</span>
       <span style={{ fontSize: compact ? 10 : 11, fontWeight: 800, color: cl.color, flexShrink: 0 }}>
         {toHHMM(orphan.hours)}
       </span>

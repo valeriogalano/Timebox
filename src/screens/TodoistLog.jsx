@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { toHHMM, parseHHMM, fmtH } from '../utils';
+import { toHHMM, parseHHMM, fmtH, SLOTS, SLOT_LABELS, normalizeSlot } from '../utils';
 
 const DAY_LONG = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 const MONTHS_LONG = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
@@ -20,7 +20,7 @@ function formatDateShort(dateStr) {
 function normalizeDraft(row) {
   return {
     ...row,
-    slot: row.slot === 'pm' ? 'pm' : 'am',
+    slot: normalizeSlot(row.slot),
     note: row.note ?? '',
     draftHours: toHHMM(row.hours),
   };
@@ -187,8 +187,7 @@ export default function TodoistLog({ clients, projects }) {
                           style={inputStyle}
                         />
                         <select value={current.slot} onChange={event => updateDraft('slot', event.target.value)} style={inputStyle}>
-                          <option value="am">AM</option>
-                          <option value="pm">PM</option>
+                          {SLOTS.map(slot => <option key={slot} value={slot}>{SLOT_LABELS[slot]}</option>)}
                         </select>
                         <select value={current.projectId} onChange={event => updateDraft('projectId', event.target.value)} style={inputStyle}>
                           {projectOptions.map(option => {
@@ -224,7 +223,7 @@ export default function TodoistLog({ clients, projects }) {
                           color: client ? client.color : 'var(--tb-text-faint)',
                           textTransform: 'uppercase', marginTop: 4,
                         }}>
-                          {row.slot === 'am' ? 'AM' : 'PM'}
+                          {SLOT_LABELS[normalizeSlot(row.slot)]}
                         </span>
                         <div style={{ minWidth: 0 }}>
                           <div style={{

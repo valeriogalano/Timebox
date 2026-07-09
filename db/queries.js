@@ -1,4 +1,5 @@
 const { INIT_CLIENTS, INIT_PROJECTS, INIT_RECURRING, getSeedEntries } = require('./schema');
+const { SLOTS, normalizeSlot } = require('../lib/domain');
 const { randomUUID } = require('crypto');
 
 let db;
@@ -257,7 +258,7 @@ function saveTodoistImport(todoistImport) {
 function normalizeTodoistImport(row) {
   return {
     ...row,
-    slot: row.slot === 'pm' ? 'pm' : 'am',
+    slot: normalizeSlot(row.slot),
     note: row.note ?? '',
   };
 }
@@ -267,7 +268,7 @@ function normalizeTodoistImportInput(todoistImport) {
     titleSnapshot: null,
     note: null,
     ...todoistImport,
-    slot: todoistImport.slot === 'pm' ? 'pm' : 'am',
+    slot: normalizeSlot(todoistImport.slot),
   };
 }
 
@@ -520,7 +521,7 @@ function freezeWeeksBeforeRecurringChange(currentRecurring) {
   db.transaction(() => {
     for (const weekKey of weekKeys) {
       for (let dayIndex = 0; dayIndex < RECURRING_DAYS; dayIndex++) {
-        for (const slot of ['am', 'pm']) {
+        for (const slot of SLOTS) {
           const id = `${weekKey}-${dayIndex}-${slot}`;
           const blocks = currentRecurring
             .filter(r => r.day === dayIndex && r.slot === slot)
@@ -582,7 +583,7 @@ function getImportedTodoistTasks(dateStr) {
       timeboxProject: task.timeboxProjectName ?? project?.name ?? null,
       areaId: project?.clientId ?? null,
       area: client?.name ?? null,
-      slot: task.slot === 'pm' ? 'pm' : 'am',
+      slot: normalizeSlot(task.slot),
       dueDate: task.dueDate ?? null,
       estimatedHours: task.estimatedHours ?? task.hours ?? null,
       labels: Array.isArray(task.labels) ? task.labels : [],
