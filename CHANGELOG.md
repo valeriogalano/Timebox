@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-09
+
 ### Added
 - Added a third daily time slot, **Sera** (evening, from 18:00), alongside Mattina (<13:00) and Pomeriggio (13:00–18:00). The weekly planning grid, recurring template, Oggi view, Todoist import log and MCP tools now support planning and tracking evening blocks. Existing AM/PM data is unchanged.
 
