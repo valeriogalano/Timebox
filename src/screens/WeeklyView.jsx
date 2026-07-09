@@ -7,7 +7,7 @@ import DivergenceDot from '../components/DivergenceDot';
 import SlotCapacityBar from '../components/SlotCapacityBar';
 
 const PLANNING_MODES = ['full', 'compact', 'hidden'];
-const AREA_STATUS_OPTIONS = [
+export const AREA_STATUS_OPTIONS = [
   { key: 'active', label: 'Attiva', color: '#3DB33D', title: 'Area attiva questa settimana' },
   { key: 'minimal', label: 'Minima', color: '#E07B3A', title: 'Area da mantenere al minimo questa settimana' },
   { key: 'closed', label: 'Chiusa', color: '#E05252', title: 'Area chiusa questa settimana' },
@@ -245,16 +245,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   function areaStatus(areaId) {
     return currentAreaStatuses[areaId] ?? 'active';
-  }
-
-  function setAreaStatus(areaId, status) {
-    setWeekAreaStatuses(prev => {
-      const weekData = { ...(prev[weekKey] ?? {}) };
-      if (status === 'active') delete weekData[areaId];
-      else weekData[areaId] = status;
-      return { ...prev, [weekKey]: weekData };
-    });
-    window.api.saveWeekAreaStatus({ weekKey, areaId, status });
   }
 
   function setSlotOverride(dayIndex, slot, newBlocks) {
@@ -762,7 +752,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <PlanningModeToggle value={planningMode} onChange={setPlanningModePersisted} />
-          <AreaStatusPanel clients={clientsWithProjects} statuses={currentAreaStatuses} onChange={setAreaStatus} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <ProjectVisibilityToggle value={hideEmpty ? 'worked' : 'all'} onChange={(next) => {
@@ -1245,15 +1234,17 @@ function ProjectLabel({ project, client, alertColor, rowActive, topBorder, proje
   );
 }
 
-function AreaStatusPanel({ clients, statuses, onChange }) {
+export function AreaStatusPanel({ clients, statuses, onChange, compact }) {
   if (!clients.length) return null;
 
   return (
     <div style={{
       display: 'flex',
-      alignItems: 'center',
+      flexDirection: compact ? 'column' : 'row',
+      alignItems: compact ? 'stretch' : 'center',
       gap: 6,
-      flexWrap: 'wrap',
+      flexWrap: compact ? 'nowrap' : 'wrap',
+      width: compact ? '100%' : 'auto',
       paddingLeft: 2,
     }}>
       {clients.map(client => {
@@ -1263,8 +1254,9 @@ function AreaStatusPanel({ clients, statuses, onChange }) {
             key={client.id}
             title={`Stato settimanale area: ${client.name}`}
             style={{
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
+              justifyContent: compact ? 'space-between' : 'flex-start',
               minHeight: 24,
               border: '1px solid var(--tb-border)',
               borderRadius: 5,
@@ -1276,7 +1268,9 @@ function AreaStatusPanel({ clients, statuses, onChange }) {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 5,
-              maxWidth: 120,
+              maxWidth: compact ? undefined : 120,
+              flex: compact ? 1 : undefined,
+              minWidth: 0,
               padding: '0 7px',
               fontSize: 10,
               fontWeight: 700,

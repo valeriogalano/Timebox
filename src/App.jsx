@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getToday, MONTHS_IT, fmtH, fmt } from './utils';
+import { getToday, fmt, getMondayOfWeek } from './utils';
 import QuickLogModal from './components/QuickLogModal';
 import TodayView from './screens/TodayView';
-import WeeklyView from './screens/WeeklyView';
+import WeeklyView, { AreaStatusPanel } from './screens/WeeklyView';
 import Panoramica from './screens/Panoramica';
 import BillingScreen from './screens/BillingScreen';
 import ClientsScreen from './screens/ClientsScreen';
@@ -13,9 +13,9 @@ import TodoistLog from './screens/TodoistLog';
 import { DEFAULT_SLOT_CAPACITY_HOURS, SLOT_CAPACITY_SETTING_KEY, normalizeSlotCapacityHours } from './slot-capacity';
 
 const NAV_ITEMS = [
-  { id: 'weekly',     label: 'Timesheet',      icon: WeekIcon      },
+  { id: 'weekly',     label: 'Settimana',      icon: WeekIcon      },
   { id: 'today',      label: 'Oggi',           icon: TodayIcon     },
-  { id: 'panoramica', label: 'Dashboard',       icon: ChartIcon     },
+  { id: 'panoramica', label: 'Andamento',       icon: ChartIcon     },
   { id: 'billing',    label: 'Rendiconto',      icon: BillingIcon   },
   { id: 'entries',    label: 'Registro',        icon: ListIcon      },
   { id: 'todoist-log', label: 'Import Todoist', icon: TodoistIcon   },
@@ -349,7 +349,7 @@ export default function App() {
         </nav>
 
         {/* Footer: ore mese per area */}
-        <SidebarFooter clients={clients} projects={projects} refreshKey={sidebarKey} collapsed={collapsed} />
+        <SidebarFooter clients={clients} refreshKey={sidebarKey} collapsed={collapsed} />
       </div>
 
       {/* ── Main area ─────────────────────────────────────────────── */}
@@ -489,52 +489,38 @@ function KeyboardHelp({ onClose }) {
   );
 }
 
-function SidebarFooter({ clients, projects, refreshKey, collapsed }) {
-  const [entries, setEntries] = useState([]);
+function SidebarFooter({ clients, refreshKey, collapsed }) {
+  const [statuses, setStatuses] = useState({});
+  const weekKey = fmt(getMondayOfWeek(getToday()));
 
   useEffect(() => {
     if (collapsed) return;
-    const now = new Date();
-    const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const to = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${lastDay}`;
-    window.api.getEntries(from, to).then(setEntries);
-  }, [refreshKey, collapsed]);
+    window.api.getWeekAreaStatuses(weekKey).then(rows => {
+      setStatuses(Object.fromEntries(rows.map(row => [row.areaId, row.status])));
+    });
+  }, [refreshKey, collapsed, weekKey]);
 
   if (collapsed) return null;
 
-  const month = MONTHS_IT[getToday().getMonth()];
-  const year = getToday().getFullYear();
-  const totalH = entries.reduce((s, e) => s + e.hours, 0);
+  function setAreaStatus(areaId, status) {
+    setStatuses(prev => {
+      const next = { ...prev };
+      if (status === 'active') delete next[areaId];
+      else next[areaId] = status;
+      return next;
+    });
+    window.api.saveWeekAreaStatus({ weekKey, areaId, status });
+  }
+
+  const clientsWithStatus = clients.map(c => ({ ...c, areaStatus: statuses[c.id] ?? 'active' }));
 
   return (
     <div style={{ padding: '14px 20px', borderTop: '1px solid var(--tb-sidebar-border)' }}>
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
         color: 'var(--tb-sidebar-label)', marginBottom: 8 }}>
-        {month} {year} · {fmtH(totalH)}
+        Stato aree · settimana
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-        {clients.map(c => {
-          const h = entries
-            .filter(e => {
-              const p = projects.find(p2 => p2.id === e.projectId);
-              return p?.clientId === c.id;
-            })
-            .reduce((s, e) => s + e.hours, 0);
-          return (
-            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 10, color: 'var(--tb-sidebar-muted)', flex: 1,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {c.name}
-              </span>
-              <span style={{ fontSize: 10, color: 'var(--tb-sidebar-faint)', fontWeight: 600 }}>
-                {fmtH(h)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      <AreaStatusPanel clients={clientsWithStatus} statuses={statuses} onChange={setAreaStatus} compact />
       <div style={{ marginTop: 10, fontSize: 9, color: 'var(--tb-sidebar-faint)', letterSpacing: '0.05em' }}>
         v{__APP_VERSION__}
       </div>
