@@ -377,7 +377,9 @@ export default function App() {
           {screen === 'today' && (
             <TodayView
               externalRefreshTick={weekRefreshTick}
-              projects={projects}
+              clients={clients} projects={projects} recurring={recurring}
+              slotCapacityHours={slotCapacityHours}
+              onEntryChange={refreshSidebar}
               onSynced={() => setWeekRefreshTick(t => t + 1)}
             />
           )}

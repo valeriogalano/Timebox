@@ -5,6 +5,7 @@ import ExtraCell from '../components/ExtraCell';
 import TimeCell from '../components/TimeCell';
 import DivergenceDot from '../components/DivergenceDot';
 import SlotCapacityBar from '../components/SlotCapacityBar';
+import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries } from '../dayPlanning';
 
 const PLANNING_MODES = ['full', 'compact', 'hidden'];
 export const AREA_STATUS_OPTIONS = [
@@ -14,39 +15,6 @@ export const AREA_STATUS_OPTIONS = [
 ];
 
 function getWeekKey(monday) { return fmt(monday); }
-
-function mergeProjectDayEntries(entries) {
-  const grouped = new Map();
-
-  for (const entry of entries) {
-    const key = `${entry.projectId}::${entry.date}`;
-    const list = grouped.get(key) ?? [];
-    list.push(entry);
-    grouped.set(key, list);
-  }
-
-  return Array.from(grouped.values()).map(group => {
-    const first = group[0];
-    const hours = group.reduce((sum, entry) => sum + entry.hours, 0);
-    const billableTotal = group.reduce((sum, entry) => sum + effBillable(entry), 0);
-
-    return {
-      ...first,
-      hours,
-      billableHours: Math.abs(billableTotal - hours) < 0.001 ? null : billableTotal,
-      billed: group.every(entry => entry.billed),
-    };
-  });
-}
-
-function getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, slot) {
-  const dayOverride = weekOverrides[weekKey]?.[dayIndex];
-  if (dayOverride && dayOverride[slot] !== undefined) return dayOverride[slot];
-  return recurring
-    .filter(r => r.day === dayIndex && r.slot === slot)
-    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-    .map(r => ({ id: r.id, clientId: r.clientId, hours: r.hours }));
-}
 
 function summarizeBlocksByClient(blocks, validClientIds) {
   const summary = {};
@@ -420,7 +388,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const isDayOverridden = !!weekOverrides[weekKey]?.[i];
     const rawDayEntries = weekEntries.filter(e => e.date === dateStr);
     const dayEntries = displayWeekEntries.filter(e => e.date === dateStr);
-    const dayHours = dayEntries.reduce((s, e) => s + e.hours, 0);
     const dayBillable = dayEntries.reduce((s, e) => {
       const proj = projects.find(p => p.id === e.projectId);
       const cli = proj ? clients.find(c => c.id === proj.clientId) : null;
@@ -433,103 +400,16 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       if (!cli || cli.billing === 'none') return false;
       return e.billableHours !== null && e.billableHours !== undefined && Math.abs(e.billableHours - e.hours) > 0.001;
     });
-    const amBlocks = effectiveBlocks(i, 'am');
-    const pmBlocks = effectiveBlocks(i, 'pm');
-    const visibleAmBlocks = amBlocks.filter(block => validClientIds.has(block.clientId));
-    const visiblePmBlocks = pmBlocks.filter(block => validClientIds.has(block.clientId));
-    const visibleBlocks = [...visibleAmBlocks, ...visiblePmBlocks];
-    const amLogged = rawDayEntries.filter(e => e.slot !== 'pm').reduce((s, e) => s + e.hours, 0);
-    const pmLogged = rawDayEntries.filter(e => e.slot === 'pm').reduce((s, e) => s + e.hours, 0);
-    const plannedTotal = visibleBlocks.reduce((s, b) => s + b.hours, 0);
-    const delta = dayHours - plannedTotal;
-    const recurringTotal = recurring
-      .filter(r => r.day === i && validClientIds.has(r.clientId))
-      .reduce((s, r) => s + r.hours, 0);
-    const pianificazioneExtra = Math.max(0, plannedTotal - recurringTotal);
-
-    const clientPlanned = {};
-    for (const b of visibleBlocks) {
-      clientPlanned[b.clientId] = (clientPlanned[b.clientId] || 0) + b.hours;
-    }
-    const clientLogged = {};
-    dayEntries.forEach(e => {
-      const p = projects.find(p2 => p2.id === e.projectId);
-      if (p) clientLogged[p.clientId] = (clientLogged[p.clientId] || 0) + e.hours;
-    });
-    const loggedInPlan = Object.entries(clientPlanned).reduce((s, [cid, planned]) =>
-      s + Math.min(clientLogged[cid] || 0, planned), 0);
-    const bilancioExtra = dayHours - loggedInPlan;
-
-    const plannedClientIds = new Set(Object.keys(clientPlanned));
-    const extraByClient = {};
-    dayEntries.forEach(e => {
-      const p = projects.find(p2 => p2.id === e.projectId);
-      if (!p) return;
-      if (!plannedClientIds.has(p.clientId)) {
-        extraByClient[p.clientId] = (extraByClient[p.clientId] ?? 0) + e.hours;
-      }
-    });
-    // Also add overflow for planned clients (logged > planned)
-    for (const [cid, planned] of Object.entries(clientPlanned)) {
-      const logged = clientLogged[cid] ?? 0;
-      if (logged > planned) extraByClient[cid] = (extraByClient[cid] ?? 0) + (logged - planned);
-    }
-    const extraBlocks = Object.entries(extraByClient).map(([clientId, hours]) => ({ clientId, hours }));
-
-    // Sequential fill: AM blocks first, then PM blocks, per client in order
-    const blockFill = {};
-    const clientRemainder = { ...clientLogged };
-    for (const block of visibleBlocks) {
-      const cid = block.clientId;
-      const hasExtra = (clientLogged[cid] ?? 0) > (clientPlanned[cid] ?? 0);
-      const remaining = clientRemainder[cid] ?? 0;
-      const logged = Math.min(remaining, block.hours);
-      clientRemainder[cid] = Math.max(0, remaining - block.hours);
-      blockFill[block.id] = { logged, hasExtra };
-    }
-
-    // Todoist coverage per slot per clientId
-    const dayTodoist = todoistTasks[dateStr] ?? [];
-    const todoistByCS = { am: {}, pm: {} };
-    const todoistTasksByCS = { am: {}, pm: {} };
-    dayTodoist.forEach(t => {
-      const proj = projects.find(p => p.id === t.projectId);
-      if (!proj) return;
-      const s = t.slot || 'am';
-      todoistByCS[s][proj.clientId] = (todoistByCS[s][proj.clientId] ?? 0) + t.hours;
-      if (!todoistTasksByCS[s][proj.clientId]) todoistTasksByCS[s][proj.clientId] = [];
-      todoistTasksByCS[s][proj.clientId].push({ ...t, projectName: proj.name });
-    });
     const lastSync = todoistSync[dateStr] ?? null;
+    const planning = computeDayPlanning({
+      dayIndex: i, isToday, isFuture,
+      recurring, weekOverrides, weekKey,
+      rawDayEntries, dayEntries,
+      clients, projects,
+      todoistTasks: todoistTasks[dateStr] ?? [],
+    });
 
-    const amPlanned = {};
-    visibleAmBlocks.forEach(b => { amPlanned[b.clientId] = (amPlanned[b.clientId] ?? 0) + b.hours; });
-    const pmPlanned = {};
-    visiblePmBlocks.forEach(b => { pmPlanned[b.clientId] = (pmPlanned[b.clientId] ?? 0) + b.hours; });
-    function leftoverTasks(tasks, capacity) {
-      let cap = capacity;
-      const leftover = [];
-      for (const t of tasks) {
-        if (cap <= 0) { leftover.push(t); continue; }
-        if (t.hours <= cap + 0.001) { cap -= t.hours; }
-        else { leftover.push({ ...t, hours: t.hours - cap }); cap = 0; }
-      }
-      return leftover;
-    }
-
-    const orphanTodoist = [];
-    if (isToday || isFuture) {
-      Object.entries(todoistByCS.am).forEach(([cid, h]) => {
-        const remaining = h - (amPlanned[cid] ?? 0);
-        if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'am', tasks: leftoverTasks(todoistTasksByCS.am[cid] ?? [], amPlanned[cid] ?? 0) });
-      });
-      Object.entries(todoistByCS.pm).forEach(([cid, h]) => {
-        const remaining = h - (pmPlanned[cid] ?? 0);
-        if (remaining > 0) orphanTodoist.push({ clientId: cid, hours: remaining, slot: 'pm', tasks: leftoverTasks(todoistTasksByCS.pm[cid] ?? [], pmPlanned[cid] ?? 0) });
-      });
-    }
-
-    return { date, dateStr, isToday, isFuture, isWeekend, isDayOverridden, dayHours, dayBillable, dayDivergent, plannedTotal, delta, loggedInPlan, bilancioExtra, pianificazioneExtra, amBlocks, pmBlocks, amLogged, pmLogged, extraBlocks, dayEntries, blockFill, todoistByCS, todoistTasksByCS, lastSync, orphanTodoist };
+    return { date, dateStr, isToday, isFuture, isWeekend, isDayOverridden, dayBillable, dayDivergent, dayEntries, lastSync, ...planning };
   });
 
   const weekPlanned  = days.reduce((s, d) => s + d.plannedTotal, 0);
