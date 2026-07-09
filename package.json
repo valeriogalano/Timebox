@@ -14,6 +14,7 @@
     "timebox": "./cli/index.js"
   },
   "scripts": {
+    "predev": "electron-rebuild -f -w better-sqlite3",
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && ELECTRON_START_URL=http://localhost:5173 electron .\"",
     "build": "vite build",
     "start": "npm run dev",
