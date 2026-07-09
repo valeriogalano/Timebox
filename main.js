@@ -745,13 +745,19 @@ app.whenReady().then(() => {
 
   const config = loadConfig();
   const defaultDbPath = path.join(app.getPath('userData'), 'timebox.db');
+  // In dev the app runs as the unsigned node_modules Electron binary, which
+  // lacks the installed app's TCC grant for ~/Documents. Use a dev-only DB in
+  // userData so dev never touches the TCC-protected (config.dbPath) location.
+  const dbPath = isDev
+    ? path.join(app.getPath('userData'), 'timebox-dev.db')
+    : (config.dbPath || defaultDbPath);
   try {
-    openDatabase(config.dbPath || defaultDbPath);
+    openDatabase(dbPath);
   } catch (err) {
     logger.error('openDatabase failed', { message: err.message });
     dialog.showErrorBox(
       'Impossibile aprire il database',
-      `Il file dati è bloccato da un altro processo o non è accessibile.\n\n${err.message}\n\nChiudi eventuali altre istanze di Timebox e riavvia l'app.`
+      `Non è stato possibile aprire il file dati:\n${dbPath}\n\n${err.message}\n\nCause possibili: un'altra istanza di Timebox lo tiene aperto, oppure l'app non ha il permesso di accedere alla cartella (es. Documenti o iCloud in macOS → Impostazioni → Privacy).`
     );
     app.quit();
     return;
