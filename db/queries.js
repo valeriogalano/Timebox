@@ -178,6 +178,7 @@ function getRecurring() {
 }
 
 function saveRecurring(r) {
+  freezeWeeksBeforeRecurringChange(getRecurring());
   db.prepare(`
     INSERT INTO recurring (id,clientId,slot,day,hours,position)
     VALUES (@id,@clientId,@slot,@day,@hours,@position)
@@ -188,10 +189,12 @@ function saveRecurring(r) {
 }
 
 function deleteRecurring(id) {
+  freezeWeeksBeforeRecurringChange(getRecurring());
   db.prepare('DELETE FROM recurring WHERE id=?').run(id);
 }
 
 function deleteRecurringByClient(clientId) {
+  freezeWeeksBeforeRecurringChange(getRecurring());
   db.prepare('DELETE FROM recurring WHERE clientId=?').run(clientId);
 }
 
