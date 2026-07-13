@@ -4,12 +4,14 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { createTestDb } = require('./helpers');
 const {
+  deleteRecurring,
   freezeWeeksBeforeRecurringChange,
   getWeekOverrides,
   resetAllData,
   saveClient,
   saveEntry,
   saveProject,
+  saveRecurring,
   saveWeekOverride,
   setTodoistCache,
 } = require('../../db/queries');
@@ -78,6 +80,42 @@ describe('recurring freeze', () => {
       getWeekOverrides(fmtDate(addDays(firstUsedMonday, 35))).find(row => row.dayIndex === 2 && row.slot === 'am').blocks,
       [{ id: 'manual', clientId: 'c3', hours: 4 }],
       'keeps existing explicit weekly edits while freezing the remaining slots'
+    );
+  });
+
+  // saveRecurring/deleteRecurring are the functions the HTTP server (and therefore
+  // the MCP set_recurring_slot tool) call directly, without going through the
+  // Electron IPC handler that used to be the only place calling freeze explicitly.
+  it('saveRecurring and deleteRecurring auto-freeze past weeks (HTTP/MCP path)', () => {
+    createTestDb();
+    resetAllData();
+    saveClient({ id: 'c1', name: 'Area 1', color: '#3B82F6', billable: true, billing: 'hourly', rate: 85, limitType: 'weekly', limitHours: null, position: 0 });
+    saveClient({ id: 'c2', name: 'Area 2', color: '#F97316', billable: true, billing: 'hourly', rate: 85, limitType: 'weekly', limitHours: null, position: 1 });
+    saveProject({ id: 'p1', clientId: 'c1', name: 'Project 1', description: null, budgetHours: null, weeklyHours: null, position: 0, archived: false });
+
+    const currentMonday = getMonday(new Date());
+    const pastMonday = addDays(currentMonday, -21);
+
+    saveRecurring({ id: 'r-old', clientId: 'c1', slot: 'am', day: 0, hours: 2, position: 0 });
+
+    saveEntry({
+      id: 'entry-used-week',
+      projectId: 'p1',
+      date: fmtDate(addDays(pastMonday, 2)),
+      hours: 1,
+      billableHours: null,
+      slot: 'am',
+      billed: false,
+    });
+
+    // Simulate the set_recurring_slot MCP tool: delete the old block, add a new one.
+    deleteRecurring('r-old');
+    saveRecurring({ id: 'r-new', clientId: 'c2', slot: 'am', day: 0, hours: 3, position: 0 });
+
+    assert.deepEqual(
+      getWeekOverrides(fmtDate(pastMonday)).find(row => row.dayIndex === 0 && row.slot === 'am').blocks,
+      [{ id: 'r-old', clientId: 'c1', hours: 2 }],
+      'past week keeps the pre-change template even when saveRecurring/deleteRecurring are called directly'
     );
   });
 });
