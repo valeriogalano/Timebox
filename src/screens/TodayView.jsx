@@ -12,11 +12,13 @@ function formatSyncDate(value) {
   return date.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+// "Mismatch" = lavoro fuori posto o in eccesso rispetto al piano.
+// Capacità libera senza task pronti (blocksWithoutReadyTasks) non è un mismatch:
+// è slack, ha già la sua card/pannello dedicati ("Blocchi senza azione").
 function mismatchTotal(counts = {}) {
   return (counts.tasksWithoutTimeboxProject || 0)
     + (counts.tasksOutsidePlannedArea || 0)
     + (counts.tasksOverBlockCapacity || 0)
-    + (counts.blocksWithoutReadyTasks || 0)
     + (counts.estimatedBeyondResidualCapacity || 0);
 }
 
@@ -224,10 +226,14 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
           <Panel title="Mismatch dopo sync" empty={!loading && totalMismatches === 0 ? 'Pulito' : null}>
             {loading ? <SkeletonRows /> : (
               <>
-                <MismatchGroup label="Non mappati" count={counts.tasksWithoutTimeboxProject} items={mismatches.tasksWithoutTimeboxProject} itemLabel={item => item.title} />
-                <MismatchGroup label="Fuori pianificazione" count={counts.tasksOutsidePlannedArea} items={mismatches.tasksOutsidePlannedArea} itemLabel={item => `${item.title} · ${item.area}`} />
-                <MismatchGroup label="Oltre blocco" count={counts.tasksOverBlockCapacity} items={mismatches.tasksOverBlockCapacity} itemLabel={item => `${item.title} · +${fmtH(item.overflowHours)}`} />
-                <MismatchGroup label="Capacità oltre residuo" count={counts.estimatedBeyondResidualCapacity} items={mismatches.estimatedBeyondResidualCapacity ? [mismatches.estimatedBeyondResidualCapacity] : []} itemLabel={item => `+${fmtH(item.overflowHours)} oltre residuo`} />
+                <MismatchSection label="Fuori posto" sub="task non collocati correttamente">
+                  <MismatchGroup label="Non mappati" count={counts.tasksWithoutTimeboxProject} items={mismatches.tasksWithoutTimeboxProject} itemLabel={item => item.title} />
+                  <MismatchGroup label="Fuori pianificazione" count={counts.tasksOutsidePlannedArea} items={mismatches.tasksOutsidePlannedArea} itemLabel={item => `${item.title} · ${item.area}`} />
+                </MismatchSection>
+                <MismatchSection label="In più" sub="più lavoro stimato di quanto pianificato">
+                  <MismatchGroup label="Oltre blocco" count={counts.tasksOverBlockCapacity} items={mismatches.tasksOverBlockCapacity} itemLabel={item => `${item.title} · +${fmtH(item.overflowHours)}`} />
+                  <MismatchGroup label="Capacità oltre residuo" count={counts.estimatedBeyondResidualCapacity} items={mismatches.estimatedBeyondResidualCapacity ? [mismatches.estimatedBeyondResidualCapacity] : []} itemLabel={item => `+${fmtH(item.overflowHours)} oltre residuo`} />
+                </MismatchSection>
               </>
             )}
           </Panel>
@@ -364,6 +370,20 @@ function InsightRow({ title, value, meta, color }) {
         <div style={{ fontSize: 10, fontWeight: 650, color: 'var(--tb-text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{meta}</div>
       </div>
       <div style={{ fontSize: 13, fontWeight: 850, color }}>{value}</div>
+    </div>
+  );
+}
+
+function MismatchSection({ label, sub, children }) {
+  const hasContent = React.Children.toArray(children).some(Boolean);
+  if (!hasContent) return null;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 850, color: 'var(--tb-text-primary)' }}>{label}</div>
+        <div style={{ fontSize: 9, fontWeight: 650, color: 'var(--tb-text-faint)' }}>{sub}</div>
+      </div>
+      {children}
     </div>
   );
 }
