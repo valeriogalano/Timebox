@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { toHHMM, parseHHMM } from '../utils';
 import { areaTints } from '../area-colors';
 import TodoistTaskTooltip from './TodoistTaskTooltip';
+import AreaStatusGlyph from './AreaStatusGlyph';
+import { AREA_STATUS_OPTIONS } from '../screens/WeeklyView';
 
 const PX_PER_H = 30;
 const PX_PER_H_COMPACT = 18;
@@ -126,6 +128,11 @@ function PlanningBlock({
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           letterSpacing: '0.01em', flex: 1, minWidth: 0,
         }}>{cl.name}</span>
+        {cl.areaStatus && cl.areaStatus !== 'active' && (
+          <span title={(AREA_STATUS_OPTIONS.find(o => o.key === cl.areaStatus) ?? AREA_STATUS_OPTIONS[0]).title} style={{ flexShrink: 0, display: 'flex' }}>
+            <AreaStatusGlyph status={cl.areaStatus} size={compact ? 8 : 9} color="var(--tb-state-glyph)" />
+          </span>
+        )}
         {budgetAlertLevel_combined > 0 && (
           <span
             className="tb-meter"

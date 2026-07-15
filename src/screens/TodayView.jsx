@@ -39,17 +39,19 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
   const [projectTotals, setProjectTotals] = useState({});
   const [dragging, setDragging] = useState(null);
   const [todoistImportDialog, setTodoistImportDialog] = useState(null);
+  const [weekAreaStatuses, setWeekAreaStatuses] = useState({});
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const [insights, entries, overrides, todoistRows, totals] = await Promise.all([
+      const [insights, entries, overrides, todoistRows, totals, areaStatusRows] = await Promise.all([
         window.api.getDayInsights(today),
         window.api.getEntries(today, today),
         window.api.getWeekOverrides(weekKey),
         window.api.getTodoistCache([today]),
         window.api.getProjectTotals(),
+        window.api.getWeekAreaStatuses(weekKey),
       ]);
       setData(insights);
       setRawEntries(entries);
@@ -63,6 +65,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
       setTodoistTasks(todayRow?.tasks ?? []);
       setSyncedAt(todayRow?.syncedAt ?? null);
       setProjectTotals(totals);
+      setWeekAreaStatuses(Object.fromEntries(areaStatusRows.map(row => [row.areaId, row.status])));
     } catch (err) {
       setError(err.message || 'Errore caricamento');
     } finally {
@@ -154,6 +157,11 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
     setDragging(null);
   }
 
+  // Stato area (attiva/mantenimento/chiusa) contestuale alla settimana corrente
+  // — qui sempre univoco perché "Oggi" ricade sempre in una sola settimana,
+  // a differenza di Andamento/Rendiconto dove il periodo può attraversarne più di una.
+  const clientsWithStatus = clients.map(c => ({ ...c, areaStatus: weekAreaStatuses[c.id] ?? 'active' }));
+
   const dayEntries = mergeProjectDayEntries(rawEntries);
   const planning = computeDayPlanning({
     dayIndex, isToday: true, isFuture: false,
@@ -207,7 +215,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <DayPlanningPanel
           loading={loading}
-          clients={clients} projects={projects} projectTotals={projectTotals}
+          clients={clientsWithStatus} projects={projects} projectTotals={projectTotals}
           planning={planning} slotPlannedTotals={slotPlannedTotals}
           slotCapacityHours={slotCapacityHours} hasTodoistSync={!!syncedAt}
           addBlockToSlot={addBlockToSlot} updateBlockInSlot={updateBlockInSlot}
