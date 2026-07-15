@@ -1,0 +1,112 @@
+/*
+ * Timebox — Signal system (redesign).
+ * Regola: il colore identifica SOLO l'area.
+ * Stato / alert budget / override / over / extra / divergenza:
+ *   resi con forma, tratteggio, icona e posizione rispetto al target.
+ * Vedi AGENTS.md · HANDOFF-TEMA.md.
+ * Theme-independent via [data-theme] overrides.
+ */
+
+/* Github: stato area A/M/C, Δ override, ▸/▾/▪, ◇ divergenza — tutti neutri */
+.tb-glyph {
+  color: var(--tb-state-glyph);
+  font-weight: 800;
+}
+
+/* Δ badge (override sul template) */
+.tb-delta {
+  font-size: 8px;
+  font-weight: 800;
+  color: var(--tb-text-secondary);
+  border: 1px solid var(--tb-border-mid);
+  border-radius: 4px;
+  padding: 0 4px;
+  line-height: 1.5;
+}
+
+/* ◇ marcatore divergenza tracciate ≠ fatturabili (mai colore) */
+.tb-divergent {
+  font-size: 9px;
+  color: var(--tb-state-glyph);
+}
+
+/* Meter budget: 3 barrette crescenti = alert (80% / 100% / oltre).
+ * Le barrette usano il neutral meter, NON colore di stato. */
+.tb-meter {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 1.5px;
+  height: 9px;
+}
+.tb-meter > i {
+  width: 2.5px;
+  border-radius: 1px;
+  background: var(--tb-meter-off);
+}
+.tb-meter > i:nth-child(1) { height: 4px; }
+.tb-meter > i:nth-child(2) { height: 6.5px; }
+.tb-meter > i:nth-child(3) { height: 9px; }
+.tb-meter[data-level="1"] > i:nth-child(1),
+.tb-meter[data-level="2"] > i:nth-child(1),
+.tb-meter[data-level="2"] > i:nth-child(2),
+.tb-meter[data-level="3"] > i:nth-child(-n+3) { background: var(--tb-meter-on); }
+
+/* Tab / segmento attivo (accento neutro, §3) */
+.tb-seg {
+  display: inline-flex;
+  border-radius: 7px;
+  border: 1px solid var(--tb-border-mid);
+  background: var(--tb-main-bg);
+  overflow: hidden;
+}
+.tb-seg > span {
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  border-left: 1px solid var(--tb-border-mid);
+  color: var(--tb-tab-idle-text);
+  background: transparent;
+}
+.tb-seg > span:first-child { border-left: 0; }
+.tb-seg > span[data-on="true"] {
+  background: var(--tb-tab-active-bg);
+  color: var(--tb-tab-active-text);
+}
+
+/* Tick limite/target (grigio medio che tiene in entrambi i temi) */
+.tb-tick {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 1.5px;
+  background: var(--tb-tick);
+}
+
+/* Traccia barra neutra */
+.tb-track {
+  background: var(--tb-bar-track);
+}
+.tb-tracked-fill {
+  background: var(--tb-bar-tracked);
+}
+
+/* ---- Tratteggio "oltre soglia / extra" (.hatch) ----
+ * In dark: righe chiare su pannello.
+ * In light: invertito — righe scure/medie su fondo tenue.
+ */
+.tb-hatch {
+  background-color: var(--tb-hatch-bg);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--tb-hatch-fg) 0 2px,
+    transparent 2px 4px
+  );
+}
+[data-theme="light"] .tb-hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(0,0,0,0.18) 0 2px,
+    transparent 2px 5px
+  );
+}
