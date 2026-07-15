@@ -265,7 +265,11 @@ describe('HTTP server', () => {
     assert.equal(week.status, 200);
     assert.ok(week.body.areaStatuses.some(row => row.areaId === 'c3' && row.status === 'minimal'));
 
-    const summary = await get(port, `/day-summary?date=${currentWeekDate(2)}`);
+    // Seed data overrides today's AM slot (see db/queries.js seedDemoData), so pick a
+    // recurring c3-AM day (0, 2 or 3) other than today to avoid that override.
+    const todayIdx = (new Date().getDay() + 6) % 7;
+    const c3AmDay = [0, 2, 3].find(d => d !== todayIdx);
+    const summary = await get(port, `/day-summary?date=${currentWeekDate(c3AmDay)}`);
     assert.equal(summary.status, 200);
     assert.ok(summary.body.areaStatuses.some(row => row.areaId === 'c3' && row.status === 'minimal'));
     assert.ok(summary.body.slots.am.plannedBlocks.some(block => block.clientId === 'c3' && block.areaStatus === 'minimal'));
