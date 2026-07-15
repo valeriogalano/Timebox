@@ -310,7 +310,7 @@ function DayPlanningPanel({
                 <span style={{ fontSize: 10, fontWeight: 850, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>{slot.label}</span>
                 {slot.timeLabel && <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', opacity: 0.7 }}>{slot.timeLabel}</span>}
               </div>
-              <div style={{ outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: 2, borderRadius: 8 }}>
+              <div style={{ outline: isDropTarget ? '2px dashed var(--tb-tick)' : 'none', outlineOffset: 2, borderRadius: 8 }}>
                 {loading ? (
                   <div style={{ height: 120, borderRadius: 6, background: 'var(--tb-panel-bg-subtle)', opacity: 0.7 }} />
                 ) : (

@@ -720,7 +720,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                           borderLeft: todayBorderLeft(d), borderBottom: '1px solid var(--tb-border-soft)',
                           background: isDropTarget ? 'var(--tb-drag-over-bg)' : todayBg(d), padding: planningCompact ? 3 : 4,
                           transition: 'background 0.1s',
-                          outline: isDropTarget ? '2px dashed #4A8FE8' : 'none', outlineOffset: -2,
+                          outline: isDropTarget ? '2px dashed var(--tb-tick)' : 'none', outlineOffset: -2,
                           display: 'flex', flexDirection: 'column', gap: 3,
                         }}>
                         <PlanningCell slot={slot} dayIndex={i} blocks={d.slotBlocks[slot]}

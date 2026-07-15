@@ -58,7 +58,8 @@ function mergeProjectDayEntries(entries, projectId) {
 }
 
 export default function App() {
-  const [screen, setScreen]     = useState('weekly');
+  // ponytail: dev-only deep-link so headless screenshots can target a screen via ?screen=id
+  const [screen, setScreen]     = useState(() => new URLSearchParams(location.search).get('screen') || 'weekly');
   const [weekOffset, setWeekOffset] = useState(0);
   const [clients, setClients]   = useState([]);
   const [projects, setProjects] = useState([]);
@@ -76,6 +77,8 @@ export default function App() {
   const refreshSidebar = useCallback(() => setSidebarKey(k => k + 1), []);
 
   const [theme, setThemeState] = useState(() => {
+    const q = new URLSearchParams(location.search).get('theme'); // ponytail: dev deep-link for screenshots
+    if (q) return q;
     try { return localStorage.getItem('timebox-theme') || 'dark'; } catch { return 'dark'; }
   });
   const [systemDark, setSystemDark] = useState(() =>
