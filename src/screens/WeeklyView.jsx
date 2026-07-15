@@ -65,6 +65,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const [weekAreaStatuses, setWeekAreaStatuses] = useState({});
   const [projectTotals, setProjectTotals] = useState({});
   const [alertDismissed, setAlertDismissed] = useState(false);
+  const [divergenceOpen, setDivergenceOpen] = useState(false);
   const [dragging, setDragging] = useState(null);
   const [dragOver, setDragOver] = useState(null);
   const [todoistTasks, setTodoistTasks] = useState({});
@@ -492,10 +493,28 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       if (!differs) continue;
       acc.deltaHours += delta;
       acc.divergentSlots += 1;
-      acc.details.push(`${DAY_SHORT[dayIndex]} ${slot.toUpperCase()}: ${delta >= 0 ? '+' : ''}${fmtH(delta)}`);
+      const clientIds = new Set([...Object.keys(effectiveSummary), ...Object.keys(templateSummary)]);
+      clientIds.forEach(clientId => {
+        const actualHours = effectiveSummary[clientId] ?? 0;
+        const templateHours = templateSummary[clientId] ?? 0;
+        const clientDelta = actualHours - templateHours;
+        if (Math.abs(clientDelta) < 0.001) return;
+        const kind = templateHours === 0 ? 'aggiunta' : actualHours === 0 ? 'rimossa' : clientDelta > 0 ? 'estesa' : 'ridotta';
+        acc.rows.push({ dayIndex, slot, clientId, templateHours, actualHours, delta: clientDelta, kind });
+      });
     }
     return acc;
-  }, { deltaHours: 0, divergentSlots: 0, totalSlots: SLOTS.length * 7, details: [] });
+  }, { deltaHours: 0, divergentSlots: 0, totalSlots: SLOTS.length * 7, rows: [] });
+
+  // Ripristina una singola area in un singolo giorno/slot al valore del template,
+  // lasciando invariati gli altri blocchi dello stesso slot (drill-down Δ template).
+  function restoreSlotClientToTemplate(dayIndex, slot, clientId) {
+    const current = effectiveBlocks(dayIndex, slot).filter(b => b.clientId !== clientId);
+    const templateBlocksForClient = recurring
+      .filter(r => r.day === dayIndex && r.slot === slot && r.clientId === clientId)
+      .map(r => ({ id: r.id, clientId: r.clientId, hours: r.hours }));
+    setSlotOverride(dayIndex, slot, [...current, ...templateBlocksForClient]);
+  }
 
   const weekDateStrs = days.map(d => d.dateStr);
   const clientsWithProjects = clients.map(c => ({
@@ -662,7 +681,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
             {weekOffset !== 0 && <NavBtn small onClick={() => setWeekOffset(0)}>Oggi</NavBtn>}
             {hasOverride && (
               <>
-                <TemplateDivergenceBadge summary={templateDivergence} />
+                <TemplateDivergenceBadge summary={templateDivergence} open={divergenceOpen} onToggle={() => setDivergenceOpen(v => !v)} />
                 <button onClick={resetWeekToTemplate}
                   style={{
                     fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 5,
@@ -694,6 +713,15 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           onNavigate={onNavigateToAndamento}
         />
       </div>
+
+      {divergenceOpen && hasOverride && templateDivergence.divergentSlots > 0 && (
+        <TemplateDivergencePanel
+          summary={templateDivergence}
+          clients={clients}
+          onRestore={restoreSlotClientToTemplate}
+          onClose={() => setDivergenceOpen(false)}
+        />
+      )}
 
       {/* Riga 3: toggle pianificazione + progetti + ore */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -1242,18 +1270,14 @@ function NavBtn({ children, onClick, small }) {
   );
 }
 
-function TemplateDivergenceBadge({ summary }) {
+function TemplateDivergenceBadge({ summary, open, onToggle }) {
   if (!summary.divergentSlots) return null;
   const deltaLabel = `${summary.deltaHours >= 0 ? '+' : ''}${fmtH(summary.deltaHours)}`;
-  const title = [
-    `Differenza dal template ricorrente: ${deltaLabel}`,
-    `${summary.divergentSlots}/${summary.totalSlots} slot modificati`,
-    ...summary.details,
-  ].join('\n');
 
   return (
-    <span
-      title={title}
+    <button
+      onClick={onToggle}
+      title="Mostra il dettaglio delle divergenze dal template"
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -1262,17 +1286,74 @@ function TemplateDivergenceBadge({ summary }) {
         padding: '3px 8px',
         borderRadius: 5,
         border: '1px solid var(--tb-border-mid)',
-        background: 'var(--tb-panel-bg-soft)',
+        background: open ? 'var(--tb-panel-bg)' : 'var(--tb-panel-bg-soft)',
         color: 'var(--tb-text-secondary)',
         fontSize: 10,
         fontWeight: 800,
         lineHeight: 1.2,
         whiteSpace: 'nowrap',
+        cursor: 'pointer',
+        fontFamily: "'Open Sans', sans-serif",
       }}
     >
       <span className="tb-delta">Δ</span>
       <span>template {deltaLabel} · {summary.divergentSlots}/{summary.totalSlots}</span>
-    </span>
+      <span style={{ fontSize: 8, opacity: 0.8 }}>{open ? '▴' : '▾'}</span>
+    </button>
+  );
+}
+
+const DIVERGENCE_KIND_LABEL = {
+  aggiunta: 'aggiunta a mano',
+  rimossa: 'rimossa dal piano',
+  estesa: 'estesa',
+  ridotta: 'ridotta',
+};
+
+// Drill-down del badge Δ template: elenco giorno·slot·area con confronto
+// template → settimana e ripristino per singola riga (REDLINE #2b).
+function TemplateDivergencePanel({ summary, clients, onRestore, onClose }) {
+  return (
+    <div style={{
+      border: '1px solid var(--tb-border)', borderRadius: 8, background: 'var(--tb-panel-bg)',
+      padding: '10px 12px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Divergenze dal template · {summary.divergentSlots} slot · totale {summary.deltaHours >= 0 ? '+' : ''}{fmtH(summary.deltaHours)}
+        </span>
+        <button onClick={onClose} style={{
+          fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', background: 'none', border: 'none', cursor: 'pointer',
+        }}>× chiudi</button>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {summary.rows.map(row => {
+          const client = clients.find(c => c.id === row.clientId);
+          const key = `${row.dayIndex}-${row.slot}-${row.clientId}`;
+          return (
+            <div key={key} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '5px 7px',
+              borderRadius: 5, background: 'var(--tb-panel-bg-subtle)', fontSize: 11,
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: client?.color ?? 'var(--tb-border)', flexShrink: 0 }} />
+              <span style={{ fontWeight: 800, color: 'var(--tb-text-primary)', whiteSpace: 'nowrap' }}>
+                {DAY_SHORT[row.dayIndex]} · {row.slot.toUpperCase()}
+              </span>
+              <span style={{ color: 'var(--tb-text-muted)', flex: 1 }}>
+                template {fmtH(row.templateHours)} → settimana {fmtH(row.actualHours)}
+                {' '}(Δ{row.delta >= 0 ? '+' : ''}{fmtH(row.delta)}) · {client?.name ?? '—'} {DIVERGENCE_KIND_LABEL[row.kind]}
+              </span>
+              <button onClick={() => onRestore(row.dayIndex, row.slot, row.clientId)} style={{
+                fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5,
+                border: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg)',
+                color: 'var(--tb-text-primary)', cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
+                flexShrink: 0,
+              }}>↩ ripristina</button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
