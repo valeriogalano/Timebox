@@ -41,7 +41,7 @@ function inRRect(px, py, x0, y0, w, h, rx) {
   return true;
 }
 
-function makePixel(x, y) {
+function makePixel(x, y, mono) {
   // macOS Dock/App Switcher visual balance: keep more breathing room around the glyph.
   const pad = Math.round(W * 0.11);
   const iconX = pad;
@@ -51,7 +51,9 @@ function makePixel(x, y) {
   const iconR = Math.round(iconW * 0.225);
   if (!inRRect(x, y, iconX, iconY, iconW, iconH, iconR)) return [0, 0, 0, 0];
 
-  const bg  = [0x3D, 0xB3, 0x3D];
+  // Mono (dev) icon matches the sidebar brand mark's near-black (#1a1a1a),
+  // not a desaturated green, which reads as washed-out mid-gray.
+  const bg = mono ? [0x1a, 0x1a, 0x1a] : [0x3D, 0xB3, 0x3D];
   const m   = Math.round(iconW * 0.115);
   const sq  = Math.round(iconW * 0.355);
   const gap = iconW - 2 * m - 2 * sq;
@@ -91,7 +93,7 @@ function writeIcon(fileName, mono) {
   for (let y = 0; y < H; y++) {
     raw.push(0);
     for (let x = 0; x < W; x++) {
-      const px = makePixel(x, y);
+      const px = makePixel(x, y, mono);
       raw.push(...(mono ? toGray(px) : px));
     }
   }
