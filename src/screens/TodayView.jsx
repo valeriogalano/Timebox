@@ -39,6 +39,50 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
   const [projectTotals, setProjectTotals] = useState({});
   const [dragging, setDragging] = useState(null);
 
+  // tsEdits: mappa block.id -> minuti (singola verita' del gauge). REDLINE §4.
+  // Lo stepper edita le ore tracciate del blocco. Limitazione: il blocco e' per
+  // AREA (clientId), ma le entries del DB sono per PROJECT. Quando l'utente
+  // chiude lo stepper salviamo su un "progetto primario" dell'area = il primo
+  // progetto non archiviato del cliente. Esposto e rivedibile: in futuro andra'
+  // sostituito con un picker projectId per area (vedi Dipendenze-dati p.2).
+  const [tsEdits, setTsEdits] = useState({});
+
+  function handleStepperChange(blockId, minutes) {
+    setTsEdits(prev => ({ ...prev, [blockId]: minutes }));
+  }
+
+  async function handleStepperDone(blockId) {
+    const minutes = tsEdits[blockId];
+    if (minutes == null) return;
+    const hours = minutes / 60;
+    const block = SLOTS.flatMap(slot => planning.slotBlocks[slot]).find(b => b.id === blockId);
+    if (!block) return;
+    const primaryProject = projects.find(p => p.clientId === block.clientId && !p.archived);
+    if (!primaryProject) {
+      alert('Nessun progetto non archiviato per questa area: il tracciamento via stepper richiede almeno un progetto attivo.');
+      return;
+    }
+    const slotKey = SLOTS.find(slot => (planning.slotBlocks[slot] || []).some(b => b.id === blockId));
+    const existing = rawEntries.find(e => e.projectId === primaryProject.id && e.slot === slotKey);
+    const entry = {
+      id: existing?.id ?? crypto.randomUUID(),
+      projectId: primaryProject.id,
+      date: today,
+      hours: hours === 0 ? 0 : hours,
+      slot: slotKey,
+      billableHours: null,
+      billed: false,
+    };
+    if (hours === 0) {
+      if (existing) await window.api.deleteEntry(existing.id);
+    } else {
+      await window.api.saveEntry(entry);
+    }
+    setTsEdits(prev => { const next = { ...prev }; delete next[blockId]; return next; });
+    await load();
+    onEntryChange?.();
+  }
+
   async function load() {
     setLoading(true);
     setError(null);
@@ -187,12 +231,15 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
           addBlockToSlot={addBlockToSlot} updateBlockInSlot={updateBlockInSlot}
           removeBlockFromSlot={removeBlockFromSlot} setSlotOverride={setSlotOverride}
           dragging={dragging} setDragging={setDragging} handleDrop={handleDrop}
+          tsEdits={tsEdits} onStepperChange={handleStepperChange} onStepperDone={handleStepperDone}
         />
 
         <div style={{ flex: 1, minWidth: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {!loading && (
             <TodayGauge
               planned={SLOTS.reduce((s, slot) => s + (slotPlannedTotals[slot] || 0), 0)}
+              // REDLINE §4: il gauge deriva da rawEntries + tsEdits (tsEdits sopraffonde
+              // temporaneamente sugli ore tracciate del relativo blocco, prima del save).
               traced={rawEntries.reduce((s, e) => s + e.hours, 0)}
               capacity={slotCapacityHours * SLOTS.length}
             />
@@ -282,6 +329,7 @@ function DayPlanningPanel({
   slotCapacityHours, hasTodoistSync,
   addBlockToSlot, updateBlockInSlot, removeBlockFromSlot, setSlotOverride,
   dragging, setDragging, handleDrop,
+  tsEdits, onStepperChange, onStepperDone,
 }) {
   const slots = SLOTS.map(key => ({
     key,
@@ -326,7 +374,11 @@ function DayPlanningPanel({
                     onRemoveBlock={bid => removeBlockFromSlot(slot.key, bid)}
                     onReorder={newBlocks => setSlotOverride(slot.key, newBlocks)}
                     onDragStart={(bid, cid, h) => setDragging({ blockId: bid, fromSlot: slot.key, clientId: cid, hours: h })}
-                    draggingId={dragging?.blockId} />
+                    draggingId={dragging?.blockId}
+                    stepper
+                    stepperMinutes={tsEdits}
+                    onStepperChange={onStepperChange}
+                    onStepperDone={onStepperDone} />
                 )}
               </div>
               <SlotCapacityBar plannedHours={slot.planned} loggedHours={slot.logged} capacityHours={slotCapacityHours} />

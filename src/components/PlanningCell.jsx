@@ -6,6 +6,29 @@ import TodoistTaskTooltip from './TodoistTaskTooltip';
 const PX_PER_H = 30;
 const PX_PER_H_COMPACT = 18;
 
+const STEPPER_STEP_MIN = 15;
+
+// Bottone −/+/✓ dello stepper inline (REDLINE §4):
+// 16×16, radius 4, bg var(--tb-navbtn-bg), glifo 12/800. ✓ usa accento neutro attivo.
+function StepperBtn({ label, onClick, check }) {
+  const bg = check ? 'var(--tb-tab-active-bg)' : 'var(--tb-navbtn-bg)';
+  const color = check ? 'var(--tb-tab-active-text)' : 'var(--tb-text-primary)';
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: 16, height: 16, borderRadius: 4,
+        background: bg, color,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: check ? 10 : 12, fontWeight: 800, lineHeight: 1,
+        border: 'none', cursor: 'pointer', padding: 0,
+        fontFamily: "'Open Sans', sans-serif",
+      }}>
+      {label}
+    </button>
+  );
+}
+
 function Divider() {
   return (
     <div style={{
@@ -25,10 +48,24 @@ function PlanningBlock({
   onRemove, onDragStart,
   projects, projectTotals, weekProjectHours,
   compact,
+  stepper, stepperMinutes, onStepperChange, onStepperDone,
 }) {
   const [hover, setHover] = useState(false);
+  const [stepperOpen, setStepperOpen] = useState(false);
   const blockRef = useRef(null);
   const complete = logged >= block.hours && block.hours > 0;
+
+  // Ore tracciate effettive per lo stepper: valore di bootstrap + delta
+  // staccabile in tsEdits[key] (minuti). Il "valore live" e' l'unica verita' del
+  // gauge (vedi REDLINE §4): il totale del giorno e il gauge derivano da qui.
+  const stepperLiveMin = stepperMinutes ?? Math.round((logged || 0) * 60);
+  const stepperLiveH = stepperLiveMin / 60;
+  const stepperDirty = Math.round(stepperLiveMin / STEPPER_STEP_MIN) !== Math.round((logged || 0) * 60 / STEPPER_STEP_MIN);
+
+  function stepperStep(minutesDelta) {
+    const next = Math.max(0, stepperLiveMin + minutesDelta);
+    onStepperChange?.(block.id, next);
+  }
 
   const clientProjects = (projects || []).filter(p => p.clientId === block.clientId && !p.archived);
 
@@ -92,9 +129,55 @@ function PlanningBlock({
         )}
       </div>
 
-      {/* Done/planned readout + delta */}
+      {/* Done/planned readout + delta (stepper o text-edit quando editabile) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', marginBottom: 4 }}>
-        {editing ? (
+        {stepper && editable ? (
+          stepperOpen ? (
+            <span
+              onClick={e => e.stopPropagation()}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                background: 'var(--tb-topbar-bg)', border: '1px solid var(--tb-navbtn-border)',
+                borderRadius: 6, padding: '2px 4px',
+              }}>
+              <StepperBtn label="−" onClick={() => stepperStep(-STEPPER_STEP_MIN)} />
+              <span style={{ minWidth: 34, textAlign: 'center', fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
+                {toHHMM(stepperLiveH)}
+              </span>
+              <StepperBtn label="+" onClick={() => stepperStep(STEPPER_STEP_MIN)} />
+              <StepperBtn label="✓" check onClick={() => { onStepperDone?.(block.id); setStepperOpen(false); }} />
+              <span style={{ fontSize: 9, color: 'var(--tb-text-muted)' }}>/</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>{toHHMM(block.hours)}</span>
+            </span>
+          ) : (
+            <div
+              onClick={(e) => { e.stopPropagation(); setStepperOpen(true); }}
+              title="Modifica ore tracciate"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                cursor: 'pointer', lineHeight: 1, fontFamily: "'Open Sans', sans-serif",
+              }}>
+              {stepperLiveMin > 0 ? (
+                <>
+                  <span style={{
+                    fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)',
+                    borderBottom: '1px dotted var(--tb-border-mid)',
+                  }}>{toHHMM(stepperLiveH)}</span>
+                  {stepperDirty && (
+                    <span title="Modificato" style={{
+                      width: 4, height: 4, borderRadius: '50%',
+                      background: 'var(--tb-bar-tracked)', alignSelf: 'center',
+                    }} />
+                  )}
+                  <span style={{ fontSize: 9, color: 'var(--tb-text-muted)' }}>/</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>{toHHMM(block.hours)}</span>
+                </>
+              ) : (
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', marginRight: 2 }}>＋ traccia</span>
+              )}
+            </div>
+          )
+        ) : editing ? (
           <input ref={editRef} value={editDraft}
             onChange={e => setEditDraft(e.target.value)}
             onBlur={commitEdit}
@@ -126,7 +209,7 @@ function PlanningBlock({
             <span style={{
               fontSize: logged > 0 ? (compact ? 8 : 9) : (compact ? 10 : 11),
               fontWeight: 400,
-              color: logged > 0 ? cl.color + 'bb' : cl.color,
+              color: logged > 0 ? `color-mix(in srgb, ${cl.color} 75%, transparent)` : cl.color,
             }}>{toHHMM(block.hours)}</span>
           </div>
         )}
@@ -148,15 +231,15 @@ function PlanningBlock({
           <div style={{
             position: 'absolute', left: 0, top: 0, bottom: 0,
             width: `${Math.min(100, fillPct * 100)}%`,
-            background: complete ? cl.color : (partial ? cl.color + 'aa' : 'transparent'),
+            background: complete ? cl.color : (partial ? `color-mix(in srgb, ${cl.color} 70%, transparent)` : 'transparent'),
             transition: 'width 0.4s ease, background 0.2s',
           }} />
           {hasTodoistSync && todoistH > 0 && (isToday || isFuture) && fillPct < 1 && (
             <div style={{
               position: 'absolute', left: `${fillPct * 100}%`, top: 0, bottom: 0,
               width: `${Math.min(100 - fillPct * 100, (todoistH / block.hours) * 100)}%`,
-              backgroundImage: `repeating-linear-gradient(135deg, ${cl.color}80 0 3px, transparent 3px 6px)`,
-              backgroundColor: cl.color + '14',
+              backgroundImage: `repeating-linear-gradient(135deg, color-mix(in srgb, ${cl.color} 50%, transparent) 0 3px, transparent 3px 6px)`,
+              backgroundColor: tints.bg,
             }} />
           )}
         </div>
@@ -190,6 +273,7 @@ export default function PlanningCell({
   compact,
   isToday, isFuture, isWeekend, editable,
   onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onReorder, draggingId,
+  stepper, stepperMinutes, onStepperChange, onStepperDone,
 }) {
   const seenTodoistClients = new Set();
   const todoistRemainder = {};
@@ -347,6 +431,10 @@ export default function PlanningCell({
                 onDragStart && onDragStart(block.id, block.clientId, block.hours);
               }}
               projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
+              stepper={stepper}
+              stepperMinutes={stepperMinutes?.[block.id]}
+              onStepperChange={onStepperChange}
+              onStepperDone={onStepperDone}
             />
           </div>
         </React.Fragment>
