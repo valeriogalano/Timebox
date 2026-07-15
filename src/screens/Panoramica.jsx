@@ -309,17 +309,6 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
             </div>
           </div>
 
-          {/* Tempo per obiettivo — placeholder: link area/progetto ↔ Obiettivi 2026 assente
-              (vedi README "Dipendenze-dati da risolvere" p.3). Stessa pratica di deferral
-              usata per "Override ripetuti" in RecurringScreen. */}
-          <div style={{ border: '1px solid var(--tb-border)', borderStyle: 'dashed', borderRadius: 10, background: 'var(--tb-panel-bg)', padding: '12px 14px', opacity: 0.7 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', marginBottom: 4 }}>Tempo per obiettivo</div>
-            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', lineHeight: 1.5 }}>
-              Richiede il collegamento aree/progetti ↔ Obiettivi 2026 (dato assente). Mostrerà
-              il tempo investito per obiettivo strategico una volta disponibile il collegamento.
-            </div>
-          </div>
-
           {/* Ricavo · sintesi (link a Rendiconto per dettaglio) */}
           <Card>
             <CardLabel>Ricavo · sintesi</CardLabel>
