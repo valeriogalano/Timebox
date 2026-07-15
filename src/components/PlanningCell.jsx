@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toHHMM, parseHHMM } from '../utils';
+import { areaTints } from '../area-colors';
 import TodoistTaskTooltip from './TodoistTaskTooltip';
 
 const PX_PER_H = 30;
@@ -46,8 +47,9 @@ function PlanningBlock({
   const budgetAlertLevel_combined = Math.max(budgetAlertLevel, weeklyAlertLevel);
   const partial = !complete && logged > 0;
 
-  const barBg = cl.color + '1f';
-  const readoutColor = logged === 0 ? cl.color + 'aa' : cl.color;
+  const tints = areaTints(cl.color);
+  const barBg = tints.soft;
+  const readoutColor = logged === 0 ? `color-mix(in srgb, ${cl.color} 70%, transparent)` : cl.color;
 
   return (
     <div
@@ -59,11 +61,11 @@ function PlanningBlock({
       style={{
         position: 'relative',
         height: blockH,
-        background: cl.color + '10',
-        border: `1px solid ${cl.color + '30'}`,
+        background: tints.bg,
+        border: `1px solid ${tints.border}`,
         borderLeft: `3px solid ${cl.color}`,
-        borderRadius: 4,
-        padding: compact ? '4px 6px 5px' : '5px 8px 7px',
+        borderRadius: 5,
+        padding: compact ? '5px 6px 6px' : '5px 7px 6px',
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
         cursor: editable && !editing ? 'grab' : 'default',
         opacity: isDragging ? 0.35 : 1,
@@ -118,7 +120,7 @@ function PlanningBlock({
                 <span style={{ fontSize: compact ? 10 : 11, fontWeight: 400, color: readoutColor }}>
                   {toHHMM(logged)}
                 </span>
-                <span style={{ fontSize: compact ? 8 : 9, color: cl.color + '66', fontWeight: 400 }}>/</span>
+                <span style={{ fontSize: compact ? 8 : 9, color: tints.border, fontWeight: 400 }}>/</span>
               </>
             )}
             <span style={{

@@ -139,7 +139,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
             }, 0);
             const totTracked = filtered.reduce((s, e) => s + e.hours, 0);
             if (Math.abs(totBill - totTracked) < 0.001) return null;
-            return <> · <span style={{ color: '#E07B3A' }}>{fmtH(totBill)} fatt.</span></>;
+            return <> · <span className="tb-divergent">◇</span> <span style={{ color: 'var(--tb-text-secondary)' }}>{fmtH(totBill)} fatt.</span></>;
           })()}
         </span>
       </div>
@@ -252,10 +252,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
                         return (
                           <span title={diverges ? `Tracciate: ${fmtH(entry.hours)}` : undefined}>
                             {fmtH(eff)}
-                            {diverges && <span style={{
-                              display: 'inline-block', width: 5, height: 5, borderRadius: '50%',
-                              background: '#E07B3A', marginLeft: 5, verticalAlign: 'middle',
-                            }} />}
+                            {diverges && <span className="tb-divergent" style={{ marginLeft: 5 }}>◇</span>}
                           </span>
                         );
                       })()}
@@ -268,8 +265,8 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
                           ? <input type="checkbox" checked={editState.billed}
                               onChange={e => setEditState(s => ({ ...s, billed: e.target.checked }))} />
                           : entry.billed
-                            ? <span style={{ color: '#3DB33D', fontWeight: 700, fontSize: 11 }}>€</span>
-                            : <span style={{ color: 'var(--tb-text-muted)', fontSize: 11 }}>–</span>
+                            ? <span className="tb-glyph" style={{ fontSize: 11 }}>✓</span>
+                            : <span style={{ color: 'var(--tb-text-muted)', fontSize: 11 }}>○</span>
                         : <span style={{ color: 'var(--tb-text-muted)', fontSize: 11 }}>n/a</span>
                       }
                     </td>
@@ -334,26 +331,20 @@ const tdStyle = {
   color: 'var(--tb-text-primary)',
 };
 
+// Nessun rosso/verde: primary = riempito (azione confermata), danger = si distingue
+// per contesto (già dietro conferma Sì/No), non per colore — stesso hover neutro di primary.
 function ActionBtn({ onClick, children, primary, danger }) {
   const [hover, setHover] = useState(false);
-  const bg = danger
-    ? (hover ? '#c0392b' : 'transparent')
-    : primary
-      ? (hover ? '#2ea82e' : '#3DB33D')
-      : (hover ? 'var(--tb-sidebar-bg)' : 'transparent');
-  const color = primary
-    ? '#fff'
-    : danger
-      ? (hover ? '#fff' : '#e74c3c')
-      : 'var(--tb-text-secondary)';
+  const filled = primary || (danger && hover);
   return (
     <button onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
         fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4,
-        border: primary ? 'none' : `1px solid ${danger ? '#e74c3c' : 'var(--tb-border)'}`,
-        background: bg, color,
+        border: filled ? 'none' : '1px solid var(--tb-border)',
+        background: filled ? 'var(--tb-text-primary)' : (hover ? 'var(--tb-sidebar-bg)' : 'transparent'),
+        color: filled ? 'var(--tb-panel-bg)' : 'var(--tb-text-secondary)',
         cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
         transition: 'all 0.1s',
       }}>

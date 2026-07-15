@@ -5,6 +5,7 @@ import ExtraCell from '../components/ExtraCell';
 import TimeCell from '../components/TimeCell';
 import DivergenceDot from '../components/DivergenceDot';
 import SlotCapacityBar from '../components/SlotCapacityBar';
+import AreaStatusGlyph from '../components/AreaStatusGlyph';
 import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries } from '../dayPlanning';
 
 const PLANNING_MODES = ['full', 'compact', 'hidden'];
@@ -14,9 +15,9 @@ const SLOT_ROW_META = {
   sera: { label: 'Sera', timeLabel: 'dalle 18:00' },
 };
 export const AREA_STATUS_OPTIONS = [
-  { key: 'active', label: 'Attiva', glyph: '●', title: 'Area attiva questa settimana' },
-  { key: 'minimal', label: 'Minima', glyph: '◑', title: 'Area da mantenere al minimo questa settimana' },
-  { key: 'closed', label: 'Chiusa', glyph: '○', title: 'Area chiusa questa settimana' },
+  { key: 'active', label: 'Attiva', title: 'Area attiva questa settimana' },
+  { key: 'minimal', label: 'Minima', title: 'Area da mantenere al minimo questa settimana' },
+  { key: 'closed', label: 'Chiusa', title: 'Area chiusa questa settimana' },
 ];
 
 function getWeekKey(monday) { return fmt(monday); }
@@ -54,7 +55,7 @@ function blockSummariesDiffer(a, b) {
   return false;
 }
 
-export default function WeeklyView({ clients, projects, recurring, weekOffset, setWeekOffset, onEntryChange, externalRefreshTick, autoFocusProject, slotCapacityHours, onAutoFocusConsumed }) {
+export default function WeeklyView({ clients, projects, recurring, weekOffset, setWeekOffset, onEntryChange, externalRefreshTick, autoFocusProject, slotCapacityHours, onAutoFocusConsumed, onNavigateToAndamento }) {
   const monday = addDays(getMondayOfWeek(getToday()), weekOffset * 7);
   const weekKey = getWeekKey(monday);
 
@@ -70,6 +71,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const [editingProject, setEditingProject] = useState(null);
   const [revealedProject, setRevealedProject] = useState(null);
   const [hideEmpty, setHideEmpty] = useState(() => localStorage.getItem('timebox-hide-empty-projects') === 'true');
+  const [summaryOpen, setSummaryOpen] = useState(() => localStorage.getItem('timebox-week-summary-collapsed') !== 'true');
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('timebox-timesheet-view') === 'billable' ? 'billable' : 'tracked');
   const [todoistImportDialog, setTodoistImportDialog] = useState(null);
   const [planningMode, setPlanningMode] = useState(() => {
@@ -614,8 +616,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
         </div>
       )}
 
-      {/* Week nav + summary */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* Riga 1: nav settimana + divergenze/ripristina  |  specchietto capacità */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <NavBtn onClick={() => setWeekOffset(o => o - 1)}>‹</NavBtn>
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', minWidth: 210, textAlign: 'center' }}>{weekLabel}</span>
@@ -634,6 +636,24 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               </button>
             </>
           )}
+        </div>
+        <CapacityMirror
+          actual={weekActual} planned={weekPlanned} billable={weekBillable} extra={weekExtra}
+          onNavigate={onNavigateToAndamento}
+        />
+      </div>
+
+      {/* Riga 2: controllo Todoist  |  toggle progetti + ore */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{
+          display: 'flex', alignItems: 'stretch', border: '1px solid var(--tb-border)',
+          borderRadius: 6, background: 'var(--tb-panel-bg-soft)', overflow: 'hidden',
+        }}>
+          <span style={{
+            display: 'flex', alignItems: 'center', padding: '0 10px',
+            fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: 'var(--tb-text-faint)',
+          }}>Todoist</span>
           <TodoistSyncButton
             days={days}
             todoistSync={todoistSync} setTodoistSync={setTodoistSync}
@@ -645,19 +665,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
             onOpen={setTodoistImportDialog}
           />
         </div>
-        <div style={{ display: 'flex', gap: 28 }}>
-          <Pill label="Pianificate" value={fmtH(weekPlanned)}  color="var(--tb-text-muted)"   dim />
-          <Pill label="Tracciate"   value={fmtH(weekActual)}   color="var(--tb-text-primary)" dim={viewMode !== 'tracked'} />
-          <Pill label="Fatturabili" value={fmtH(weekBillable)} color="var(--tb-bar-tracked)"   dim={viewMode !== 'billable'} />
-          {weekExtra > 0 && (
-            <Pill label="Extra" value={fmtH(weekExtra)} color="var(--tb-hatch-bg)" hatch />
-          )}
-        </div>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <PlanningModeToggle value={planningMode} onChange={setPlanningModePersisted} />
-        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <ProjectVisibilityToggle value={hideEmpty ? 'worked' : 'all'} onChange={(next) => {
             const nextHideEmpty = next === 'worked';
@@ -667,6 +674,21 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           <ViewModeToggle value={viewMode} onChange={changeViewMode} />
         </div>
       </div>
+
+      {/* Riga 3: toggle pianificazione (Completa/Compatta/Nascosta), da sola */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <PlanningModeToggle value={planningMode} onChange={setPlanningModePersisted} />
+      </div>
+
+      <WeeklySummaryStrip
+        summary={weekTotalSummary} clients={clients}
+        open={summaryOpen}
+        onToggle={() => {
+          const next = !summaryOpen;
+          setSummaryOpen(next);
+          localStorage.setItem('timebox-week-summary-collapsed', String(!next));
+        }}
+      />
 
       {/* Unified grid */}
       <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-border)', overflow: 'hidden' }}>
@@ -1039,17 +1061,8 @@ function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, proje
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
           <span style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.name}</span>
           {client.areaStatus !== 'active' && (
-            <span
-              title={statusInfo.title}
-              className="tb-glyph"
-              style={{
-                fontSize: 11,
-                fontWeight: 800,
-                lineHeight: 1,
-                flexShrink: 0,
-              }}
-            >
-              {statusInfo.glyph}
+            <span title={statusInfo.title}>
+              <AreaStatusGlyph status={client.areaStatus} size={10} color="var(--tb-state-glyph)" />
             </span>
           )}
         </div>
@@ -1105,6 +1118,9 @@ function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, proje
   );
 }
 
+// Sidebar "Stato aree" — righe piatte, nessuna card/bordo per riga (REDLINE §1):
+// dot colore-area + nome, poi i 3 glifi A/M/C sempre visibili, quello attivo più
+// chiaro/marcato, gli altri appena percepibili. Nessun riempimento dietro il glifo.
 export function AreaStatusPanel({ clients, statuses, onChange, compact }) {
   if (!clients.length) return null;
 
@@ -1113,10 +1129,9 @@ export function AreaStatusPanel({ clients, statuses, onChange, compact }) {
       display: 'flex',
       flexDirection: compact ? 'column' : 'row',
       alignItems: compact ? 'stretch' : 'center',
-      gap: 6,
+      gap: compact ? 7 : 14,
       flexWrap: compact ? 'nowrap' : 'wrap',
       width: compact ? '100%' : 'auto',
-      paddingLeft: 2,
     }}>
       {clients.map(client => {
         const current = statuses[client.id] ?? 'active';
@@ -1124,61 +1139,36 @@ export function AreaStatusPanel({ clients, statuses, onChange, compact }) {
           <div
             key={client.id}
             title={`Stato settimanale area: ${client.name}`}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: compact ? 'space-between' : 'flex-start',
-              minHeight: 24,
-              border: '1px solid var(--tb-border)',
-              borderRadius: 5,
-              overflow: 'hidden',
-              background: 'var(--tb-panel-bg)',
-            }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
           >
             <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              maxWidth: compact ? undefined : 120,
-              flex: compact ? 1 : undefined,
-              minWidth: 0,
-              padding: '0 7px',
-              fontSize: 10,
-              fontWeight: 700,
-              color: 'var(--tb-text-muted)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              minWidth: 0, flex: compact ? 1 : undefined,
+              fontSize: 11, fontWeight: 600, color: 'var(--tb-sidebar-text)',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{client.name}</span>
             </span>
-            {AREA_STATUS_OPTIONS.map(option => {
-              const active = current === option.key;
-              return (
-                <button
-                  key={option.key}
-                  onClick={() => onChange(client.id, option.key)}
-                  title={option.title}
-                  style={{
-                    minWidth: 22,
-                    height: 22,
-                    padding: '0 6px',
-                    border: 'none',
-                    borderLeft: '1px solid var(--tb-border)',
-                    background: active ? 'var(--tb-tab-active-bg)' : 'transparent',
-                    color: active ? 'var(--tb-tab-active-text)' : 'var(--tb-text-faint)',
-                    cursor: 'pointer',
-                    fontSize: 11,
-                    fontWeight: 800,
-                    fontFamily: "'Open Sans', sans-serif",
-                    lineHeight: 1,
-                  }}
-                >
-                  {option.glyph}
-                </button>
-              );
-            })}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+              {AREA_STATUS_OPTIONS.map(option => {
+                const active = current === option.key;
+                return (
+                  <button
+                    key={option.key}
+                    onClick={() => onChange(client.id, option.key)}
+                    title={option.title}
+                    style={{
+                      padding: 2, border: 'none', background: 'transparent', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <AreaStatusGlyph status={option.key} size={11}
+                      color={active ? 'var(--tb-sidebar-text)' : 'var(--tb-sidebar-faint)'} />
+                  </button>
+                );
+              })}
+            </span>
           </div>
         );
       })}
@@ -1334,15 +1324,99 @@ function PlanningModeToggle({ value, onChange }) {
   );
 }
 
-function Pill({ label, value, color, dim, hatch }) {
+// Specchietto capacità — sintesi settimana + link ad Andamento (README: "Lo specchietto
+// di Settimana apre Andamento"). Sostituisce le 4 pill separate con un'unica lettura
+// tracciato/pianificato + barra + breakdown fatturabili/non-fatt/extra.
+function CapacityMirror({ actual, planned, billable, extra, onNavigate }) {
+  const pct = planned > 0 ? Math.round((actual / planned) * 100) : 0;
+  const nonBillable = Math.max(0, actual - billable);
   return (
-    <div style={{ textAlign: 'center', opacity: dim ? 0.4 : 1, transition: 'opacity 0.15s' }}>
-      <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
-        color: 'var(--tb-text-faint)', marginBottom: 2 }}>{label}</div>
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-        {hatch && <span className="tb-hatch" style={{ width: 9, height: 9, borderRadius: 2 }} title="Extra / fuori piano" />}
-        <span style={{ fontSize: 15, fontWeight: 800, color }}>{value}</span>
+    <div style={{
+      width: 380, flexShrink: 0, background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border)',
+      borderRadius: 9, padding: '14px 18px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+        <span>
+          <span style={{ fontSize: 30, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em' }}>{fmtH(actual)}</span>{' '}
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tb-text-muted)' }}>tracciate / {fmtH(planned)}</span>
+        </span>
+        {onNavigate ? (
+          <button onClick={onNavigate} title="Apri Andamento" style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1,
+            background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 0 0',
+            fontFamily: "'Open Sans', sans-serif", flexShrink: 0,
+          }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{pct}%</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>Andamento →</span>
+          </button>
+        ) : (
+          <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)', paddingTop: 2 }}>{pct}%</span>
+        )}
       </div>
+      <div style={{ position: 'relative', height: 5, borderRadius: 3, background: 'var(--tb-bar-track)', marginTop: 10, overflow: 'visible' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, pct)}%`, background: 'var(--tb-bar-tracked)', borderRadius: 3 }} />
+        {pct > 100 && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: `${Math.min(30, pct - 100)}%`, borderRadius: '0 3px 3px 0' }} />}
+      </div>
+      <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 10, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
+        <span>Fatturabili {fmtH(billable)}</span>
+        <span>Non-fatt. {fmtH(nonBillable)}</span>
+        {extra > 0 && <span>Extra {fmtH(extra)}</span>}
+      </div>
+    </div>
+  );
+}
+
+// Riepilogo settimana / area — strip collassabile sopra la griglia (mock #2a).
+// Colore = solo identità area; sopra/sotto piano si legge dalla barra, non da hue diverso.
+function WeeklySummaryStrip({ summary, clients, open, onToggle }) {
+  const items = clients
+    .map(c => ({ client: c, data: summary[c.id] }))
+    .filter(({ data }) => data && ((data.planned || 0) > 0 || (data.actual || 0) > 0));
+
+  if (items.length === 0) return null;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: open ? 8 : 0 }}>
+        <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
+          Riepilogo settimana / area
+        </span>
+        <button onClick={onToggle} style={{
+          background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+          fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', fontFamily: "'Open Sans', sans-serif",
+        }}>
+          {open ? 'nascondi ▾' : 'mostra ▸'}
+        </button>
+      </div>
+      {open && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {items.map(({ client, data }) => {
+            const planned = data.planned || 0;
+            const actual = data.actual || 0;
+            const pct = planned > 0 ? Math.min(1, actual / planned) : (actual > 0 ? 1 : 0);
+            const over = planned > 0 && actual > planned;
+            return (
+              <div key={client.id} style={{
+                flex: '1 1 140px', minWidth: 140,
+                background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
+                borderLeft: `3px solid ${client.color}`, borderRadius: 6, padding: '8px 10px',
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: client.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {client.name}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)', marginTop: 2 }}>
+                  {toHHMM(actual)}
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-faint)' }}> / {toHHMM(planned)}</span>
+                </div>
+                <div style={{ position: 'relative', height: 3, borderRadius: 2, background: 'var(--tb-bar-track)', marginTop: 5, overflow: 'visible' }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct * 100}%`, background: client.color, borderRadius: 2 }} />
+                  {over && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: '18%', borderRadius: '0 2px 2px 0' }} />}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -1388,8 +1462,9 @@ function TodoistImportButton({ days, projects, onOpen }) {
       title="Importa nel timesheet i task Todoist completati e non ancora importati"
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
-        fontSize: 10, fontWeight: 700, padding: '4px 9px', borderRadius: 5,
-        background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border)', color: 'var(--tb-text-secondary)',
+        fontSize: 10, fontWeight: 700, padding: '0 10px', height: 28,
+        background: 'transparent', border: 'none', borderLeft: '1px solid var(--tb-border)',
+        color: 'var(--tb-text-secondary)',
         cursor: busy ? 'wait' : 'pointer', fontFamily: "'Open Sans', sans-serif",
         opacity: busy ? 0.6 : 1,
       }}
@@ -1668,8 +1743,9 @@ function TodoistSyncButton({ days, todoistSync, setTodoistSync, todoistTasks, se
       title="Aggiorna i task da Todoist per oggi e i giorni futuri"
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
-        fontSize: 10, fontWeight: 700, padding: '4px 9px', borderRadius: 5,
-        background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border)', color: 'var(--tb-text-secondary)',
+        fontSize: 10, fontWeight: 700, padding: '0 10px', height: 28,
+        background: 'transparent', border: 'none', borderLeft: '1px solid var(--tb-border)',
+        color: 'var(--tb-text-secondary)',
         cursor: busy ? 'wait' : 'pointer', fontFamily: "'Open Sans', sans-serif",
         opacity: busy ? 0.6 : 1, transition: 'opacity 0.15s',
       }}>
@@ -1677,8 +1753,8 @@ function TodoistSyncButton({ days, todoistSync, setTodoistSync, todoistTasks, se
         style={{ animation: busy ? 'tbspin 0.8s linear infinite' : 'none', flexShrink: 0 }}>
         <path d="M9 5a4 4 0 1 1-1.2-2.8M9 1.5V3.5H7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
       </svg>
-      <span>Aggiorna da Todoist</span>
-      {lastSyncLabel && <span style={{ color: 'var(--tb-text-faint)', fontWeight: 600 }}>· {lastSyncLabel}</span>}
+      <span>Aggiorna</span>
+      {lastSyncLabel && <span style={{ color: 'var(--tb-text-faint)', fontWeight: 600 }}>{lastSyncLabel}</span>}
       <style>{`@keyframes tbspin { to { transform: rotate(360deg); } }`}</style>
     </button>
   );

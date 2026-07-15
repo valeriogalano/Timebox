@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DAY_SHORT, fmtH, SLOTS } from '../utils';
+import { DAY_SHORT, fmtH, SLOTS, getToday, getMondayOfWeek, fmt } from '../utils';
 import MultiSlotCell from '../components/MultiSlotCell';
 
 const RECURRING_DAYS = DAY_SHORT.length;
@@ -8,6 +8,16 @@ const SLOT_ROW_LABELS = { am: 'Mattina', pm: 'Pomeriggio', sera: 'Sera' };
 export default function RecurringScreen({ clients, recurring, setRecurring, slotCapacityHours }) {
   const [dragging, setDragging] = useState(null); // { blockId, fromDay, fromSlot, clientId, hours }
   const [dragOver, setDragOver] = useState(null); // { day, slot }
+
+  // Stato A/M/C dell'area — contestuale (settimana corrente), il template è week-agnostic.
+  const [statuses, setStatuses] = useState({});
+  useEffect(() => {
+    const weekKey = fmt(getMondayOfWeek(getToday()));
+    window.api.getWeekAreaStatuses(weekKey).then(rows => {
+      setStatuses(Object.fromEntries(rows.map(row => [row.areaId, row.status])));
+    });
+  }, []);
+  const clientsWithStatus = clients.map(c => ({ ...c, areaStatus: statuses[c.id] ?? 'active' }));
 
   useEffect(() => {
     function onDragEnd() { setDragging(null); setDragOver(null); }
@@ -140,7 +150,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
                     <MultiSlotCell
                       key={i}
                       blocks={blocks}
-                      clients={clients}
+                      clients={clientsWithStatus}
                       onAdd={(cid, h) => addBlock(i, slot, cid, h)}
                       onUpdate={updateBlock}
                       onRemove={removeBlock}

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { toHHMM, SLOT_LABELS, normalizeSlot } from '../utils';
+import { areaMix } from '../area-colors';
 import TodoistTaskTooltip from './TodoistTaskTooltip';
 
 function OrphanBlock({ orphan, cl, isToday, isFuture, compact }) {
@@ -15,10 +16,10 @@ function OrphanBlock({ orphan, cl, isToday, isFuture, compact }) {
       style={{
         position: 'relative',
         display: 'flex', alignItems: 'center', gap: 5,
-        borderLeft: `3px solid ${cl.color}aa`,
-        border: `1px dashed ${cl.color}55`,
+        borderLeft: `3px solid ${areaMix(cl.color, 67)}`,
+        border: `1px dashed ${areaMix(cl.color, 33)}`,
         borderRadius: 4, padding: compact ? '2px 5px' : '2px 6px',
-        backgroundImage: `repeating-linear-gradient(135deg, ${cl.color}10 0 4px, transparent 4px 8px)`,
+        backgroundImage: `repeating-linear-gradient(135deg, ${areaMix(cl.color, 6)} 0 4px, transparent 4px 8px)`,
       }}>
       {showTooltip && (
         <TodoistTaskTooltip anchorRef={blockRef} tasks={orphan.tasks} color={cl.color} />
@@ -66,7 +67,7 @@ export default function ExtraCell({ blocks, orphanTodoist, clients, isToday, isF
         return (
           <div key={clientId} style={{
             display: 'flex', alignItems: 'center', gap: 5,
-            background: cl.color + '15',
+            background: areaMix(cl.color, 8),
             borderLeft: `3px solid ${cl.color}`,
             borderRadius: 4, padding: compact ? '2px 6px' : '3px 7px',
           }}>

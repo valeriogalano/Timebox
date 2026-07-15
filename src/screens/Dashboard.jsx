@@ -89,11 +89,11 @@ export default function Dashboard({ clients, projects, screen }) {
           <div style={{ padding: '12px 16px', background: 'var(--tb-panel-bg-soft)', display: 'flex', justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginBottom: 2 }}>Totale fatturato</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: '#3DB33D' }}>€{totalBilledEur.toFixed(0)}</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)' }}>€{totalBilledEur.toFixed(0)}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginBottom: 2 }}>Da fatturare</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: '#E07B3A' }}>€{totalUnbilledEur.toFixed(0)}</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-secondary)' }}>€{totalUnbilledEur.toFixed(0)}</div>
             </div>
           </div>
         </div>
@@ -127,19 +127,23 @@ function NavBtn({ onClick, children, small }) {
 }
 
 function ClientCard({ client, totalTracked }) {
-  const alertLevel = client.pct >= 90 ? 'high' : client.pct >= 75 ? 'medium' : null;
+  // Colore = solo identità area (client.color), mai sostituito dall'alert.
+  // Il livello di allerta (vicino al limite) si legge dal meter neutro, non dal colore.
+  const alertLevel = client.pct >= 90 ? 3 : client.pct >= 75 ? 2 : client.pct >= 50 ? 1 : 0;
   const shareOfTotal = totalTracked > 0 ? ((client.weekH / totalTracked) * 100).toFixed(0) : 0;
   return (
-    <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, padding: 16,
-      border: `1px solid ${alertLevel === 'high' ? '#E0525240' : alertLevel === 'medium' ? '#F0A02040' : 'var(--tb-panel-border)'}` }}>
+    <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, padding: 16, border: '1px solid var(--tb-panel-border)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <div style={{ width: 10, height: 10, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
         <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--tb-text-primary)', flex: 1 }}>{client.name}</span>
-        {alertLevel && (
-          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 100,
-            color: alertLevel === 'high' ? '#E05252' : '#E07B3A',
-            background: alertLevel === 'high' ? '#E0525215' : '#F0A02015' }}>
-            {alertLevel === 'high' ? '⚠ Vicino al limite' : '↑ Attenzione'}
+        {alertLevel >= 2 && (
+          <span
+            className="tb-meter"
+            data-level={alertLevel}
+            title={alertLevel === 3 ? 'Limite superato al 90%+' : 'Limite all\'80%+'}
+            style={{ flexShrink: 0 }}
+          >
+            <i /><i /><i />
           </span>
         )}
         <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', fontWeight: 600 }}>
@@ -148,7 +152,7 @@ function ClientCard({ client, totalTracked }) {
       </div>
       <div style={{ background: 'var(--tb-panel-bg-subtle)', borderRadius: 4, height: 5, marginBottom: 8, overflow: 'hidden' }}>
         <div style={{ height: 5, borderRadius: 4, transition: 'width 0.5s ease',
-          background: alertLevel === 'high' ? '#E05252' : alertLevel === 'medium' ? '#E07B3A' : client.color,
+          background: client.color,
           width: `${client.pct}%` }} />
       </div>
       <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
@@ -165,7 +169,7 @@ function ClientCard({ client, totalTracked }) {
 }
 
 function BillingLine({ label, hours, eur, positive }) {
-  const color = positive ? '#3DB33D' : '#E07B3A';
+  const color = positive ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)';
   return (
     <div>
       <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 1 }}>{label}</div>
