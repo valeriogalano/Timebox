@@ -332,7 +332,17 @@ const tdStyle = {
 };
 
 // Nessun rosso/verde: primary = riempito (azione confermata), danger = si distingue
-// per contesto (già dietro conferma Sì/No), non per colore — stesso hover neutro di primary.
+// per contesto (già dietro conferma Sì/No) + icona di avviso, non per colore.
+function WarningIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+      <path d="M7 1.5 13 12.5H1L7 1.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M7 5.5v3.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <circle cx="7" cy="10.8" r="0.9" fill="currentColor" />
+    </svg>
+  );
+}
+
 function ActionBtn({ onClick, children, primary, danger }) {
   const [hover, setHover] = useState(false);
   const filled = primary || (danger && hover);
@@ -341,6 +351,7 @@ function ActionBtn({ onClick, children, primary, danger }) {
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
         fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4,
         border: filled ? 'none' : '1px solid var(--tb-border)',
         background: filled ? 'var(--tb-text-primary)' : (hover ? 'var(--tb-sidebar-bg)' : 'transparent'),
@@ -348,6 +359,7 @@ function ActionBtn({ onClick, children, primary, danger }) {
         cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
         transition: 'all 0.1s',
       }}>
+      {danger && <WarningIcon />}
       {children}
     </button>
   );

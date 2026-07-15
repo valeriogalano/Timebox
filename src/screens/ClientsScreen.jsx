@@ -425,8 +425,8 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
               style={{ padding: '5px 8px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
                 background: 'transparent', color: 'var(--tb-text-secondary)',
                 cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s', flexShrink: 0 }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#d97070'; e.currentTarget.style.borderColor = '#d97070'; }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--tb-text-secondary)'; e.currentTarget.style.borderColor = 'var(--tb-border-mid)'; }}>
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--tb-panel-bg)'; e.currentTarget.style.background = 'var(--tb-text-primary)'; e.currentTarget.style.borderColor = 'var(--tb-text-primary)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--tb-text-secondary)'; e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--tb-border-mid)'; }}>
               <TrashIcon />
             </button>
           </div>
@@ -651,8 +651,8 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                           style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
                             background: 'transparent', color: 'var(--tb-text-secondary)',
                             cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s', flexShrink: 0 }}
-                          onMouseEnter={e => { e.currentTarget.style.color = '#d97070'; e.currentTarget.style.borderColor = '#d97070'; }}
-                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--tb-text-secondary)'; e.currentTarget.style.borderColor = 'var(--tb-border-mid)'; }}>
+                          onMouseEnter={e => { e.currentTarget.style.color = 'var(--tb-panel-bg)'; e.currentTarget.style.background = 'var(--tb-text-primary)'; e.currentTarget.style.borderColor = 'var(--tb-text-primary)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--tb-text-secondary)'; e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--tb-border-mid)'; }}>
                           <TrashIcon />
                         </button>
                       </div>
