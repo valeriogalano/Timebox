@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DAY_SHORT, fmtH, SLOTS, getToday, getMondayOfWeek, fmt } from '../utils';
+import { DAY_SHORT, fmtH, SLOTS, getToday, getMondayOfWeek, fmt, addDays } from '../utils';
 import MultiSlotCell from '../components/MultiSlotCell';
 
 const RECURRING_DAYS = DAY_SHORT.length;
