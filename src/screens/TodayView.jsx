@@ -173,7 +173,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
       </div>
 
       {error && (
-        <div style={{ padding: '10px 12px', border: '1px solid #E0525240', background: '#E0525210', color: '#E05252', borderRadius: 7, fontSize: 12, fontWeight: 700 }}>
+        <div style={{ padding: '10px 12px', border: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg-soft)', color: 'var(--tb-text-primary)', borderRadius: 7, fontSize: 12, fontWeight: 700 }}>
           {error}
         </div>
       )}
@@ -190,24 +190,31 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
         />
 
         <div style={{ flex: 1, minWidth: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {!loading && (
+            <TodayGauge
+              planned={SLOTS.reduce((s, slot) => s + (slotPlannedTotals[slot] || 0), 0)}
+              traced={rawEntries.reduce((s, e) => s + e.hours, 0)}
+              capacity={slotCapacityHours * SLOTS.length}
+            />
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
             <MetricCard
               label="Capacità libera"
               value={loading ? '...' : fmtH(totals.freeUnallocatedHours || 0)}
               sub={`${fmtH(totals.availableAfterTrackedAndTasks || 0)} dopo tracciate + Todoist`}
-              tone={(totals.freeUnallocatedHours || 0) > 0 ? 'green' : 'muted'}
+              glyph={(totals.freeUnallocatedHours || 0) > 0 ? '▪' : null}
             />
             <MetricCard
               label="Blocchi senza azione"
               value={loading ? '...' : String(readyGroups.length)}
               sub={`${fmtH(totals.reservedWithoutTasksHours || 0)} ancora riservate`}
-              tone={readyGroups.length ? 'orange' : 'green'}
+              glyph={readyGroups.length ? '⬦' : null}
             />
             <MetricCard
               label="Mismatch"
               value={loading ? '...' : String(totalMismatches)}
               sub={`${fmtH(totals.estimatedHours || 0)} stimate in Todoist`}
-              tone={totalMismatches ? 'orange' : 'green'}
+              glyph={totalMismatches ? '▸' : null}
             />
           </div>
 
@@ -218,7 +225,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
                 title={`${group.area} · ${group.slot.toUpperCase()}`}
                 value={fmtH(group.missingHours)}
                 meta={`${fmtH(group.estimatedHours)} Todoist su ${fmtH(group.availableHours)} disponibili`}
-                color="#E07B3A"
+                color="var(--tb-text-primary)"
               />
             ))}
           </Panel>
@@ -337,13 +344,74 @@ function DayPlanningPanel({
   );
 }
 
-function MetricCard({ label, value, sub, tone }) {
-  const color = tone === 'orange' ? '#E07B3A' : tone === 'green' ? '#3DB33D' : 'var(--tb-text-muted)';
+function MetricCard({ label, value, sub, glyph }) {
   return (
-    <div style={{ border: '1px solid var(--tb-border)', borderRadius: 8, background: 'var(--tb-panel-bg)', padding: '14px 16px', minHeight: 104 }}>
-      <div style={{ fontSize: 9, fontWeight: 850, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>{label}</div>
-      <div style={{ fontSize: 30, fontWeight: 850, color, lineHeight: 1.1, marginTop: 8 }}>{value}</div>
+    <div style={{ border: '1px solid var(--tb-border)', borderRadius: 9, background: 'var(--tb-panel-bg)', padding: '14px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 9, fontWeight: 850, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>{label}</div>
+        {glyph && <span className="tb-glyph" style={{ fontSize: 13 }}>{glyph}</span>}
+      </div>
+      <div style={{ fontSize: 30, fontWeight: 850, color: 'var(--tb-text-primary)', lineHeight: 1.1, marginTop: 8 }}>{value}</div>
       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', marginTop: 6 }}>{sub}</div>
+    </div>
+  );
+}
+
+// Live gauge "Carico di oggi · adesso": barra neutra con tre marcatori.
+//  - fill neutro       = ore tracciate
+//  - hatch             = oltre capacità
+//  - tick bianco pieno = ritmo atteso ora (time-of-day)
+//  - tick grigio       = piano del giorno
+//  - tick tratteggiato = capacità
+// Verdetto via glyph ▸/▾/▪ (sopra/sotto/in pari col ritmo).
+function TodayGauge({ planned, traced, capacity }) {
+  const scale = Math.max(capacity, planned, traced, 0.001);
+  const pct = v => `${Math.max(0, Math.min(100, (v / scale) * 100))}%`;
+  const over = traced > capacity;
+  const now = new Date();
+  // workday window 9:00–18:00 → fraction elapsed
+  const dayStart = 9 * 60, dayEnd = 18 * 60;
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const frac = Math.max(0, Math.min(1, (mins - dayStart) / (dayEnd - dayStart)));
+  const pace = planned * frac; // dove dovresti essere ora
+  const diff = traced - pace;
+  const verdict = Math.abs(diff) < 0.25
+    ? { glyph: '▪', label: 'In pari col ritmo', sub: `${fmtH(Math.abs(diff))} di scarto` }
+    : diff > 0
+      ? { glyph: '▸', label: 'Sopra il ritmo', sub: `${fmtH(diff)} in avanti` }
+      : { glyph: '▾', label: 'Sotto il ritmo', sub: `${fmtH(-diff)} indietro` };
+  return (
+    <div style={{ border: '1px solid var(--tb-border)', borderRadius: 10, background: 'var(--tb-panel-bg)', padding: '16px 18px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>Carico di oggi · adesso</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
+            <span style={{ fontSize: 30, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtH(traced)}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tb-text-muted)' }}>tracciate su {fmtH(planned)} piano</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 7, border: '1px solid var(--tb-border-mid)', background: 'var(--tb-panel-bg-soft)' }}>
+          <span className="tb-glyph" style={{ fontSize: 15 }}>{verdict.glyph}</span>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1.1 }}>{verdict.label}</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)', marginTop: 1 }}>{verdict.sub}</div>
+          </div>
+        </div>
+      </div>
+      <div style={{ position: 'relative', height: 16, borderRadius: 8, background: 'var(--tb-bar-track)', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct(traced), background: 'var(--tb-bar-tracked)' }} />
+        {over && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: pct(capacity), width: `calc(${pct(traced)} - ${pct(capacity)})` }} />}
+        <span title="Dove dovresti essere ora" style={{ position: 'absolute', left: pct(pace), top: -2, bottom: -2, width: 2, background: 'var(--tb-text-primary)' }} />
+        <span className="tb-tick" title="Piano del giorno" style={{ left: pct(planned) }} />
+        <span title="Capacità" style={{ position: 'absolute', left: pct(capacity), top: -2, bottom: -2, width: 0, borderLeft: '2px dashed var(--tb-tick)' }} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 10, fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 10, height: 0, borderTop: '2px solid var(--tb-text-primary)', display: 'inline-block' }} />ritmo atteso ora</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 2, height: 10, background: 'var(--tb-tick)', display: 'inline-block' }} />piano {fmtH(planned)}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 10, height: 0, borderTop: '2px dashed var(--tb-tick)', display: 'inline-block' }} />capacità {fmtH(capacity)}</span>
+        <span style={{ flex: 1 }} />
+        <span style={{ color: 'var(--tb-text-secondary)' }}>restano <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(Math.max(0, planned - traced))}</strong> a piano</span>
+      </div>
     </div>
   );
 }
@@ -353,7 +421,7 @@ function Panel({ title, empty, children }) {
     <section style={{ border: '1px solid var(--tb-border)', borderRadius: 8, background: 'var(--tb-panel-bg)', overflow: 'hidden', minHeight: 260 }}>
       <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: 12, fontWeight: 850, color: 'var(--tb-text-primary)' }}>{title}</h2>
-        {empty && <span style={{ fontSize: 10, fontWeight: 800, color: '#3DB33D' }}>{empty}</span>}
+        {empty && <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-muted)' }}>{empty}</span>}
       </div>
       <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {children}
@@ -401,7 +469,7 @@ function MismatchGroup({ label, count = 0, items = [], itemLabel }) {
           title={itemLabel(item)}
           value={item.slot?.toUpperCase?.() || ''}
           meta={item.project || item.todoistProject || ''}
-          color="#E07B3A"
+          color="var(--tb-text-muted)"
         />
       ))}
     </div>
