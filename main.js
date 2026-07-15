@@ -12,7 +12,8 @@ const { setupAutoUpdater } = require('./lib/updater');
 const { setupUpdateNotifier } = require('./lib/update-notifier');
 
 function getAppIcon() {
-  const img = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'));
+  const fileName = isDev ? 'icon-dev.png' : 'icon.png';
+  const img = nativeImage.createFromPath(path.join(__dirname, 'build', fileName));
   return img.isEmpty() ? null : img;
 }
 
@@ -189,7 +190,10 @@ function openDatabase(dbPath) {
   logger.info('db init', { dbPath });
   _db = initDb(dbPath);
   q.init(_db);
-  saveConfig({ dbPath });
+  // Dev/test runs share the packaged app's userData/config.json (same app
+  // name), so never persist the dev DB path there or the next production
+  // launch would pick it up.
+  if (!isDev) saveConfig({ dbPath });
 }
 
 if (isDev) {
