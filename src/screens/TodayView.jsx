@@ -4,6 +4,7 @@ import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks } from '
 import PlanningCell from '../components/PlanningCell';
 import SlotCapacityBar from '../components/SlotCapacityBar';
 import ExtraCell from '../components/ExtraCell';
+import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
 
 function formatSyncDate(value) {
   if (!value) return 'Mai sincronizzato';
@@ -26,7 +27,6 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [syncing, setSyncing] = useState(false);
   const today = fmt(getToday());
   const weekKey = fmt(getMondayOfWeek(getToday()));
   const dayIndex = (getToday().getDay() + 6) % 7; // Monday = 0, matching recurring.day
@@ -38,6 +38,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
   const [syncedAt, setSyncedAt] = useState(null);
   const [projectTotals, setProjectTotals] = useState({});
   const [dragging, setDragging] = useState(null);
+  const [todoistImportDialog, setTodoistImportDialog] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -74,7 +75,6 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
   }, [today, externalRefreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function syncFromTodoist() {
-    setSyncing(true);
     try {
       const debug = localStorage.getItem('timebox-todoist-debug') === 'true';
       const result = await window.api.syncTodoist(projects, [today], debug);
@@ -89,8 +89,6 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
       onSynced?.();
     } catch (err) {
       alert(`Errore sincronizzazione Todoist: ${err.message}`);
-    } finally {
-      setSyncing(false);
     }
   }
 
@@ -190,9 +188,14 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
             {data?.syncedAt ? ` · Todoist ${formatSyncDate(data.syncedAt)}` : ''}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <TodoistSyncButton onClick={syncFromTodoist} busy={syncing} />
-        </div>
+        <TodoistControlBar>
+          <TodoistSyncButton
+            onRefresh={syncFromTodoist}
+            lastSyncLabel={syncedAt ? new Date(syncedAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : null}
+            title="Aggiorna i task da Todoist per oggi"
+          />
+          <TodoistImportButton dates={[today]} projects={projects} onOpen={setTodoistImportDialog} />
+        </TodoistControlBar>
       </div>
 
       {error && (
@@ -270,28 +273,30 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
           </Panel>
         </div>
       </div>
+      {todoistImportDialog && (
+        <TodoistImportDialog
+          dialog={todoistImportDialog}
+          clients={clients}
+          projects={projects}
+          onClose={() => setTodoistImportDialog(null)}
+          onImport={async imports => {
+            await window.api.importCompletedTodoistTasks(imports.map(item => ({
+              todoistTaskId: item.id,
+              projectId: item.projectId,
+              date: item.date,
+              hours: item.hours,
+              titleSnapshot: item.content || item.title || null,
+              importedAt: new Date().toISOString(),
+              slot: item.slot,
+            })));
+            await load();
+            window.api.getProjectTotals().then(setProjectTotals);
+            onEntryChange?.();
+            setTodoistImportDialog(null);
+          }}
+        />
+      )}
     </div>
-  );
-}
-
-function TodoistSyncButton({ onClick, busy }) {
-  return (
-    <button onClick={onClick} disabled={busy}
-      title="Aggiorna i task da Todoist per oggi"
-      style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        fontSize: 10, fontWeight: 700, padding: '4px 9px', borderRadius: 5,
-        background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border)', color: 'var(--tb-text-secondary)',
-        cursor: busy ? 'wait' : 'pointer', fontFamily: "'Open Sans', sans-serif",
-        opacity: busy ? 0.6 : 1, transition: 'opacity 0.15s',
-      }}>
-      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
-        style={{ animation: busy ? 'tbspin 0.8s linear infinite' : 'none', flexShrink: 0 }}>
-        <path d="M9 5a4 4 0 1 1-1.2-2.8M9 1.5V3.5H7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-      </svg>
-      <span>Aggiorna da Todoist</span>
-      <style>{`@keyframes tbspin { to { transform: rotate(360deg); } }`}</style>
-    </button>
   );
 }
 
