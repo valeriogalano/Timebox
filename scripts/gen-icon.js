@@ -81,23 +81,38 @@ function makePixel(x, y) {
   return [...bg, 255];
 }
 
-const raw = [];
-for (let y = 0; y < H; y++) {
-  raw.push(0);
-  for (let x = 0; x < W; x++) raw.push(...makePixel(x, y));
+function toGray([r, g, b, a]) {
+  const y = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+  return [y, y, y, a];
 }
 
-const ihdr = Buffer.allocUnsafe(13);
-ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4);
-ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+function writeIcon(fileName, mono) {
+  const raw = [];
+  for (let y = 0; y < H; y++) {
+    raw.push(0);
+    for (let x = 0; x < W; x++) {
+      const px = makePixel(x, y);
+      raw.push(...(mono ? toGray(px) : px));
+    }
+  }
 
-const png = Buffer.concat([
-  Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-  pngChunk('IHDR', ihdr),
-  pngChunk('IDAT', zlib.deflateSync(Buffer.from(raw))),
-  pngChunk('IEND', Buffer.alloc(0)),
-]);
+  const ihdr = Buffer.allocUnsafe(13);
+  ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4);
+  ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
 
-const outPath = path.join(__dirname, '..', 'build', 'icon.png');
-fs.writeFileSync(outPath, png);
-console.log(`Icon generated: ${outPath} (${Math.round(png.length / 1024)} KB)`);
+  const png = Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', zlib.deflateSync(Buffer.from(raw))),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ]);
+
+  const outPath = path.join(__dirname, '..', 'build', fileName);
+  fs.writeFileSync(outPath, png);
+  console.log(`Icon generated: ${outPath} (${Math.round(png.length / 1024)} KB)`);
+}
+
+// Dev/test builds get a black-and-white icon.png-dev so a running test app is
+// visually distinguishable from the color production icon.
+writeIcon('icon.png', false);
+writeIcon('icon-dev.png', true);
