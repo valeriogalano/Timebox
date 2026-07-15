@@ -48,23 +48,32 @@ function PlanningBlock({
   onRemove, onDragStart,
   projects, projectTotals, weekProjectHours,
   compact,
-  stepper, stepperMinutes, onStepperChange, onStepperDone,
+  stepper, onStepperDone,
 }) {
   const [hover, setHover] = useState(false);
   const [stepperOpen, setStepperOpen] = useState(false);
+  const [stepperDraftMin, setStepperDraftMin] = useState(0);
   const blockRef = useRef(null);
   const complete = logged >= block.hours && block.hours > 0;
 
-  // Ore tracciate effettive per lo stepper: valore di bootstrap + delta
-  // staccabile in tsEdits[key] (minuti). Il "valore live" e' l'unica verita' del
-  // gauge (vedi REDLINE §4): il totale del giorno e il gauge derivano da qui.
-  const stepperLiveMin = stepperMinutes ?? Math.round((logged || 0) * 60);
-  const stepperLiveH = stepperLiveMin / 60;
-  const stepperDirty = Math.round(stepperLiveMin / STEPPER_STEP_MIN) !== Math.round((logged || 0) * 60 / STEPPER_STEP_MIN);
+  // Stepper ±15min sulle ore tracciate: stato locale al blocco, committed on
+  // ✓ via onStepperDone(hours). Nessuna mappa tsEdits condivisa: il valore
+  // "live" prima del commit è solo di questo blocco.
+  const stepperLiveH = stepperDraftMin / 60;
+  const stepperDirty = stepperOpen && Math.round(stepperDraftMin / STEPPER_STEP_MIN) !== Math.round((logged || 0) * 60 / STEPPER_STEP_MIN);
+
+  function openStepper() {
+    setStepperDraftMin(Math.round((logged || 0) * 60));
+    setStepperOpen(true);
+  }
 
   function stepperStep(minutesDelta) {
-    const next = Math.max(0, stepperLiveMin + minutesDelta);
-    onStepperChange?.(block.id, next);
+    setStepperDraftMin(m => Math.max(0, m + minutesDelta));
+  }
+
+  function commitStepper() {
+    onStepperDone?.(stepperDraftMin / 60);
+    setStepperOpen(false);
   }
 
   const clientProjects = (projects || []).filter(p => p.clientId === block.clientId && !p.archived);
@@ -144,31 +153,31 @@ function PlanningBlock({
               <span style={{ minWidth: 34, textAlign: 'center', fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
                 {toHHMM(stepperLiveH)}
               </span>
+              {stepperDirty && (
+                <span title="Modificato" style={{
+                  width: 4, height: 4, borderRadius: '50%',
+                  background: 'var(--tb-bar-tracked)', alignSelf: 'center',
+                }} />
+              )}
               <StepperBtn label="+" onClick={() => stepperStep(STEPPER_STEP_MIN)} />
-              <StepperBtn label="✓" check onClick={() => { onStepperDone?.(block.id); setStepperOpen(false); }} />
+              <StepperBtn label="✓" check onClick={commitStepper} />
               <span style={{ fontSize: 9, color: 'var(--tb-text-muted)' }}>/</span>
               <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>{toHHMM(block.hours)}</span>
             </span>
           ) : (
             <div
-              onClick={(e) => { e.stopPropagation(); setStepperOpen(true); }}
+              onClick={(e) => { e.stopPropagation(); openStepper(); }}
               title="Modifica ore tracciate"
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
                 cursor: 'pointer', lineHeight: 1, fontFamily: "'Open Sans', sans-serif",
               }}>
-              {stepperLiveMin > 0 ? (
+              {logged > 0 ? (
                 <>
                   <span style={{
                     fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)',
                     borderBottom: '1px dotted var(--tb-border-mid)',
-                  }}>{toHHMM(stepperLiveH)}</span>
-                  {stepperDirty && (
-                    <span title="Modificato" style={{
-                      width: 4, height: 4, borderRadius: '50%',
-                      background: 'var(--tb-bar-tracked)', alignSelf: 'center',
-                    }} />
-                  )}
+                  }}>{toHHMM(logged)}</span>
                   <span style={{ fontSize: 9, color: 'var(--tb-text-muted)' }}>/</span>
                   <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>{toHHMM(block.hours)}</span>
                 </>
@@ -273,7 +282,7 @@ export default function PlanningCell({
   compact,
   isToday, isFuture, isWeekend, editable,
   onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onReorder, draggingId,
-  stepper, stepperMinutes, onStepperChange, onStepperDone,
+  blockCountByClient, onLogHours,
 }) {
   const seenTodoistClients = new Set();
   const todoistRemainder = {};
@@ -409,7 +418,16 @@ export default function PlanningCell({
         opacity: isWeekend ? 0.5 : 1,
         display: 'flex', flexDirection: 'column', gap: 4,
       }}>
-      {visualBlocks.map(({ block, cl, blockH, fillPct, delta, logged, overflow, todoistH, todoistTasks }, i) => (
+      {visualBlocks.map(({ block, cl, blockH, fillPct, delta, logged, overflow, todoistH, todoistTasks }, i) => {
+        // Stepper ore tracciate: abilitato solo quando l'area ha un solo progetto
+        // attivo e un solo blocco in giornata, altrimenti a quale progetto/slot
+        // andrebbero attribuite le ore sarebbe ambiguo (entry sono per progetto+slot).
+        const clientProjects = (projects || []).filter(p => p.clientId === block.clientId && !p.archived);
+        const stepperProjectId = onLogHours && editable && clientProjects.length === 1
+          && (blockCountByClient?.[block.clientId] ?? 0) === 1
+          ? clientProjects[0].id
+          : null;
+        return (
         <React.Fragment key={block.id}>
           {isInternalDrag && insertIndex === i && <Divider />}
           <div ref={el => { blockRefs.current[i] = el; }}>
@@ -431,14 +449,13 @@ export default function PlanningCell({
                 onDragStart && onDragStart(block.id, block.clientId, block.hours);
               }}
               projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
-              stepper={stepper}
-              stepperMinutes={stepperMinutes?.[block.id]}
-              onStepperChange={onStepperChange}
-              onStepperDone={onStepperDone}
+              stepper={!!stepperProjectId}
+              onStepperDone={stepperProjectId ? (hours) => onLogHours(stepperProjectId, hours, slot) : undefined}
             />
           </div>
         </React.Fragment>
-      ))}
+        );
+      })}
       {isInternalDrag && insertIndex === visualBlocks.length && <Divider />}
 
       {visualBlocks.length === 0 && (
