@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-07-15
+
+### Added
+- Nuovo sistema di **segnali neutri** (al posto di verde/arancio/rosso) esteso a tutta l'app: tema, settimana, oggi, andamento, ricorrenza, rendiconto, registro e dashboard.
+- **Drill-down cliccabile** sul badge Δ template nella vista Settimana, con "Override ripetuti" nella vista Ricorrenza.
+- **Stepper inline ±15min** per le ore tracciate nella vista Oggi.
+- **Gauge "Carico di oggi"** live nella vista Oggi, con glifo di stato area nei blocchi di pianificazione.
+- Vista **Andamento** con **3 lenti**: "Nel tempo", "Retrospettiva" e "In prospettiva", con pianificato storicizzato invece del template corrente.
+- Tints area adattivi per tema chiaro/scuro nella vista Oggi (REDLINE §0/§4).
+- Deep-link per sviluppo (`?screen=` / `?theme=`) e outline drop neutri nei componenti condivisi.
+- Freeze automatico delle settimane passate su ogni modifica alle ricorrenze.
+
+### Fixed
+- Separati mismatch reali da capacità inutilizzata nella vista Oggi.
+- Isolato DB dev/prod con icona test dedicata in bianco e nero.
+- Rimossi colori residui dal sistema signals; azioni distruttive segnalate con icona esplicita.
+- Test area-statuses reso stabile escludendo il giorno corrente.
+
+### Changed
+- Allineati controlli Todoist/pianificazione al redesign 2.0.
+
+### Removed
+- Rimosso placeholder "Tempo per obiettivo" in Andamento.
+
 ## [0.8.0] - 2026-07-09
 
 ### Added
@@ -96,7 +120,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 First documented release. Electron + React + SQLite time-tracking app with project/client management, weekly timesheets, recurring schedules, and Todoist integration.
 
-[Unreleased]: https://github.com/valeriogalano/TimeBox/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/valeriogalano/TimeBox/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/valeriogalano/TimeBox/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/valeriogalano/TimeBox/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/valeriogalano/TimeBox/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/valeriogalano/TimeBox/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/valeriogalano/TimeBox/compare/v0.5.2...v0.6.0
