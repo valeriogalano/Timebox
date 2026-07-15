@@ -13,7 +13,8 @@ export default function SlotCapacityBar({
   const fillPct = capacity > 0 ? Math.min(1, load / capacity) : 0;
   const overflow = load > capacity + 0.001;
   const empty = load <= 0.001;
-  const color = overflow ? '#E05252' : fillPct >= 0.9 ? '#E07B3A' : '#4A8FE8';
+  // Redesign: nessun colore di stato. Fill neutro + tratteggio oltre capacità.
+  const fillBg = 'var(--tb-bar-tracked)';
   const label = overflow ? `>${toHHMM(capacity)}` : `${toHHMM(load) || '0:00'} / ${toHHMM(capacity)}`;
   const title = `Capacità slot: ${toHHMM(load) || '0:00'} su ${toHHMM(capacity)}. Pianificate ${toHHMM(plannedHours) || '0:00'}, tracciate ${toHHMM(loggedHours) || '0:00'}.`;
 
@@ -25,26 +26,29 @@ export default function SlotCapacityBar({
         minWidth: 0,
         height: compact ? 4 : 5,
         borderRadius: 3,
-        background: 'var(--tb-panel-bg-soft)',
-        border: `1px solid ${overflow ? '#E0525244' : 'var(--tb-border-soft)'}`,
-        overflow: 'hidden',
+        background: 'var(--tb-bar-track)',
+        border: '1px solid var(--tb-border-soft)',
+        overflow: 'visible',
       }}>
         <div style={{
           position: 'absolute',
           left: 0,
           top: 0,
           bottom: 0,
-          width: `${fillPct * 100}%`,
-          background: empty ? 'transparent' : color,
-          transition: 'width 0.25s ease, background 0.15s',
+          width: `${Math.min(100, fillPct * 100)}%`,
+          background: empty ? 'transparent' : fillBg,
+          borderRadius: 3,
+          transition: 'width 0.25s ease',
         }} />
+        {overflow && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: `${Math.min(30, (fillPct - 1) * 100 || 15)}%`, borderRadius: '0 3px 3px 0' }} />}
+            <span className="tb-tick" style={{ left: '100%' }} />
       </div>
       <span style={{
         flexShrink: 0,
         fontSize: compact ? 7 : 8,
         lineHeight: 1,
         fontWeight: 800,
-        color: empty ? 'var(--tb-text-faint)' : color,
+        color: empty ? 'var(--tb-text-faint)' : 'var(--tb-text-primary)',
         fontVariantNumeric: 'tabular-nums',
       }}>
         {label}

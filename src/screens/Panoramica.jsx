@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
+import { areaMix } from '../area-colors';
 
-const COL_OVER  = '#E05252';
-const COL_UNDER = '#E8B339';
-const COL_OK    = '#3DB33D';
+// Redesign: nessun colore di stato. L'identità è solo l'area (client.color).
+// over/under/in-line si leggono per posizione/glyph, non per verde/arancio/rosso.
+const COL_OVER  = 'var(--tb-text-primary)';
+const COL_UNDER = 'var(--tb-text-muted)';
+const COL_OK    = 'var(--tb-text-primary)';
 
 const TREND_WEEKS  = 8;
 const TREND_MONTHS = 6;
 const PLANNING_DAYS = 7;
+const SMALL_MULT_WEEKS = 6;
 
 function fmtEur(n) {
   if (n == null) return '—';
@@ -15,11 +19,11 @@ function fmtEur(n) {
 }
 
 function statusFor(done, capacity) {
-  if (capacity === 0) return { label: '—', color: 'var(--tb-text-muted)' };
+  if (capacity === 0) return { label: '—', glyph: '·', color: 'var(--tb-text-muted)' };
   const ratio = done / capacity;
-  if (ratio > 1.1)  return { label: 'Sovraccarico', color: COL_OVER };
-  if (ratio < 0.85) return { label: 'Sottocarico',  color: COL_UNDER };
-  return { label: 'In linea', color: COL_OK };
+  if (ratio > 1.1)  return { label: 'Sovraccarico', glyph: '▸', color: 'var(--tb-text-primary)' };
+  if (ratio < 0.85) return { label: 'Sottocarico',  glyph: '▾', color: 'var(--tb-text-muted)' };
+  return { label: 'In linea', glyph: '▪', color: 'var(--tb-text-primary)' };
 }
 
 function clientWeeklyCapacity(clientId, recurring) {
@@ -90,7 +94,9 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
   const [periodOffset, setPeriodOffset] = useState(0);
   const [entries, setEntries]           = useState([]);
   const [projectTotals, setProjectTotals] = useState({});
-  const [weekOverrides, setWeekOverrides] = useState({});
+  const [overridesByWeek, setOverridesByWeek] = useState({});
+  const [trendLens, setTrendLens] = useState('tempo');     // tempo | retro | prospettiva
+  const [horizon, setHorizon]     = useState(2);            // 1 | 2 | 4 settimane
 
   const currentWeekKey = fmt(addDays(getMondayOfWeek(getToday()), periodOffset * 7));
 
@@ -105,15 +111,20 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
     if (screen !== 'panoramica') return;
     window.api.getEntries(fetchRange.from, fetchRange.to).then(setEntries);
     window.api.getProjectTotals().then(setProjectTotals);
-    window.api.getWeekOverrides(currentWeekKey).then(rows => {
-      const map = {};
+    // week_overrides storicizza il pianificato effettivo delle settimane passate
+    // (freezeWeeksBeforeRecurringChange lo scrive ad ogni modifica del template
+    // ricorrente): usarlo al posto del template corrente rende "Nel tempo" accurato
+    // anche quando la ricorrenza cambia nel frattempo.
+    window.api.getWeekOverridesRange(fetchRange.from, fetchRange.to).then(rows => {
+      const byWeek = {};
       rows.forEach(r => {
-        if (!map[r.dayIndex]) map[r.dayIndex] = {};
-        map[r.dayIndex][r.slot] = r.blocks;
+        const week = byWeek[r.weekKey] ?? (byWeek[r.weekKey] = {});
+        const day = week[r.dayIndex] ?? (week[r.dayIndex] = {});
+        day[r.slot] = r.blocks;
       });
-      setWeekOverrides(map);
+      setOverridesByWeek(byWeek);
     });
-  }, [screen, fetchRange.from, fetchRange.to, currentWeekKey]);
+  }, [screen, fetchRange.from, fetchRange.to]);
 
   // Build a lookup: projectId → clientId
   const projectClientMap = useMemo(() => {
@@ -122,13 +133,16 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
     return m;
   }, [projects]);
 
-  // Compute effective planned hours per client for the current week (uses overrides)
-  const plannedByClientEffective = useMemo(() => {
+  // Effective planned hours per client for a given week: prefers the frozen
+  // historical snapshot (week_overrides), falls back to the current recurring
+  // template for weeks that never diverged from it.
+  function plannedByClientForWeek(weekKey) {
     const result = {};
     clients.forEach(c => { result[c.id] = 0; });
+    const weekOverride = overridesByWeek[weekKey];
     for (let dayIndex = 0; dayIndex < PLANNING_DAYS; dayIndex++) {
       for (const slot of SLOTS) {
-        const dayOverride = weekOverrides[dayIndex];
+        const dayOverride = weekOverride && weekOverride[dayIndex];
         const blocks = dayOverride && dayOverride[slot] !== undefined
           ? dayOverride[slot]
           : recurring.filter(r => r.day === dayIndex && r.slot === slot).map(r => ({ clientId: r.clientId, hours: r.hours }));
@@ -138,7 +152,12 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
       }
     }
     return result;
-  }, [weekOverrides, recurring, clients]);
+  }
+
+  const plannedByClientEffective = useMemo(
+    () => plannedByClientForWeek(currentWeekKey),
+    [overridesByWeek, recurring, clients, currentWeekKey],
+  );
 
   // Compute stats for the current week
   const stats = useMemo(() => {
@@ -189,11 +208,9 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
       const isCurrent = startStr === currentWeekKey;
 
       const wEntries = entries.filter(e => e.date >= startStr && e.date <= endStr);
-      const done = {}, planned = {};
-      clients.forEach(c => {
-        planned[c.id] = clientWeeklyCapacity(c.id, recurring);
-        done[c.id] = 0;
-      });
+      const planned = plannedByClientForWeek(startStr);
+      const done = {};
+      clients.forEach(c => { done[c.id] = 0; });
       wEntries.forEach(e => {
         const cid = projectClientMap[e.projectId];
         if (cid) done[cid] = (done[cid] ?? 0) + e.hours;
@@ -208,7 +225,29 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
         current: isCurrent,
       };
     });
-  }, [entries, periodOffset, clients, recurring, projectClientMap, currentWeekKey]);
+  }, [entries, periodOffset, clients, recurring, overridesByWeek, projectClientMap, currentWeekKey]);
+
+  // Small-multiples per area (lente "Nel tempo", REDLINE §8: grid 3 colonne, 6 settimane).
+  // planned per settimana usa lo storicizzato (week_overrides) quando disponibile;
+  // la linea tratteggiata nel card resta il ritmo della settimana corrente.
+  const perAreaWeekly = useMemo(() => {
+    return clients.map(c => {
+      const planned = plannedByClientEffective[c.id] ?? 0;
+      const weeks = Array.from({ length: SMALL_MULT_WEEKS }, (_, i) => {
+        const weekIdx  = i - (SMALL_MULT_WEEKS - 1) + periodOffset;
+        const monday   = addDays(getMondayOfWeek(getToday()), weekIdx * 7);
+        const sunday   = addDays(monday, 6);
+        const startStr = fmt(monday);
+        const endStr   = fmt(sunday);
+        const done = entries
+          .filter(e => e.date >= startStr && e.date <= endStr && projectClientMap[e.projectId] === c.id)
+          .reduce((s, e) => s + e.hours, 0);
+        const weekPlanned = plannedByClientForWeek(startStr)[c.id] ?? 0;
+        return { done, planned: weekPlanned, isCurrent: startStr === currentWeekKey };
+      });
+      return { client: c, planned, weeks };
+    });
+  }, [clients, recurring, entries, overridesByWeek, periodOffset, projectClientMap, currentWeekKey, plannedByClientEffective]);
 
   const status  = statusFor(stats.totalDone, stats.capacity);
   const deltaH  = stats.totalDone - stats.capacity;
@@ -220,8 +259,8 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 24 }}>
 
-      {/* Period header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* Period header + lens tabs */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <NavBtn onClick={() => setPeriodOffset(o => o - 1)}>‹</NavBtn>
           <div style={{
@@ -235,242 +274,318 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
             <NavBtn small onClick={() => setPeriodOffset(0)}>Oggi</NavBtn>
           )}
         </div>
-      </div>
-
-      {/* KPI cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: 14 }}>
-        {/* CARICO */}
-        <Card>
-          <CardLabel>Carico della settimana</CardLabel>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-            <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-              {fmtH(stats.totalDone)}
+        <div className="tb-seg">
+          {[
+            { key: 'tempo', label: 'Nel tempo' },
+            { key: 'retro', label: 'Retrospettiva' },
+            { key: 'prospettiva', label: 'In prospettiva' },
+          ].map((o, idx) => (
+            <span
+              key={o.key}
+              data-on={trendLens === o.key ? 'true' : 'false'}
+              onClick={() => setTrendLens(o.key)}
+              style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}
+            >
+              {o.label}
             </span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
-              / {fmtH(stats.capacity)}
-            </span>
-          </div>
-          <CapacityBar done={stats.totalDone} capacity={stats.capacity} color={status.color} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
-            <span>Capacità target {fmtH(stats.capacity)}</span>
-            <span style={{ color: deltaH >= 0 ? COL_OK : 'var(--tb-text-muted)' }}>
-              Δ {deltaH >= 0 ? '+' : ''}{fmtH(deltaH)}
-            </span>
-          </div>
-        </Card>
-
-        {/* FATTURABILE A CONSUMO */}
-        <Card>
-          <CardLabel>Fatturabile a consumo</CardLabel>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-            <span style={{ fontSize: 34, fontWeight: 800, color: COL_OK, letterSpacing: '-0.02em', lineHeight: 1 }}>
-              {fmtEur(stats.billedDoneEur)}
-            </span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>svolto</span>
-          </div>
-          <div style={{
-            marginTop: 10, padding: '8px 10px', borderRadius: 6,
-            background: 'var(--tb-panel-bg-subtle)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <ProjectionIcon />
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)', letterSpacing: '0.03em' }}>
-                Proiezione fine settimana
-              </span>
-            </div>
-            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
-              {fmtEur(stats.projectionEur)}
-            </span>
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 8 }}>
-            {fmtH(stats.billableDoneHours)} fatturabili svolte · aree fisse escluse
-          </div>
-        </Card>
-
-        {/* STATO */}
-        <Card>
-          <CardLabel>Stato</CardLabel>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 10,
-              background: status.color + '22',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <StatusGlyph color={status.color} kind={status.label} />
-            </div>
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: status.color, letterSpacing: '-0.01em', lineHeight: 1.1 }}>
-                {status.label}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 2 }}>
-                {stats.capacity > 0 ? Math.round(stats.totalDone / stats.capacity * 100) : 0}% capacità
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Andamento */}
-      <Card padding={0}>
-        <div style={{ padding: '14px 18px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-            <CardLabel inline>Andamento</CardLabel>
-            <Legend />
-          </div>
-        </div>
-        <div style={{ padding: '4px 18px 18px' }}>
-          <TrendChart data={trendData} capacity={stats.capacity} mode="week" />
-        </div>
-      </Card>
-
-      {/* Stato aree */}
-      <div>
-        <SectionHeader title="Stato aree" subtitle={`${clients.length} aree`} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {clients.map(c => (
-            <AreaCardCockpit
-              key={c.id}
-              client={c}
-              done={stats.actualByClient[c.id] ?? 0}
-              planned={stats.plannedByClient[c.id] ?? 0}
-            />
           ))}
         </div>
       </div>
 
-      {/* Budget progetti */}
-      {budgetProjects.length > 0 && (
-        <div>
-          <SectionHeader
-            title="Budget progetti"
-            subtitle="da inizio progetto · indipendente dal periodo"
-          />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {budgetProjects.map(p => (
-              <ProjectCardCockpit
-                key={p.id}
-                project={p}
-                clients={clients}
-                cumulativeDone={projectTotals[p.id] ?? 0}
-                periodDone={stats.actualByProject[p.id] ?? 0}
-              />
-            ))}
+      {/* ── Lente "Nel tempo" ── trend + per-area vs piano + sintesi ricavo ── */}
+      {trendLens === 'tempo' && (
+        <>
+          {/* Da decidere: insight attivi (deriva da divergenze area vs piano) */}
+          <DaDecidereInsights clients={clients} stats={stats} />
+
+          <Card padding={0}>
+            <div style={{ padding: '14px 18px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
+                <CardLabel inline>Nel tempo</CardLabel>
+                <Legend />
+              </div>
+            </div>
+            <div style={{ padding: '4px 18px 18px' }}>
+              <TrendChart data={trendData} capacity={stats.capacity} mode="week" />
+            </div>
+          </Card>
+
+          {/* Per-area: small-multiples, 6 settimane, posizione vs linea-piano = segnale */}
+          <div>
+            <SectionHeader title="Nel tempo · per area" subtitle="6 settimane · piano = ritmo template" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              {perAreaWeekly.map(({ client, planned, weeks }) => (
+                <AreaSparkCard key={client.id} client={client} planned={planned} weeks={weeks} />
+              ))}
+            </div>
           </div>
-        </div>
+
+          {/* Ricavo · sintesi (link a Rendiconto per dettaglio) */}
+          <Card>
+            <CardLabel>Ricavo · sintesi</CardLabel>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+              <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{fmtEur(stats.billedDoneEur)}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>svolto · proiezione {fmtEur(stats.projectionEur)}</span>
+            </div>
+          </Card>
+        </>
+      )}
+
+      {/* ── Lente "Retrospettiva" ── consuntivo settimana chiusa ── */}
+      {trendLens === 'retro' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: 14 }}>
+            <Card>
+              <CardLabel>Carico della settimana</CardLabel>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+                <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+                  {fmtH(stats.totalDone)}
+                </span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(stats.capacity)}</span>
+              </div>
+              <CapacityBar done={stats.totalDone} capacity={stats.capacity} color={status.color} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
+                <span>Capacità target {fmtH(stats.capacity)}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <span className="tb-glyph">{deltaH >= 0 ? '▸' : '▾'}</span>
+                  Δ {deltaH >= 0 ? '+' : ''}{fmtH(deltaH)}
+                </span>
+              </div>
+            </Card>
+
+            <Card>
+              <CardLabel>Fatturabile a consumo</CardLabel>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+                <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+                  {fmtEur(stats.billedDoneEur)}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>svolto</span>
+              </div>
+              <div style={{
+                marginTop: 10, padding: '8px 10px', borderRadius: 6,
+                background: 'var(--tb-panel-bg-subtle)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <ProjectionIcon />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)', letterSpacing: '0.03em' }}>
+                    Proiezione fine settimana
+                  </span>
+                </div>
+                <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
+                  {fmtEur(stats.projectionEur)}
+                </span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 8 }}>
+                {fmtH(stats.billableDoneHours)} fatturabili svolte · aree fisse escluse
+              </div>
+            </Card>
+
+            <Card>
+              <CardLabel>Stato</CardLabel>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: 'var(--tb-panel-bg-soft)',
+                  border: '1px solid var(--tb-border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <StatusGlyph glyph={status.glyph} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
+                    {status.label}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 2 }}>
+                    {stats.capacity > 0 ? Math.round(stats.totalDone / stats.capacity * 100) : 0}% capacità
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {budgetProjects.length > 0 && (
+            <div>
+              <SectionHeader title="Budget progetti" subtitle="da inizio progetto · indipendente dal periodo" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {budgetProjects.map(p => (
+                  <ProjectCardCockpit
+                    key={p.id}
+                    project={p}
+                    clients={clients}
+                    cumulativeDone={projectTotals[p.id] ?? 0}
+                    periodDone={stats.actualByProject[p.id] ?? 0}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Lente "In prospettiva" ── proiezione a ritmo template per area ── */}
+      {trendLens === 'prospettiva' && (
+        <ProspettivaLens
+          clients={clients} projects={projects} recurring={recurring}
+          horizon={horizon} setHorizon={setHorizon}
+          weekProjectHours={{}} projectTotals={projectTotals}
+        />
       )}
     </div>
   );
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Sub-components ─────────────────────────────────────────────────────────────
 
-function AreaCardCockpit({ client, done, planned }) {
-  const hasLimit    = !!client.limitType && client.limitHours > 0;
-  const isBillable  = isBillableClient(client);
-  const isFixed     = client.billing === 'fixed';
-  const rate        = client.rate ?? 0;
+// Lente "Nel tempo" → "Da decidere": insight attivi derivati dal divergere
+// area vs piano questa settimana (sotto/sopra). Link indirizzano alla vista utile.
+function DaDecidereInsights({ clients, stats }) {
+  const items = [];
+  clients.forEach(c => {
+    const done = stats.actualByClient[c.id] ?? 0;
+    const planned = stats.plannedByClient[c.id] ?? 0;
+    if (planned > 0 && done < planned * 0.85) {
+      items.push({ color: c.color, area: c.name, text: `sotto-piano ${fmtH(done)}/${fmtH(planned)}`, to: 'Aree' });
+    } else if (planned > 0 && done > planned * 1.1) {
+      items.push({ color: c.color, area: c.name, text: `oltre piano ${fmtH(done)}/${fmtH(planned)}`, to: 'Settimana' });
+    }
+  });
+  if (!items.length) return null;
+  return (
+    <div>
+      <SectionHeader title="Da decidere" subtitle="insight attivi" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
+        {items.map((it, i) => (
+          <div key={i} style={{ border: '1px solid var(--tb-border)', borderLeft: `3px solid ${it.color}`, borderRadius: 8, background: 'var(--tb-panel-bg)', padding: '10px 12px' }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{it.area}</div>
+            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginTop: 2 }}>{it.text} → {it.to}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-  const limitBase = hasLimit ? client.limitHours : null;
+// Lente "In prospettiva": proiezione a ritmo del template, per area, su orizzonte
+// configurabile (1/2/4 settimane, default 2). Confronta carico proiettato vs
+// capacità/limiti; verdetto via glyph ▸/▾/▪. Il ritmo progetto è una stima
+// (vedi README §Dipendenze-dati p.2): a livello area si usa `recurring`.
+function ProspettivaLens({ clients, recurring, horizon, setHorizon }) {
+  const rows = clients.map(c => {
+    const rhythm = clientWeeklyCapacity(c.id, recurring);     // h/sett a ritmo template
+    const projected = rhythm * horizon;                        // carico proiettato
+    const hasLimit = !!c.limitType && c.limitHours > 0;
+    const limitWindow = c.limitType === 'weekly'
+      ? c.limitHours * horizon
+      : (c.limitType === 'global' ? c.limitHours : null);
+    const ref = limitWindow ?? rhythm * horizon;                // envelope fisso = ritmo
+    const ratio = ref > 0 ? projected / ref : 0;
+    const potentialEur = isBillableClient(c) ? projected * (c.rate ?? 0) : 0;
+    const lostEur = ratio > 1 && isBillableClient(c) ? (projected - ref) * (c.rate ?? 0) : 0;
+    const verdict = !hasLimit || c.limitType !== 'weekly'
+      ? (ratio > 1 ? { glyph: '▸', label: 'Oltre envelope · ore non pagate' } : { glyph: '▾', label: 'Sotto-utilizzata' })
+      : { glyph: '▪', label: 'Entro tetto' };
+    return { c, rhythm, projected, ref, ratio, potentialEur, lostEur, verdict, hasLimit, limitWindow };
+  });
+  const totalProjected = rows.reduce((s, r) => s + r.projected, 0);
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <SectionHeader title="Carico in prospettiva" subtitle={`${horizon} settimane a ritmo template`} />
+        <div className="tb-seg" style={{ marginLeft: 'auto' }}>
+          {[1, 2, 4].map((n, idx) => (
+            <span key={n} data-on={horizon === n ? 'true' : 'false'} onClick={() => setHorizon(n)}
+              style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}>{n} sett</span>
+          ))}
+        </div>
+      </div>
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <span style={{ fontSize: 30, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{fmtH(totalProjected)}</span>
+          <span style={{ fontSize: 13, color: 'var(--tb-text-muted)' }}>carico proiettato · {horizon} sett</span>
+        </div>
+      </Card>
 
-  const reference = limitBase ?? planned;
-  const isOver = reference === 0 ? done > 0 : done / reference > 1.05;
-  const pct = reference > 0 ? done / reference : (done > 0 ? Infinity : 0);
+      <SectionHeader title="Per area · limiti e valore" subtitle="ritmo vs limite/envelope" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {rows.map(({ c, rhythm, projected, ref, ratio, potentialEur, lostEur, verdict, hasLimit, limitWindow }) => (
+          <Card key={c.id}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 9, height: 9, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)', flex: 1 }}>{c.name}</span>
+              <span className="tb-glyph" title={verdict.label} style={{ fontSize: 15 }}>{verdict.glyph}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8, fontSize: 12, color: 'var(--tb-text-muted)' }}>
+              <span><strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(rhythm)}</strong>/sett · proiettato <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(projected)}</strong></span>
+              {hasLimit && <span>· tetto {fmtH(limitWindow)}</span>}
+            </div>
+            <div style={{ position: 'relative', height: 8, borderRadius: 4, background: 'var(--tb-bar-track)', marginTop: 8, overflow: 'visible' }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, ratio * 100)}%`, background: c.color, borderRadius: 4 }} />
+              {ratio > 1 && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: `${Math.min(30, (ratio - 1) * 100)}%`, borderRadius: '0 4px 4px 0' }} />}
+              <span className="tb-tick" style={{ left: '100%' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
+              <span>{verdict.label}</span>
+              {isBillableClient(c) && (
+                <span>valore <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtEur(potentialEur)}</strong>
+                  {lostEur > 0 && <span style={{ marginLeft: 8 }}>· perso <strong>{fmtEur(lostEur)}</strong></span>}
+                </span>
+              )}
+            </div>
+          </Card>
+        ))}
+      </div>
+    </>
+  );
+}
 
-  const barColor = client.color;
+// Small-multiples: mini-trend 6 settimane per area. La linea-piano tratteggiata è il
+// riferimento; sotto/sopra si legge dalla posizione delle barre rispetto ad essa, oltre-piano
+// è tratteggiato (.tb-hatch) — nessun colore di stato, solo l'identità (client.color).
+function AreaSparkCard({ client, planned, weeks }) {
+  const CHART_H = 44;
+  const maxVal = Math.max(planned, ...weeks.map(w => w.done), 1) * 1.15;
+  const planLineY = CHART_H - (planned / maxVal) * CHART_H;
+  const lastWeek = weeks[weeks.length - 1];
+  const verdict = statusFor(lastWeek.done, lastWeek.planned ?? planned);
 
-  const statusColor = isOver ? COL_OVER : pct > 0.95 ? COL_OK : pct >= 0.75 ? 'var(--tb-text-secondary)' : pct > 0 ? COL_UNDER : 'var(--tb-text-faint)';
-  const statusLabel = null;
-
-  const labelStyle = { fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 };
-  const isGlobal = hasLimit && client.limitType === 'global';
   return (
     <div style={{
-      background: 'var(--tb-panel-bg)',
-      border: '1px solid var(--tb-panel-border)',
-      borderLeft: isOver ? `3px solid ${COL_OVER}` : pct > 0.95 ? `3px solid ${COL_OK}` : '1px solid var(--tb-panel-border)',
-      borderRadius: 8, padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 8,
+      background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
+      borderLeft: `3px solid ${client.color}`, borderRadius: 8, padding: '12px 14px',
     }}>
-
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
-        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{client.name}</span>
-        <TypeBadge client={client} />
-        <div style={{ flex: 1 }} />
-        {isBillable && (
-          <div style={{ textAlign: 'right' }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: COL_OK }}>{fmtEur(done * rate)}</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', marginLeft: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              proiez. {fmtEur(Math.max(done, planned) * rate)}
-            </span>
-          </div>
-        )}
-        {statusLabel && (
-          <span style={{
-            fontSize: 10, fontWeight: 800, padding: '3px 7px', borderRadius: 4,
-            background: statusColor + '20', color: statusColor,
-            letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap',
-          }}>{statusLabel}</span>
-        )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {client.name}
+        </span>
+        <span className="tb-glyph" title={verdict.label} style={{ fontSize: 12 }}>{verdict.glyph}</span>
       </div>
 
-      {/* Barra piano — sempre */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
-            <span style={labelStyle}>Piano</span>
-            {done > planned && planned > 0 && <span style={{ fontSize: 10, color: COL_OVER }} title="Superato">⚠</span>}
-          </div>
-          <Bar value={done} max={Math.max(planned || 1, done)} color={barColor} />
-        </div>
-        <div style={{ textAlign: 'right', minWidth: 90, flexShrink: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(done)}</div>
-          {planned > 0 && (
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 2, textTransform: 'uppercase' }}>
-              / {fmtH(planned)}
-            </div>
-          )}
+      <div style={{ position: 'relative', height: CHART_H }}>
+        {planned > 0 && (
+          <div style={{ position: 'absolute', left: 0, right: 0, top: planLineY, borderTop: '1.5px dashed var(--tb-tick)' }} />
+        )}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: '100%' }}>
+          {weeks.map((w, i) => {
+            const weekPlanned = w.planned ?? planned;
+            const barH = Math.max(1, (w.done / maxVal) * CHART_H);
+            const over = weekPlanned > 0 && w.done > weekPlanned;
+            return (
+              <div key={i} title={`${fmtH(w.done)} / ${fmtH(weekPlanned)}`} style={{
+                flex: 1, height: barH, borderRadius: '2px 2px 0 0',
+                background: w.isCurrent ? client.color : areaMix(client.color, 55),
+              }}>
+                {over && <div className="tb-hatch" style={{ height: '100%', borderRadius: '2px 2px 0 0' }} />}
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Barra limite settimanale — solo se presente */}
-      {hasLimit && !isGlobal && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
-              <span style={labelStyle}>Limite settimanale</span>
-              {done > limitBase && <span style={{ fontSize: 10, color: COL_OVER }} title="Superato">⚠</span>}
-            </div>
-            <Bar value={done} max={limitBase} color={client.color} />
-          </div>
-          <div style={{ textAlign: 'right', minWidth: 90, flexShrink: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(done)}</div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 2, textTransform: 'uppercase' }}>
-              / {fmtH(limitBase)}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Barra limite globale — in aggiunta, solo se presente */}
-      {isGlobal && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
-              <span style={labelStyle}>Limite totale</span>
-              {done > limitBase && <span style={{ fontSize: 10, color: COL_OVER }} title="Superato">⚠</span>}
-            </div>
-            <Bar value={done} max={limitBase} color={client.color} />
-          </div>
-          <div style={{ textAlign: 'right', minWidth: 90, flexShrink: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(done)}</div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 2, textTransform: 'uppercase' }}>
-              / {fmtH(limitBase)}
-            </div>
-          </div>
-        </div>
-      )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}>
+        <span>{fmtH(lastWeek.done)} <span style={{ color: 'var(--tb-text-faint)', fontWeight: 600 }}>/ {fmtH(planned)}</span></span>
+        <span>{verdict.label}</span>
+      </div>
     </div>
   );
 }
@@ -612,19 +727,21 @@ function Segmented({ value, options, onChange, small }) {
 
 function CapacityBar({ done, capacity, color }) {
   const pct = capacity > 0 ? Math.min(1.2, done / capacity) : 0;
+  const over = pct > 1;
   return (
     <div style={{
       position: 'relative', height: 10, borderRadius: 5,
-      background: 'var(--tb-panel-bg-subtle)', marginTop: 14, overflow: 'visible',
+      background: 'var(--tb-bar-track)', marginTop: 14, overflow: 'visible',
     }}>
       <div style={{
         position: 'absolute', left: 0, top: 0, bottom: 0,
         width: Math.min(100, pct * 100) + '%',
-        background: color, borderRadius: 5, transition: 'width 0.4s ease',
+        background: 'var(--tb-bar-tracked)', borderRadius: 5, transition: 'width 0.4s ease',
       }} />
+      {over && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: `${100}%`, width: `${Math.min(20, (pct - 1) * 100)}%`, borderRadius: '0 5px 5px 0' }} />}
       <div style={{
         position: 'absolute', left: '100%', top: -3, bottom: -3, width: 0,
-        borderLeft: '2px dashed var(--tb-text-muted)',
+        borderLeft: '2px dashed var(--tb-tick)',
         transform: 'translateX(-1px)',
       }} />
     </div>
@@ -651,20 +768,6 @@ function Bar({ value, max, color, thin }) {
         }} />
       )}
     </div>
-  );
-}
-
-function TypeBadge({ client }) {
-  const nonBillable = client.billing === 'none' || client.rate === 0;
-  const isFixed = client.billing === 'fixed';
-  const text = nonBillable ? 'Nessun compenso' : isFixed ? 'Compenso fisso' : 'Compenso a ore';
-  const color = nonBillable ? 'var(--tb-text-muted)' : isFixed ? '#9B59B6' : COL_OK;
-  return (
-    <span style={{
-      fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 3,
-      background: color + '18', color,
-      letterSpacing: '0.06em', textTransform: 'uppercase',
-    }}>{text}</span>
   );
 }
 
@@ -698,7 +801,7 @@ function Legend() {
         Svolto
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <span style={{ width: 14, height: 0, borderTop: '2px dashed #3DB33D', display: 'inline-block' }} />
+        <span style={{ width: 14, height: 0, borderTop: '2px dashed var(--tb-tick)', display: 'inline-block' }} />
         Capacità
       </span>
     </div>
@@ -723,22 +826,8 @@ function ProjectionIcon() {
   );
 }
 
-function StatusGlyph({ color, kind }) {
-  if (kind === 'In linea') return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path d="M4 9.5L7.5 13L14 5.5" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-  if (kind === 'Sovraccarico') return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path d="M9 4V10M9 13V14" stroke={color} strokeWidth="2.4" strokeLinecap="round" />
-    </svg>
-  );
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path d="M5 8L9 12L13 8" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+function StatusGlyph({ glyph }) {
+  return <span className="tb-glyph" style={{ fontSize: 20, lineHeight: 1 }}>{glyph || '·'}</span>;
 }
 
 function TrendChart({ data, capacity, mode }) {
@@ -768,11 +857,11 @@ function TrendChart({ data, capacity, mode }) {
         {capPct > 0 && capPct < 1 && (
           <div style={{
             position: 'absolute', left: 0, right: 0, bottom: capPct * height,
-            borderTop: '2px dashed #3DB33D88', zIndex: 2,
+            borderTop: '2px dashed var(--tb-tick)', zIndex: 2,
           }}>
             <span style={{
               position: 'absolute', right: -2, top: -16, fontSize: 9, fontWeight: 800,
-              color: '#3DB33D', background: 'var(--tb-panel-bg)', padding: '1px 4px', borderRadius: 3,
+              color: 'var(--tb-text-secondary)', background: 'var(--tb-panel-bg)', padding: '1px 4px', borderRadius: 3,
             }}>Capacità {Math.round(capLine)}h</span>
           </div>
         )}
@@ -791,7 +880,7 @@ function TrendChart({ data, capacity, mode }) {
                 }} title={`Pianificato: ${fmtH(t.planned)}`} />
                 <div style={{
                   width: 16, borderRadius: '3px 3px 0 0',
-                  background: t.current ? '#3DB33D' : 'var(--tb-text-secondary)',
+                  background: t.current ? 'var(--tb-bar-tracked)' : 'var(--tb-text-secondary)',
                   height: Math.max(1, (t.done / maxVal) * height),
                   transition: 'height 0.4s ease',
                   position: 'relative',
@@ -799,7 +888,7 @@ function TrendChart({ data, capacity, mode }) {
                   {t.current && t.done > 0 && (
                     <div style={{
                       position: 'absolute', left: 0, right: 0, top: -16, textAlign: 'center',
-                      fontSize: 9, fontWeight: 800, color: '#3DB33D',
+                      fontSize: 9, fontWeight: 800, color: 'var(--tb-text-primary)',
                     }}>{fmtH(t.done)}</div>
                   )}
                 </div>
@@ -812,7 +901,7 @@ function TrendChart({ data, capacity, mode }) {
         {data.map((t, i) => (
           <div key={i} style={{
             flex: 1, textAlign: 'center', fontSize: 10, fontWeight: t.current ? 800 : 600,
-            color: t.current ? '#3DB33D' : 'var(--tb-text-muted)',
+            color: t.current ? 'var(--tb-text-primary)' : 'var(--tb-text-muted)',
           }}>{t.label}</div>
         ))}
       </div>

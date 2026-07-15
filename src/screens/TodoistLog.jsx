@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { toHHMM, parseHHMM, fmtH, SLOTS, SLOT_LABELS, normalizeSlot } from '../utils';
+import { areaMix } from '../area-colors';
 
 const DAY_LONG = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 const MONTHS_LONG = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
@@ -175,7 +176,7 @@ export default function TodoistLog({ clients, projects }) {
                     alignItems: 'start',
                     padding: '7px 8px',
                     borderRadius: 5,
-                    background: client ? `${client.color}0d` : 'var(--tb-panel-bg-soft)',
+                    background: client ? areaMix(client.color, 5) : 'var(--tb-panel-bg-soft)',
                     borderLeft: `3px solid ${client ? client.color : 'var(--tb-border-mid)'}`,
                   }}>
                     {isEditing ? (

@@ -1,15 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toHHMM, parseHHMM } from '../utils';
+import { areaTints } from '../area-colors';
 import TodoistTaskTooltip from './TodoistTaskTooltip';
+import AreaStatusGlyph from './AreaStatusGlyph';
+import { AREA_STATUS_OPTIONS } from '../screens/WeeklyView';
 
 const PX_PER_H = 30;
 const PX_PER_H_COMPACT = 18;
+
+const STEPPER_STEP_MIN = 15;
+
+// Bottone −/+/✓ dello stepper inline (REDLINE §4):
+// 16×16, radius 4, bg var(--tb-navbtn-bg), glifo 12/800. ✓ usa accento neutro attivo.
+function StepperBtn({ label, onClick, check }) {
+  const bg = check ? 'var(--tb-tab-active-bg)' : 'var(--tb-navbtn-bg)';
+  const color = check ? 'var(--tb-tab-active-text)' : 'var(--tb-text-primary)';
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: 16, height: 16, borderRadius: 4,
+        background: bg, color,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: check ? 10 : 12, fontWeight: 800, lineHeight: 1,
+        border: 'none', cursor: 'pointer', padding: 0,
+        fontFamily: "'Open Sans', sans-serif",
+      }}>
+      {label}
+    </button>
+  );
+}
 
 function Divider() {
   return (
     <div style={{
       height: 2, borderRadius: 1,
-      background: '#4A8FE8',
+      background: 'var(--tb-border-mid)',
       margin: '1px 0',
       flexShrink: 0,
     }} />
@@ -24,10 +50,33 @@ function PlanningBlock({
   onRemove, onDragStart,
   projects, projectTotals, weekProjectHours,
   compact,
+  stepper, onStepperDone,
 }) {
   const [hover, setHover] = useState(false);
+  const [stepperOpen, setStepperOpen] = useState(false);
+  const [stepperDraftMin, setStepperDraftMin] = useState(0);
   const blockRef = useRef(null);
   const complete = logged >= block.hours && block.hours > 0;
+
+  // Stepper ±15min sulle ore tracciate: stato locale al blocco, committed on
+  // ✓ via onStepperDone(hours). Nessuna mappa tsEdits condivisa: il valore
+  // "live" prima del commit è solo di questo blocco.
+  const stepperLiveH = stepperDraftMin / 60;
+  const stepperDirty = stepperOpen && Math.round(stepperDraftMin / STEPPER_STEP_MIN) !== Math.round((logged || 0) * 60 / STEPPER_STEP_MIN);
+
+  function openStepper() {
+    setStepperDraftMin(Math.round((logged || 0) * 60));
+    setStepperOpen(true);
+  }
+
+  function stepperStep(minutesDelta) {
+    setStepperDraftMin(m => Math.max(0, m + minutesDelta));
+  }
+
+  function commitStepper() {
+    onStepperDone?.(stepperDraftMin / 60);
+    setStepperOpen(false);
+  }
 
   const clientProjects = (projects || []).filter(p => p.clientId === block.clientId && !p.archived);
 
@@ -46,8 +95,9 @@ function PlanningBlock({
   const budgetAlertLevel_combined = Math.max(budgetAlertLevel, weeklyAlertLevel);
   const partial = !complete && logged > 0;
 
-  const barBg = cl.color + '1f';
-  const readoutColor = logged === 0 ? cl.color + 'aa' : cl.color;
+  const tints = areaTints(cl.color);
+  const barBg = tints.soft;
+  const readoutColor = logged === 0 ? `color-mix(in srgb, ${cl.color} 70%, transparent)` : cl.color;
 
   return (
     <div
@@ -59,11 +109,11 @@ function PlanningBlock({
       style={{
         position: 'relative',
         height: blockH,
-        background: cl.color + '10',
-        border: `1px solid ${cl.color + '30'}`,
+        background: tints.bg,
+        border: `1px solid ${tints.border}`,
         borderLeft: `3px solid ${cl.color}`,
-        borderRadius: 4,
-        padding: compact ? '4px 6px 5px' : '5px 8px 7px',
+        borderRadius: 5,
+        padding: compact ? '5px 6px 6px' : '5px 7px 6px',
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
         cursor: editable && !editing ? 'grab' : 'default',
         opacity: isDragging ? 0.35 : 1,
@@ -78,20 +128,72 @@ function PlanningBlock({
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           letterSpacing: '0.01em', flex: 1, minWidth: 0,
         }}>{cl.name}</span>
+        {cl.areaStatus && cl.areaStatus !== 'active' && (
+          <span title={(AREA_STATUS_OPTIONS.find(o => o.key === cl.areaStatus) ?? AREA_STATUS_OPTIONS[0]).title} style={{ flexShrink: 0, display: 'flex' }}>
+            <AreaStatusGlyph status={cl.areaStatus} size={compact ? 8 : 9} color="var(--tb-state-glyph)" />
+          </span>
+        )}
         {budgetAlertLevel_combined > 0 && (
-          <div
+          <span
+            className="tb-meter"
+            data-level={budgetAlertLevel_combined}
             title={budgetAlertLevel_combined === 3 ? 'Limite superato' : budgetAlertLevel_combined === 2 ? 'Limite all\'80%+' : 'Limite al 50%+'}
-            style={{
-              width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-              background: budgetAlertLevel_combined === 3 ? '#E05252' : budgetAlertLevel_combined === 2 ? '#E07B3A' : '#E0C020',
-            }}
-          />
+            style={{ flexShrink: 0 }}
+          >
+            <i /><i /><i />
+          </span>
         )}
       </div>
 
-      {/* Done/planned readout + delta */}
+      {/* Done/planned readout + delta (stepper o text-edit quando editabile) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', marginBottom: 4 }}>
-        {editing ? (
+        {stepper && editable ? (
+          stepperOpen ? (
+            <span
+              onClick={e => e.stopPropagation()}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                background: 'var(--tb-topbar-bg)', border: '1px solid var(--tb-navbtn-border)',
+                borderRadius: 6, padding: '2px 4px',
+              }}>
+              <StepperBtn label="−" onClick={() => stepperStep(-STEPPER_STEP_MIN)} />
+              <span style={{ minWidth: 34, textAlign: 'center', fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
+                {toHHMM(stepperLiveH)}
+              </span>
+              {stepperDirty && (
+                <span title="Modificato" style={{
+                  width: 4, height: 4, borderRadius: '50%',
+                  background: 'var(--tb-bar-tracked)', alignSelf: 'center',
+                }} />
+              )}
+              <StepperBtn label="+" onClick={() => stepperStep(STEPPER_STEP_MIN)} />
+              <StepperBtn label="✓" check onClick={commitStepper} />
+              <span style={{ fontSize: 9, color: 'var(--tb-text-muted)' }}>/</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>{toHHMM(block.hours)}</span>
+            </span>
+          ) : (
+            <div
+              onClick={(e) => { e.stopPropagation(); openStepper(); }}
+              title="Modifica ore tracciate"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                cursor: 'pointer', lineHeight: 1, fontFamily: "'Open Sans', sans-serif",
+              }}>
+              {logged > 0 ? (
+                <>
+                  <span style={{
+                    fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)',
+                    borderBottom: '1px dotted var(--tb-border-mid)',
+                  }}>{toHHMM(logged)}</span>
+                  <span style={{ fontSize: 9, color: 'var(--tb-text-muted)' }}>/</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>{toHHMM(block.hours)}</span>
+                </>
+              ) : (
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', marginRight: 2 }}>＋ traccia</span>
+              )}
+            </div>
+          )
+        ) : editing ? (
           <input ref={editRef} value={editDraft}
             onChange={e => setEditDraft(e.target.value)}
             onBlur={commitEdit}
@@ -117,13 +219,13 @@ function PlanningBlock({
                 <span style={{ fontSize: compact ? 10 : 11, fontWeight: 400, color: readoutColor }}>
                   {toHHMM(logged)}
                 </span>
-                <span style={{ fontSize: compact ? 8 : 9, color: cl.color + '66', fontWeight: 400 }}>/</span>
+                <span style={{ fontSize: compact ? 8 : 9, color: tints.border, fontWeight: 400 }}>/</span>
               </>
             )}
             <span style={{
               fontSize: logged > 0 ? (compact ? 8 : 9) : (compact ? 10 : 11),
               fontWeight: 400,
-              color: logged > 0 ? cl.color + 'bb' : cl.color,
+              color: logged > 0 ? `color-mix(in srgb, ${cl.color} 75%, transparent)` : cl.color,
             }}>{toHHMM(block.hours)}</span>
           </div>
         )}
@@ -145,25 +247,20 @@ function PlanningBlock({
           <div style={{
             position: 'absolute', left: 0, top: 0, bottom: 0,
             width: `${Math.min(100, fillPct * 100)}%`,
-            background: complete ? cl.color : (partial ? cl.color + 'aa' : 'transparent'),
+            background: complete ? cl.color : (partial ? `color-mix(in srgb, ${cl.color} 70%, transparent)` : 'transparent'),
             transition: 'width 0.4s ease, background 0.2s',
           }} />
           {hasTodoistSync && todoistH > 0 && (isToday || isFuture) && fillPct < 1 && (
             <div style={{
               position: 'absolute', left: `${fillPct * 100}%`, top: 0, bottom: 0,
               width: `${Math.min(100 - fillPct * 100, (todoistH / block.hours) * 100)}%`,
-              backgroundImage: `repeating-linear-gradient(135deg, ${cl.color}80 0 3px, transparent 3px 6px)`,
-              backgroundColor: cl.color + '14',
+              backgroundImage: `repeating-linear-gradient(135deg, color-mix(in srgb, ${cl.color} 50%, transparent) 0 3px, transparent 3px 6px)`,
+              backgroundColor: tints.bg,
             }} />
           )}
         </div>
         {overflow && (
-          <div style={{
-            width: 0, height: 0, flexShrink: 0,
-            borderLeft: '4px solid transparent',
-            borderRight: '4px solid transparent',
-            borderBottom: '7px solid #E05252',
-          }} />
+          <span title="Slot oltre capacità" className="tb-hatch" style={{ width: 9, height: 9, borderRadius: 2, flexShrink: 0 }} />
         )}
       </div>
 
@@ -192,6 +289,7 @@ export default function PlanningCell({
   compact,
   isToday, isFuture, isWeekend, editable,
   onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onReorder, draggingId,
+  blockCountByClient, onLogHours,
 }) {
   const seenTodoistClients = new Set();
   const todoistRemainder = {};
@@ -323,11 +421,20 @@ export default function PlanningCell({
         flex: 1,
         borderRadius: 6, padding: compact ? 3 : 5,
         background: isWeekend ? 'var(--tb-cell-weekend)' : 'var(--tb-cell-bg)',
-        border: `1px solid ${isToday ? '#3DB33D44' : 'var(--tb-border)'}`,
+        border: `1px solid var(--tb-border)`,
         opacity: isWeekend ? 0.5 : 1,
         display: 'flex', flexDirection: 'column', gap: 4,
       }}>
-      {visualBlocks.map(({ block, cl, blockH, fillPct, delta, logged, overflow, todoistH, todoistTasks }, i) => (
+      {visualBlocks.map(({ block, cl, blockH, fillPct, delta, logged, overflow, todoistH, todoistTasks }, i) => {
+        // Stepper ore tracciate: abilitato solo quando l'area ha un solo progetto
+        // attivo e un solo blocco in giornata, altrimenti a quale progetto/slot
+        // andrebbero attribuite le ore sarebbe ambiguo (entry sono per progetto+slot).
+        const clientProjects = (projects || []).filter(p => p.clientId === block.clientId && !p.archived);
+        const stepperProjectId = onLogHours && editable && clientProjects.length === 1
+          && (blockCountByClient?.[block.clientId] ?? 0) === 1
+          ? clientProjects[0].id
+          : null;
+        return (
         <React.Fragment key={block.id}>
           {isInternalDrag && insertIndex === i && <Divider />}
           <div ref={el => { blockRefs.current[i] = el; }}>
@@ -349,10 +456,13 @@ export default function PlanningCell({
                 onDragStart && onDragStart(block.id, block.clientId, block.hours);
               }}
               projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
+              stepper={!!stepperProjectId}
+              onStepperDone={stepperProjectId ? (hours) => onLogHours(stepperProjectId, hours, slot) : undefined}
             />
           </div>
         </React.Fragment>
-      ))}
+        );
+      })}
       {isInternalDrag && insertIndex === visualBlocks.length && <Divider />}
 
       {visualBlocks.length === 0 && (

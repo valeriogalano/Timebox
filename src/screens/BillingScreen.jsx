@@ -125,12 +125,12 @@ export default function BillingScreen({ clients, projects, screen }) {
       {/* KPI cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
         <Card>
-          <CardLabel>Da fatturare</CardLabel>
-          <div style={{ fontSize: 30, fontWeight: 800, color: grandUnbilledH > 0 ? '#E07B3A' : 'var(--tb-text-muted)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+          <CardLabel><span className="tb-glyph">○</span> Da fatturare</CardLabel>
+          <div style={{ fontSize: 30, fontWeight: 800, color: grandUnbilledH > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-muted)', letterSpacing: '-0.02em', lineHeight: 1 }}>
             {fmtH(grandUnbilledH)}
           </div>
           {grandTotalEur > 0 && grandUnbilledH > 0 && (
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#E07B3A', marginTop: 6 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-secondary)', marginTop: 6 }}>
               €{(billableClients.reduce((s, c) => {
                 if (c.billing !== 'hourly' || !c.rate) return s;
                 const pids = projects.filter(p => p.clientId === c.id).map(p => p.id);
@@ -141,12 +141,12 @@ export default function BillingScreen({ clients, projects, screen }) {
           )}
         </Card>
         <Card>
-          <CardLabel>Fatturate</CardLabel>
-          <div style={{ fontSize: 30, fontWeight: 800, color: '#3DB33D', letterSpacing: '-0.02em', lineHeight: 1 }}>
+          <CardLabel><span className="tb-glyph">✓</span> Fatturate</CardLabel>
+          <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
             {fmtH(grandTotalH - grandUnbilledH)}
           </div>
           {grandTotalEur > 0 && (grandTotalH - grandUnbilledH) > 0 && (
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#3DB33D', marginTop: 6 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-secondary)', marginTop: 6 }}>
               €{(billableClients.reduce((s, c) => {
                 if (c.billing !== 'hourly' || !c.rate) return s;
                 const pids = projects.filter(p => p.clientId === c.id).map(p => p.id);
@@ -191,15 +191,15 @@ export default function BillingScreen({ clients, projects, screen }) {
               <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--tb-text-primary)', flex: 1 }}>{client.name}</span>
               <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                 <span style={{ fontSize: 11, color: 'var(--tb-text-secondary)' }}>
-                  <span style={{ color: '#3DB33D', fontWeight: 700 }}>{fmtH(billedH)}</span> fatturate
+                  <span style={{ color: 'var(--tb-text-primary)', fontWeight: 700 }}>{fmtH(billedH)}</span> fatturate
                 </span>
                 {unbilledH > 0 && (
                   <span style={{ fontSize: 11, color: 'var(--tb-text-secondary)' }}>
-                    <span style={{ color: '#E07B3A', fontWeight: 700 }}>{fmtH(unbilledH)}</span> da fatturare
+                    <span className="tb-glyph" style={{ fontWeight: 700 }}>{fmtH(unbilledH)}</span> da fatturare
                   </span>
                 )}
                 {hourlyRate && (
-                  <span style={{ fontSize: 12, fontWeight: 800, color: '#3DB33D' }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
                     €{(totalH * hourlyRate).toFixed(0)}
                   </span>
                 )}
@@ -233,11 +233,11 @@ export default function BillingScreen({ clients, projects, screen }) {
                   }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)', flex: 1 }}>{project.name}</span>
                     <span style={{ fontSize: 11, color: 'var(--tb-text-secondary)' }}>
-                      <span style={{ color: '#3DB33D', fontWeight: 700 }}>{fmtH(projBilledH)}</span> fatt.
+                      <span style={{ color: 'var(--tb-text-primary)', fontWeight: 700 }}>{fmtH(projBilledH)}</span> fatt.
                     </span>
                     {projUnbilledH > 0 && (
                       <span style={{ fontSize: 11, color: 'var(--tb-text-secondary)' }}>
-                        <span style={{ color: '#E07B3A', fontWeight: 700 }}>{fmtH(projUnbilledH)}</span> da fatt.
+                        <span className="tb-glyph" style={{ fontWeight: 700 }}>{fmtH(projUnbilledH)}</span> da fatt.
                       </span>
                     )}
                     {hourlyRate && (
@@ -268,10 +268,7 @@ export default function BillingScreen({ clients, projects, screen }) {
                         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-primary)', minWidth: 60, textAlign: 'right', position: 'relative' }}
                           title={diverges ? `Tracciate: ${fmtH(entry.hours)}` : undefined}>
                           {fmtH(eff)}
-                          {diverges && <span style={{
-                            display: 'inline-block', width: 5, height: 5, borderRadius: '50%',
-                            background: '#E07B3A', marginLeft: 5, verticalAlign: 'middle',
-                          }} />}
+                          {diverges && <span className="tb-divergent" style={{ marginLeft: 5 }} title={`Tracciate: ${fmtH(entry.hours)}`}>◇</span>}
                         </span>
                         {hourlyRate && (
                           <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', minWidth: 45, textAlign: 'right' }}>
@@ -282,15 +279,16 @@ export default function BillingScreen({ clients, projects, screen }) {
                           onClick={() => toggleBilled(entry)}
                           title={entry.billed ? 'Segna come non fatturata' : 'Segna come fatturata'}
                           style={{
-                            width: 22, height: 22, borderRadius: 4, border: `1px solid ${entry.billed ? '#3DB33D' : 'var(--tb-border-mid)'}`,
-                            background: entry.billed ? '#3DB33D' : 'transparent',
-                            color: entry.billed ? 'white' : 'var(--tb-text-faint)',
+                            width: 22, height: 22, borderRadius: 4,
+                            border: `1px solid ${entry.billed ? 'var(--tb-text-primary)' : 'var(--tb-border-mid)'}`,
+                            background: entry.billed ? 'var(--tb-text-primary)' : 'transparent',
+                            color: entry.billed ? 'var(--tb-panel-bg)' : 'var(--tb-text-faint)',
                             fontSize: 10, fontWeight: 800, cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontFamily: "'Open Sans', sans-serif", flexShrink: 0,
                             transition: 'all 0.15s',
                           }}>
-                          €
+                          {entry.billed ? '✓' : '€'}
                         </button>
                       </div>
                     );
@@ -317,9 +315,9 @@ function BulkBtn({ onClick, children, small, muted }) {
       fontSize: 10, fontWeight: 700, cursor: 'pointer',
       padding: small ? '2px 7px' : '3px 8px',
       borderRadius: 4, fontFamily: "'Open Sans', sans-serif",
-      border: `1px solid ${muted ? 'var(--tb-border-mid)' : '#3DB33D'}`,
+      border: `1px solid ${muted ? 'var(--tb-border-mid)' : 'var(--tb-text-primary)'}`,
       background: 'transparent',
-      color: muted ? 'var(--tb-text-faint)' : '#3DB33D',
+      color: muted ? 'var(--tb-text-faint)' : 'var(--tb-text-primary)',
     }}>{children}</button>
   );
 }

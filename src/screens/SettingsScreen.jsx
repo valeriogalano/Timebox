@@ -255,8 +255,8 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
               disabled={busy}
               style={{
                 padding: '7px 16px', borderRadius: 6, border: 'none',
-                background: slotCapacitySaved ? '#3DB33D' : '#4A8FE8',
-                color: 'white', fontSize: 12, fontWeight: 700,
+                background: 'var(--tb-text-primary)',
+                color: 'var(--tb-panel-bg)', fontSize: 12, fontWeight: 700,
                 cursor: busy ? 'not-allowed' : 'pointer',
                 fontFamily: "'Open Sans', sans-serif",
                 transition: 'background 0.2s',
@@ -275,7 +275,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
             Inserisci il tuo token personale Todoist. Puoi trovarlo in{' '}
             <a href="https://todoist.com/app/settings/integrations/developer"
               target="_blank" rel="noreferrer"
-              style={{ color: '#4A8FE8', textDecoration: 'none' }}>
+              style={{ color: 'var(--tb-text-primary)', textDecoration: 'underline' }}>
               Impostazioni → Integrazioni → Developer
             </a>.
             Il token viene salvato cifrato con Electron safeStorage, usando il sistema di protezione credenziali disponibile.
@@ -298,8 +298,8 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
               disabled={busy}
               style={{
                 flexShrink: 0, padding: '7px 16px', borderRadius: 6, border: 'none',
-                background: tokenSaved ? '#3DB33D' : '#4A8FE8',
-                color: 'white', fontSize: 12, fontWeight: 700,
+                background: 'var(--tb-text-primary)',
+                color: 'var(--tb-panel-bg)', fontSize: 12, fontWeight: 700,
                 cursor: busy ? 'not-allowed' : 'pointer',
                 fontFamily: "'Open Sans', sans-serif",
                 transition: 'background 0.2s',
@@ -321,8 +321,8 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
             onClick={toggleTodoistDebug}
             style={{
               flexShrink: 0, padding: '5px 14px', borderRadius: 6, border: '1px solid var(--tb-border)',
-              background: todoistDebug ? '#4A8FE8' : 'var(--tb-panel-bg-soft)',
-              color: todoistDebug ? 'white' : 'var(--tb-text-secondary)',
+              background: todoistDebug ? 'var(--tb-text-primary)' : 'var(--tb-panel-bg-soft)',
+              color: todoistDebug ? 'var(--tb-panel-bg)' : 'var(--tb-text-secondary)',
               fontSize: 12, fontWeight: 700, cursor: 'pointer',
               fontFamily: "'Open Sans', sans-serif", transition: 'all 0.15s',
             }}>
@@ -338,7 +338,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
               Aggiunge sotto l'area "Todoist" tutti i progetti Todoist non ancora presenti in Timebox
             </div>
             {importResult && (
-              <div style={{ fontSize: 11, marginTop: 6, color: importResult.error ? '#E05252' : '#3DB33D', fontWeight: 700 }}>
+              <div style={{ fontSize: 11, marginTop: 6, color: 'var(--tb-text-secondary)', fontWeight: 700 }}>
                 {importResult.error
                   ? importResult.error
                   : importResult.added === 0
@@ -352,8 +352,8 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
             disabled={busy}
             style={{
               flexShrink: 0, padding: '7px 16px', borderRadius: 6, border: 'none',
-              background: busy ? 'var(--tb-border)' : '#4A8FE8',
-              color: 'white', fontSize: 12, fontWeight: 700,
+              background: busy ? 'var(--tb-border)' : 'var(--tb-text-primary)',
+              color: 'var(--tb-panel-bg)', fontSize: 12, fontWeight: 700,
               cursor: busy ? 'not-allowed' : 'pointer',
               fontFamily: "'Open Sans', sans-serif",
               transition: 'background 0.12s',
@@ -371,7 +371,6 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
               : `Installa il comando timebox in ${toolInstallInfo?.pathHint || 'una directory utente'} per accedere da terminale (richiede app aperta)`
           }
           buttonLabel={cliInstalled ? '✓ Installata' : 'Installa…'}
-          buttonColor="#4A9A4A"
           onClick={handleInstallCli}
           disabled={busy || cliInstalled}
         />
@@ -383,7 +382,6 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
               : 'Installa il server MCP e lo registra in Codex tramite `codex mcp add`'
           }
           buttonLabel={mcpCodexInstalled ? '✓ Configurato' : 'Configura…'}
-          buttonColor="#4A8FE8"
           onClick={handleInstallMcpCodex}
           disabled={busy || mcpCodexInstalled}
         />
@@ -395,7 +393,6 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
               : 'Installa il server MCP e lo registra in Claude Code tramite `claude mcp add -s user`'
           }
           buttonLabel={mcpClaudeCodeInstalled ? '✓ Configurato' : 'Configura…'}
-          buttonColor="#4A8FE8"
           onClick={handleInstallMcpClaudeCode}
           disabled={busy || mcpClaudeCodeInstalled}
         />
@@ -409,7 +406,6 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
                 : 'Configurazione automatica disponibile solo su macOS; su Windows/Linux usa la configurazione generica'
           }
           buttonLabel={mcpDesktopInstalled ? '✓ Configurato' : 'Configura…'}
-          buttonColor="#4A8FE8"
           onClick={handleInstallMcpDesktop}
           disabled={busy || mcpDesktopInstalled || toolInstallInfo?.platform !== 'darwin'}
         />
@@ -438,9 +434,9 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
             L'app verrà ricaricata automaticamente.
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <SelectButton onClick={handleSelectDbFile} disabled={busy} />
-            <CreateButton onClick={handleCreateNewDb} disabled={busy} />
-            <CopyButton onClick={handleSaveDbCopy} disabled={busy} />
+            <ActionButton onClick={handleSelectDbFile} disabled={busy}>Seleziona file…</ActionButton>
+            <ActionButton onClick={handleCreateNewDb} disabled={busy}>Nuovo database…</ActionButton>
+            <ActionButton onClick={handleSaveDbCopy} disabled={busy}>Salva copia…</ActionButton>
           </div>
         </div>
       </Section>
@@ -449,7 +445,6 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
           label="Carica dati di prova"
           description="Inserisce aree, progetti e ore di esempio (sovrascrive i dati esistenti)"
           buttonLabel="Carica dati demo"
-          buttonColor="#4A8FE8"
           onClick={handleSeedData}
           disabled={busy}
         />
@@ -457,9 +452,9 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
           label="Cancella tutti i dati"
           description="Elimina definitivamente aree, progetti, ore e pianificazione settimanale"
           buttonLabel="Cancella tutto"
-          buttonColor="#E05252"
           onClick={handleResetData}
           disabled={busy}
+          danger
         />
       </Section>
 
@@ -476,15 +471,15 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
 }
 
 const UPDATE_STATUS_LABELS = {
-  idle:          { text: 'Non verificato', color: 'var(--tb-text-muted)' },
-  checking:      { text: 'Controllo in corso…', color: 'var(--tb-text-muted)' },
-  skipped:       { text: 'Controllo saltato (app non pacchettizzata)', color: 'var(--tb-text-muted)' },
-  'not-available': { text: 'L\'app è aggiornata', color: '#3DB33D' },
-  available:     { text: 'Aggiornamento disponibile – download in corso', color: '#E07B3A' },
-  'available-manual': { text: 'Aggiornamento disponibile su GitHub', color: '#E07B3A' },
-  downloading:   { text: 'Download aggiornamento in corso…', color: '#E07B3A' },
-  downloaded:    { text: 'Aggiornamento pronto – riavvia per installare', color: '#4A8FE8' },
-  error:         { text: 'Errore durante il controllo aggiornamenti', color: '#E05252' },
+  idle:          { text: 'Non verificato', muted: true },
+  checking:      { text: 'Controllo in corso…', muted: true },
+  skipped:       { text: 'Controllo saltato (app non pacchettizzata)', muted: true },
+  'not-available': { text: 'L\'app è aggiornata', glyph: '✓' },
+  available:     { text: 'Aggiornamento disponibile – download in corso', glyph: '▸' },
+  'available-manual': { text: 'Aggiornamento disponibile su GitHub', glyph: '▸' },
+  downloading:   { text: 'Download aggiornamento in corso…', glyph: '▸' },
+  downloaded:    { text: 'Aggiornamento pronto – riavvia per installare', glyph: '▸' },
+  error:         { text: 'Errore durante il controllo aggiornamenti', glyph: '✕' },
 };
 
 function UpdateSection({ status, busy, onCheck, onInstall }) {
@@ -493,18 +488,21 @@ function UpdateSection({ status, busy, onCheck, onInstall }) {
     <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
       <div>
         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 3 }}>Stato aggiornamento automatico</div>
-        <div style={{ fontSize: 11, color: label.color, fontWeight: 600 }}>{label.text}</div>
+        <div style={{ fontSize: 11, color: label.muted ? 'var(--tb-text-muted)' : 'var(--tb-text-secondary)', fontWeight: 600 }}>
+          {label.glyph && <span className="tb-glyph" style={{ marginRight: 4 }}>{label.glyph}</span>}
+          {label.text}
+        </div>
         {status?.error?.message && (
-          <div style={{ fontSize: 10, color: '#E05252', marginTop: 4, fontFamily: 'monospace' }}>{status.error.message}</div>
+          <div style={{ fontSize: 10, color: 'var(--tb-text-muted)', marginTop: 4, fontFamily: 'monospace' }}>{status.error.message}</div>
         )}
       </div>
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
         {status?.status === 'downloaded' ? (
-          <ActionButton onClick={onInstall} color="#4A8FE8">Installa e riavvia</ActionButton>
+          <ActionButton onClick={onInstall}>Installa e riavvia</ActionButton>
         ) : status?.status === 'available-manual' ? (
-          <ActionButton onClick={onInstall} color="#4A8FE8">Apri pagina download</ActionButton>
+          <ActionButton onClick={onInstall}>Apri pagina download</ActionButton>
         ) : (
-          <ActionButton onClick={onCheck} disabled={busy || status?.status === 'checking'} color="#4A8FE8">
+          <ActionButton onClick={onCheck} disabled={busy || status?.status === 'checking'}>
             {busy || status?.status === 'checking' ? 'Controllo…' : 'Controlla aggiornamenti'}
           </ActionButton>
         )}
@@ -513,7 +511,7 @@ function UpdateSection({ status, busy, onCheck, onInstall }) {
   );
 }
 
-function ActionButton({ onClick, disabled, color, children }) {
+function ActionButton({ onClick, disabled, children }) {
   const [hover, setHover] = useState(false);
   return (
     <button
@@ -523,8 +521,9 @@ function ActionButton({ onClick, disabled, color, children }) {
       onMouseLeave={() => setHover(false)}
       style={{
         padding: '7px 16px', borderRadius: 6, border: 'none',
-        background: disabled ? 'var(--tb-border)' : hover ? color : color + 'dd',
-        color: 'white', fontSize: 12, fontWeight: 700,
+        background: disabled ? 'var(--tb-border)' : 'var(--tb-text-primary)',
+        opacity: !disabled && hover ? 0.85 : 1,
+        color: 'var(--tb-panel-bg)', fontSize: 12, fontWeight: 700,
         cursor: disabled ? 'not-allowed' : 'pointer',
         fontFamily: "'Open Sans', sans-serif",
         transition: 'background 0.12s',
@@ -549,9 +548,9 @@ function ThemeSelector({ theme, setTheme }) {
           <button key={value} onClick={() => setTheme(value)}
             style={{
               flex: 1, padding: '8px 12px', borderRadius: 7, fontSize: 12, fontWeight: 700,
-              border: active ? '2px solid #3DB33D' : '1px solid var(--tb-border)',
-              background: active ? '#3DB33D18' : 'transparent',
-              color: active ? '#3DB33D' : 'var(--tb-text-secondary)',
+              border: active ? '2px solid var(--tb-text-primary)' : '1px solid var(--tb-border)',
+              background: active ? 'var(--tb-panel-bg-soft)' : 'transparent',
+              color: active ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)',
               cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
               transition: 'all 0.12s',
             }}>
@@ -560,69 +559,6 @@ function ThemeSelector({ theme, setTheme }) {
         );
       })}
     </div>
-  );
-}
-
-function CopyButton({ onClick, disabled }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        padding: '7px 16px', borderRadius: 6, border: 'none',
-        background: disabled ? 'var(--tb-border)' : hover ? '#7a5fa0' : '#8B6BBF',
-        color: 'white', fontSize: 12, fontWeight: 700,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        fontFamily: "'Open Sans', sans-serif",
-        transition: 'background 0.12s',
-      }}>
-      Salva copia…
-    </button>
-  );
-}
-
-function CreateButton({ onClick, disabled }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        padding: '7px 16px', borderRadius: 6, border: 'none',
-        background: disabled ? 'var(--tb-border)' : hover ? '#3a8a3a' : '#4A9A4A',
-        color: 'white', fontSize: 12, fontWeight: 700,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        fontFamily: "'Open Sans', sans-serif",
-        transition: 'background 0.12s',
-      }}>
-      Nuovo database…
-    </button>
-  );
-}
-
-function SelectButton({ onClick, disabled }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        padding: '7px 16px', borderRadius: 6, border: 'none',
-        background: disabled ? 'var(--tb-border)' : hover ? '#555' : '#666',
-        color: 'white', fontSize: 12, fontWeight: 700,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        fontFamily: "'Open Sans', sans-serif",
-        transition: 'background 0.12s',
-      }}>
-      Seleziona file…
-    </button>
   );
 }
 
@@ -641,7 +577,19 @@ function Section({ title, children }) {
   );
 }
 
-function Row({ label, description, buttonLabel, buttonColor, onClick, disabled }) {
+// Azioni pericolose: nessun rosso — si distinguono per forma (outline invece di
+// riempito) e icona di avviso, non per colore.
+function WarningIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+      <path d="M7 1.5 13 12.5H1L7 1.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M7 5.5v3.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <circle cx="7" cy="10.8" r="0.9" fill="currentColor" />
+    </svg>
+  );
+}
+
+function Row({ label, description, buttonLabel, onClick, disabled, danger }) {
   const [hover, setHover] = useState(false);
   return (
     <div style={{
@@ -659,14 +607,17 @@ function Row({ label, description, buttonLabel, buttonColor, onClick, disabled }
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
-          flexShrink: 0,
-          padding: '7px 16px', borderRadius: 6, border: 'none',
-          background: disabled ? 'var(--tb-border)' : hover ? buttonColor : buttonColor + 'dd',
-          color: 'white', fontSize: 12, fontWeight: 700,
+          flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
+          padding: '7px 16px', borderRadius: 6,
+          border: danger ? '1px solid var(--tb-border-mid)' : 'none',
+          background: disabled ? 'var(--tb-border)' : danger ? (hover ? 'var(--tb-panel-bg-soft)' : 'transparent') : 'var(--tb-text-primary)',
+          opacity: !disabled && hover && !danger ? 0.85 : 1,
+          color: danger ? 'var(--tb-text-primary)' : 'var(--tb-panel-bg)', fontSize: 12, fontWeight: 700,
           cursor: disabled ? 'not-allowed' : 'pointer',
           fontFamily: "'Open Sans', sans-serif",
           transition: 'background 0.12s',
         }}>
+        {danger && <WarningIcon />}
         {buttonLabel}
       </button>
     </div>

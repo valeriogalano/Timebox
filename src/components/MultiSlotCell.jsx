@@ -82,7 +82,7 @@ export default function MultiSlotCell({
   const Divider = () => (
     <div style={{
       height: 2, borderRadius: 1,
-      background: '#4A8FE8',
+      background: 'var(--tb-border-mid)',
       margin: '1px 2px',
       flexShrink: 0,
     }} />
@@ -96,7 +96,7 @@ export default function MultiSlotCell({
       style={{
         padding: 8, minHeight: 60,
         display: 'flex', flexDirection: 'column', gap: 4,
-        outline: isDropTarget && !isInternalDrag ? '2px dashed #4A8FE8' : 'none',
+        outline: isDropTarget && !isInternalDrag ? '2px dashed var(--tb-tick)' : 'none',
         outlineOffset: -2,
         background: isDropTarget && !isInternalDrag ? 'var(--tb-drag-over-bg)' : 'transparent',
         transition: 'background 0.1s',

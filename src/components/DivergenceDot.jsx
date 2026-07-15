@@ -4,11 +4,14 @@ export default function DivergenceDot({ tooltip, bottom = 3, right = 3 }) {
   return (
     <span
       title={tooltip}
+      className="tb-divergent"
       style={{
         position: 'absolute', bottom, right,
-        width: 5, height: 5, borderRadius: '50%',
-        background: '#E07B3A', pointerEvents: 'auto',
+        pointerEvents: 'auto',
+        lineHeight: 1,
       }}
-    />
+    >
+      ◇
+    </span>
   );
 }

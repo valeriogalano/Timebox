@@ -36,7 +36,8 @@ function BillingIcon()  { return <svg width="15" height="15" viewBox="0 0 15 15"
 function CollapseIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function ExpandIcon()   { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 
-const ACCENT = '#3DB33D';
+// Accento neutro (REDLINE §1: nav attivo non ha colore di brand, solo forma/peso).
+const ACCENT = 'var(--tb-sidebar-nav-active-text)';
 
 function mergeProjectDayEntries(entries, projectId) {
   const matches = entries.filter(entry => entry.projectId === projectId);
@@ -58,7 +59,8 @@ function mergeProjectDayEntries(entries, projectId) {
 }
 
 export default function App() {
-  const [screen, setScreen]     = useState('weekly');
+  // ponytail: dev-only deep-link so headless screenshots can target a screen via ?screen=id
+  const [screen, setScreen]     = useState(() => new URLSearchParams(location.search).get('screen') || 'weekly');
   const [weekOffset, setWeekOffset] = useState(0);
   const [clients, setClients]   = useState([]);
   const [projects, setProjects] = useState([]);
@@ -76,6 +78,8 @@ export default function App() {
   const refreshSidebar = useCallback(() => setSidebarKey(k => k + 1), []);
 
   const [theme, setThemeState] = useState(() => {
+    const q = new URLSearchParams(location.search).get('theme'); // ponytail: dev deep-link for screenshots
+    if (q) return q;
     try { return localStorage.getItem('timebox-theme') || 'dark'; } catch { return 'dark'; }
   });
   const [systemDark, setSystemDark] = useState(() =>
@@ -391,7 +395,8 @@ export default function App() {
               externalRefreshTick={weekRefreshTick}
               autoFocusProject={autoFocusProject}
               slotCapacityHours={slotCapacityHours}
-              onAutoFocusConsumed={() => setAutoFocusProject(null)} />
+              onAutoFocusConsumed={() => setAutoFocusProject(null)}
+              onNavigateToAndamento={() => setScreen('panoramica')} />
           )}
           {screen === 'panoramica' && (
             <Panoramica clients={clients} projects={projects} recurring={recurring} screen={screen} />

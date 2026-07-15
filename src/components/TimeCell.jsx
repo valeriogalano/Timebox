@@ -161,8 +161,8 @@ export default function TimeCell({
             </span>
           )}
           {isBillable && billed && (
-            <span style={{ fontSize: 8, fontWeight: 800, color: '#3DB33D',
-              border: '1px solid #3DB33D', padding: '0 3px', borderRadius: 2, lineHeight: 1.5 }}>
+            <span title="Fatturato" style={{ fontSize: 8, fontWeight: 800, color: 'var(--tb-text-secondary)',
+              border: '1px solid var(--tb-border-mid)', padding: '0 3px', borderRadius: 2, lineHeight: 1.5 }}>
               €
             </span>
           )}

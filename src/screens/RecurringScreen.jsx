@@ -1,13 +1,89 @@
 import React, { useState, useEffect } from 'react';
-import { DAY_SHORT, fmtH, SLOTS } from '../utils';
+import { DAY_SHORT, fmtH, SLOTS, getToday, getMondayOfWeek, fmt } from '../utils';
 import MultiSlotCell from '../components/MultiSlotCell';
 
 const RECURRING_DAYS = DAY_SHORT.length;
 const SLOT_ROW_LABELS = { am: 'Mattina', pm: 'Pomeriggio', sera: 'Sera' };
+const DIVERGENCE_HISTORY_WEEKS = 8;
+const DIVERGENCE_MIN_OCCURRENCES = 3;
 
 export default function RecurringScreen({ clients, recurring, setRecurring, slotCapacityHours }) {
   const [dragging, setDragging] = useState(null); // { blockId, fromDay, fromSlot, clientId, hours }
   const [dragOver, setDragOver] = useState(null); // { day, slot }
+
+  // Override ripetuti: confronta lo storicizzato (week_overrides, congelato da
+  // freezeWeeksBeforeRecurringChange o da un override manuale in Settimana/Oggi)
+  // col template attuale per le ultime settimane passate.
+  const [pastOverrides, setPastOverrides] = useState([]);
+  const [dismissedDivergences, setDismissedDivergences] = useState(new Set()); // ponytail: solo di sessione, persisti se serve tenerlo tra riavvii
+  useEffect(() => {
+    const currentMonday = getMondayOfWeek(getToday());
+    const fromWeekKey = fmt(addDays(currentMonday, -DIVERGENCE_HISTORY_WEEKS * 7));
+    const toWeekKey = fmt(addDays(currentMonday, -7));
+    window.api.getWeekOverridesRange(fromWeekKey, toWeekKey).then(setPastOverrides);
+  }, []);
+
+  const divergences = React.useMemo(() => {
+    const byWeek = {};
+    pastOverrides.forEach(r => {
+      const week = byWeek[r.weekKey] ?? (byWeek[r.weekKey] = {});
+      const day = week[r.dayIndex] ?? (week[r.dayIndex] = {});
+      day[r.slot] = r.blocks;
+    });
+
+    const stats = {};
+    Object.values(byWeek).forEach(week => {
+      for (let day = 0; day < RECURRING_DAYS; day++) {
+        for (const slot of SLOTS) {
+          const overrideBlocks = week[day]?.[slot];
+          if (overrideBlocks === undefined) continue; // nessuno snapshot per questo giorno/slot in questa settimana
+          const templateBlocks = recurring.filter(r => r.day === day && r.slot === slot);
+          const clientIds = new Set([...overrideBlocks.map(b => b.clientId), ...templateBlocks.map(r => r.clientId)]);
+          clientIds.forEach(clientId => {
+            const actual = overrideBlocks.filter(b => b.clientId === clientId).reduce((s, b) => s + b.hours, 0);
+            const template = templateBlocks.filter(r => r.clientId === clientId).reduce((s, r) => s + r.hours, 0);
+            const delta = actual - template;
+            if (Math.abs(delta) < 0.01) return;
+            const key = `${day}-${slot}-${clientId}`;
+            (stats[key] ?? (stats[key] = { day, slot, clientId, deltas: [] })).deltas.push(delta);
+          });
+        }
+      }
+    });
+
+    return Object.values(stats)
+      .filter(s => s.deltas.length >= DIVERGENCE_MIN_OCCURRENCES)
+      .map(s => ({
+        ...s,
+        avgDelta: s.deltas.reduce((a, b) => a + b, 0) / s.deltas.length,
+        occurrences: s.deltas.length,
+      }))
+      .filter(s => !dismissedDivergences.has(`${s.day}-${s.slot}-${s.clientId}`))
+      .sort((a, b) => b.occurrences - a.occurrences || Math.abs(b.avgDelta) - Math.abs(a.avgDelta));
+  }, [pastOverrides, recurring, dismissedDivergences]);
+
+  async function applyDivergence(item) {
+    const template = recurring.find(r => r.day === item.day && r.slot === item.slot && r.clientId === item.clientId);
+    const newHours = Math.max(0, Math.round(((template?.hours ?? 0) + item.avgDelta) * 4) / 4);
+    if (template && newHours <= 0) await removeBlock(template.id);
+    else if (template) await updateBlock(template.id, newHours);
+    else if (newHours > 0) await addBlock(item.day, item.slot, item.clientId, newHours);
+    dismissDivergence(item);
+  }
+
+  function dismissDivergence(item) {
+    setDismissedDivergences(prev => new Set(prev).add(`${item.day}-${item.slot}-${item.clientId}`));
+  }
+
+  // Stato A/M/C dell'area — contestuale (settimana corrente), il template è week-agnostic.
+  const [statuses, setStatuses] = useState({});
+  useEffect(() => {
+    const weekKey = fmt(getMondayOfWeek(getToday()));
+    window.api.getWeekAreaStatuses(weekKey).then(rows => {
+      setStatuses(Object.fromEntries(rows.map(row => [row.areaId, row.status])));
+    });
+  }, []);
+  const clientsWithStatus = clients.map(c => ({ ...c, areaStatus: statuses[c.id] ?? 'active' }));
 
   useEffect(() => {
     function onDragEnd() { setDragging(null); setDragOver(null); }
@@ -85,9 +161,58 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
   return (
     <div>
       <p style={{ fontSize: 13, color: 'var(--tb-text-secondary)', marginBottom: 20, maxWidth: 560, lineHeight: 1.6 }}>
-        Il template settimanale definisce i blocchi ricorrenti. Ogni slot può contenere più aree.
-        Le modifiche qui si applicano a tutte le settimane future; puoi sovrascrivere singole settimane dalla vista <strong>Settimana</strong>.
+        Il template settimanale con il nuovo sistema di segnali (colore = area;
+        A/M/C con forma; <span className="tb-delta">Δ</span> dove correggi spesso lo
+        stesso slot). Le modifiche qui si applicano a tutte le settimane future; puoi
+        sovrascrivere singole settimane dalla vista <strong>Settimana</strong>.
       </p>
+
+      {/* Override ripetuti — drill-down (redesign #5a): slot dove lo storicizzato
+          diverge dal template per almeno DIVERGENCE_MIN_OCCURRENCES delle ultime
+          DIVERGENCE_HISTORY_WEEKS settimane passate. */}
+      <div style={{ border: '1px solid var(--tb-border)', borderRadius: 10, background: 'var(--tb-panel-bg)', padding: '12px 14px', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
+          <span className="tb-delta">Δ</span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)' }}>Override ripetuti</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}>slot che correggi a mano di continuo — il template non riflette come lavori</span>
+        </div>
+        {divergences.length === 0 ? (
+          <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
+            Nessuna divergenza ricorrente nelle ultime {DIVERGENCE_HISTORY_WEEKS} settimane.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {divergences.map(item => {
+              const client = clients.find(c => c.id === item.clientId);
+              const template = recurring.find(r => r.day === item.day && r.slot === item.slot && r.clientId === item.clientId);
+              const templateHours = template?.hours ?? 0;
+              const key = `${item.day}-${item.slot}-${item.clientId}`;
+              return (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', borderRadius: 6, background: 'var(--tb-panel-bg-subtle)' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: client?.color ?? 'var(--tb-border)', flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)' }}>
+                    {DAY_SHORT[item.day]} · {SLOT_ROW_LABELS[item.slot]} · {client?.name ?? '—'}
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', whiteSpace: 'nowrap' }}>
+                    template {fmtH(templateHours)} · effettivo {fmtH(templateHours + item.avgDelta)}
+                    {' '}({item.avgDelta > 0 ? '+' : ''}{fmtH(item.avgDelta)}) · {item.occurrences}/{DIVERGENCE_HISTORY_WEEKS} sett.
+                  </div>
+                  <button onClick={() => applyDivergence(item)} style={{
+                    fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5,
+                    border: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg)',
+                    color: 'var(--tb-text-primary)', cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
+                  }}>Applica al template</button>
+                  <button onClick={() => dismissDivergence(item)} style={{
+                    fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5,
+                    border: '1px solid var(--tb-border)', background: 'transparent',
+                    color: 'var(--tb-text-muted)', cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
+                  }}>Ignora</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', overflow: 'hidden', marginBottom: 16 }}>
         <div style={{ display: 'grid', gridTemplateColumns: `80px repeat(${RECURRING_DAYS}, 1fr)` }}>
@@ -119,7 +244,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
                     <MultiSlotCell
                       key={i}
                       blocks={blocks}
-                      clients={clients}
+                      clients={clientsWithStatus}
                       onAdd={(cid, h) => addBlock(i, slot, cid, h)}
                       onUpdate={updateBlock}
                       onRemove={removeBlock}

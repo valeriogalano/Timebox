@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { toHHMM, SLOT_LABELS, normalizeSlot } from '../utils';
+import { areaMix } from '../area-colors';
 import TodoistTaskTooltip from './TodoistTaskTooltip';
 
 function OrphanBlock({ orphan, cl, isToday, isFuture, compact }) {
@@ -15,10 +16,10 @@ function OrphanBlock({ orphan, cl, isToday, isFuture, compact }) {
       style={{
         position: 'relative',
         display: 'flex', alignItems: 'center', gap: 5,
-        borderLeft: `3px solid ${cl.color}aa`,
-        border: `1px dashed ${cl.color}55`,
+        borderLeft: `3px solid ${areaMix(cl.color, 67)}`,
+        border: `1px dashed ${areaMix(cl.color, 33)}`,
         borderRadius: 4, padding: compact ? '2px 5px' : '2px 6px',
-        backgroundImage: `repeating-linear-gradient(135deg, ${cl.color}10 0 4px, transparent 4px 8px)`,
+        backgroundImage: `repeating-linear-gradient(135deg, ${areaMix(cl.color, 6)} 0 4px, transparent 4px 8px)`,
       }}>
       {showTooltip && (
         <TodoistTaskTooltip anchorRef={blockRef} tasks={orphan.tasks} color={cl.color} />
@@ -45,7 +46,7 @@ export default function ExtraCell({ blocks, orphanTodoist, clients, isToday, isF
       <div style={{
         minHeight: compact ? 24 : 32, borderRadius: 6, padding: compact ? '3px 5px' : '4px 6px',
         background: isToday ? 'var(--tb-cell-extra-today)' : 'var(--tb-cell-extra)',
-        border: `1px dashed ${isToday ? '#E07B3A33' : 'var(--tb-border)'}`,
+        border: `1px dashed var(--tb-border)`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <span style={{ fontSize: compact ? 9 : 10, color: 'var(--tb-border-mid)' }}>—</span>
@@ -57,7 +58,7 @@ export default function ExtraCell({ blocks, orphanTodoist, clients, isToday, isF
     <div style={{
       borderRadius: 6, padding: compact ? 4 : 6,
       background: isToday ? 'var(--tb-cell-extra-today)' : 'var(--tb-cell-extra)',
-      border: `1px dashed ${isToday ? '#E07B3A55' : 'var(--tb-border-mid)'}`,
+      border: `1px dashed var(--tb-border-mid)`,
       display: 'flex', flexDirection: 'column', gap: 3,
     }}>
       {blocks && blocks.map(({ clientId, hours }) => {
@@ -66,7 +67,7 @@ export default function ExtraCell({ blocks, orphanTodoist, clients, isToday, isF
         return (
           <div key={clientId} style={{
             display: 'flex', alignItems: 'center', gap: 5,
-            background: cl.color + '15',
+            background: areaMix(cl.color, 8),
             borderLeft: `3px solid ${cl.color}`,
             borderRadius: 4, padding: compact ? '2px 6px' : '3px 7px',
           }}>

@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { areaMix } from '../area-colors';
+import { AREA_STATUS_OPTIONS } from '../screens/WeeklyView';
+import AreaStatusGlyph from './AreaStatusGlyph';
 
 const PX_PER_H = 40;
 
@@ -72,8 +75,8 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
       style={{
         position: 'relative',
         height: blockH,
-        background: client.color + '66',
-        border: `1px solid ${client.color}88`,
+        background: areaMix(client.color, 40),
+        border: `1px solid ${areaMix(client.color, 53)}`,
         borderLeft: `3px solid ${client.color}`,
         borderRadius: 4,
         cursor: resizing ? 'ns-resize' : (isDragging ? 'grabbing' : 'grab'),
@@ -90,12 +93,21 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
         overflow: 'hidden',
       }}>
-        <span style={{
-          fontSize: 10, fontWeight: 700, color: client.color,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          flex: 1, paddingRight: 4,
-        }}>
-          {client.name}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, paddingRight: 4 }}>
+          <span style={{
+            fontSize: 10, fontWeight: 700, color: client.color,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {client.name}
+          </span>
+          {client.areaStatus && client.areaStatus !== 'active' && (() => {
+            const opt = AREA_STATUS_OPTIONS.find(o => o.key === client.areaStatus);
+            return opt && (
+              <span title={opt.title}>
+                <AreaStatusGlyph status={client.areaStatus} size={9} color="var(--tb-state-glyph)" />
+              </span>
+            );
+          })()}
         </span>
         <div style={{ flexShrink: 0 }}>
           {editingH ? (
@@ -111,8 +123,8 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
               }} />
           ) : (
             <span onClick={startEdit} style={{
-              fontSize: 9, color: client.color + '88', cursor: 'text',
-              borderBottom: `1px dashed ${client.color}44`,
+              fontSize: 9, color: areaMix(client.color, 53), cursor: 'text',
+              borderBottom: `1px dashed ${areaMix(client.color, 27)}`,
             }}>
               {displayHours}h
             </span>
@@ -137,7 +149,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
           title="Duplica"
           style={{
             background: 'none', border: 'none', cursor: 'pointer', padding: '1px 3px',
-            color: client.color + '88', lineHeight: 1,
+            color: areaMix(client.color, 53), lineHeight: 1,
           }}
         >
           <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
@@ -149,7 +161,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
           onClick={e => { e.stopPropagation(); onRemove(); }}
           style={{
             background: 'none', border: 'none', cursor: 'pointer', padding: '1px 2px',
-            color: client.color + '66', fontSize: 11, lineHeight: 1, fontWeight: 700,
+            color: areaMix(client.color, 40), fontSize: 11, lineHeight: 1, fontWeight: 700,
           }}
         >×</button>
       </div>
@@ -162,7 +174,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
         style={{
           position: 'absolute', bottom: 0, left: 0, right: 0, height: 8,
           cursor: 'ns-resize',
-          background: (hover || resizing) ? client.color + '44' : 'transparent',
+          background: (hover || resizing) ? areaMix(client.color, 27) : 'transparent',
           borderBottomLeftRadius: 3, borderBottomRightRadius: 3,
           transition: 'background 0.15s',
           zIndex: 3,
@@ -172,7 +184,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
         {(hover || resizing) && (
           <div style={{
             width: 20, height: 2, borderRadius: 1,
-            background: client.color + '99',
+            background: areaMix(client.color, 60),
           }} />
         )}
       </div>
