@@ -45,7 +45,7 @@ export default function ExtraCell({ blocks, orphanTodoist, clients, isToday, isF
       <div style={{
         minHeight: compact ? 24 : 32, borderRadius: 6, padding: compact ? '3px 5px' : '4px 6px',
         background: isToday ? 'var(--tb-cell-extra-today)' : 'var(--tb-cell-extra)',
-        border: `1px dashed ${isToday ? '#E07B3A33' : 'var(--tb-border)'}`,
+        border: `1px dashed var(--tb-border)`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <span style={{ fontSize: compact ? 9 : 10, color: 'var(--tb-border-mid)' }}>—</span>
@@ -57,7 +57,7 @@ export default function ExtraCell({ blocks, orphanTodoist, clients, isToday, isF
     <div style={{
       borderRadius: 6, padding: compact ? 4 : 6,
       background: isToday ? 'var(--tb-cell-extra-today)' : 'var(--tb-cell-extra)',
-      border: `1px dashed ${isToday ? '#E07B3A55' : 'var(--tb-border-mid)'}`,
+      border: `1px dashed var(--tb-border-mid)`,
       display: 'flex', flexDirection: 'column', gap: 3,
     }}>
       {blocks && blocks.map(({ clientId, hours }) => {

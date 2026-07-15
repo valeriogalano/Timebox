@@ -9,7 +9,7 @@ function Divider() {
   return (
     <div style={{
       height: 2, borderRadius: 1,
-      background: '#4A8FE8',
+      background: 'var(--tb-border-mid)',
       margin: '1px 0',
       flexShrink: 0,
     }} />
@@ -79,13 +79,14 @@ function PlanningBlock({
           letterSpacing: '0.01em', flex: 1, minWidth: 0,
         }}>{cl.name}</span>
         {budgetAlertLevel_combined > 0 && (
-          <div
+          <span
+            className="tb-meter"
+            data-level={budgetAlertLevel_combined}
             title={budgetAlertLevel_combined === 3 ? 'Limite superato' : budgetAlertLevel_combined === 2 ? 'Limite all\'80%+' : 'Limite al 50%+'}
-            style={{
-              width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-              background: budgetAlertLevel_combined === 3 ? '#E05252' : budgetAlertLevel_combined === 2 ? '#E07B3A' : '#E0C020',
-            }}
-          />
+            style={{ flexShrink: 0 }}
+          >
+            <i /><i /><i />
+          </span>
         )}
       </div>
 
@@ -158,12 +159,7 @@ function PlanningBlock({
           )}
         </div>
         {overflow && (
-          <div style={{
-            width: 0, height: 0, flexShrink: 0,
-            borderLeft: '4px solid transparent',
-            borderRight: '4px solid transparent',
-            borderBottom: '7px solid #E05252',
-          }} />
+          <span title="Slot oltre capacità" className="tb-hatch" style={{ width: 9, height: 9, borderRadius: 2, flexShrink: 0 }} />
         )}
       </div>
 
@@ -323,7 +319,7 @@ export default function PlanningCell({
         flex: 1,
         borderRadius: 6, padding: compact ? 3 : 5,
         background: isWeekend ? 'var(--tb-cell-weekend)' : 'var(--tb-cell-bg)',
-        border: `1px solid ${isToday ? '#3DB33D44' : 'var(--tb-border)'}`,
+        border: `1px solid var(--tb-border)`,
         opacity: isWeekend ? 0.5 : 1,
         display: 'flex', flexDirection: 'column', gap: 4,
       }}>

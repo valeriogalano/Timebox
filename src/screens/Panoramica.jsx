@@ -804,7 +804,7 @@ function TypeBadge({ client }) {
   const nonBillable = client.billing === 'none' || client.rate === 0;
   const isFixed = client.billing === 'fixed';
   const text = nonBillable ? 'Nessun compenso' : isFixed ? 'Compenso fisso' : 'Compenso a ore';
-  const color = nonBillable ? 'var(--tb-text-muted)' : isFixed ? '#9B59B6' : COL_OK;
+  const color = 'var(--tb-text-secondary)';
   return (
     <span style={{
       fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 3,
@@ -900,11 +900,11 @@ function TrendChart({ data, capacity, mode }) {
         {capPct > 0 && capPct < 1 && (
           <div style={{
             position: 'absolute', left: 0, right: 0, bottom: capPct * height,
-            borderTop: '2px dashed #3DB33D88', zIndex: 2,
+            borderTop: '2px dashed var(--tb-tick)', zIndex: 2,
           }}>
             <span style={{
               position: 'absolute', right: -2, top: -16, fontSize: 9, fontWeight: 800,
-              color: '#3DB33D', background: 'var(--tb-panel-bg)', padding: '1px 4px', borderRadius: 3,
+              color: 'var(--tb-text-secondary)', background: 'var(--tb-panel-bg)', padding: '1px 4px', borderRadius: 3,
             }}>Capacità {Math.round(capLine)}h</span>
           </div>
         )}
@@ -923,7 +923,7 @@ function TrendChart({ data, capacity, mode }) {
                 }} title={`Pianificato: ${fmtH(t.planned)}`} />
                 <div style={{
                   width: 16, borderRadius: '3px 3px 0 0',
-                  background: t.current ? '#3DB33D' : 'var(--tb-text-secondary)',
+                  background: t.current ? 'var(--tb-bar-tracked)' : 'var(--tb-text-secondary)',
                   height: Math.max(1, (t.done / maxVal) * height),
                   transition: 'height 0.4s ease',
                   position: 'relative',
@@ -931,7 +931,7 @@ function TrendChart({ data, capacity, mode }) {
                   {t.current && t.done > 0 && (
                     <div style={{
                       position: 'absolute', left: 0, right: 0, top: -16, textAlign: 'center',
-                      fontSize: 9, fontWeight: 800, color: '#3DB33D',
+                      fontSize: 9, fontWeight: 800, color: 'var(--tb-text-primary)',
                     }}>{fmtH(t.done)}</div>
                   )}
                 </div>
@@ -944,7 +944,7 @@ function TrendChart({ data, capacity, mode }) {
         {data.map((t, i) => (
           <div key={i} style={{
             flex: 1, textAlign: 'center', fontSize: 10, fontWeight: t.current ? 800 : 600,
-            color: t.current ? '#3DB33D' : 'var(--tb-text-muted)',
+            color: t.current ? 'var(--tb-text-primary)' : 'var(--tb-text-muted)',
           }}>{t.label}</div>
         ))}
       </div>

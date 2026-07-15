@@ -85,9 +85,30 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
   return (
     <div>
       <p style={{ fontSize: 13, color: 'var(--tb-text-secondary)', marginBottom: 20, maxWidth: 560, lineHeight: 1.6 }}>
-        Il template settimanale definisce i blocchi ricorrenti. Ogni slot può contenere più aree.
-        Le modifiche qui si applicano a tutte le settimane future; puoi sovrascrivere singole settimane dalla vista <strong>Settimana</strong>.
+        Il template settimanale con il nuovo sistema di segnali (colore = area;
+        A/M/C con forma; <span className="tb-delta">Δ</span> dove correggi spesso lo
+        stesso slot). Le modifiche qui si applicano a tutte le settimane future; puoi
+        sovrascrivere singole settimane dalla vista <strong>Settimana</strong>.
       </p>
+
+      {/* Override ripetuti — drill-down (redesign #5a).
+          Richiede la storicizzazione del pianificato per settimana (precondizione
+          del handoff, NON design, ancora assente): qui mostriamo il contenitore
+          disabilitato che diverrà operativo quando i dati saranno disponibili. */}
+      <div style={{ border: '1px solid var(--tb-border)', borderStyle: 'dashed', borderRadius: 10, background: 'var(--tb-panel-bg)', padding: '12px 14px', marginBottom: 16, opacity: 0.7 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
+          <span className="tb-delta">Δ</span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)' }}>Override ripetuti</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}>slot che correggi a mano di continuo — il template non riflette come lavori</span>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', lineHeight: 1.5 }}>
+          Richiede la conservazione del piano effettivo di ogni settimana passata
+          (precondizione dati del handoff). Una volta disponibile, ogni divergenza
+          ricorrente apparirà qui con giorno·slot, area, delta medio, frequenza e le
+          azioni <em>Applica al template</em> / <em>Ignora</em> — target degli insight
+          della lente «Nel tempo» di Andamento.
+        </div>
+      </div>
 
       <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', overflow: 'hidden', marginBottom: 16 }}>
         <div style={{ display: 'grid', gridTemplateColumns: `80px repeat(${RECURRING_DAYS}, 1fr)` }}>
