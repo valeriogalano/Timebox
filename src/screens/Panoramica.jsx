@@ -94,7 +94,7 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
   const [periodOffset, setPeriodOffset] = useState(0);
   const [entries, setEntries]           = useState([]);
   const [projectTotals, setProjectTotals] = useState({});
-  const [weekOverrides, setWeekOverrides] = useState({});
+  const [overridesByWeek, setOverridesByWeek] = useState({});
   const [trendLens, setTrendLens] = useState('tempo');     // tempo | retro | prospettiva
   const [horizon, setHorizon]     = useState(2);            // 1 | 2 | 4 settimane
 
@@ -111,15 +111,20 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
     if (screen !== 'panoramica') return;
     window.api.getEntries(fetchRange.from, fetchRange.to).then(setEntries);
     window.api.getProjectTotals().then(setProjectTotals);
-    window.api.getWeekOverrides(currentWeekKey).then(rows => {
-      const map = {};
+    // week_overrides storicizza il pianificato effettivo delle settimane passate
+    // (freezeWeeksBeforeRecurringChange lo scrive ad ogni modifica del template
+    // ricorrente): usarlo al posto del template corrente rende "Nel tempo" accurato
+    // anche quando la ricorrenza cambia nel frattempo.
+    window.api.getWeekOverridesRange(fetchRange.from, fetchRange.to).then(rows => {
+      const byWeek = {};
       rows.forEach(r => {
-        if (!map[r.dayIndex]) map[r.dayIndex] = {};
-        map[r.dayIndex][r.slot] = r.blocks;
+        const week = byWeek[r.weekKey] ?? (byWeek[r.weekKey] = {});
+        const day = week[r.dayIndex] ?? (week[r.dayIndex] = {});
+        day[r.slot] = r.blocks;
       });
-      setWeekOverrides(map);
+      setOverridesByWeek(byWeek);
     });
-  }, [screen, fetchRange.from, fetchRange.to, currentWeekKey]);
+  }, [screen, fetchRange.from, fetchRange.to]);
 
   // Build a lookup: projectId → clientId
   const projectClientMap = useMemo(() => {
@@ -128,13 +133,16 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
     return m;
   }, [projects]);
 
-  // Compute effective planned hours per client for the current week (uses overrides)
-  const plannedByClientEffective = useMemo(() => {
+  // Effective planned hours per client for a given week: prefers the frozen
+  // historical snapshot (week_overrides), falls back to the current recurring
+  // template for weeks that never diverged from it.
+  function plannedByClientForWeek(weekKey) {
     const result = {};
     clients.forEach(c => { result[c.id] = 0; });
+    const weekOverride = overridesByWeek[weekKey];
     for (let dayIndex = 0; dayIndex < PLANNING_DAYS; dayIndex++) {
       for (const slot of SLOTS) {
-        const dayOverride = weekOverrides[dayIndex];
+        const dayOverride = weekOverride && weekOverride[dayIndex];
         const blocks = dayOverride && dayOverride[slot] !== undefined
           ? dayOverride[slot]
           : recurring.filter(r => r.day === dayIndex && r.slot === slot).map(r => ({ clientId: r.clientId, hours: r.hours }));
@@ -144,7 +152,12 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
       }
     }
     return result;
-  }, [weekOverrides, recurring, clients]);
+  }
+
+  const plannedByClientEffective = useMemo(
+    () => plannedByClientForWeek(currentWeekKey),
+    [overridesByWeek, recurring, clients, currentWeekKey],
+  );
 
   // Compute stats for the current week
   const stats = useMemo(() => {
@@ -195,11 +208,9 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
       const isCurrent = startStr === currentWeekKey;
 
       const wEntries = entries.filter(e => e.date >= startStr && e.date <= endStr);
-      const done = {}, planned = {};
-      clients.forEach(c => {
-        planned[c.id] = clientWeeklyCapacity(c.id, recurring);
-        done[c.id] = 0;
-      });
+      const planned = plannedByClientForWeek(startStr);
+      const done = {};
+      clients.forEach(c => { done[c.id] = 0; });
       wEntries.forEach(e => {
         const cid = projectClientMap[e.projectId];
         if (cid) done[cid] = (done[cid] ?? 0) + e.hours;
@@ -214,15 +225,14 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
         current: isCurrent,
       };
     });
-  }, [entries, periodOffset, clients, recurring, projectClientMap, currentWeekKey]);
+  }, [entries, periodOffset, clients, recurring, overridesByWeek, projectClientMap, currentWeekKey]);
 
   // Small-multiples per area (lente "Nel tempo", REDLINE §8: grid 3 colonne, 6 settimane).
-  // "planned" è un PLACEHOLDER: il ritmo del template corrente proiettato all'indietro,
-  // non il pianificato storicizzato per settimana (precondizione dati assente, vedi README
-  // "Dipendenze-dati da risolvere" p.1). Il "done" invece è dato reale da entries.
+  // planned per settimana usa lo storicizzato (week_overrides) quando disponibile;
+  // la linea tratteggiata nel card resta il ritmo della settimana corrente.
   const perAreaWeekly = useMemo(() => {
     return clients.map(c => {
-      const planned = clientWeeklyCapacity(c.id, recurring);
+      const planned = plannedByClientEffective[c.id] ?? 0;
       const weeks = Array.from({ length: SMALL_MULT_WEEKS }, (_, i) => {
         const weekIdx  = i - (SMALL_MULT_WEEKS - 1) + periodOffset;
         const monday   = addDays(getMondayOfWeek(getToday()), weekIdx * 7);
@@ -232,11 +242,12 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
         const done = entries
           .filter(e => e.date >= startStr && e.date <= endStr && projectClientMap[e.projectId] === c.id)
           .reduce((s, e) => s + e.hours, 0);
-        return { done, isCurrent: startStr === currentWeekKey };
+        const weekPlanned = plannedByClientForWeek(startStr)[c.id] ?? 0;
+        return { done, planned: weekPlanned, isCurrent: startStr === currentWeekKey };
       });
       return { client: c, planned, weeks };
     });
-  }, [clients, recurring, entries, periodOffset, projectClientMap, currentWeekKey]);
+  }, [clients, recurring, entries, overridesByWeek, periodOffset, projectClientMap, currentWeekKey, plannedByClientEffective]);
 
   const status  = statusFor(stats.totalDone, stats.capacity);
   const deltaH  = stats.totalDone - stats.capacity;
@@ -536,7 +547,7 @@ function AreaSparkCard({ client, planned, weeks }) {
   const maxVal = Math.max(planned, ...weeks.map(w => w.done), 1) * 1.15;
   const planLineY = CHART_H - (planned / maxVal) * CHART_H;
   const lastWeek = weeks[weeks.length - 1];
-  const verdict = statusFor(lastWeek.done, planned);
+  const verdict = statusFor(lastWeek.done, lastWeek.planned ?? planned);
 
   return (
     <div style={{
@@ -556,10 +567,11 @@ function AreaSparkCard({ client, planned, weeks }) {
         )}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: '100%' }}>
           {weeks.map((w, i) => {
+            const weekPlanned = w.planned ?? planned;
             const barH = Math.max(1, (w.done / maxVal) * CHART_H);
-            const over = planned > 0 && w.done > planned;
+            const over = weekPlanned > 0 && w.done > weekPlanned;
             return (
-              <div key={i} title={`${fmtH(w.done)} / ${fmtH(planned)}`} style={{
+              <div key={i} title={`${fmtH(w.done)} / ${fmtH(weekPlanned)}`} style={{
                 flex: 1, height: barH, borderRadius: '2px 2px 0 0',
                 background: w.isCurrent ? client.color : areaMix(client.color, 55),
               }}>
