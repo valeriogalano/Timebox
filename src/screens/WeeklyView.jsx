@@ -14,12 +14,28 @@ const SLOT_ROW_META = {
   sera: { label: 'Sera', timeLabel: 'dalle 18:00' },
 };
 export const AREA_STATUS_OPTIONS = [
-  { key: 'active', label: 'Attiva', color: '#3DB33D', title: 'Area attiva questa settimana' },
-  { key: 'minimal', label: 'Minima', color: '#E07B3A', title: 'Area da mantenere al minimo questa settimana' },
-  { key: 'closed', label: 'Chiusa', color: '#E05252', title: 'Area chiusa questa settimana' },
+  { key: 'active', label: 'Attiva', glyph: '●', title: 'Area attiva questa settimana' },
+  { key: 'minimal', label: 'Minima', glyph: '◑', title: 'Area da mantenere al minimo questa settimana' },
+  { key: 'closed', label: 'Chiusa', glyph: '○', title: 'Area chiusa questa settimana' },
 ];
 
 function getWeekKey(monday) { return fmt(monday); }
+
+function budgetLevel(pct) {
+  if (pct == null) return 0;
+  if (pct >= 1) return 3;
+  if (pct >= 0.8) return 2;
+  if (pct > 0) return 1;
+  return 0;
+}
+function BudgetMeter({ level }) {
+  if (!level) return null;
+  return (
+    <span className="tb-meter" data-level={level} title="Alert budget">
+      <i /><i /><i />
+    </span>
+  );
+}
 
 function summarizeBlocksByClient(blocks, validClientIds) {
   const summary = {};
@@ -471,7 +487,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   });
 
   const COL = 'minmax(60px, 1fr) repeat(7, minmax(0, 1fr)) minmax(55px, 0.65fr)';
-  const todayBorderLeft = d => `1px solid ${d.isToday ? '#3DB33D28' : 'var(--tb-border-soft)'}`;
+  const todayBorderLeft = d => `1px solid var(--tb-border-soft)`;
   const todayBg = (d, base) => d.isToday ? 'var(--tb-cell-today)' : (base || 'transparent');
   const planningCompact = planningMode === 'compact';
   const planningVisible = planningMode !== 'hidden';
@@ -531,9 +547,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '8px 14px', borderRadius: 7,
-          background: '#E07B3A10', border: '1px solid #E07B3A40',
+          background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)',
         }}>
-          <span style={{ fontSize: 12, color: '#E07B3A', flex: 1 }}>
+          <span className="tb-hatch" style={{ width: 12, height: 12, borderRadius: 3, flexShrink: 0 }} title="Oltre soglia" />
+          <span style={{ fontSize: 12, color: 'var(--tb-text-primary)', flex: 1 }}>
             <strong>Limite settimanale superato:</strong>{' '}
             {weeklyOverProjects.map(p => {
               const h = weekProjectHours[p.id] ?? 0;
@@ -543,7 +560,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           <button onClick={() => setAlertDismissed(true)}
             style={{
               background: 'transparent', border: 'none', cursor: 'pointer',
-              color: '#E05252', fontSize: 14, lineHeight: 1, padding: '0 2px',
+              color: 'var(--tb-text-muted)', fontSize: 14, lineHeight: 1, padding: '0 2px',
               fontFamily: "'Open Sans', sans-serif", fontWeight: 700,
             }}>×</button>
         </div>
@@ -554,9 +571,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '8px 14px', borderRadius: 7,
-          background: '#E07B3A10', border: '1px solid #E07B3A40',
+          background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)',
         }}>
-          <span style={{ fontSize: 12, color: '#E07B3A', flex: 1 }}>
+          <BudgetMeter level={3} />
+          <span style={{ fontSize: 12, color: 'var(--tb-text-primary)', flex: 1 }}>
             <strong>Budget totale superato:</strong>{' '}
             {budgetOverProjects.map(p => {
               const h = projectTotals[p.id] ?? 0;
@@ -571,9 +589,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '8px 14px', borderRadius: 7,
-          background: '#E07B3A10', border: '1px solid #E07B3A40',
+          background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)',
         }}>
-          <span style={{ fontSize: 12, color: '#E07B3A', flex: 1 }}>
+          <span className="tb-hatch" style={{ width: 12, height: 12, borderRadius: 3, flexShrink: 0 }} title="Oltre soglia" />
+          <span style={{ fontSize: 12, color: 'var(--tb-text-primary)', flex: 1 }}>
             <strong>Limite settimanale area superato:</strong>{' '}
             {weeklyOverClients.map(c => `${c.name} (${fmtH(weekClientHours[c.id] ?? 0)} / ${fmtH(c.limitHours)})`).join(' · ')}
           </span>
@@ -585,9 +604,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '8px 14px', borderRadius: 7,
-          background: '#E0525210', border: '1px solid #E0525240',
+          background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)',
         }}>
-          <span style={{ fontSize: 12, color: '#E05252', flex: 1 }}>
+          <BudgetMeter level={3} />
+          <span style={{ fontSize: 12, color: 'var(--tb-text-primary)', flex: 1 }}>
             <strong>Limite totale area superato:</strong>{' '}
             {globalOverClients.map(c => `${c.name} (${fmtH(clientTotals[c.id] ?? 0)} / ${fmtH(c.limitHours)})`).join(' · ')}
           </span>
@@ -607,7 +627,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               <button onClick={resetWeekToTemplate}
                 style={{
                   fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 5,
-                  background: 'var(--tb-reset-btn-bg)', border: '1px solid #E07B3A55', color: '#E07B3A',
+                  background: 'var(--tb-navbtn-bg)', border: '1px solid var(--tb-navbtn-border)', color: 'var(--tb-navbtn-text)',
                   cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
                 }}>
                 ↩ Ripristina template
@@ -628,9 +648,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
         <div style={{ display: 'flex', gap: 28 }}>
           <Pill label="Pianificate" value={fmtH(weekPlanned)}  color="var(--tb-text-muted)"   dim />
           <Pill label="Tracciate"   value={fmtH(weekActual)}   color="var(--tb-text-primary)" dim={viewMode !== 'tracked'} />
-          <Pill label="Fatturabili" value={fmtH(weekBillable)} color="#3DB33D"                dim={viewMode !== 'billable'} />
+          <Pill label="Fatturabili" value={fmtH(weekBillable)} color="var(--tb-bar-tracked)"   dim={viewMode !== 'billable'} />
           {weekExtra > 0 && (
-            <Pill label="Extra" value={fmtH(weekExtra)} color="#E07B3A" />
+            <Pill label="Extra" value={fmtH(weekExtra)} color="var(--tb-hatch-bg)" hatch />
           )}
         </div>
       </div>
@@ -660,18 +680,20 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 <div key={i} style={{
                   background: d.isToday ? 'var(--tb-cell-today-header)' : 'var(--tb-panel-bg-soft)',
                   borderBottom: '1px solid var(--tb-border)',
-                  borderLeft: `1px solid ${d.isToday ? '#3DB33D55' : 'var(--tb-border-soft)'}`,
+                  borderLeft: `1px solid var(--tb-border-soft)`,
                   padding: planningCompact ? '5px 4px' : '8px 4px', textAlign: 'center', opacity: d.isWeekend ? 0.7 : 1,
+                  position: 'relative',
                 }}>
+                  {d.isToday && <span style={{ position: 'absolute', top: 0, left: 8, right: 8, height: 3, background: 'var(--tb-tab-active-bg)', borderRadius: '0 0 2px 2px' }} />}
                   <div style={{ fontSize: planningCompact ? 9 : 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
-                    color: d.isToday ? '#3DB33D' : 'var(--tb-text-faint)' }}>{DAY_SHORT[i]}</div>
-                  <div style={{ fontSize: planningCompact ? 11 : 12, fontWeight: 700, color: d.isToday ? '#3DB33D' : 'var(--tb-text-secondary)', lineHeight: 1.1 }}>
+                    color: 'var(--tb-text-faint)' }}>{DAY_SHORT[i]}</div>
+                  <div style={{ fontSize: planningCompact ? 11 : 12, fontWeight: 700, color: d.isToday ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)', lineHeight: 1.1 }}>
                     {d.date.getDate()}
                   </div>
                   {(d.isToday || d.isDayOverridden) && (
-                    <div style={{ display: 'flex', gap: 3, justifyContent: 'center', margin: planningCompact ? '2px 0 0' : '3px 0 0' }}>
-                      {d.isToday && <div title="Oggi" style={{ width: 5, height: 5, borderRadius: '50%', background: '#3DB33D' }} />}
-                      {d.isDayOverridden && <div title="Giorno modificato rispetto al template" style={{ width: 5, height: 5, borderRadius: '50%', background: '#E07B3A' }} />}
+                    <div style={{ display: 'flex', gap: 5, justifyContent: 'center', alignItems: 'center', margin: planningCompact ? '2px 0 0' : '3px 0 0', height: 12 }}>
+                      {d.isToday && <span title="Oggi" style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--tb-text-secondary)', border: '1px solid var(--tb-border-mid)', borderRadius: 4, padding: '0 4px', lineHeight: 1.5 }}>OGGI</span>}
+                      {d.isDayOverridden && <span title="Giorno modificato rispetto al template" className="tb-glyph" style={{ fontSize: 11 }}>Δ</span>}
                     </div>
                   )}
                 </div>
@@ -773,17 +795,17 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                           </>
                         )}
                         {d.bilancioExtra > 0 && (
-                          <span style={{ fontSize: 9, fontWeight: 800, color: '#E07B3A', background: '#E07B3A18', padding: '1px 5px', borderRadius: 3 }}>+{toHHMM(d.bilancioExtra)} extra</span>
+                          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-primary)', border: '1px solid var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Ore extra / oltre piano">+{toHHMM(d.bilancioExtra)} extra</span>
                         )}
                         {d.pianificazioneExtra > 0 && (
-                          <span style={{ fontSize: 9, fontWeight: 800, color: '#5B8DD9', background: '#5B8DD918', padding: '1px 5px', borderRadius: 3, border: '1px dashed #5B8DD966' }}>+{toHHMM(d.pianificazioneExtra)} pianif.</span>
+                          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', border: '1px dashed var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Pianificazione aggiuntiva">+{toHHMM(d.pianificazioneExtra)} pianif.</span>
                         )}
                       </div>
                     ) : d.isFuture && d.plannedTotal > 0 ? (
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>{toHHMM(d.plannedTotal)}</span>
                         {d.pianificazioneExtra > 0 && (
-                          <span style={{ fontSize: 9, fontWeight: 800, color: '#5B8DD9', background: '#5B8DD918', padding: '1px 5px', borderRadius: 3, border: '1px dashed #5B8DD966' }}>+{toHHMM(d.pianificazioneExtra)} pianif.</span>
+                          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', border: '1px dashed var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Pianificazione aggiuntiva">+{toHHMM(d.pianificazioneExtra)} pianif.</span>
                         )}
                       </div>
                     ) : (
@@ -802,12 +824,14 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
             <div key={i} style={{
               padding: '9px 4px', textAlign: 'center',
               background: d.isToday ? 'var(--tb-cell-today-header)' : 'var(--tb-panel-bg-soft)',
-              borderLeft: `1px solid ${d.isToday ? '#3DB33D55' : 'var(--tb-border-soft)'}`,
+              borderLeft: '1px solid var(--tb-border-soft)',
               borderBottom: '1px solid var(--tb-border)', opacity: d.isWeekend ? 0.7 : 1,
+              position: 'relative',
             }}>
+              {d.isToday && <span style={{ position: 'absolute', top: 0, left: 8, right: 8, height: 3, background: 'var(--tb-tab-active-bg)', borderRadius: '0 0 2px 2px' }} />}
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
-                color: d.isToday ? '#3DB33D' : 'var(--tb-text-faint)' }}>{DAY_SHORT[i]}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: d.isToday ? '#3DB33D' : 'var(--tb-text-secondary)' }}>{d.date.getDate()}</div>
+                color: 'var(--tb-text-faint)' }}>{DAY_SHORT[i]}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: d.isToday ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)' }}>{d.date.getDate()}</div>
             </div>
           ))}
           <div style={{
@@ -838,13 +862,13 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               const budgetPct  = project.budgetHours > 0 ? (projectTotals[project.id] ?? 0) / project.budgetHours : null;
               const budgetOver = budgetPct != null && budgetPct >= 1;
               const budgetWarn = budgetPct != null && !budgetOver && budgetPct >= 0.8;
-              const alertColor = (weeklyOver || budgetOver) ? '#E05252' : (weeklyWarn || budgetWarn) ? '#E07B3A' : null;
+              const alertLevel = (weeklyOver || budgetOver) ? 3 : (weeklyWarn || budgetWarn) ? 2 : 0;
 
               const rowActive = editingProject === project.id;
               return (
                 <React.Fragment key={project.id}>
                   <ProjectLabel
-                    project={project} client={client} alertColor={alertColor}
+                    project={project} client={client} alertLevel={alertLevel}
                     rowActive={rowActive} topBorder={topBorder}
                     projectTotals={projectTotals} weekProjectHours={weekProjectHours}
                   />
@@ -879,7 +903,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                     background: rowActive ? 'var(--tb-row-active, rgba(255,255,255,0.04))' : 'transparent',
                     transition: 'background 0.1s', position: 'relative',
                   }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: alertColor ?? (rowHasValueInMode ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)') }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: rowHasValueInMode ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>
+                      {alertLevel > 0 && <BudgetMeter level={alertLevel} />}
                       {rowHasValueInMode ? fmtH(weekTotal) : '—'}
                     </span>
                     {rowDivergent && (
@@ -907,7 +932,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               <div key={i} style={{
                 padding: '10px 4px', textAlign: 'center',
                 background: d.isToday ? 'var(--tb-cell-today-header)' : 'var(--tb-panel-bg-soft)',
-                borderLeft: `1px solid ${d.isToday ? '#3DB33D55' : 'var(--tb-border)'}`,
+                borderLeft: '1px solid var(--tb-border)',
                 borderTop: '2px solid var(--tb-border-mid)', opacity: d.isWeekend ? 0.7 : 1,
                 position: 'relative',
               }}>
@@ -915,8 +940,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   {dayTotal > 0 ? fmtH(dayTotal) : '—'}
                 </div>
                 {d.plannedTotal > 0 && !d.isFuture && (
-                  <div style={{ fontSize: 10, fontWeight: 700, color: d.delta >= 0 ? '#3DB33D' : '#E05252' }}>
-                    {d.delta >= 0 ? '+' : ''}{fmtH(d.delta)}
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}
+                    title={d.delta >= 0 ? 'Sopra il piano' : 'Sotto il piano'}>
+                    <span className="tb-glyph">{d.delta >= 0 ? '▸' : '▾'}</span>
+                    <span>{d.delta >= 0 ? '+' : ''}{fmtH(d.delta)}</span>
                   </div>
                 )}
                 {d.dayDivergent && (
@@ -979,7 +1006,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   );
 }
 
-function ProjectLabel({ project, client, alertColor, rowActive, topBorder, projectTotals, weekProjectHours }) {
+function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, projectTotals, weekProjectHours }) {
   const [tooltipPos, setTooltipPos] = useState(null);
   const labelRef = useRef();
   const weekH = weekProjectHours[project.id] ?? 0;
@@ -1014,32 +1041,20 @@ function ProjectLabel({ project, client, alertColor, rowActive, topBorder, proje
           {client.areaStatus !== 'active' && (
             <span
               title={statusInfo.title}
+              className="tb-glyph"
               style={{
-                fontSize: 8,
+                fontSize: 11,
                 fontWeight: 800,
                 lineHeight: 1,
-                color: statusInfo.color,
-                border: `1px solid ${statusInfo.color}55`,
-                background: `${statusInfo.color}14`,
-                borderRadius: 4,
-                padding: '2px 4px',
-                textTransform: 'uppercase',
                 flexShrink: 0,
               }}
             >
-              {statusInfo.label}
+              {statusInfo.glyph}
             </span>
           )}
         </div>
       </div>
-      {alertColor && (
-        <div style={{
-          width: 0, height: 0, flexShrink: 0,
-          borderLeft: '5px solid transparent',
-          borderRight: '5px solid transparent',
-          borderBottom: `9px solid ${alertColor}`,
-        }} />
-      )}
+      {alertLevel > 0 && <BudgetMeter level={alertLevel} />}
       {tooltipPos && (
         <div style={{
           position: 'fixed',
@@ -1065,17 +1080,19 @@ function ProjectLabel({ project, client, alertColor, rowActive, topBorder, proje
           {(project.budgetHours > 0 || project.weeklyHours > 0) && (
             <div style={{ borderTop: '1px solid var(--tb-border-soft)', paddingTop: 4, marginTop: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
               {project.budgetHours > 0 && (
-                <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                   <span>Budget totale</span>
-                  <span style={{ fontWeight: 700, color: totalH >= project.budgetHours ? '#E05252' : totalH / project.budgetHours >= 0.8 ? '#E07B3A' : 'var(--tb-text-secondary)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>
+                    <BudgetMeter level={budgetLevel(totalH / project.budgetHours)} />
                     {fmtH(totalH)} / {fmtH(project.budgetHours)}
                   </span>
                 </div>
               )}
               {project.weeklyHours > 0 && (
-                <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                   <span>Limite sett.</span>
-                  <span style={{ fontWeight: 700, color: weekH >= project.weeklyHours ? '#E05252' : weekH / project.weeklyHours >= 0.8 ? '#E07B3A' : 'var(--tb-text-secondary)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>
+                    <BudgetMeter level={budgetLevel(weekH / project.weeklyHours)} />
                     {fmtH(weekH)} / {fmtH(project.weeklyHours)}
                   </span>
                 </div>
@@ -1149,16 +1166,16 @@ export function AreaStatusPanel({ clients, statuses, onChange, compact }) {
                     padding: '0 6px',
                     border: 'none',
                     borderLeft: '1px solid var(--tb-border)',
-                    background: active ? option.color : 'transparent',
-                    color: active ? '#fff' : 'var(--tb-text-faint)',
+                    background: active ? 'var(--tb-tab-active-bg)' : 'transparent',
+                    color: active ? 'var(--tb-tab-active-text)' : 'var(--tb-text-faint)',
                     cursor: 'pointer',
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: 800,
                     fontFamily: "'Open Sans', sans-serif",
                     lineHeight: 1,
                   }}
                 >
-                  {option.label[0]}
+                  {option.glyph}
                 </button>
               );
             })}
@@ -1226,50 +1243,40 @@ function TemplateDivergenceBadge({ summary }) {
         minHeight: 22,
         padding: '3px 8px',
         borderRadius: 5,
-        border: '1px solid #E07B3A55',
-        background: '#E07B3A12',
-        color: '#E07B3A',
+        border: '1px solid var(--tb-border-mid)',
+        background: 'var(--tb-panel-bg-soft)',
+        color: 'var(--tb-text-secondary)',
         fontSize: 10,
         fontWeight: 800,
         lineHeight: 1.2,
         whiteSpace: 'nowrap',
       }}
     >
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#E07B3A' }} />
-      <span>Δ template {deltaLabel} · {summary.divergentSlots}/{summary.totalSlots}</span>
+      <span className="tb-delta">Δ</span>
+      <span>template {deltaLabel} · {summary.divergentSlots}/{summary.totalSlots}</span>
     </span>
   );
 }
 
 function ViewModeToggle({ value, onChange }) {
   const opts = [
-    { key: 'tracked',  label: 'Ore tracciate',   color: '#3DB33D' },
-    { key: 'billable', label: 'Ore fatturabili', color: '#3DB33D' },
+    { key: 'tracked',  label: 'Ore tracciate' },
+    { key: 'billable', label: 'Ore fatturabili' },
   ];
   return (
-    <div style={{
-      display: 'inline-flex',
-      border: '1px solid var(--tb-border)', borderRadius: 5,
-      overflow: 'hidden', background: 'var(--tb-panel-bg)',
-    }}>
+    <div className="tb-seg">
       {opts.map((o, idx) => {
         const active = value === o.key;
         return (
-          <button
+          <span
             key={o.key}
+            data-on={active ? 'true' : 'false'}
             onClick={() => onChange(o.key)}
             title="Alterna tra Ore tracciate e Ore fatturabili · ⌘⇧V"
-            style={{
-              fontSize: 10, fontWeight: 700, padding: '3px 10px',
-              background: active ? o.color : 'transparent',
-              color: active ? '#fff' : 'var(--tb-text-muted)',
-              border: 'none',
-              borderLeft: idx > 0 ? '1px solid var(--tb-border)' : 'none',
-              cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
-              transition: 'background 0.15s, color 0.15s',
-            }}>
+            style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}
+          >
             {o.label}
-          </button>
+          </span>
         );
       })}
     </div>
@@ -1278,33 +1285,23 @@ function ViewModeToggle({ value, onChange }) {
 
 function ProjectVisibilityToggle({ value, onChange }) {
   const opts = [
-    { key: 'worked', label: 'Progetti lavorati', color: '#3DB33D' },
-    { key: 'all', label: 'Tutti i progetti', color: '#3DB33D' },
+    { key: 'worked', label: 'Progetti lavorati' },
+    { key: 'all', label: 'Tutti i progetti' },
   ];
   return (
-    <div style={{
-        display: 'inline-flex',
-        border: '1px solid var(--tb-border)', borderRadius: 5,
-        overflow: 'hidden', background: 'var(--tb-panel-bg)',
-      }}>
+    <div className="tb-seg">
       {opts.map((o, idx) => {
         const active = value === o.key;
         return (
-          <button
+          <span
             key={o.key}
+            data-on={active ? 'true' : 'false'}
             onClick={() => onChange(o.key)}
             title="Alterna tra Progetti lavorati e Tutti i progetti · ⌘⇧H"
-            style={{
-              fontSize: 10, fontWeight: 700, padding: '3px 10px',
-              background: active ? o.color : 'transparent',
-              color: active ? '#fff' : 'var(--tb-text-muted)',
-              border: 'none',
-              borderLeft: idx > 0 ? '1px solid var(--tb-border)' : 'none',
-              cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
-              transition: 'background 0.15s, color 0.15s',
-            }}>
+            style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}
+          >
             {o.label}
-          </button>
+          </span>
         );
       })}
     </div>
@@ -1313,46 +1310,39 @@ function ProjectVisibilityToggle({ value, onChange }) {
 
 function PlanningModeToggle({ value, onChange }) {
   const opts = [
-    { key: 'full', label: 'Completa', color: '#3DB33D' },
-    { key: 'compact', label: 'Compatta', color: '#3DB33D' },
-    { key: 'hidden', label: 'Nascosta', color: '#3DB33D' },
+    { key: 'full', label: 'Completa' },
+    { key: 'compact', label: 'Compatta' },
+    { key: 'hidden', label: 'Nascosta' },
   ];
   return (
-    <div style={{
-      display: 'inline-flex',
-      border: '1px solid var(--tb-border)', borderRadius: 5,
-      overflow: 'hidden', background: 'var(--tb-panel-bg)',
-    }}>
+    <div className="tb-seg">
       {opts.map((o, idx) => {
         const active = value === o.key;
         return (
-          <button
+          <span
             key={o.key}
+            data-on={active ? 'true' : 'false'}
             onClick={() => onChange(o.key)}
             title="Seleziona pianificazione Completa, Compatta o Nascosta · ⌘⇧P"
-            style={{
-              fontSize: 10, fontWeight: 700, padding: '3px 10px',
-              background: active ? o.color : 'transparent',
-              color: active ? '#fff' : 'var(--tb-text-muted)',
-              border: 'none',
-              borderLeft: idx > 0 ? '1px solid var(--tb-border)' : 'none',
-              cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
-              transition: 'background 0.15s, color 0.15s',
-            }}>
+            style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}
+          >
             {o.label}
-          </button>
+          </span>
         );
       })}
     </div>
   );
 }
 
-function Pill({ label, value, color, dim }) {
+function Pill({ label, value, color, dim, hatch }) {
   return (
     <div style={{ textAlign: 'center', opacity: dim ? 0.4 : 1, transition: 'opacity 0.15s' }}>
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
         color: 'var(--tb-text-faint)', marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 800, color }}>{value}</div>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        {hatch && <span className="tb-hatch" style={{ width: 9, height: 9, borderRadius: 2 }} title="Extra / fuori piano" />}
+        <span style={{ fontSize: 15, fontWeight: 800, color }}>{value}</span>
+      </div>
     </div>
   );
 }
@@ -1617,8 +1607,8 @@ function TodoistImportDialog({ dialog, clients, projects, onClose, onImport }) {
             disabled={busy || importable.length === 0}
             style={{
               minWidth: 154, height: 32, borderRadius: 5,
-              border: '1px solid #3DB33D', background: importable.length > 0 ? '#3DB33D' : 'transparent',
-              color: importable.length > 0 ? '#fff' : 'var(--tb-text-faint)',
+              border: '1px solid var(--tb-navbtn-border)', background: importable.length > 0 ? 'var(--tb-tab-active-bg)' : 'transparent',
+              color: importable.length > 0 ? 'var(--tb-tab-active-text)' : 'var(--tb-text-faint)',
               cursor: busy || importable.length === 0 ? 'default' : 'pointer',
               fontFamily: "'Open Sans', sans-serif", fontSize: 11, fontWeight: 800,
               opacity: busy ? 0.65 : 1,
@@ -1716,12 +1706,13 @@ function SlotSummary({ summary, clients, compact }) {
             <div style={{ fontSize: compact ? 9 : 10, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
               {data.planned !== undefined ? (
                 <>
-                  <span style={{ color: actual > planned ? '#E05252' : 'inherit' }}>{toHHMM(actual) || '0:00'}</span>
+                  <span style={{ color: actual > planned ? 'var(--tb-text-primary)' : 'inherit' }} title={actual > planned ? 'Sopra il piano' : undefined}>{toHHMM(actual) || '0:00'}</span>
+                  {actual > planned && <span className="tb-hatch" style={{ width: 8, height: 8, borderRadius: 2, display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }} title="Oltre piano" />}
                   <span style={{ color: 'var(--tb-text-faint)', fontWeight: 400, margin: '0 1px' }}>/</span>
                   <span style={{ color: 'var(--tb-text-muted)', fontWeight: 600 }}>{toHHMM(planned)}</span>
                 </>
               ) : (
-                <span style={{ color: '#E07B3A' }}>{toHHMM(actual)}</span>
+                <span style={{ color: 'var(--tb-text-primary)' }}>{toHHMM(actual)}</span>
               )}
             </div>
           </div>
