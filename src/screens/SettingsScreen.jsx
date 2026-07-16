@@ -6,6 +6,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
   const [dbPath, setDbPath] = useState('');
   const [todoistToken, setTodoistTokenState] = useState('');
   const [tokenSaved, setTokenSaved] = useState(false);
+  const [tokenError, setTokenError] = useState('');
   const [slotCapacityDraft, setSlotCapacityDraft] = useState(String(slotCapacityHours));
   const [slotCapacitySaved, setSlotCapacitySaved] = useState(false);
   const [importResult, setImportResult] = useState(null);
@@ -142,8 +143,13 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
 
   async function handleSaveTodoistToken() {
     setBusy(true);
-    await window.api.setTodoistToken(todoistToken.trim());
+    const result = await window.api.setTodoistToken(todoistToken.trim());
     setBusy(false);
+    if (result?.error) {
+      setTokenError(result.error);
+      return;
+    }
+    setTokenError('');
     setTokenSaved(true);
     setTimeout(() => setTokenSaved(false), 2000);
   }
@@ -307,6 +313,11 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
               {tokenSaved ? '✓ Salvato' : 'Salva'}
             </button>
           </div>
+          {tokenError && (
+            <div style={{ fontSize: 11, marginTop: 6, color: 'var(--tb-text-secondary)', fontWeight: 700 }}>
+              {tokenError}
+            </div>
+          )}
         </div>
         <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>

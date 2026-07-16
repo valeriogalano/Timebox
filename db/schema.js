@@ -43,10 +43,14 @@ function getSeedEntries() {
   const dow = monday.getDay();
   monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1));
 
+  function fmtLocal(dt) {
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  }
+
   function d(offset) {
     const dt = new Date(monday);
     dt.setDate(dt.getDate() + offset);
-    return dt.toISOString().slice(0, 10);
+    return fmtLocal(dt);
   }
 
   const prevMonday = new Date(monday);
@@ -54,7 +58,7 @@ function getSeedEntries() {
   function pd(offset) {
     const dt = new Date(prevMonday);
     dt.setDate(dt.getDate() + offset);
-    return dt.toISOString().slice(0, 10);
+    return fmtLocal(dt);
   }
 
   return [
