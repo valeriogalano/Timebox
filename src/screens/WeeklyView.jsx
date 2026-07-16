@@ -1441,34 +1441,34 @@ function CapacityMirror({ actual, planned, billable, extra, onNavigate }) {
   const nonBillable = Math.max(0, actual - billable);
   return (
     <div style={{
-      width: 380, flexShrink: 0, background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border)',
-      borderRadius: 9, padding: '14px 18px',
+      width: 260, flexShrink: 0, background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border)',
+      borderRadius: 8, padding: '9px 12px',
     }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
         <span>
-          <span style={{ fontSize: 30, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em' }}>{fmtH(actual)}</span>{' '}
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tb-text-muted)' }}>tracciate / {fmtH(planned)}</span>
+          <span style={{ fontSize: 19, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em' }}>{fmtH(actual)}</span>{' '}
+          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(planned)}</span>
         </span>
         {onNavigate ? (
           <button onClick={onNavigate} title="Apri Andamento" style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1,
-            background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 0 0',
+            display: 'flex', alignItems: 'baseline', gap: 4,
+            background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
             fontFamily: "'Open Sans', sans-serif", flexShrink: 0,
           }}>
-            <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{pct}%</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>Andamento →</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{pct}%</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>→</span>
           </button>
         ) : (
-          <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)', paddingTop: 2 }}>{pct}%</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{pct}%</span>
         )}
       </div>
-      <div style={{ position: 'relative', height: 5, borderRadius: 3, background: 'var(--tb-bar-track)', marginTop: 10, overflow: 'visible' }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, pct)}%`, background: 'var(--tb-bar-tracked)', borderRadius: 3 }} />
-        {pct > 100 && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: `${Math.min(30, pct - 100)}%`, borderRadius: '0 3px 3px 0' }} />}
+      <div style={{ position: 'relative', height: 3, borderRadius: 2, background: 'var(--tb-bar-track)', marginTop: 6, overflow: 'visible' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, pct)}%`, background: 'var(--tb-bar-tracked)', borderRadius: 2 }} />
+        {pct > 100 && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: `${Math.min(30, pct - 100)}%`, borderRadius: '0 2px 2px 0' }} />}
       </div>
-      <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 10, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
-        <span>Fatturabili {fmtH(billable)}</span>
-        <span>Non-fatt. {fmtH(nonBillable)}</span>
+      <div style={{ display: 'flex', gap: 8, marginTop: 5, fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
+        <span>Fatt. {fmtH(billable)}</span>
+        <span>NF {fmtH(nonBillable)}</span>
         {extra > 0 && <span>Extra {fmtH(extra)}</span>}
       </div>
     </div>

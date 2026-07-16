@@ -275,9 +275,11 @@ export default function App() {
 
         {/* Brand (also a draggable macOS title region; interactive children opt out) */}
         <div style={{
-          padding: collapsed ? '20px 0' : '20px 20px 16px',
-          // macOS: leave room for the traffic lights when the sidebar is collapsed too.
-          paddingLeft: (collapsed && navigator.userAgent.includes('Mac')) ? 0 : (navigator.userAgent.includes('Mac') ? 70 : (collapsed ? 0 : 20)),
+          padding: '20px 0 16px',
+          // macOS: push the brand below the traffic-light vertical band (~38px).
+          // Same vertical offset in both states so the collapse/expand button
+          // sits at the same height as the logo when expanded.
+          ...(navigator.userAgent.includes('Mac') ? { paddingTop: 38 } : {}),
           borderBottom: '1px solid var(--tb-sidebar-border)',
           display: 'flex',
           alignItems: 'center',
@@ -322,12 +324,6 @@ export default function App() {
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: '10px 0' }}>
-          {!collapsed && (
-            <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase',
-              color: 'var(--tb-sidebar-label)', padding: '10px 20px 5px' }}>
-              Menu
-            </div>
-          )}
           {NAV_ITEMS.map(item => {
             const active = screen === item.id;
             const Icon = item.icon;
