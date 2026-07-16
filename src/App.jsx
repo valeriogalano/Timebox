@@ -273,17 +273,20 @@ export default function App() {
         overflow: 'hidden'
       }}>
 
-        {/* Brand */}
+        {/* Brand (also a draggable macOS title region; interactive children opt out) */}
         <div style={{
           padding: collapsed ? '20px 0' : '20px 20px 16px',
+          // macOS: leave room for the traffic lights when the sidebar is collapsed too.
+          paddingLeft: (collapsed && navigator.userAgent.includes('Mac')) ? 0 : (navigator.userAgent.includes('Mac') ? 70 : (collapsed ? 0 : 20)),
           borderBottom: '1px solid var(--tb-sidebar-border)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'space-between'
+          justifyContent: collapsed ? 'center' : 'space-between',
+          WebkitAppRegion: 'drag',
         }}>
           {!collapsed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 7, background: ACCENT,
+              <div style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--tb-brand-icon-bg)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                   <rect x="1" y="1" width="5" height="5" rx="1" fill="white" opacity="0.9"/>
@@ -304,7 +307,8 @@ export default function App() {
             cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px',
             borderRadius: 4, transition: 'all 0.2s',
             marginRight: collapsed ? 0 : -4,
-            flexShrink: 0
+            flexShrink: 0,
+            WebkitAppRegion: 'no-drag',
           }} onMouseOver={e => {
             e.currentTarget.style.background = 'var(--tb-sidebar-border)';
             e.currentTarget.style.color = 'var(--tb-sidebar-text)';
@@ -359,12 +363,15 @@ export default function App() {
       {/* ── Main area ─────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--tb-main-bg)', overflow: 'hidden' }}>
 
-        {/* Topbar */}
+        {/* Topbar (also the draggable window title region on macOS) */}
         <div style={{
           padding: '0 28px', height: 52,
+          // macOS: left padding so the native traffic lights keep breathing room.
+          paddingLeft: navigator.userAgent.includes('Mac') ? 78 : 28,
           borderBottom: '1px solid var(--tb-topbar-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           background: 'var(--tb-topbar-bg)', flexShrink: 0,
+          WebkitAppRegion: 'drag',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <h1 style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-topbar-text)', letterSpacing: '-0.01em' }}>

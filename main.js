@@ -238,6 +238,9 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: 'Timebox',
+    // macOS-first: keep native traffic lights, drop the system title bar.
+    // The renderer paints its own header/data area and makes it draggable.
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' } : {}),
     ...(icon ? { icon } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -502,9 +505,12 @@ function setupIpc() {
   });
 
   ipcMain.handle('settings:setTodoistToken', (_, token) => {
-    if (!safeStorage.isEncryptionAvailable()) return;
+    if (!safeStorage.isEncryptionAvailable()) {
+      return { error: 'Archiviazione sicura non disponibile su questo sistema: token non salvato.' };
+    }
     const enc = safeStorage.encryptString(token);
     q.setSetting('todoist_token_enc', enc.toString('base64'));
+    return { ok: true };
   });
 
   ipcMain.handle('settings:get', (_, key) => q.getSetting(key));
@@ -530,7 +536,7 @@ function setupIpc() {
     const headers = { Authorization: `Bearer ${token}` };
     const dateSet = new Set(dates);
 
-    logger.info('todoist:sync token_len', { len: token.length });
+    if (debug) logger.info('todoist:sync token_len', { len: token.length });
     logger.info('todoist:sync dates', { dates });
 
     // Fetch all open tasks with pagination

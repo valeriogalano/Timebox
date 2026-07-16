@@ -53,7 +53,7 @@ function makePixel(x, y, mono) {
 
   // Mono (dev) icon matches the sidebar brand mark's near-black (#1a1a1a),
   // not a desaturated green, which reads as washed-out mid-gray.
-  const bg = mono ? [0x1a, 0x1a, 0x1a] : [0x3D, 0xB3, 0x3D];
+  const bg = mono ? [0x1a, 0x1a, 0x1a] : [0x2a, 0x2a, 0x2a];
   const m   = Math.round(iconW * 0.115);
   const sq  = Math.round(iconW * 0.355);
   const gap = iconW - 2 * m - 2 * sq;
