@@ -238,6 +238,9 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: 'Timebox',
+    // macOS-first: keep native traffic lights, drop the system title bar.
+    // The renderer paints its own header/data area and makes it draggable.
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' } : {}),
     ...(icon ? { icon } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
