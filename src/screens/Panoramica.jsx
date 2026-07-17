@@ -549,7 +549,7 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
       {/* Due KPI come in Settimana (Carico / Fatturabile): capacità in ore, valore in € */}
       <div style={{ display: 'grid', gridTemplateColumns: totalValue > 0 ? '1fr 1fr' : '1fr', gap: 14 }}>
         <Card>
-          <CardLabel help={'Somma su tutte le aree di: ritmo template (ore ricorrenti/sett) × orizzonte.\n\nLa barra e la % lo confrontano con la tua capacità sull\'orizzonte (capacità/sett × orizzonte). La tacca verticale è la capacità (sempre a fine barra); oltre la capacità la barra si tratteggia.'}>Carico proiettato</CardLabel>
+          <CardLabel help={'Somma su tutte le aree di: ritmo template (ore ricorrenti/sett) × orizzonte.\n\nLa barra e la % lo confrontano con la tua capacità sull\'orizzonte (capacità/sett × orizzonte): il bordo destro è la capacità, oltre la barra si tratteggia.'}>Carico proiettato</CardLabel>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
             <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtH(totalProjected)}</span>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>· {horizon} sett</span>
@@ -824,11 +824,6 @@ function CapacityBar({ done, capacity, color }) {
         background: 'var(--tb-bar-tracked)', borderRadius: 5, transition: 'width 0.4s ease',
       }} />
       {over && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: `${100}%`, width: `${Math.min(20, (pct - 1) * 100)}%`, borderRadius: '0 5px 5px 0' }} />}
-      <div style={{
-        position: 'absolute', left: '100%', top: -3, bottom: -3, width: 0,
-        borderLeft: '2px dashed var(--tb-tick)',
-        transform: 'translateX(-1px)',
-      }} />
     </div>
   );
 }
