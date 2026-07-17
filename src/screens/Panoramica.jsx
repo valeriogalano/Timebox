@@ -91,14 +91,17 @@ function countWeeksInMonth(monthIdx, year) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function Panoramica({ clients, projects, recurring, screen }) {
+export default function Panoramica({ clients, projects, recurring, screen, initialLens, onLensConsumed }) {
   const [periodOffset, setPeriodOffset] = useState(0);
   const [entries, setEntries]           = useState([]);
   const [projectTotals, setProjectTotals] = useState({});
   const [overridesByWeek, setOverridesByWeek] = useState({});
-  const [trendLens, setTrendLens] = useState('tempo');     // tempo | prospettiva
-  const [tempoWindow, setTempoWindow] = useState(SMALL_MULT_WEEKS); // 1 = consuntivo settimana · N = trend
+  const [trendLens, setTrendLens] = useState(initialLens || 'trend'); // settimana | trend | prospettiva
   const [horizon, setHorizon]     = useState(2);            // 1 | 2 | 4 settimane
+
+  // Deep-link (es. dallo specchietto in Settimana → Andamento/Settimana): consuma
+  // l'intento una volta, così le aperture successive tornano al default.
+  useEffect(() => { if (initialLens) onLensConsumed?.(); }, []);
 
   const currentWeekKey = fmt(addDays(getMondayOfWeek(getToday()), periodOffset * 7));
 
@@ -278,7 +281,8 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
         </div>
         <div className="tb-seg">
           {[
-            { key: 'tempo', label: 'Nel tempo', help: 'Sguardo all\'indietro: a 1 settimana è il consuntivo della settimana chiusa (per area: pianificato/tracciato/extra, fatturabile, budget); a 8 settimane è il trend del ritmo e le divergenze persistenti.' },
+            { key: 'settimana', label: 'Settimana', help: 'Consuntivo della settimana chiusa: carico vs capacità e stato, fatturabile a consumo, per area (pianificato/tracciato/extra/Δ) e budget progetti. Serve la chiusura settimanale.' },
+            { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane: aggregato pianificato/svolto/capacità, mini-trend per area e le divergenze persistenti da decidere. Serve a scoprire la deriva del ritmo.' },
             { key: 'prospettiva', label: 'In prospettiva', help: 'Dove sto andando: proiezione a ritmo template su 1/2/4 settimane, confronto con limiti/envelope e valore atteso (o ore perse).' },
           ].map((o, idx) => (
             <span
@@ -298,50 +302,33 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
         </div>
       </div>
 
-      {/* ── Lente "Nel tempo" ── sguardo all'indietro: 1 sett = consuntivo · 8 sett = trend ── */}
-      {trendLens === 'tempo' && (
+      {/* ── Lente "Settimana" ── consuntivo della settimana chiusa ── */}
+      {trendLens === 'settimana' && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <SectionHeader
-              inline
-              title={tempoWindow === 1 ? 'Consuntivo settimana' : 'Andamento del ritmo'}
-              subtitle={tempoWindow === 1 ? 'settimana selezionata' : `${SMALL_MULT_WEEKS} settimane`}
-            />
-            <div className="tb-seg" style={{ marginLeft: 'auto' }}>
-              {[{ n: 1, label: '1 sett' }, { n: SMALL_MULT_WEEKS, label: `${SMALL_MULT_WEEKS} sett` }].map((o, idx) => (
-                <span key={o.n} data-on={tempoWindow === o.n ? 'true' : 'false'} onClick={() => setTempoWindow(o.n)}
-                  style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}>{o.label}</span>
-              ))}
+          <RetroSummary stats={stats} status={status} deltaH={deltaH} />
+          <AreaConsuntivo clients={clients} stats={stats} />
+          {budgetProjects.length > 0 && (
+            <div>
+              <SectionHeader title="Budget progetti" subtitle="da inizio progetto · indipendente dal periodo" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {budgetProjects.map(p => (
+                  <ProjectCardCockpit
+                    key={p.id}
+                    project={p}
+                    clients={clients}
+                    cumulativeDone={projectTotals[p.id] ?? 0}
+                    periodDone={stats.actualByProject[p.id] ?? 0}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-
-          {/* ── 1 settimana · consuntivo per chiudere la settimana (ex Retrospettiva) ── */}
-          {tempoWindow === 1 && (
-            <>
-              <RetroSummary stats={stats} status={status} deltaH={deltaH} />
-              <AreaConsuntivo clients={clients} stats={stats} />
-              {budgetProjects.length > 0 && (
-                <div>
-                  <SectionHeader title="Budget progetti" subtitle="da inizio progetto · indipendente dal periodo" />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {budgetProjects.map(p => (
-                      <ProjectCardCockpit
-                        key={p.id}
-                        project={p}
-                        clients={clients}
-                        cumulativeDone={projectTotals[p.id] ?? 0}
-                        periodDone={stats.actualByProject[p.id] ?? 0}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
           )}
+        </>
+      )}
 
-          {/* ── 8 settimane · trend + divergenze persistenti (scoprire la deriva) ── */}
-          {tempoWindow === SMALL_MULT_WEEKS && (
-            <>
+      {/* ── Lente "Trend" ── 8 settimane: aggregato + per area + divergenze persistenti ── */}
+      {trendLens === 'trend' && (
+        <>
           {/* Da decidere: divergenze area↔piano PERSISTENTI (non la settimana singola) */}
           <DaDecidereInsights perAreaWeekly={perAreaWeekly} />
 
@@ -366,8 +353,6 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
               ))}
             </div>
           </div>
-            </>
-          )}
         </>
       )}
 
@@ -385,7 +370,7 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-// Lente "Nel tempo" (1 sett) → consuntivo della settimana chiusa: carico vs capacità,
+// Lente "Settimana" → consuntivo della settimana chiusa: carico vs capacità,
 // fatturabile a consumo, stato. Serve la chiusura settimanale v4.
 function RetroSummary({ stats, status, deltaH }) {
   const pct = stats.capacity > 0 ? Math.round(stats.totalDone / stats.capacity * 100) : 0;
@@ -447,7 +432,7 @@ function RetroSummary({ stats, status, deltaH }) {
   );
 }
 
-// Lente "Nel tempo" (1 sett) → consuntivo PER AREA della settimana: pianificato,
+// Lente "Settimana" → consuntivo PER AREA della settimana: pianificato,
 // tracciato, extra (ore oltre il piano) e Δ. È il passo v4 "confronta ore pianificate,
 // tracciate ed extra per area / identifica aree in disavanzo o sovraccarico".
 function AreaConsuntivo({ clients, stats }) {
@@ -494,7 +479,7 @@ function AreaConsuntivo({ clients, stats }) {
   );
 }
 
-// Lente "Nel tempo" → "Da decidere": divergenze area↔piano PERSISTENTI (fuori piano
+// Lente "Trend" → "Da decidere": divergenze area↔piano PERSISTENTI (fuori piano
 // in >= PERSIST_MIN delle ultime PERSIST_WINDOW settimane chiuse), non lo scarto della
 // singola settimana — quello è rumore e non giustifica di toccare il ritmo/template.
 // Logica pura in ../panoramica-insights. Link indirizzano alla vista utile.

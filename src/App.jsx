@@ -74,6 +74,7 @@ export default function App() {
   const [quickLogOpen, setQuickLogOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [autoFocusProject, setAutoFocusProject] = useState(null);
+  const [andamentoLens, setAndamentoLens] = useState(null); // deep-link: apre Andamento su una lente
   const [slotCapacityHours, setSlotCapacityHours] = useState(DEFAULT_SLOT_CAPACITY_HOURS);
   const refreshSidebar = useCallback(() => setSidebarKey(k => k + 1), []);
 
@@ -407,10 +408,11 @@ export default function App() {
               autoFocusProject={autoFocusProject}
               slotCapacityHours={slotCapacityHours}
               onAutoFocusConsumed={() => setAutoFocusProject(null)}
-              onNavigateToAndamento={() => setScreen('panoramica')} />
+              onNavigateToAndamento={() => { setAndamentoLens('settimana'); setScreen('panoramica'); }} />
           )}
           {screen === 'panoramica' && (
-            <Panoramica clients={clients} projects={projects} recurring={recurring} screen={screen} />
+            <Panoramica clients={clients} projects={projects} recurring={recurring} screen={screen}
+              initialLens={andamentoLens} onLensConsumed={() => setAndamentoLens(null)} />
           )}
           {screen === 'billing' && (
             <BillingScreen clients={clients} projects={projects} screen={screen} />
