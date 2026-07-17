@@ -546,23 +546,45 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
           ))}
         </div>
       </div>
-      <Card>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span style={{ fontSize: 30, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{fmtH(totalProjected)}</span>
-          <span style={{ fontSize: 13, color: 'var(--tb-text-muted)' }}>carico proiettato · {horizon} sett</span>
-        </div>
-        {capPct != null && (
-          <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 6 }}>
-            ≈ {capPct}% della capacità ({fmtH(capWindow)} su {horizon} sett)
+      {/* Due KPI come in Settimana (Carico / Fatturabile): capacità in ore, valore in € */}
+      <div style={{ display: 'grid', gridTemplateColumns: totalValue > 0 ? '1fr 1fr' : '1fr', gap: 14 }}>
+        <Card>
+          <CardLabel>Carico proiettato</CardLabel>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+            <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtH(totalProjected)}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>· {horizon} sett</span>
           </div>
-        )}
+          {capWindow > 0 && (
+            <>
+              <CapacityBar done={totalProjected} capacity={capWindow} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
+                <span>Capacità {fmtH(capWindow)}</span>
+                <span>≈ {capPct}%</span>
+              </div>
+            </>
+          )}
+        </Card>
         {totalValue > 0 && (
-          <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 4 }}>
-            valore proiettato <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtEur(totalValue)}</strong>
-            {totalLost > 0 && <span> · perso <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtEur(totalLost)}</strong></span>}
-          </div>
+          <Card>
+            <CardLabel>Valore proiettato</CardLabel>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+              <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtEur(totalValue)}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>· {horizon} sett</span>
+            </div>
+            <div style={{
+              marginTop: 10, padding: '8px 10px', borderRadius: 6, background: 'var(--tb-panel-bg-subtle)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)', letterSpacing: '0.03em' }}>
+                {totalLost > 0 ? 'Perso oltre i tetti' : 'Entro i tetti'}
+              </span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
+                {totalLost > 0 ? fmtEur(totalLost) : '—'}
+              </span>
+            </div>
+          </Card>
         )}
-      </Card>
+      </div>
 
       <SectionHeader title="Per area · limiti e valore" subtitle="ritmo vs tetto"
         help={'Per area: ritmo template/sett × orizzonte = proiettato, confrontato col tetto (limite settimanale × orizzonte, oppure limite globale fisso). Senza tetto non c\'è verdetto over/under. Valore = proiettato × tariffa; perso = ore oltre il tetto × tariffa (solo aree fatturabili).'} />
