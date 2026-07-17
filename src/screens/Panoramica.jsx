@@ -526,14 +526,19 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
       : { glyph: '▪', label: 'Entro tetto' };
     return { c, rhythm, billable, verdict, ...p };
   });
+  // Aree con tetto in cima (sono quelle decisionali), le più vicine/oltre il tetto prima;
+  // le aree senza tetto in fondo e smorzate.
+  rows.sort((a, b) => (a.hasCap !== b.hasCap ? (a.hasCap ? -1 : 1) : b.ratio - a.ratio));
   const totalProjected = rows.reduce((s, r) => s + r.projected, 0);
+  const totalValue = rows.reduce((s, r) => s + r.potentialEur, 0);
+  const totalLost = rows.reduce((s, r) => s + r.lostEur, 0);
   const capWindow = capacity > 0 ? capacity * horizon : 0;
   const capPct = capWindow > 0 ? Math.round(totalProjected / capWindow * 100) : null;
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <SectionHeader inline title="Carico in prospettiva" subtitle={`${horizon} settimane a ritmo template`}
-          help={'Proiezione = ritmo del template (ore ricorrenti/sett) × orizzonte, sommato su tutte le aree. Non tiene conto degli override né dello stato area della settimana: è "se il template gira così".\n\n% capacità = proiettato ÷ (capacità × orizzonte).'} />
+          help={'Proiezione = ritmo del template (ore ricorrenti/sett) × orizzonte, sommato su tutte le aree. Non tiene conto degli override né dello stato area della settimana: è "se il template gira così".\n\n% capacità = proiettato ÷ (capacità × orizzonte). Valore/perso = somma su tutte le aree fatturabili del ricavo proiettato e delle ore perse oltre il tetto.'} />
         <div className="tb-seg" style={{ marginLeft: 'auto' }}>
           {[2, 4].map((n, idx) => (
             <span key={n} data-on={horizon === n ? 'true' : 'false'} onClick={() => setHorizon(n)}
@@ -551,13 +556,19 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
             ≈ {capPct}% della capacità ({fmtH(capWindow)} su {horizon} sett)
           </div>
         )}
+        {totalValue > 0 && (
+          <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 4 }}>
+            valore proiettato <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtEur(totalValue)}</strong>
+            {totalLost > 0 && <span> · perso <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtEur(totalLost)}</strong></span>}
+          </div>
+        )}
       </Card>
 
       <SectionHeader title="Per area · limiti e valore" subtitle="ritmo vs tetto"
         help={'Per area: ritmo template/sett × orizzonte = proiettato, confrontato col tetto (limite settimanale × orizzonte, oppure limite globale fisso). Senza tetto non c\'è verdetto over/under. Valore = proiettato × tariffa; perso = ore oltre il tetto × tariffa (solo aree fatturabili).'} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.map(({ c, rhythm, billable, projected, cap, hasCap, ratio, over, potentialEur, lostEur, verdict }) => (
-          <Card key={c.id}>
+          <Card key={c.id} style={hasCap ? undefined : { opacity: 0.6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 9, height: 9, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
               <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)', flex: 1 }}>{c.name}</span>
@@ -715,13 +726,14 @@ function ProjectCardCockpit({ project, clients, cumulativeDone, periodDone }) {
 
 // ── Atoms ─────────────────────────────────────────────────────────────────────
 
-function Card({ children, padding = 16 }) {
+function Card({ children, padding = 16, style }) {
   return (
     <div style={{
       background: 'var(--tb-panel-bg)',
       border: '1px solid var(--tb-panel-border)',
       borderRadius: 10,
       padding,
+      ...style,
     }}>{children}</div>
   );
 }
