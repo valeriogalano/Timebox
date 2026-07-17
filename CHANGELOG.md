@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scope src/ to ESM via nested package.json for test compatibility.
 - Add test:renderer npm script for running renderer unit tests.
 - Fix extensionless import in dayPlanning.js.
+- Add Vitest + jsdom + React Testing Library integration for component tests (MarkdownText, SlotCapacityBar, TodoistLabels). Component tests use `*.test.jsx` scope to remain separate from pure-logic `*.test.js` suites. Add test:components npm script and wire into npm test.
 
 ## [0.9.0] - 2026-07-15
 
