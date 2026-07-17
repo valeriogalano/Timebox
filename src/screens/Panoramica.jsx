@@ -96,7 +96,8 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
   const [entries, setEntries]           = useState([]);
   const [projectTotals, setProjectTotals] = useState({});
   const [overridesByWeek, setOverridesByWeek] = useState({});
-  const [trendLens, setTrendLens] = useState('tempo');     // tempo | retro | prospettiva
+  const [trendLens, setTrendLens] = useState('tempo');     // tempo | prospettiva
+  const [tempoWindow, setTempoWindow] = useState(SMALL_MULT_WEEKS); // 1 = consuntivo settimana · N = trend
   const [horizon, setHorizon]     = useState(2);            // 1 | 2 | 4 settimane
 
   const currentWeekKey = fmt(addDays(getMondayOfWeek(getToday()), periodOffset * 7));
@@ -277,8 +278,7 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
         </div>
         <div className="tb-seg">
           {[
-            { key: 'tempo', label: 'Nel tempo', help: 'Come sto andando adesso: il ritmo settimana per settimana (svolto vs pianificato vs capacità), gli scostamenti per area e la sintesi ricavo.' },
-            { key: 'retro', label: 'Retrospettiva', help: 'Com\'è andata la settimana chiusa: consuntivo ore vs capacità e Δ, fatturabile a consumo con proiezione, stato e budget dei progetti.' },
+            { key: 'tempo', label: 'Nel tempo', help: 'Sguardo all\'indietro: a 1 settimana è il consuntivo della settimana chiusa (per area: pianificato/tracciato/extra, fatturabile, budget); a 8 settimane è il trend del ritmo e le divergenze persistenti.' },
             { key: 'prospettiva', label: 'In prospettiva', help: 'Dove sto andando: proiezione a ritmo template su 1/2/4 settimane, confronto con limiti/envelope e valore atteso (o ore perse).' },
           ].map((o, idx) => (
             <span
@@ -298,16 +298,56 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
         </div>
       </div>
 
-      {/* ── Lente "Nel tempo" ── trend + per-area vs piano ── */}
+      {/* ── Lente "Nel tempo" ── sguardo all'indietro: 1 sett = consuntivo · 8 sett = trend ── */}
       {trendLens === 'tempo' && (
         <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <SectionHeader
+              title={tempoWindow === 1 ? 'Consuntivo settimana' : 'Andamento del ritmo'}
+              subtitle={tempoWindow === 1 ? 'settimana selezionata' : `${SMALL_MULT_WEEKS} settimane`}
+            />
+            <div className="tb-seg" style={{ marginLeft: 'auto' }}>
+              {[{ n: 1, label: '1 sett' }, { n: SMALL_MULT_WEEKS, label: `${SMALL_MULT_WEEKS} sett` }].map((o, idx) => (
+                <span key={o.n} data-on={tempoWindow === o.n ? 'true' : 'false'} onClick={() => setTempoWindow(o.n)}
+                  style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}>{o.label}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* ── 1 settimana · consuntivo per chiudere la settimana (ex Retrospettiva) ── */}
+          {tempoWindow === 1 && (
+            <>
+              <RetroSummary stats={stats} status={status} deltaH={deltaH} />
+              <AreaConsuntivo clients={clients} stats={stats} />
+              {budgetProjects.length > 0 && (
+                <div>
+                  <SectionHeader title="Budget progetti" subtitle="da inizio progetto · indipendente dal periodo" />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {budgetProjects.map(p => (
+                      <ProjectCardCockpit
+                        key={p.id}
+                        project={p}
+                        clients={clients}
+                        cumulativeDone={projectTotals[p.id] ?? 0}
+                        periodDone={stats.actualByProject[p.id] ?? 0}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── 8 settimane · trend + divergenze persistenti (scoprire la deriva) ── */}
+          {tempoWindow === SMALL_MULT_WEEKS && (
+            <>
           {/* Da decidere: divergenze area↔piano PERSISTENTI (non la settimana singola) */}
           <DaDecidereInsights perAreaWeekly={perAreaWeekly} />
 
           <Card padding={0}>
             <div style={{ padding: '14px 18px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-                <CardLabel inline>Nel tempo</CardLabel>
+                <CardLabel inline>Aggregato settimanale</CardLabel>
                 <Legend />
               </div>
             </div>
@@ -318,104 +358,14 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
 
           {/* Per-area: small-multiples, posizione vs linea-piano = segnale */}
           <div>
-            <SectionHeader title="Nel tempo · per area" subtitle={`${SMALL_MULT_WEEKS} settimane · piano = ritmo template`} />
+            <SectionHeader title="Per area" subtitle={`${SMALL_MULT_WEEKS} settimane · piano = ritmo template`} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
               {perAreaWeekly.map(({ client, planned, weeks }) => (
                 <AreaSparkCard key={client.id} client={client} planned={planned} weeks={weeks} />
               ))}
             </div>
           </div>
-        </>
-      )}
-
-      {/* ── Lente "Retrospettiva" ── consuntivo settimana chiusa ── */}
-      {trendLens === 'retro' && (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: 14 }}>
-            <Card>
-              <CardLabel>Carico della settimana</CardLabel>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-                <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                  {fmtH(stats.totalDone)}
-                </span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(stats.capacity)}</span>
-              </div>
-              <CapacityBar done={stats.totalDone} capacity={stats.capacity} color={status.color} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
-                <span>Capacità target {fmtH(stats.capacity)}</span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <span className="tb-glyph">{deltaH >= 0 ? '▸' : '▾'}</span>
-                  Δ {deltaH >= 0 ? '+' : ''}{fmtH(deltaH)}
-                </span>
-              </div>
-            </Card>
-
-            <Card>
-              <CardLabel>Fatturabile a consumo</CardLabel>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-                <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                  {fmtEur(stats.billedDoneEur)}
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>svolto</span>
-              </div>
-              <div style={{
-                marginTop: 10, padding: '8px 10px', borderRadius: 6,
-                background: 'var(--tb-panel-bg-subtle)',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <ProjectionIcon />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)', letterSpacing: '0.03em' }}>
-                    Proiezione fine settimana
-                  </span>
-                </div>
-                <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
-                  {fmtEur(stats.projectionEur)}
-                </span>
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 8 }}>
-                {fmtH(stats.billableDoneHours)} fatturabili svolte · aree fisse escluse
-              </div>
-            </Card>
-
-            <Card>
-              <CardLabel>Stato</CardLabel>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10,
-                  background: 'var(--tb-panel-bg-soft)',
-                  border: '1px solid var(--tb-border)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}>
-                  <StatusGlyph glyph={status.glyph} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
-                    {status.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 2 }}>
-                    {stats.capacity > 0 ? Math.round(stats.totalDone / stats.capacity * 100) : 0}% capacità
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {budgetProjects.length > 0 && (
-            <div>
-              <SectionHeader title="Budget progetti" subtitle="da inizio progetto · indipendente dal periodo" />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {budgetProjects.map(p => (
-                  <ProjectCardCockpit
-                    key={p.id}
-                    project={p}
-                    clients={clients}
-                    cumulativeDone={projectTotals[p.id] ?? 0}
-                    periodDone={stats.actualByProject[p.id] ?? 0}
-                  />
-                ))}
-              </div>
-            </div>
+            </>
           )}
         </>
       )}
@@ -433,6 +383,129 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
+
+// Lente "Nel tempo" (1 sett) → consuntivo della settimana chiusa: carico vs capacità,
+// fatturabile a consumo, stato. Serve la chiusura settimanale v4.
+function RetroSummary({ stats, status, deltaH }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: 14 }}>
+      <Card>
+        <CardLabel>Carico della settimana</CardLabel>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+          <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            {fmtH(stats.totalDone)}
+          </span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(stats.capacity)}</span>
+        </div>
+        <CapacityBar done={stats.totalDone} capacity={stats.capacity} color={status.color} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
+          <span>Capacità target {fmtH(stats.capacity)}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span className="tb-glyph">{deltaH >= 0 ? '▸' : '▾'}</span>
+            Δ {deltaH >= 0 ? '+' : ''}{fmtH(deltaH)}
+          </span>
+        </div>
+      </Card>
+
+      <Card>
+        <CardLabel>Fatturabile a consumo</CardLabel>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+          <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            {fmtEur(stats.billedDoneEur)}
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>svolto</span>
+        </div>
+        <div style={{
+          marginTop: 10, padding: '8px 10px', borderRadius: 6,
+          background: 'var(--tb-panel-bg-subtle)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <ProjectionIcon />
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)', letterSpacing: '0.03em' }}>
+              Proiezione fine settimana
+            </span>
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
+            {fmtEur(stats.projectionEur)}
+          </span>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 8 }}>
+          {fmtH(stats.billableDoneHours)} fatturabili svolte · aree fisse escluse
+        </div>
+      </Card>
+
+      <Card>
+        <CardLabel>Stato</CardLabel>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: 'var(--tb-panel-bg-soft)',
+            border: '1px solid var(--tb-border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <StatusGlyph glyph={status.glyph} />
+          </div>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
+              {status.label}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 2 }}>
+              {stats.capacity > 0 ? Math.round(stats.totalDone / stats.capacity * 100) : 0}% capacità
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// Lente "Nel tempo" (1 sett) → consuntivo PER AREA della settimana: pianificato,
+// tracciato, extra (ore oltre il piano) e Δ. È il passo v4 "confronta ore pianificate,
+// tracciate ed extra per area / identifica aree in disavanzo o sovraccarico".
+function AreaConsuntivo({ clients, stats }) {
+  const rows = clients
+    .map(c => {
+      const planned = stats.plannedByClient[c.id] ?? 0;
+      const done = stats.actualByClient[c.id] ?? 0;
+      return { c, planned, done, extra: Math.max(0, done - planned), delta: done - planned };
+    })
+    .filter(r => r.planned > 0 || r.done > 0);
+  if (!rows.length) return null;
+  const COLS = 'minmax(0,1fr) 64px 64px 64px 84px';
+  const numCell = { fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', textAlign: 'right' };
+  const headCell = { fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' };
+  return (
+    <div>
+      <SectionHeader title="Per area · consuntivo" subtitle="pianificato · tracciato · extra" />
+      <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: '2px 12px', alignItems: 'center' }}>
+        <span />
+        <span style={headCell}>Piano</span>
+        <span style={headCell}>Fatto</span>
+        <span style={headCell}>Extra</span>
+        <span style={headCell}>Δ</span>
+        {rows.map(({ c, planned, done, extra, delta }) => {
+          const v = statusFor(done, planned);
+          return (
+            <React.Fragment key={c.id}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+              </span>
+              <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6, color: 'var(--tb-text-muted)' }}>{fmtH(planned)}</span>
+              <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 }}>{fmtH(done)}</span>
+              <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6, color: extra > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>{extra > 0 ? fmtH(extra) : '—'}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, fontSize: 12, fontWeight: 700, color: 'var(--tb-text-muted)', borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 }}>
+                <span className="tb-glyph" title={v.label}>{v.glyph}</span>
+                {delta >= 0 ? '+' : ''}{fmtH(delta)}
+              </span>
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // Lente "Nel tempo" → "Da decidere": divergenze area↔piano PERSISTENTI (fuori piano
 // in >= PERSIST_MIN delle ultime PERSIST_WINDOW settimane chiuse), non lo scarto della
