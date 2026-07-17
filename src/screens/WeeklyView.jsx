@@ -314,23 +314,15 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const hours = typeof payload === 'object' ? payload.hours : payload;
     let resolvedSlot = slot;
     if (!resolvedSlot) {
+      // Slot dedotto: la prima fascia (am → pm → sera) in cui l'area ha un
+      // blocco pianificato quel giorno. Fallback 'am' se non c'è alcun blocco.
+      // NB: considera tutte e tre le fasce, sera inclusa — la vecchia euristica
+      // guardava solo am/pm e faceva finire in 'am' un'area con solo blocco sera.
       const project = projects.find(p => p.id === projectId);
-      if (project) {
-        const clientId = project.clientId;
-        const dateIndex = days.findIndex(d => d.dateStr === dateStr);
-        if (dateIndex >= 0) {
-          const amBlocks = effectiveBlocks(dateIndex, 'am');
-          const pmBlocks = effectiveBlocks(dateIndex, 'pm');
-          const hasAMBlock = amBlocks.some(b => b.clientId === clientId);
-          const hasPMBlock = pmBlocks.some(b => b.clientId === clientId);
-          if (!hasAMBlock && hasPMBlock) resolvedSlot = 'pm';
-          else resolvedSlot = 'am';
-        } else {
-          resolvedSlot = 'am';
-        }
-      } else {
-        resolvedSlot = 'am';
-      }
+      const dateIndex = days.findIndex(d => d.dateStr === dateStr);
+      resolvedSlot = (project && dateIndex >= 0
+        && SLOTS.find(s => effectiveBlocks(dateIndex, s).some(b => b.clientId === project.clientId)))
+        || 'am';
     }
     const matches = weekEntries.filter(e => (
       e.projectId === projectId && e.date === dateStr && e.slot === resolvedSlot

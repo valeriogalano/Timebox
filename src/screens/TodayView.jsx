@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { fmt, fmtH, getToday, getMondayOfWeek, SLOTS } from '../utils';
+import { fmt, fmtH, getToday, getMondayOfWeek, SLOTS, currentSlot, effBillable } from '../utils';
 import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks } from '../dayPlanning';
 import PlanningCell from '../components/PlanningCell';
+import TimeCell from '../components/TimeCell';
 import SlotCapacityBar from '../components/SlotCapacityBar';
 import ExtraCell from '../components/ExtraCell';
 import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
@@ -121,23 +122,38 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
     setSlotOverride(slot, effectiveBlocks(slot).filter(b => b.id !== blockId));
   }
 
-  // Stepper ±15min sul blocco di Oggi: scrive direttamente l'entry (projectId,
-  // date=oggi, slot). Chiamato solo quando il chiamante (PlanningCell) ha già
-  // verificato che l'area ha un solo progetto attivo e un solo blocco in
-  // giornata, quindi la entry di destinazione è univoca.
-  async function logTrackedHours(projectId, hours, slot) {
-    const existing = rawEntries.find(e => e.projectId === projectId && e.slot === slot);
+  // Timesheet del giorno (tab "Ore"): una entry per progetto+giorno, come il
+  // timesheet settimanale. Lo slot è dedotto — quello dell'entry esistente, o
+  // la prima fascia (am→pm→sera) in cui l'area ha un blocco oggi, o lo slot
+  // dell'ora corrente. Le entry sparse su più slot vengono collassate in una.
+  async function saveDayEntry(projectId, payload) {
+    const hours = typeof payload === 'object' ? payload.hours : payload;
+    const existingList = rawEntries.filter(e => e.projectId === projectId);
+    const existing = existingList[0] ?? null;
+    const project = projects.find(p => p.id === projectId);
+    const resolvedSlot = existing?.slot
+      || (project && SLOTS.find(s => effectiveBlocks(s).some(b => b.clientId === project.clientId)))
+      || currentSlot();
+    const billableHours = typeof payload === 'object'
+      ? (payload.billableHours ?? null)
+      : (existing?.billableHours ?? null);
     if (hours <= 0) {
-      if (existing) await window.api.deleteEntry(existing.id);
+      for (const e of existingList) await window.api.deleteEntry(e.id);
     } else {
       const entry = existing
-        ? { ...existing, hours }
-        : { id: crypto.randomUUID(), projectId, date: today, hours, billableHours: null, slot, billed: false };
+        ? { ...existing, slot: resolvedSlot, hours, billableHours }
+        : { id: crypto.randomUUID(), projectId, date: today, hours, billableHours, slot: resolvedSlot, billed: false };
       await window.api.saveEntry(entry);
+      for (const e of existingList) { if (e.id !== entry.id) await window.api.deleteEntry(e.id); }
     }
     await load();
     window.api.getProjectTotals().then(setProjectTotals);
     onEntryChange?.();
+  }
+
+  function resetDayBillable(projectId) {
+    const existing = rawEntries.find(e => e.projectId === projectId);
+    if (existing) saveDayEntry(projectId, { hours: existing.hours, billableHours: null });
   }
   function handleDrop(toSlot) {
     if (!dragging) return;
@@ -175,10 +191,6 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
     slot,
     (planning.slotBlocks[slot] || []).filter(b => validClientIds.has(b.clientId)).reduce((s, b) => s + b.hours, 0),
   ]));
-  const blockCountByClient = planning.visibleBlocks.reduce((acc, b) => {
-    acc[b.clientId] = (acc[b.clientId] ?? 0) + 1;
-    return acc;
-  }, {});
 
   const totals = data?.freeCapacity?.totals ?? {};
   const readyGroups = data?.readyBlocks?.groups ?? [];
@@ -221,7 +233,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
           addBlockToSlot={addBlockToSlot} updateBlockInSlot={updateBlockInSlot}
           removeBlockFromSlot={removeBlockFromSlot} setSlotOverride={setSlotOverride}
           dragging={dragging} setDragging={setDragging} handleDrop={handleDrop}
-          blockCountByClient={blockCountByClient} onLogHours={logTrackedHours}
+          dayEntries={dayEntries} onSaveDayEntry={saveDayEntry} onResetBillable={resetDayBillable}
         />
 
         <div style={{ flex: 1, minWidth: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -308,8 +320,9 @@ function DayPlanningPanel({
   slotCapacityHours, hasTodoistSync,
   addBlockToSlot, updateBlockInSlot, removeBlockFromSlot, setSlotOverride,
   dragging, setDragging, handleDrop,
-  blockCountByClient, onLogHours,
+  dayEntries, onSaveDayEntry, onResetBillable,
 }) {
+  const [tab, setTab] = useState('piano');
   const slots = SLOTS.map(key => ({
     key,
     label: SLOT_META[key].label,
@@ -322,53 +335,164 @@ function DayPlanningPanel({
   return (
     <section style={{ width: 300, flexShrink: 0, border: '1px solid var(--tb-border)', borderRadius: 8, background: 'var(--tb-panel-bg)', overflow: 'hidden' }}>
       <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg-soft)' }}>
-        <h2 style={{ fontSize: 12, fontWeight: 850, color: 'var(--tb-text-primary)' }}>Blocchi di oggi</h2>
-        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-faint)' }}>trascina tra Mattina, Pomeriggio e Sera · override solo per oggi</span>
-      </div>
-      <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {slots.map(slot => {
-          const isDropTarget = dragging && dragging.fromSlot !== slot.key;
-          return (
-            <div key={slot.key}
-              onDragOver={e => { if (dragging) e.preventDefault(); }}
-              onDrop={() => handleDrop(slot.key)}
-              style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 10, fontWeight: 850, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>{slot.label}</span>
-                {slot.timeLabel && <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', opacity: 0.7 }}>{slot.timeLabel}</span>}
-              </div>
-              <div style={{ outline: isDropTarget ? '2px dashed var(--tb-tick)' : 'none', outlineOffset: 2, borderRadius: 8 }}>
-                {loading ? (
-                  <div style={{ height: 120, borderRadius: 6, background: 'var(--tb-panel-bg-subtle)', opacity: 0.7 }} />
-                ) : (
-                  <PlanningCell
-                    slot={slot.key} dayIndex={0} blocks={slot.blocks}
-                    clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={{}}
-                    blockFill={planning.blockFill}
-                    todoistByClient={planning.todoistByCS[slot.key]} todoistTasksByClient={planning.todoistTasksByCS[slot.key]}
-                    hasTodoistSync={hasTodoistSync}
-                    isToday isFuture={false} isWeekend={false} editable
-                    onAddBlock={(cid, h) => addBlockToSlot(slot.key, cid, h)}
-                    onUpdateBlock={(bid, h) => updateBlockInSlot(slot.key, bid, h)}
-                    onRemoveBlock={bid => removeBlockFromSlot(slot.key, bid)}
-                    onReorder={newBlocks => setSlotOverride(slot.key, newBlocks)}
-                    onDragStart={(bid, cid, h) => setDragging({ blockId: bid, fromSlot: slot.key, clientId: cid, hours: h })}
-                    draggingId={dragging?.blockId}
-                    blockCountByClient={blockCountByClient} onLogHours={onLogHours} />
-                )}
-              </div>
-              <SlotCapacityBar plannedHours={slot.planned} loggedHours={slot.logged} capacityHours={slotCapacityHours} />
-            </div>
-          );
-        })}
-      </div>
-      {!loading && (planning.extraBlocks.length > 0 || planning.orphanTodoist.length > 0) && (
-        <div style={{ padding: '0 12px 12px' }}>
-          <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase', marginBottom: 5 }}>Extra / fuori piano</div>
-          <ExtraCell blocks={planning.extraBlocks} orphanTodoist={planning.orphanTodoist} clients={clients} isToday isFuture={false} />
+        <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+          <TabBtn active={tab === 'piano'} onClick={() => setTab('piano')}>Piano</TabBtn>
+          <TabBtn active={tab === 'ore'} onClick={() => setTab('ore')}>Ore</TabBtn>
         </div>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
+          {tab === 'piano'
+            ? 'trascina tra Mattina, Pomeriggio e Sera · override solo per oggi'
+            : 'registra le ore di oggi · una riga per progetto tracciato'}
+        </span>
+      </div>
+      {tab === 'piano' ? (
+        <>
+          <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {slots.map(slot => {
+              const isDropTarget = dragging && dragging.fromSlot !== slot.key;
+              return (
+                <div key={slot.key}
+                  onDragOver={e => { if (dragging) e.preventDefault(); }}
+                  onDrop={() => handleDrop(slot.key)}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 850, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>{slot.label}</span>
+                    {slot.timeLabel && <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', opacity: 0.7 }}>{slot.timeLabel}</span>}
+                  </div>
+                  <div style={{ outline: isDropTarget ? '2px dashed var(--tb-tick)' : 'none', outlineOffset: 2, borderRadius: 8 }}>
+                    {loading ? (
+                      <div style={{ height: 120, borderRadius: 6, background: 'var(--tb-panel-bg-subtle)', opacity: 0.7 }} />
+                    ) : (
+                      <PlanningCell
+                        slot={slot.key} dayIndex={0} blocks={slot.blocks}
+                        clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={{}}
+                        blockFill={planning.blockFill}
+                        todoistByClient={planning.todoistByCS[slot.key]} todoistTasksByClient={planning.todoistTasksByCS[slot.key]}
+                        hasTodoistSync={hasTodoistSync}
+                        isToday isFuture={false} isWeekend={false} editable
+                        onAddBlock={(cid, h) => addBlockToSlot(slot.key, cid, h)}
+                        onUpdateBlock={(bid, h) => updateBlockInSlot(slot.key, bid, h)}
+                        onRemoveBlock={bid => removeBlockFromSlot(slot.key, bid)}
+                        onReorder={newBlocks => setSlotOverride(slot.key, newBlocks)}
+                        onDragStart={(bid, cid, h) => setDragging({ blockId: bid, fromSlot: slot.key, clientId: cid, hours: h })}
+                        draggingId={dragging?.blockId} />
+                    )}
+                  </div>
+                  <SlotCapacityBar plannedHours={slot.planned} loggedHours={slot.logged} capacityHours={slotCapacityHours} />
+                </div>
+              );
+            })}
+          </div>
+          {!loading && (planning.extraBlocks.length > 0 || planning.orphanTodoist.length > 0) && (
+            <div style={{ padding: '0 12px 12px' }}>
+              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase', marginBottom: 5 }}>Extra / fuori piano</div>
+              <ExtraCell blocks={planning.extraBlocks} orphanTodoist={planning.orphanTodoist} clients={clients} isToday isFuture={false} />
+            </div>
+          )}
+        </>
+      ) : (
+        <DayTimesheet
+          loading={loading} dayEntries={dayEntries} clients={clients} projects={projects}
+          onSaveDayEntry={onSaveDayEntry} onResetBillable={onResetBillable} />
       )}
     </section>
+  );
+}
+
+function TabBtn({ active, onClick, children }) {
+  return (
+    <button onClick={onClick} style={{
+      fontSize: 11, fontWeight: 800, padding: '3px 12px', borderRadius: 6, cursor: 'pointer',
+      border: '1px solid ' + (active ? 'transparent' : 'var(--tb-border-mid)'),
+      background: active ? 'var(--tb-tab-active-bg)' : 'transparent',
+      color: active ? 'var(--tb-tab-active-text)' : 'var(--tb-text-muted)',
+      fontFamily: "'Open Sans', sans-serif",
+    }}>{children}</button>
+  );
+}
+
+// Timesheet del giorno: una riga per progetto tracciato oggi, cella TimeCell
+// identica al timesheet settimanale. Per registrare su un progetto non ancora
+// presente si usa il QuickLog (⌘L), che poi lo fa comparire qui.
+function DayTimesheet({ loading, dayEntries, clients, projects, onSaveDayEntry, onResetBillable }) {
+  const [viewMode, setViewMode] = useState('tracked');
+  if (loading) return <div style={{ padding: 12 }}><SkeletonRows /></div>;
+
+  const rows = (dayEntries || [])
+    .map(entry => {
+      const project = projects.find(p => p.id === entry.projectId);
+      const client = project ? clients.find(c => c.id === project.clientId) : null;
+      return project && client ? { entry, project, client } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) =>
+      (a.client.position ?? 0) - (b.client.position ?? 0)
+      || (a.project.position ?? 0) - (b.project.position ?? 0)
+      || a.project.name.localeCompare(b.project.name, 'it'));
+
+  const totalTracked = rows.reduce((s, r) => s + r.entry.hours, 0);
+  const totalBillable = rows.reduce((s, r) => r.client.billing !== 'none' ? s + effBillable(r.entry) : s, 0);
+  const total = viewMode === 'billable' ? totalBillable : totalTracked;
+
+  return (
+    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <DayViewToggle value={viewMode} onChange={setViewMode} />
+      </div>
+      {rows.length === 0 ? (
+        <div style={{ padding: '28px 8px', textAlign: 'center', color: 'var(--tb-text-muted)', fontSize: 11, fontWeight: 700, lineHeight: 1.6 }}>
+          Nessuna ora tracciata oggi.<br />Usa <kbd style={{ fontFamily: 'monospace', fontSize: 10, border: '1px solid var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }}>⌘L</kbd> per aggiungere un progetto.
+        </div>
+      ) : (
+        <div style={{ border: '1px solid var(--tb-border)', borderRadius: 6, overflow: 'hidden' }}>
+          {rows.map(({ entry, project, client }, i) => (
+            <div key={project.id} style={{ display: 'grid', gridTemplateColumns: '1fr 72px', alignItems: 'stretch', borderTop: i ? '1px solid var(--tb-border-soft)' : 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '0 10px', minWidth: 0 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.name}</div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.name}</div>
+                </div>
+              </div>
+              <TimeCell
+                hours={entry.hours}
+                billableHours={entry.billableHours ?? null}
+                billed={entry.billed ?? false}
+                isBillable={client.billing !== 'none'}
+                isFuture={false} isToday
+                clientColor={client.color}
+                colIndex={0}
+                projectId={project.id}
+                viewMode={viewMode}
+                onSave={payload => onSaveDayEntry(project.id, payload)}
+                onResetBillable={() => onResetBillable(project.id)} />
+            </div>
+          ))}
+        </div>
+      )}
+      {rows.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', padding: '0 2px' }}>
+          <span>Totale</span>
+          <span style={{ color: 'var(--tb-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{fmtH(total)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DayViewToggle({ value, onChange }) {
+  const opts = [{ k: 'tracked', l: 'Tracciate' }, { k: 'billable', l: 'Fatturabili' }];
+  return (
+    <div style={{ display: 'inline-flex', border: '1px solid var(--tb-border-mid)', borderRadius: 6, overflow: 'hidden' }}>
+      {opts.map(o => (
+        <button key={o.k} onClick={() => onChange(o.k)} style={{
+          fontSize: 10, fontWeight: 800, padding: '3px 9px', border: 'none', cursor: 'pointer',
+          background: value === o.k ? 'var(--tb-tab-active-bg)' : 'transparent',
+          color: value === o.k ? 'var(--tb-tab-active-text)' : 'var(--tb-text-muted)',
+          fontFamily: "'Open Sans', sans-serif",
+        }}>{o.l}</button>
+      ))}
+    </div>
   );
 }
 
