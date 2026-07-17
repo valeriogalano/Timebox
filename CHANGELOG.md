@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Introduce unit tests for renderer pure logic (utils, slot-capacity, dayPlanning modules) using Node.js native `--test` runner.
+- Scope src/ to ESM via nested package.json for test compatibility.
+- Add test:renderer npm script for running renderer unit tests.
+- Fix extensionless import in dayPlanning.js.
+
 ## [0.9.0] - 2026-07-15
 
 ### Added
