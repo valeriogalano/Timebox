@@ -303,6 +303,7 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <SectionHeader
+              inline
               title={tempoWindow === 1 ? 'Consuntivo settimana' : 'Andamento del ritmo'}
               subtitle={tempoWindow === 1 ? 'settimana selezionata' : `${SMALL_MULT_WEEKS} settimane`}
             />
@@ -547,7 +548,7 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon }) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <SectionHeader title="Carico in prospettiva" subtitle={`${horizon} settimane a ritmo template`} />
+        <SectionHeader inline title="Carico in prospettiva" subtitle={`${horizon} settimane a ritmo template`} />
         <div className="tb-seg" style={{ marginLeft: 'auto' }}>
           {[1, 2, 4].map((n, idx) => (
             <span key={n} data-on={horizon === n ? 'true' : 'false'} onClick={() => setHorizon(n)}
@@ -864,9 +865,11 @@ function Legend() {
   );
 }
 
-function SectionHeader({ title, subtitle }) {
+// inline: titolo e sottotitolo affiancati con gap (per le righe con selettore a destra),
+// invece che agli estremi via space-between (che si attacca se il contenitore lo restringe).
+function SectionHeader({ title, subtitle, inline }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: inline ? 10 : undefined, justifyContent: inline ? 'flex-start' : 'space-between', marginBottom: inline ? 0 : 10 }}>
       <h3 style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.01em', margin: 0 }}>{title}</h3>
       <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{subtitle}</span>
     </div>
