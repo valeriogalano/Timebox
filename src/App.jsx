@@ -371,8 +371,8 @@ export default function App() {
         {/* Topbar (also the draggable window title region on macOS) */}
         <div style={{
           padding: '0 28px', height: 52,
-          // macOS: left padding so the native traffic lights keep breathing room.
-          paddingLeft: navigator.userAgent.includes('Mac') ? 78 : 28,
+          // I semafori macOS stanno sopra la sidebar, non qui: il titolo si allinea
+          // al contenuto (28px). Nessun padding extra.
           borderBottom: '1px solid var(--tb-topbar-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           background: 'var(--tb-topbar-bg)', flexShrink: 0,
