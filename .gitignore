@@ -21,8 +21,15 @@ out/
 # Local audit/export artifacts
 /*.csv
 /*.png
+/*.zip
 /timebox/
 !/build/*.png
+
+# Design handoff artifacts (kept local, not versioned)
+/design-handoff/
+/design_handoff_timebox_signals/
+/design_handoff_timebox_signals 2/
+/screenshots/
 
 # User database (may be placed in project root for dev access)
 /*.db
