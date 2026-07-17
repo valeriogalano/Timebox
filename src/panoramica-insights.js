@@ -29,3 +29,22 @@ export function persistentAreaInsights(perAreaWeekly, window = PERSIST_WINDOW, m
   // Più settimane fuori piano = più grave: le aree peggiori in cima.
   return items.sort((a, b) => b.weeksOff - a.weeksOff);
 }
+
+// Lente "In prospettiva": proiezione a ritmo template di un'area su `horizon` settimane,
+// confrontata col TETTO se esiste. Senza tetto non c'è envelope da sforare: confrontare
+// la proiezione col ritmo stesso è degenere (ratio sempre 1 → sempre "sotto-utilizzata"),
+// quindi kind='uncapped' e nessun verdetto over/under. weekly → il tetto scala con
+// l'orizzonte; global → tetto fisso sull'intero periodo.
+export function areaProjection({ rhythm, horizon, limitType, limitHours = 0, rate = 0, billable = false }) {
+  const projected = rhythm * horizon;
+  const cap = limitType === 'weekly' ? limitHours * horizon
+            : limitType === 'global' ? limitHours
+            : null;
+  const hasCap = cap != null && cap > 0;
+  const over = hasCap && projected > cap;
+  const ratio = hasCap ? projected / cap : 0;
+  const potentialEur = billable ? projected * rate : 0;
+  const lostEur = over && billable ? (projected - cap) * rate : 0;
+  const kind = !hasCap ? 'uncapped' : over ? 'over' : 'within';
+  return { projected, cap, hasCap, ratio, over, potentialEur, lostEur, kind };
+}

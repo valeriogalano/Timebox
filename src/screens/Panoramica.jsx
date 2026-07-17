@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
 import { areaMix } from '../area-colors';
-import { persistentAreaInsights, PERSIST_WINDOW, PERSIST_MIN } from '../panoramica-insights';
+import { persistentAreaInsights, areaProjection, PERSIST_WINDOW, PERSIST_MIN } from '../panoramica-insights';
 
 // Redesign: nessun colore di stato. L'identità è solo l'area (client.color).
 // over/under/in-line si leggono per posizione/glyph, non per verde/arancio/rosso.
@@ -360,7 +360,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
       {trendLens === 'prospettiva' && (
         <ProspettivaLens
           clients={clients} projects={projects} recurring={recurring}
-          horizon={horizon} setHorizon={setHorizon}
+          horizon={horizon} setHorizon={setHorizon} capacity={stats.capacity}
           weekProjectHours={{}} projectTotals={projectTotals}
         />
       )}
@@ -509,27 +509,27 @@ function DaDecidereInsights({ perAreaWeekly }) {
 }
 
 // Lente "In prospettiva": proiezione a ritmo del template, per area, su orizzonte
-// configurabile (1/2/4 settimane, default 2). Confronta carico proiettato vs
-// capacità/limiti; verdetto via glyph ▸/▾/▪. Il ritmo progetto è una stima
-// (vedi README §Dipendenze-dati p.2): a livello area si usa `recurring`.
-function ProspettivaLens({ clients, recurring, horizon, setHorizon }) {
+// configurabile (1/2/4 settimane, default 2). Il confronto ha senso solo contro un
+// TETTO: senza tetto non c'è envelope da sforare (kind='uncapped', nessun verdetto
+// over/under). Verdetto via glyph ▸/▪/·. Logica pura in ../panoramica-insights.
+// Il ritmo è una stima (README §Dipendenze-dati p.2): a livello area si usa `recurring`.
+function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) {
   const rows = clients.map(c => {
     const rhythm = clientWeeklyCapacity(c.id, recurring);     // h/sett a ritmo template
-    const projected = rhythm * horizon;                        // carico proiettato
-    const hasLimit = !!c.limitType && c.limitHours > 0;
-    const limitWindow = c.limitType === 'weekly'
-      ? c.limitHours * horizon
-      : (c.limitType === 'global' ? c.limitHours : null);
-    const ref = limitWindow ?? rhythm * horizon;                // envelope fisso = ritmo
-    const ratio = ref > 0 ? projected / ref : 0;
-    const potentialEur = isBillableClient(c) ? projected * (c.rate ?? 0) : 0;
-    const lostEur = ratio > 1 && isBillableClient(c) ? (projected - ref) * (c.rate ?? 0) : 0;
-    const verdict = !hasLimit || c.limitType !== 'weekly'
-      ? (ratio > 1 ? { glyph: '▸', label: 'Oltre envelope · ore non pagate' } : { glyph: '▾', label: 'Sotto-utilizzata' })
+    const billable = isBillableClient(c);
+    const p = areaProjection({
+      rhythm, horizon,
+      limitType: c.limitType, limitHours: c.limitHours,
+      rate: c.rate ?? 0, billable,
+    });
+    const verdict = p.kind === 'uncapped' ? { glyph: '·', label: 'Senza tetto' }
+      : p.kind === 'over' ? { glyph: '▸', label: billable ? 'Oltre tetto · ore non pagate' : 'Oltre tetto' }
       : { glyph: '▪', label: 'Entro tetto' };
-    return { c, rhythm, projected, ref, ratio, potentialEur, lostEur, verdict, hasLimit, limitWindow };
+    return { c, rhythm, billable, verdict, ...p };
   });
   const totalProjected = rows.reduce((s, r) => s + r.projected, 0);
+  const capWindow = capacity > 0 ? capacity * horizon : 0;
+  const capPct = capWindow > 0 ? Math.round(totalProjected / capWindow * 100) : null;
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -546,11 +546,16 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon }) {
           <span style={{ fontSize: 30, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{fmtH(totalProjected)}</span>
           <span style={{ fontSize: 13, color: 'var(--tb-text-muted)' }}>carico proiettato · {horizon} sett</span>
         </div>
+        {capPct != null && (
+          <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 6 }}>
+            ≈ {capPct}% della capacità ({fmtH(capWindow)} su {horizon} sett)
+          </div>
+        )}
       </Card>
 
-      <SectionHeader title="Per area · limiti e valore" subtitle="ritmo vs limite/envelope" />
+      <SectionHeader title="Per area · limiti e valore" subtitle="ritmo vs tetto" />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {rows.map(({ c, rhythm, projected, ref, ratio, potentialEur, lostEur, verdict, hasLimit, limitWindow }) => (
+        {rows.map(({ c, rhythm, billable, projected, cap, hasCap, ratio, over, potentialEur, lostEur, verdict }) => (
           <Card key={c.id}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 9, height: 9, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
@@ -559,16 +564,16 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon }) {
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8, fontSize: 12, color: 'var(--tb-text-muted)' }}>
               <span><strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(rhythm)}</strong>/sett · proiettato <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(projected)}</strong></span>
-              {hasLimit && <span>· tetto {fmtH(limitWindow)}</span>}
+              {hasCap && <span>· tetto {fmtH(cap)}</span>}
             </div>
             <div style={{ position: 'relative', height: 8, borderRadius: 4, background: 'var(--tb-bar-track)', marginTop: 8, overflow: 'visible' }}>
-              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, ratio * 100)}%`, background: c.color, borderRadius: 4 }} />
-              {ratio > 1 && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: `${Math.min(30, (ratio - 1) * 100)}%`, borderRadius: '0 4px 4px 0' }} />}
-              <span className="tb-tick" style={{ left: '100%' }} />
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${hasCap ? Math.min(100, ratio * 100) : 100}%`, background: c.color, borderRadius: 4, opacity: hasCap ? 1 : 0.4 }} />
+              {over && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: `${Math.min(30, (ratio - 1) * 100)}%`, borderRadius: '0 4px 4px 0' }} />}
+              {hasCap && <span className="tb-tick" style={{ left: '100%' }} />}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
               <span>{verdict.label}</span>
-              {isBillableClient(c) && (
+              {billable && (
                 <span>valore <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtEur(potentialEur)}</strong>
                   {lostEur > 0 && <span style={{ marginLeft: 8 }}>· perso <strong>{fmtEur(lostEur)}</strong></span>}
                 </span>
