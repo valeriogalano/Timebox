@@ -7,7 +7,7 @@ import DivergenceDot from '../components/DivergenceDot';
 import SlotCapacityBar from '../components/SlotCapacityBar';
 import AreaStatusGlyph from '../components/AreaStatusGlyph';
 import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
-import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries } from '../dayPlanning';
+import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries, resolveEntrySlot } from '../dayPlanning';
 
 const PLANNING_MODES = ['full', 'compact', 'hidden'];
 const SLOT_ROW_META = {
@@ -312,18 +312,13 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   async function saveEntry(projectId, dateStr, payload, slot) {
     const hours = typeof payload === 'object' ? payload.hours : payload;
-    let resolvedSlot = slot;
-    if (!resolvedSlot) {
-      // Slot dedotto: la prima fascia (am → pm → sera) in cui l'area ha un
-      // blocco pianificato quel giorno. Fallback 'am' se non c'è alcun blocco.
-      // NB: considera tutte e tre le fasce, sera inclusa — la vecchia euristica
-      // guardava solo am/pm e faceva finire in 'am' un'area con solo blocco sera.
-      const project = projects.find(p => p.id === projectId);
-      const dateIndex = days.findIndex(d => d.dateStr === dateStr);
-      resolvedSlot = (project && dateIndex >= 0
-        && SLOTS.find(s => effectiveBlocks(dateIndex, s).some(b => b.clientId === project.clientId)))
-        || 'am';
-    }
+    const dateIndex = days.findIndex(d => d.dateStr === dateStr);
+    const resolvedSlot = resolveEntrySlot({
+      existingSlot: slot,
+      clientId: projects.find(p => p.id === projectId)?.clientId,
+      blocksForSlot: dateIndex >= 0 ? (s => effectiveBlocks(dateIndex, s)) : null,
+      fallback: 'am',
+    });
     const matches = weekEntries.filter(e => (
       e.projectId === projectId && e.date === dateStr && e.slot === resolvedSlot
     ));

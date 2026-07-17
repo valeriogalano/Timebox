@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fmt, fmtH, getToday, getMondayOfWeek, SLOTS, currentSlot, effBillable } from '../utils';
-import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks } from '../dayPlanning';
+import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks, resolveEntrySlot } from '../dayPlanning';
 import PlanningCell from '../components/PlanningCell';
 import TimeCell from '../components/TimeCell';
 import SlotCapacityBar from '../components/SlotCapacityBar';
@@ -131,9 +131,12 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
     const existingList = rawEntries.filter(e => e.projectId === projectId);
     const existing = existingList[0] ?? null;
     const project = projects.find(p => p.id === projectId);
-    const resolvedSlot = existing?.slot
-      || (project && SLOTS.find(s => effectiveBlocks(s).some(b => b.clientId === project.clientId)))
-      || currentSlot();
+    const resolvedSlot = resolveEntrySlot({
+      existingSlot: existing?.slot,
+      clientId: project?.clientId,
+      blocksForSlot: effectiveBlocks,
+      fallback: currentSlot(),
+    });
     const billableHours = typeof payload === 'object'
       ? (payload.billableHours ?? null)
       : (existing?.billableHours ?? null);
