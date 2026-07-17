@@ -292,11 +292,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...(idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : {}) }}
             >
               {o.label}
-              <span
-                title={o.help}
-                onClick={e => e.stopPropagation()}
-                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 9, cursor: 'help', letterSpacing: 0 }}
-              >?</span>
+              <HelpDot text={o.help} />
             </span>
           ))}
         </div>
@@ -335,7 +331,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
           <Card padding={0}>
             <div style={{ padding: '14px 18px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-                <CardLabel inline>Aggregato settimanale</CardLabel>
+                <CardLabel inline help={'Ogni coppia di barre è una settimana (ultime 8): totale pianificato e totale svolto su tutte le aree. La linea tratteggiata è la capacità della settimana corrente.'}>Aggregato settimanale</CardLabel>
                 <Legend />
               </div>
             </div>
@@ -346,7 +342,8 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
 
           {/* Per-area: small-multiples, posizione vs linea-piano = segnale */}
           <div>
-            <SectionHeader title="Per area" subtitle={`${SMALL_MULT_WEEKS} settimane · piano = ritmo template`} />
+            <SectionHeader title="Per area" subtitle={`${SMALL_MULT_WEEKS} settimane · piano = ritmo template`}
+              help={`Mini-trend per area sulle ultime ${SMALL_MULT_WEEKS} settimane. Le barre sono le ore svolte (la più chiara è la settimana corrente); la linea tratteggiata è il piano = ritmo del template. Le settimane oltre-piano sono tratteggiate.`} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
               {perAreaWeekly.map(({ client, planned, weeks }) => (
                 <AreaSparkCard key={client.id} client={client} planned={planned} weeks={weeks} />
@@ -378,7 +375,7 @@ function RetroSummary({ stats, status, deltaH }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
       {/* Carico + Stato fusi, modellati sullo specchietto capacità della Settimana */}
       <Card>
-        <CardLabel>Carico della settimana</CardLabel>
+        <CardLabel help={'Ore svolte (tracciate) sulla capacità della settimana.\n\n% = svolto ÷ capacità. Δ = svolto − capacità. Stato: sotto-carico sotto 0,85×, in linea fino a 1,1×, sovraccarico oltre.'}>Carico della settimana</CardLabel>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
             <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
@@ -402,7 +399,7 @@ function RetroSummary({ stats, status, deltaH }) {
       </Card>
 
       <Card>
-        <CardLabel>Fatturabile a consumo</CardLabel>
+        <CardLabel help={'Ricavo delle ore fatturabili già svolte = ore fatturabili × tariffa dell\'area.\n\nProiezione fine settimana = ricavo atteso completando il piano fatturabile. Le aree non fatturabili (fisse) sono escluse.'}>Fatturabile a consumo</CardLabel>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
           <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
             {fmtEur(stats.billedDoneEur)}
@@ -449,7 +446,8 @@ function AreaConsuntivo({ clients, stats }) {
   const headCell = { fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' };
   return (
     <div>
-      <SectionHeader title="Per area · consuntivo" subtitle="pianificato · tracciato · extra" />
+      <SectionHeader title="Per area · consuntivo" subtitle="pianificato · tracciato · extra"
+        help={'Per ogni area, nella settimana selezionata: Piano = ore pianificate, Fatto = ore tracciate, Extra = ore fatte oltre il piano (max(0, fatto − piano)), Δ = fatto − piano. Il glyph è lo stato (sotto/in linea/sovraccarico).'} />
       <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: '2px 12px', alignItems: 'center' }}>
         <span />
         <span style={headCell}>Piano</span>
@@ -488,7 +486,8 @@ function DaDecidereInsights({ perAreaWeekly }) {
   if (!items.length) return null;
   return (
     <div>
-      <SectionHeader title="Da decidere" subtitle={`persistente · ≥${PERSIST_MIN} sett fuori piano su ${PERSIST_WINDOW}`} />
+      <SectionHeader title="Da decidere" subtitle={`persistente · ≥${PERSIST_MIN} sett fuori piano su ${PERSIST_WINDOW}`}
+        help={`Un'area compare solo se è fuori piano (svolto sotto 0,85× o oltre 1,1× il piano) in almeno ${PERSIST_MIN} delle ultime ${PERSIST_WINDOW} settimane chiuse — la settimana in corso è esclusa. Il badge N/${PERSIST_WINDOW} è la gravità: più settimane fuori piano, più in alto l'area.`} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
         {items.map((it, i) => (
           <div key={i} style={{ position: 'relative', border: '1px solid var(--tb-border)', borderLeft: `3px solid ${it.color}`, borderRadius: 8, background: 'var(--tb-panel-bg)', padding: '10px 12px' }}>
@@ -533,7 +532,8 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <SectionHeader inline title="Carico in prospettiva" subtitle={`${horizon} settimane a ritmo template`} />
+        <SectionHeader inline title="Carico in prospettiva" subtitle={`${horizon} settimane a ritmo template`}
+          help={'Proiezione = ritmo del template (ore ricorrenti/sett) × orizzonte, sommato su tutte le aree. Non tiene conto degli override né dello stato area della settimana: è "se il template gira così".\n\n% capacità = proiettato ÷ (capacità × orizzonte).'} />
         <div className="tb-seg" style={{ marginLeft: 'auto' }}>
           {[1, 2, 4].map((n, idx) => (
             <span key={n} data-on={horizon === n ? 'true' : 'false'} onClick={() => setHorizon(n)}
@@ -553,7 +553,8 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
         )}
       </Card>
 
-      <SectionHeader title="Per area · limiti e valore" subtitle="ritmo vs tetto" />
+      <SectionHeader title="Per area · limiti e valore" subtitle="ritmo vs tetto"
+        help={'Per area: ritmo template/sett × orizzonte = proiettato, confrontato col tetto (limite settimanale × orizzonte, oppure limite globale fisso). Senza tetto non c\'è verdetto over/under. Valore = proiettato × tariffa; perso = ore oltre il tetto × tariffa (solo aree fatturabili).'} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.map(({ c, rhythm, billable, projected, cap, hasCap, ratio, over, potentialEur, lostEur, verdict }) => (
           <Card key={c.id}>
@@ -725,12 +726,16 @@ function Card({ children, padding = 16 }) {
   );
 }
 
-function CardLabel({ children, inline }) {
+function CardLabel({ children, inline, help }) {
   return (
     <div style={{
+      display: 'flex', alignItems: 'center', gap: 6,
       fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase',
       color: 'var(--tb-text-muted)', marginBottom: inline ? 0 : 8,
-    }}>{children}</div>
+    }}>
+      <span>{children}</span>
+      {help && <HelpDot text={help} />}
+    </div>
   );
 }
 
@@ -857,10 +862,22 @@ function Legend() {
 
 // inline: titolo e sottotitolo affiancati con gap (per le righe con selettore a destra),
 // invece che agli estremi via space-between (che si attacca se il contenitore lo restringe).
-function SectionHeader({ title, subtitle, inline }) {
+// Pallino "?" con tooltip (title). stopPropagation così non attiva eventuali click del contenitore.
+function HelpDot({ text }) {
+  return (
+    <span title={text} onClick={e => e.stopPropagation()}
+      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 9, cursor: 'help', letterSpacing: 0, flexShrink: 0 }}
+    >?</span>
+  );
+}
+
+function SectionHeader({ title, subtitle, inline, help }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: inline ? 10 : undefined, justifyContent: inline ? 'flex-start' : 'space-between', marginBottom: inline ? 0 : 10 }}>
-      <h3 style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.01em', margin: 0 }}>{title}</h3>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <h3 style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.01em', margin: 0 }}>{title}</h3>
+        {help && <HelpDot text={help} />}
+      </span>
       <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{subtitle}</span>
     </div>
   );
