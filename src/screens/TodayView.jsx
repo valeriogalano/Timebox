@@ -423,7 +423,13 @@ function TodayGauge({ planned, traced, capacity }) {
     <div style={{ border: '1px solid var(--tb-border)', borderRadius: 10, background: 'var(--tb-panel-bg)', padding: '16px 18px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>Carico di oggi · adesso</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
+            Carico di oggi · adesso
+            <span
+              title={'Il piano di oggi viene distribuito in modo uniforme sulla giornata lavorativa (9:00–18:00). In base all\'ora attuale si calcola quante ore dovresti aver già tracciato a questo punto: quello è il ritmo atteso.\n\nIl verdetto confronta le ore che hai davvero tracciato con quel ritmo: più avanti = sopra il ritmo, meno = sotto.'}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 9, cursor: 'help', letterSpacing: 0 }}
+            >?</span>
+          </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
             <span style={{ fontSize: 30, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtH(traced)}</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tb-text-muted)' }}>tracciate su {fmtH(planned)} piano</span>
@@ -445,9 +451,9 @@ function TodayGauge({ planned, traced, capacity }) {
         <span title="Capacità" style={{ position: 'absolute', left: pct(capacity), top: -2, bottom: -2, width: 0, borderLeft: '2px dashed var(--tb-tick)' }} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 10, fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 10, height: 0, borderTop: '2px solid var(--tb-text-primary)', display: 'inline-block' }} />ritmo atteso ora</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 2, height: 10, background: 'var(--tb-text-primary)', display: 'inline-block' }} />ritmo atteso ora</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 2, height: 10, background: 'var(--tb-tick)', display: 'inline-block' }} />piano {fmtH(planned)}</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 10, height: 0, borderTop: '2px dashed var(--tb-tick)', display: 'inline-block' }} />capacità {fmtH(capacity)}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 0, height: 10, borderLeft: '2px dashed var(--tb-tick)', display: 'inline-block' }} />capacità {fmtH(capacity)}</span>
         <span style={{ flex: 1 }} />
         <span style={{ color: 'var(--tb-text-secondary)' }}>restano <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(Math.max(0, planned - traced))}</strong> a piano</span>
       </div>
