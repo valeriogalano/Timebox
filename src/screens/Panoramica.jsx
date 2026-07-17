@@ -446,14 +446,15 @@ function DaDecidereInsights({ perAreaWeekly }) {
       <SectionHeader title="Da decidere" subtitle={`persistente · ≥${PERSIST_MIN} sett fuori piano su ${PERSIST_WINDOW}`} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
         {items.map((it, i) => (
-          <div key={i} style={{ border: '1px solid var(--tb-border)', borderLeft: `3px solid ${it.color}`, borderRadius: 8, background: 'var(--tb-panel-bg)', padding: '10px 12px' }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{it.area}</div>
-            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginTop: 2 }}>
-              {it.kind === 'under' ? 'sotto-piano' : 'oltre piano'} {it.weeksOff}/{it.of} sett → {it.to}
-            </div>
+          <div key={i} style={{ position: 'relative', border: '1px solid var(--tb-border)', borderLeft: `3px solid ${it.color}`, borderRadius: 8, background: 'var(--tb-panel-bg)', padding: '10px 12px' }}>
             {/* Gravità = magnitudine: quanto ci si avvicina a PERSIST_WINDOW/PERSIST_WINDOW */}
-            <div title={`Gravità ${it.weeksOff} su ${PERSIST_WINDOW} settimane`} style={{ height: 4, borderRadius: 2, background: 'var(--tb-bar-track)', marginTop: 8, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${Math.round(it.severity * 100)}%`, background: it.color, borderRadius: 2 }} />
+            <span
+              title={`Gravità ${it.weeksOff} su ${PERSIST_WINDOW} settimane fuori piano`}
+              style={{ position: 'absolute', top: 8, right: 10, fontSize: 10, fontWeight: 800, color: it.color, letterSpacing: '0.02em' }}
+            >{it.weeksOff}/{PERSIST_WINDOW}</span>
+            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', paddingRight: 28 }}>{it.area}</div>
+            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginTop: 2 }}>
+              {it.kind === 'under' ? 'sotto-piano' : 'oltre piano'} → {it.to}
             </div>
           </div>
         ))}
