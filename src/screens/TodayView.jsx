@@ -205,8 +205,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 850, color: 'var(--tb-text-primary)', lineHeight: 1.1 }}>Oggi</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', marginTop: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>
             {new Date(`${today}T00:00:00`).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
             {data?.syncedAt ? ` · Todoist ${formatSyncDate(data.syncedAt)}` : ''}
           </div>
