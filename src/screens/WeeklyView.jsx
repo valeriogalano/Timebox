@@ -194,6 +194,12 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     window.api.getProjectTotals().then(setProjectTotals);
     const sunday = addDays(monday, 6);
     window.api.getEntries(fmt(monday), fmt(sunday)).then(setWeekEntries);
+    window.api.getWeekAreaStatuses(weekKey).then(rows => {
+      setWeekAreaStatuses(prev => ({
+        ...prev,
+        [weekKey]: Object.fromEntries(rows.map(row => [row.areaId, row.status])),
+      }));
+    });
   }, [externalRefreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load entries, overrides, and project totals when week changes

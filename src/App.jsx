@@ -360,7 +360,8 @@ export default function App() {
         </nav>
 
         {/* Footer: ore mese per area */}
-        <SidebarFooter clients={clients} refreshKey={sidebarKey} collapsed={collapsed} />
+        <SidebarFooter clients={clients} refreshKey={sidebarKey} collapsed={collapsed}
+          onStatusChange={() => setWeekRefreshTick(t => t + 1)} />
       </div>
 
       {/* ── Main area ─────────────────────────────────────────────── */}
@@ -510,7 +511,7 @@ function KeyboardHelp({ onClose }) {
   );
 }
 
-function SidebarFooter({ clients, refreshKey, collapsed }) {
+function SidebarFooter({ clients, refreshKey, collapsed, onStatusChange }) {
   const [statuses, setStatuses] = useState({});
   const weekKey = fmt(getMondayOfWeek(getToday()));
 
@@ -531,6 +532,7 @@ function SidebarFooter({ clients, refreshKey, collapsed }) {
       return next;
     });
     window.api.saveWeekAreaStatus({ weekKey, areaId, status });
+    onStatusChange?.();
   }
 
   const clientsWithStatus = clients.map(c => ({ ...c, areaStatus: statuses[c.id] ?? 'active' }));
