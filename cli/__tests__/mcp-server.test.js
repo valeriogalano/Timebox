@@ -139,7 +139,6 @@ describe('MCP server', () => {
     assert.ok(text.includes('Date: 2020-01-01'), 'contains date');
     assert.ok(text.includes('Available after tracked + tasks:'), 'contains available capacity');
     assert.ok(text.includes('Reserved without tasks:'), 'contains reserved capacity');
-    assert.ok(text.includes('Actually free (unallocated):'), 'contains actual free capacity');
   });
 
   it('tools/call day_ready_blocks → text with uncovered blocks grouped by project', async () => {

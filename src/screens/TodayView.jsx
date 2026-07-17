@@ -232,28 +232,13 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
               capacity={slotCapacityHours * SLOTS.length}
             />
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-            <MetricCard
-              label="Capacità libera"
-              value={loading ? '...' : fmtH(totals.freeUnallocatedHours || 0)}
-              sub={`${fmtH(totals.availableAfterTrackedAndTasks || 0)} dopo tracciate + Todoist`}
-              glyph={(totals.freeUnallocatedHours || 0) > 0 ? '▪' : null}
-            />
-            <MetricCard
-              label="Blocchi senza azione"
-              value={loading ? '...' : String(readyGroups.length)}
-              sub={`${fmtH(totals.reservedWithoutTasksHours || 0)} ancora riservate`}
-              glyph={readyGroups.length ? '⬦' : null}
-            />
-            <MetricCard
-              label="Mismatch"
-              value={loading ? '...' : String(totalMismatches)}
-              sub={`${fmtH(totals.estimatedHours || 0)} stimate in Todoist`}
-              glyph={totalMismatches ? '▸' : null}
-            />
-          </div>
+          <FreeCapacityCard loading={loading} totals={totals} capacity={slotCapacityHours * SLOTS.length} />
 
-          <Panel title="Blocchi senza prossima azione" empty={!loading && readyGroups.length === 0 ? 'Coperti' : null}>
+          <Panel
+            title="Blocchi pianificati senza azioni"
+            empty={!loading && readyGroups.length === 0 ? 'Coperti' : null}
+            meta={!loading ? `${readyGroups.length} · ${fmtH(totals.reservedWithoutTasksHours || 0)}` : null}
+          >
             {loading ? <SkeletonRows /> : readyGroups.slice(0, 8).map((group, index) => (
               <InsightRow
                 key={`${group.slot}-${group.areaId}-${index}`}
@@ -265,7 +250,11 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
             ))}
           </Panel>
 
-          <Panel title="Mismatch dopo sync" empty={!loading && totalMismatches === 0 ? 'Pulito' : null}>
+          <Panel
+            title="Mismatch dopo sync"
+            empty={!loading && totalMismatches === 0 ? 'Pulito' : null}
+            meta={!loading ? `${totalMismatches} · ${fmtH(totals.estimatedHours || 0)} stimate` : null}
+          >
             {loading ? <SkeletonRows /> : (
               <>
                 <MismatchSection label="Fuori posto" sub="task non collocati correttamente">
@@ -383,15 +372,46 @@ function DayPlanningPanel({
   );
 }
 
-function MetricCard({ label, value, sub, glyph }) {
-  return (
-    <div style={{ border: '1px solid var(--tb-border)', borderRadius: 9, background: 'var(--tb-panel-bg)', padding: '14px 16px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 9, fontWeight: 850, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>{label}</div>
-        {glyph && <span className="tb-glyph" style={{ fontSize: 13 }}>{glyph}</span>}
+// Capacità libera = quanto tempo della giornata resta ancora disponibile.
+// Si parte dalla capacità totale del giorno (non dal piano) e si tolgono le
+// ore già tracciate e le stime dei task Todoist ancora da fare. Il "quanto
+// del piano è scoperto" vive invece nel blocco "Blocchi senza prossima azione".
+function FreeCapacityCard({ loading, totals, capacity }) {
+  const tracked = totals.trackedHours || 0;
+  const todoist = totals.estimatedHours || 0;
+  const free = Math.max(0, (capacity || 0) - tracked - todoist);
+  const help = 'Quanto tempo della tua giornata resta ancora libero. Si parte dalla capacità totale del giorno e si tolgono le ore già tracciate (anche quelle fuori piano) e le ore stimate dei task Todoist ancora da fare.\n\nÈ rispetto alla giornata intera, non al piano: quanto del piano è ancora scoperto lo trovi nel blocco qui sotto.';
+  const Term = ({ label, value, op }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      {op && <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--tb-text-faint)' }}>{op}</span>}
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-secondary)', lineHeight: 1.1 }}>{loading ? '...' : fmtH(value)}</div>
+        <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginTop: 2 }}>{label}</div>
       </div>
-      <div style={{ fontSize: 30, fontWeight: 850, color: 'var(--tb-text-primary)', lineHeight: 1.1, marginTop: 8 }}>{value}</div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', marginTop: 6 }}>{sub}</div>
+    </div>
+  );
+  return (
+    <div style={{ border: '1px solid var(--tb-border)', borderRadius: 9, background: 'var(--tb-panel-bg)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9, fontWeight: 850, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
+          Capacità libera della giornata
+          <span
+            title={help}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 9, cursor: 'help', letterSpacing: 0 }}
+          >?</span>
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', marginTop: 8, whiteSpace: 'nowrap' }}>Tempo della giornata ancora disponibile</div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <Term label="Giornata" value={capacity || 0} />
+        <Term label="Tracciate" value={tracked} op="−" />
+        <Term label="Todoist" value={todoist} op="−" />
+        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--tb-text-faint)' }}>=</span>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 34, fontWeight: 850, color: 'var(--tb-text-primary)', lineHeight: 1.05 }}>{loading ? '...' : fmtH(free)}</div>
+          <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-muted)', marginTop: 2 }}>Libera</div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -461,12 +481,14 @@ function TodayGauge({ planned, traced, capacity }) {
   );
 }
 
-function Panel({ title, empty, children }) {
+function Panel({ title, empty, meta, children }) {
   return (
     <section style={{ border: '1px solid var(--tb-border)', borderRadius: 8, background: 'var(--tb-panel-bg)', overflow: 'hidden', minHeight: 260 }}>
       <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: 12, fontWeight: 850, color: 'var(--tb-text-primary)' }}>{title}</h2>
-        {empty && <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-muted)' }}>{empty}</span>}
+        {empty
+          ? <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-muted)' }}>{empty}</span>
+          : meta && <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-muted)' }}>{meta}</span>}
       </div>
       <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {children}

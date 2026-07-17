@@ -439,7 +439,6 @@ async function callTool(name, args) {
       `Todoist estimated: ${d.totals.estimatedHours}h`,
       `Available after tracked + tasks: ${d.totals.availableAfterTrackedAndTasks}h`,
       `Reserved without tasks: ${d.totals.reservedWithoutTasksHours}h`,
-      `Actually free (unallocated): ${d.totals.freeUnallocatedHours}h`,
       '',
     ];
 

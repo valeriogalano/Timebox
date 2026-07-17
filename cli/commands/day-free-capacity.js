@@ -148,7 +148,6 @@ function getDayFreeCapacityData(date) {
   }
 
   const availableAfterTrackedAndTasks = roundHours(Math.max(0, summary.plannedCapacity - summary.trackedHours - totalEstimatedHours));
-  const freeUnallocatedHours = roundHours(Math.max(0, availableAfterTrackedAndTasks - reservedWithoutTasksHours));
 
   return {
     date,
@@ -165,7 +164,6 @@ function getDayFreeCapacityData(date) {
       overflowTaskHours,
       availableAfterTrackedAndTasks,
       reservedWithoutTasksHours,
-      freeUnallocatedHours,
     },
     counts: {
       reservedWithoutTasks: reservedWithoutTasks.length,
