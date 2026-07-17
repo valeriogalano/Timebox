@@ -2,7 +2,7 @@
 // TodayView (single day). Keeps the intricate block-fill / Todoist-coverage /
 // orphan logic in one place so the two screens can't drift apart.
 
-import { effBillable, SLOTS, normalizeSlot } from './utils';
+import { effBillable, SLOTS, normalizeSlot } from './utils.js';
 
 // Collapses the AM/PM rows a project may have on the same day into one entry
 // with summed hours (used for per-project timesheet + planning fill).
