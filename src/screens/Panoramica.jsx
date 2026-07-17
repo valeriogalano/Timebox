@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
 import { areaMix } from '../area-colors';
+import { persistentAreaInsights, PERSIST_WINDOW, PERSIST_MIN } from '../panoramica-insights';
 
 // Redesign: nessun colore di stato. L'identità è solo l'area (client.color).
 // over/under/in-line si leggono per posizione/glyph, non per verde/arancio/rosso.
@@ -297,11 +298,11 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
         </div>
       </div>
 
-      {/* ── Lente "Nel tempo" ── trend + per-area vs piano + sintesi ricavo ── */}
+      {/* ── Lente "Nel tempo" ── trend + per-area vs piano ── */}
       {trendLens === 'tempo' && (
         <>
-          {/* Da decidere: insight attivi (deriva da divergenze area vs piano) */}
-          <DaDecidereInsights clients={clients} stats={stats} />
+          {/* Da decidere: divergenze area↔piano PERSISTENTI (non la settimana singola) */}
+          <DaDecidereInsights perAreaWeekly={perAreaWeekly} />
 
           <Card padding={0}>
             <div style={{ padding: '14px 18px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -324,15 +325,6 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
               ))}
             </div>
           </div>
-
-          {/* Ricavo · sintesi (link a Rendiconto per dettaglio) */}
-          <Card>
-            <CardLabel>Ricavo · sintesi</CardLabel>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{fmtEur(stats.billedDoneEur)}</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>svolto · proiezione {fmtEur(stats.projectionEur)}</span>
-            </div>
-          </Card>
         </>
       )}
 
@@ -442,28 +434,23 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-// Lente "Nel tempo" → "Da decidere": insight attivi derivati dal divergere
-// area vs piano questa settimana (sotto/sopra). Link indirizzano alla vista utile.
-function DaDecidereInsights({ clients, stats }) {
-  const items = [];
-  clients.forEach(c => {
-    const done = stats.actualByClient[c.id] ?? 0;
-    const planned = stats.plannedByClient[c.id] ?? 0;
-    if (planned > 0 && done < planned * 0.85) {
-      items.push({ color: c.color, area: c.name, text: `sotto-piano ${fmtH(done)}/${fmtH(planned)}`, to: 'Aree' });
-    } else if (planned > 0 && done > planned * 1.1) {
-      items.push({ color: c.color, area: c.name, text: `oltre piano ${fmtH(done)}/${fmtH(planned)}`, to: 'Settimana' });
-    }
-  });
+// Lente "Nel tempo" → "Da decidere": divergenze area↔piano PERSISTENTI (fuori piano
+// in >= PERSIST_MIN delle ultime PERSIST_WINDOW settimane chiuse), non lo scarto della
+// singola settimana — quello è rumore e non giustifica di toccare il ritmo/template.
+// Logica pura in ../panoramica-insights. Link indirizzano alla vista utile.
+function DaDecidereInsights({ perAreaWeekly }) {
+  const items = persistentAreaInsights(perAreaWeekly);
   if (!items.length) return null;
   return (
     <div>
-      <SectionHeader title="Da decidere" subtitle="insight attivi" />
+      <SectionHeader title="Da decidere" subtitle={`persistente · ≥${PERSIST_MIN} sett fuori piano su ${PERSIST_WINDOW}`} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
         {items.map((it, i) => (
           <div key={i} style={{ border: '1px solid var(--tb-border)', borderLeft: `3px solid ${it.color}`, borderRadius: 8, background: 'var(--tb-panel-bg)', padding: '10px 12px' }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{it.area}</div>
-            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginTop: 2 }}>{it.text} → {it.to}</div>
+            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginTop: 2 }}>
+              {it.kind === 'under' ? 'sotto-piano' : 'oltre piano'} {it.weeksOff}/{it.of} sett → {it.to}
+            </div>
           </div>
         ))}
       </div>
