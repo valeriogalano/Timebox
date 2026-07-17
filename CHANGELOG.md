@@ -7,12 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-07-17
+
+### Added
+- Andamento: help contestuale "?" su ogni lente e su ogni blocco, con la spiegazione di come vengono calcolati i numeri.
+- Andamento · Trend: blocco "Da decidere" basato sulla persistenza multi-settimana (un'area compare solo se fuori piano in ≥3 delle ultime 8 settimane chiuse), con indicatore di gravità N/8 e aree ordinate per gravità. Logica pura in `panoramica-insights.js` con test.
+- Andamento · In prospettiva: totale in due KPI (Carico proiettato vs capacità, Valore proiettato con "perso oltre i tetti"); aree con tetto ordinate per gravità in cima, aree senza tetto smorzate in fondo.
+- Andamento · Settimana: nuovo blocco "Per area · consuntivo" (pianificato / tracciato / extra / Δ per area), che copre il passo di chiusura settimanale del metodo di pianificazione.
+- Settimana: stato area settimanale (attiva / minima / chiusa) mostrato sui blocchi.
+- Deep-link dallo specchietto capacità di Settimana → Andamento · Settimana.
+
 ### Changed
+- Andamento riorganizzato in tre lenti: **Settimana** (consuntivo della settimana chiusa), **Trend** (ritmo sulle ultime 8 settimane) e **In prospettiva** (proiezione a ritmo template su 2/4 settimane). Sostituisce le precedenti "Nel tempo" e "Retrospettiva".
+- Finestra dei trend unificata a 8 settimane (prima 6 vs 8 tra i due grafici).
+- Card "Carico della settimana" incorpora lo stato (modellata sullo specchietto capacità di Settimana), da tre card a due.
+- Titolo di pagina allineato al contenuto su tutte le pagine.
 - Introduce unit tests for renderer pure logic (utils, slot-capacity, dayPlanning modules) using Node.js native `--test` runner.
 - Scope src/ to ESM via nested package.json for test compatibility.
 - Add test:renderer npm script for running renderer unit tests.
 - Fix extensionless import in dayPlanning.js.
 - Add Vitest + jsdom + React Testing Library integration for component tests (MarkdownText, SlotCapacityBar, TodoistLabels). Component tests use `*.test.jsx` scope to remain separate from pure-logic `*.test.js` suites. Add test:components npm script and wire into npm test.
+
+### Fixed
+- Andamento · In prospettiva: verdetti coerenti — senza tetto nessun over/under fasullo, il tetto settimanale rileva davvero lo sforo (prima sempre "entro tetto"), il tetto globale resta fisso. Logica pura `areaProjection` con test.
+- Andamento · Trend: etichetta del valore della settimana corrente su una riga (prima andava a capo sovrapponendosi all'asse).
+
+### Removed
+- Andamento: la tacca verticale ridondante dalle barre (per-area di In prospettiva e barra capacità), sempre a fine barra.
+- Andamento: blocco "Ricavo · sintesi" (duplicato del Fatturabile della Retrospettiva e del Rendiconto).
+- Andamento · In prospettiva: orizzonte "1 settimana" (degenere: nessun accumulo).
 
 ## [0.9.0] - 2026-07-15
 
