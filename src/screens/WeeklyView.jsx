@@ -403,7 +403,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const isToday = dateStr === fmt(getToday());
     const isFuture = date > getToday();
     const isWeekend = i >= 5;
-    const isDayOverridden = !!weekOverrides[weekKey]?.[i];
     const rawDayEntries = weekEntries.filter(e => e.date === dateStr);
     const dayEntries = displayWeekEntries.filter(e => e.date === dateStr);
     const dayBillable = dayEntries.reduce((s, e) => {
@@ -427,7 +426,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       todoistTasks: todoistTasks[dateStr] ?? [],
     });
 
-    return { date, dateStr, isToday, isFuture, isWeekend, isDayOverridden, dayBillable, dayDivergent, dayEntries, lastSync, ...planning };
+    return { date, dateStr, isToday, isFuture, isWeekend, dayBillable, dayDivergent, dayEntries, lastSync, ...planning };
   });
 
   const todoistRefreshableDays = days.filter(d => d.isToday || d.isFuture);
@@ -498,6 +497,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     }
     return acc;
   }, { deltaHours: 0, divergentSlots: 0, totalSlots: SLOTS.length * 7, rows: [] });
+
+  // Giorni che divergono DAVVERO dal template (valori diversi), non che hanno solo un override salvato.
+  // Allinea la Δ dell'header al badge/pannello divergenze.
+  const divergentDays = new Set(templateDivergence.rows.map(r => r.dayIndex));
 
   // Ripristina una singola area in un singolo giorno/slot al valore del template,
   // lasciando invariati gli altri blocchi dello stesso slot (drill-down Δ template).
@@ -761,10 +764,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   <div style={{ fontSize: planningCompact ? 11 : 12, fontWeight: 700, color: d.isToday ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)', lineHeight: 1.1 }}>
                     {d.date.getDate()}
                   </div>
-                  {(d.isToday || d.isDayOverridden) && (
+                  {(d.isToday || divergentDays.has(i)) && (
                     <div style={{ display: 'flex', gap: 5, justifyContent: 'center', alignItems: 'center', margin: planningCompact ? '2px 0 0' : '3px 0 0', height: 12 }}>
                       {d.isToday && <span title="Oggi" style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--tb-text-secondary)', border: '1px solid var(--tb-border-mid)', borderRadius: 4, padding: '0 4px', lineHeight: 1.5 }}>OGGI</span>}
-                      {d.isDayOverridden && <span title="Giorno modificato rispetto al template" className="tb-glyph" style={{ fontSize: 11 }}>Δ</span>}
+                      {divergentDays.has(i) && <span title="Giorno modificato rispetto al template" className="tb-glyph" style={{ fontSize: 11 }}>Δ</span>}
                     </div>
                   )}
                 </div>
@@ -1438,9 +1441,13 @@ function CapacityMirror({ actual, planned, billable, extra, onNavigate }) {
       borderRadius: 8, padding: '9px 12px',
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-        <span>
+        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
           <span style={{ fontSize: 19, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em' }}>{fmtH(actual)}</span>{' '}
           <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(planned)}</span>
+          <span
+            title={'Consuntivo dell\'intera settimana: ore effettivamente tracciate sul totale pianificato, e la percentuale di piano coperta.\n\nSotto: quota fatturabile (Fatt.), non fatturabile (NF) e le ore fatte oltre il piano (Extra). La freccia apre l\'Andamento.'}
+            style={{ alignSelf: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 9, cursor: 'help', letterSpacing: 0 }}
+          >?</span>
         </span>
         {onNavigate ? (
           <button onClick={onNavigate} title="Apri Andamento" style={{
