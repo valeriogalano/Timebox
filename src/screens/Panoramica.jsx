@@ -276,17 +276,22 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
         </div>
         <div className="tb-seg">
           {[
-            { key: 'tempo', label: 'Nel tempo' },
-            { key: 'retro', label: 'Retrospettiva' },
-            { key: 'prospettiva', label: 'In prospettiva' },
+            { key: 'tempo', label: 'Nel tempo', help: 'Come sto andando adesso: il ritmo settimana per settimana (svolto vs pianificato vs capacità), gli scostamenti per area e la sintesi ricavo.' },
+            { key: 'retro', label: 'Retrospettiva', help: 'Com\'è andata la settimana chiusa: consuntivo ore vs capacità e Δ, fatturabile a consumo con proiezione, stato e budget dei progetti.' },
+            { key: 'prospettiva', label: 'In prospettiva', help: 'Dove sto andando: proiezione a ritmo template su 1/2/4 settimane, confronto con limiti/envelope e valore atteso (o ore perse).' },
           ].map((o, idx) => (
             <span
               key={o.key}
               data-on={trendLens === o.key ? 'true' : 'false'}
               onClick={() => setTrendLens(o.key)}
-              style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...(idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : {}) }}
             >
               {o.label}
+              <span
+                title={o.help}
+                onClick={e => e.stopPropagation()}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 9, cursor: 'help', letterSpacing: 0 }}
+              >?</span>
             </span>
           ))}
         </div>
