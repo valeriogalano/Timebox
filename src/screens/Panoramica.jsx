@@ -387,19 +387,27 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
 // Lente "Nel tempo" (1 sett) → consuntivo della settimana chiusa: carico vs capacità,
 // fatturabile a consumo, stato. Serve la chiusura settimanale v4.
 function RetroSummary({ stats, status, deltaH }) {
+  const pct = stats.capacity > 0 ? Math.round(stats.totalDone / stats.capacity * 100) : 0;
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: 14 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      {/* Carico + Stato fusi, modellati sullo specchietto capacità della Settimana */}
       <Card>
         <CardLabel>Carico della settimana</CardLabel>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-          <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-            {fmtH(stats.totalDone)}
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
+            <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+              {fmtH(stats.totalDone)}
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(stats.capacity)}</span>
           </span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(stats.capacity)}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title={status.label}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{pct}%</span>
+            <span className="tb-glyph" style={{ fontSize: 16 }}>{status.glyph}</span>
+          </span>
         </div>
         <CapacityBar done={stats.totalDone} capacity={stats.capacity} color={status.color} />
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
-          <span>Capacità target {fmtH(stats.capacity)}</span>
+          <span>{status.label} · capacità {fmtH(stats.capacity)}</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             <span className="tb-glyph">{deltaH >= 0 ? '▸' : '▾'}</span>
             Δ {deltaH >= 0 ? '+' : ''}{fmtH(deltaH)}
@@ -432,28 +440,6 @@ function RetroSummary({ stats, status, deltaH }) {
         </div>
         <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 8 }}>
           {fmtH(stats.billableDoneHours)} fatturabili svolte · aree fisse escluse
-        </div>
-      </Card>
-
-      <Card>
-        <CardLabel>Stato</CardLabel>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'var(--tb-panel-bg-soft)',
-            border: '1px solid var(--tb-border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>
-            <StatusGlyph glyph={status.glyph} />
-          </div>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
-              {status.label}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600, marginTop: 2 }}>
-              {stats.capacity > 0 ? Math.round(stats.totalDone / stats.capacity * 100) : 0}% capacità
-            </div>
-          </div>
         </div>
       </Card>
     </div>
@@ -894,10 +880,6 @@ function ProjectionIcon() {
       <path d="M7.5 2H10V4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
-}
-
-function StatusGlyph({ glyph }) {
-  return <span className="tb-glyph" style={{ fontSize: 20, lineHeight: 1 }}>{glyph || '·'}</span>;
 }
 
 function TrendChart({ data, capacity, mode }) {
