@@ -96,7 +96,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
   const [entries, setEntries]           = useState([]);
   const [projectTotals, setProjectTotals] = useState({});
   const [overridesByWeek, setOverridesByWeek] = useState({});
-  const [trendLens, setTrendLens] = useState(initialLens || 'trend'); // settimana | trend | prospettiva
+  const [trendLens, setTrendLens] = useState(initialLens || 'settimana'); // settimana | trend | prospettiva
   const [horizon, setHorizon]     = useState(2);            // 1 | 2 | 4 settimane
 
   // Deep-link (es. dallo specchietto in Settimana → Andamento/Settimana): consuma
