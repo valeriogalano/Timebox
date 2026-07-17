@@ -20,8 +20,9 @@
     "start": "npm run dev",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
-    "test": "npm rebuild better-sqlite3 && node --test cli/__tests__/*.test.js src/__tests__/*.test.js",
+    "test": "npm rebuild better-sqlite3 && node --test cli/__tests__/*.test.js src/__tests__/*.test.js && vitest run",
     "test:renderer": "node --test src/__tests__/*.test.js",
+    "test:components": "vitest run",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac dmg zip",
     "dist:win": "npm run build && electron-builder --win nsis",
@@ -36,12 +37,16 @@
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^4.3.1",
     "concurrently": "^9.1.0",
     "electron": "^31.7.7",
     "electron-builder": "^25.1.8",
     "electron-rebuild": "^3.2.9",
+    "jsdom": "^29.1.1",
     "vite": "^5.4.11",
+    "vitest": "^2.1.9",
     "wait-on": "^8.0.1"
   },
   "build": {

@@ -17,4 +17,12 @@ export default defineConfig({
     },
   },
   define: { __APP_VERSION__: JSON.stringify(version) },
+  // Component tests (Vitest + jsdom). Kept to *.test.jsx so the stdlib
+  // `node --test` suites under src/__tests__/*.test.js stay separate.
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    include: ['src/**/*.test.jsx'],
+    setupFiles: ['./src/__tests__/setup.js'],
+  },
 });
