@@ -11,7 +11,7 @@ const COL_OK    = 'var(--tb-text-primary)';
 const TREND_WEEKS  = 8;
 const TREND_MONTHS = 6;
 const PLANNING_DAYS = 7;
-const SMALL_MULT_WEEKS = 6;
+const SMALL_MULT_WEEKS = TREND_WEEKS;
 
 function fmtEur(n) {
   if (n == null) return '—';
@@ -227,7 +227,7 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
     });
   }, [entries, periodOffset, clients, recurring, overridesByWeek, projectClientMap, currentWeekKey]);
 
-  // Small-multiples per area (lente "Nel tempo", REDLINE §8: grid 3 colonne, 6 settimane).
+  // Small-multiples per area (lente "Nel tempo", REDLINE §8: grid 3 colonne, SMALL_MULT_WEEKS settimane).
   // planned per settimana usa lo storicizzato (week_overrides) quando disponibile;
   // la linea tratteggiata nel card resta il ritmo della settimana corrente.
   const perAreaWeekly = useMemo(() => {
@@ -315,9 +315,9 @@ export default function Panoramica({ clients, projects, recurring, screen }) {
             </div>
           </Card>
 
-          {/* Per-area: small-multiples, 6 settimane, posizione vs linea-piano = segnale */}
+          {/* Per-area: small-multiples, posizione vs linea-piano = segnale */}
           <div>
-            <SectionHeader title="Nel tempo · per area" subtitle="6 settimane · piano = ritmo template" />
+            <SectionHeader title="Nel tempo · per area" subtitle={`${SMALL_MULT_WEEKS} settimane · piano = ritmo template`} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
               {perAreaWeekly.map(({ client, planned, weeks }) => (
                 <AreaSparkCard key={client.id} client={client} planned={planned} weeks={weeks} />
@@ -544,7 +544,7 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon }) {
   );
 }
 
-// Small-multiples: mini-trend 6 settimane per area. La linea-piano tratteggiata è il
+// Small-multiples: mini-trend per area (SMALL_MULT_WEEKS settimane). La linea-piano tratteggiata è il
 // riferimento; sotto/sopra si legge dalla posizione delle barre rispetto ad essa, oltre-piano
 // è tratteggiato (.tb-hatch) — nessun colore di stato, solo l'identità (client.color).
 function AreaSparkCard({ client, planned, weeks }) {
