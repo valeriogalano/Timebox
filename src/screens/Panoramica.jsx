@@ -283,7 +283,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
           {[
             { key: 'settimana', label: 'Settimana', help: 'Consuntivo della settimana chiusa: carico vs capacità e stato, fatturabile a consumo, per area (pianificato/tracciato/extra/Δ) e budget progetti. Serve la chiusura settimanale.' },
             { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane: aggregato pianificato/svolto/capacità, mini-trend per area e le divergenze persistenti da decidere. Serve a scoprire la deriva del ritmo.' },
-            { key: 'prospettiva', label: 'In prospettiva', help: 'Dove sto andando: proiezione a ritmo template su 1/2/4 settimane, confronto con limiti/envelope e valore atteso (o ore perse).' },
+            { key: 'prospettiva', label: 'In prospettiva', help: 'Dove sto andando: proiezione a ritmo template su 2 o 4 settimane, confronto con limiti/envelope e valore atteso (o ore perse).' },
           ].map((o, idx) => (
             <span
               key={o.key}
@@ -508,7 +508,7 @@ function DaDecidereInsights({ perAreaWeekly }) {
 }
 
 // Lente "In prospettiva": proiezione a ritmo del template, per area, su orizzonte
-// configurabile (1/2/4 settimane, default 2). Il confronto ha senso solo contro un
+// configurabile (2/4 settimane, default 2). Il confronto ha senso solo contro un
 // TETTO: senza tetto non c'è envelope da sforare (kind='uncapped', nessun verdetto
 // over/under). Verdetto via glyph ▸/▪/·. Logica pura in ../panoramica-insights.
 // Il ritmo è una stima (README §Dipendenze-dati p.2): a livello area si usa `recurring`.
@@ -535,7 +535,7 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
         <SectionHeader inline title="Carico in prospettiva" subtitle={`${horizon} settimane a ritmo template`}
           help={'Proiezione = ritmo del template (ore ricorrenti/sett) × orizzonte, sommato su tutte le aree. Non tiene conto degli override né dello stato area della settimana: è "se il template gira così".\n\n% capacità = proiettato ÷ (capacità × orizzonte).'} />
         <div className="tb-seg" style={{ marginLeft: 'auto' }}>
-          {[1, 2, 4].map((n, idx) => (
+          {[2, 4].map((n, idx) => (
             <span key={n} data-on={horizon === n ? 'true' : 'false'} onClick={() => setHorizon(n)}
               style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}>{n} sett</span>
           ))}
