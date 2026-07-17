@@ -513,6 +513,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   }
 
   const weekDateStrs = days.map(d => d.dateStr);
+  const clientsWithStatus = clients.map(c => ({ ...c, areaStatus: areaStatus(c.id) }));
   const clientsWithProjects = clients.map(c => ({
     ...c,
     areaStatus: areaStatus(c.id),
@@ -799,7 +800,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                         }}>
                         <PlanningCell slot={slot} dayIndex={i} blocks={d.slotBlocks[slot]}
                           compact={planningCompact}
-                          clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
+                          clients={clientsWithStatus} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
                           blockFill={d.blockFill}
                           todoistByClient={d.todoistByCS[slot]} todoistTasksByClient={d.todoistTasksByCS[slot]} hasTodoistSync={!!d.lastSync}
                           isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
