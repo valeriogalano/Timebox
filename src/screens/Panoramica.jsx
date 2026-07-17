@@ -587,7 +587,7 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
       </div>
 
       <SectionHeader title="Per area · limiti e valore" subtitle="ritmo vs tetto"
-        help={'Per area: ritmo template/sett × orizzonte = proiettato, confrontato col tetto (limite settimanale × orizzonte, oppure limite globale fisso). La barra è normalizzata sul tetto: la tacca verticale è il tetto (sempre a fine barra), oltre il tetto la barra si tratteggia. Senza tetto non c\'è verdetto over/under (barra piena tenue, niente tacca). Valore = proiettato × tariffa; perso = ore oltre il tetto × tariffa (solo aree fatturabili).'} />
+        help={'Per area: ritmo template/sett × orizzonte = proiettato, confrontato col tetto (limite settimanale × orizzonte, oppure limite globale fisso). La barra è normalizzata sul tetto: il bordo destro è il tetto, oltre il tetto la barra si tratteggia. Senza tetto non c\'è verdetto over/under (barra piena tenue). Valore = proiettato × tariffa; perso = ore oltre il tetto × tariffa (solo aree fatturabili).'} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.map(({ c, rhythm, billable, projected, cap, hasCap, ratio, over, potentialEur, lostEur, verdict }) => (
           <Card key={c.id} style={hasCap ? undefined : { opacity: 0.6 }}>
@@ -603,7 +603,6 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
             <div style={{ position: 'relative', height: 8, borderRadius: 4, background: 'var(--tb-bar-track)', marginTop: 8, overflow: 'visible' }}>
               <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${hasCap ? Math.min(100, ratio * 100) : 100}%`, background: c.color, borderRadius: 4, opacity: hasCap ? 1 : 0.4 }} />
               {over && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: `${Math.min(30, (ratio - 1) * 100)}%`, borderRadius: '0 4px 4px 0' }} />}
-              {hasCap && <span className="tb-tick" style={{ left: '100%' }} />}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
               <span>{verdict.label}</span>
