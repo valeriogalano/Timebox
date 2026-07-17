@@ -538,7 +538,7 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <SectionHeader inline title="Carico in prospettiva" subtitle={`${horizon} settimane a ritmo template`}
-          help={'Proiezione = ritmo del template (ore ricorrenti/sett) × orizzonte, sommato su tutte le aree. Non tiene conto degli override né dello stato area della settimana: è "se il template gira così".\n\n% capacità = proiettato ÷ (capacità × orizzonte). Valore/perso = somma su tutte le aree fatturabili del ricavo proiettato e delle ore perse oltre il tetto.'} />
+          help={'Proiezione a ritmo template (ore ricorrenti/sett × orizzonte), su tutte le aree. Non tiene conto degli override né dello stato area della settimana: è "se il template gira così". I due KPI sotto: Carico (ore, vs capacità) e Valore (€). Dettaglio dei calcoli nel "?" di ciascuna card.'} />
         <div className="tb-seg" style={{ marginLeft: 'auto' }}>
           {[2, 4].map((n, idx) => (
             <span key={n} data-on={horizon === n ? 'true' : 'false'} onClick={() => setHorizon(n)}
@@ -549,7 +549,7 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
       {/* Due KPI come in Settimana (Carico / Fatturabile): capacità in ore, valore in € */}
       <div style={{ display: 'grid', gridTemplateColumns: totalValue > 0 ? '1fr 1fr' : '1fr', gap: 14 }}>
         <Card>
-          <CardLabel>Carico proiettato</CardLabel>
+          <CardLabel help={'Somma su tutte le aree di: ritmo template (ore ricorrenti/sett) × orizzonte.\n\nLa barra e la % lo confrontano con la tua capacità sull\'orizzonte (capacità/sett × orizzonte). La tacca verticale è la capacità (sempre a fine barra); oltre la capacità la barra si tratteggia.'}>Carico proiettato</CardLabel>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
             <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtH(totalProjected)}</span>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>· {horizon} sett</span>
@@ -566,7 +566,7 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
         </Card>
         {totalValue > 0 && (
           <Card>
-            <CardLabel>Valore proiettato</CardLabel>
+            <CardLabel help={'Somma su tutte le aree fatturabili di: proiettato × tariffa oraria dell\'area = ricavo atteso a ritmo template sull\'orizzonte.\n\n"Perso oltre i tetti" = somma delle ore proiettate oltre il tetto × tariffa: ore che lavoreresti ma non fattureresti.'}>Valore proiettato</CardLabel>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
               <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtEur(totalValue)}</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>· {horizon} sett</span>
@@ -587,7 +587,7 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
       </div>
 
       <SectionHeader title="Per area · limiti e valore" subtitle="ritmo vs tetto"
-        help={'Per area: ritmo template/sett × orizzonte = proiettato, confrontato col tetto (limite settimanale × orizzonte, oppure limite globale fisso). Senza tetto non c\'è verdetto over/under. Valore = proiettato × tariffa; perso = ore oltre il tetto × tariffa (solo aree fatturabili).'} />
+        help={'Per area: ritmo template/sett × orizzonte = proiettato, confrontato col tetto (limite settimanale × orizzonte, oppure limite globale fisso). La barra è normalizzata sul tetto: la tacca verticale è il tetto (sempre a fine barra), oltre il tetto la barra si tratteggia. Senza tetto non c\'è verdetto over/under (barra piena tenue, niente tacca). Valore = proiettato × tariffa; perso = ore oltre il tetto × tariffa (solo aree fatturabili).'} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.map(({ c, rhythm, billable, projected, cap, hasCap, ratio, over, potentialEur, lostEur, verdict }) => (
           <Card key={c.id} style={hasCap ? undefined : { opacity: 0.6 }}>
