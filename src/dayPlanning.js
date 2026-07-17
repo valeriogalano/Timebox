@@ -30,6 +30,21 @@ export function mergeProjectDayEntries(entries) {
   });
 }
 
+// Deduce lo slot di una entry quando non è imposto esplicitamente. Priorità:
+// 1) lo slot dell'entry già esistente; 2) la prima fascia (am → pm → sera) in
+// cui l'area ha un blocco pianificato quel giorno; 3) il fallback.
+// Considera TUTTE le fasce, sera inclusa — la vecchia euristica settimanale
+// guardava solo am/pm e faceva finire in 'am' un'area con solo blocco serale.
+// `blocksForSlot(slot)` deve restituire i blocchi pianificati di quella fascia.
+export function resolveEntrySlot({ existingSlot, clientId, blocksForSlot, fallback = 'am' }) {
+  if (existingSlot) return existingSlot;
+  if (clientId && typeof blocksForSlot === 'function') {
+    const found = SLOTS.find(s => (blocksForSlot(s) || []).some(b => b.clientId === clientId));
+    if (found) return found;
+  }
+  return fallback;
+}
+
 export function getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, slot) {
   const dayOverride = weekOverrides[weekKey]?.[dayIndex];
   if (dayOverride && dayOverride[slot] !== undefined) return dayOverride[slot];

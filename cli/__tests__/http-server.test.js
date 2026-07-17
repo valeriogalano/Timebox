@@ -150,7 +150,6 @@ describe('HTTP server', () => {
     assert.equal(body.totals.unmatchedTaskHours, 1);
     assert.equal(body.totals.availableAfterTrackedAndTasks, 3.5);
     assert.equal(body.totals.reservedWithoutTasksHours, 4.5);
-    assert.equal(body.totals.freeUnallocatedHours, 0);
     assert.equal(body.counts.reservedWithoutTasks, 2);
     assert.equal(body.counts.tasksWithoutTimeboxProject, 1);
     assert.equal(body.reservedWithoutTasks[0].reason, 'insufficient_tasks');

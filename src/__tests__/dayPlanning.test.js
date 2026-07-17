@@ -4,6 +4,7 @@ import {
   mergeProjectDayEntries,
   getEffectiveBlocks,
   computeDayPlanning,
+  resolveEntrySlot,
 } from '../dayPlanning.js';
 
 describe('mergeProjectDayEntries', () => {
@@ -126,5 +127,46 @@ describe('computeDayPlanning', () => {
     const future = computeDayPlanning({ ...args, isFuture: true }).orphanTodoist;
     assert.equal(future.length, 1);
     assert.equal(future[0].hours, 2);
+  });
+});
+
+describe('resolveEntrySlot', () => {
+  const blocksForSlot = map => (slot => map[slot] || []);
+
+  test('existing slot wins over any block heuristic', () => {
+    const slot = resolveEntrySlot({
+      existingSlot: 'pm', clientId: 'c1',
+      blocksForSlot: blocksForSlot({ am: [{ clientId: 'c1' }] }),
+    });
+    assert.equal(slot, 'pm');
+  });
+
+  test('picks the only slot with a block for the area — sera included (regression)', () => {
+    const slot = resolveEntrySlot({
+      existingSlot: null, clientId: 'c1',
+      blocksForSlot: blocksForSlot({ sera: [{ clientId: 'c1' }] }),
+    });
+    assert.equal(slot, 'sera');
+  });
+
+  test('prefers the earliest slot (am → pm → sera) when the area has several blocks', () => {
+    const slot = resolveEntrySlot({
+      existingSlot: null, clientId: 'c1',
+      blocksForSlot: blocksForSlot({ pm: [{ clientId: 'c1' }], am: [{ clientId: 'c1' }] }),
+    });
+    assert.equal(slot, 'am');
+  });
+
+  test('falls back when the area has no block anywhere', () => {
+    const slot = resolveEntrySlot({
+      existingSlot: null, clientId: 'c9',
+      blocksForSlot: blocksForSlot({ am: [{ clientId: 'c1' }] }),
+      fallback: 'pm',
+    });
+    assert.equal(slot, 'pm');
+  });
+
+  test('falls back to am by default without clientId or blocks source', () => {
+    assert.equal(resolveEntrySlot({}), 'am');
   });
 });

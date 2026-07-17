@@ -74,6 +74,7 @@ export default function App() {
   const [quickLogOpen, setQuickLogOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [autoFocusProject, setAutoFocusProject] = useState(null);
+  const [andamentoLens, setAndamentoLens] = useState(null); // deep-link: apre Andamento su una lente
   const [slotCapacityHours, setSlotCapacityHours] = useState(DEFAULT_SLOT_CAPACITY_HOURS);
   const refreshSidebar = useCallback(() => setSidebarKey(k => k + 1), []);
 
@@ -263,7 +264,9 @@ export default function App() {
 
       {/* ── Sidebar ─────────────────────────────────────────────── */}
       <div style={{
-        width: collapsed ? 64 : 200,
+        // collapsed width must contain the native macOS traffic lights (~72px),
+        // otherwise they straddle the sidebar/main border.
+        width: collapsed ? 78 : 200,
         background: 'var(--tb-sidebar-bg)',
         display: 'flex',
         flexDirection: 'column',
@@ -275,11 +278,17 @@ export default function App() {
 
         {/* Brand (also a draggable macOS title region; interactive children opt out) */}
         <div style={{
-          padding: '20px 0 16px',
-          // macOS: push the brand below the traffic-light vertical band (~38px).
-          // Same vertical offset in both states so the collapse/expand button
-          // sits at the same height as the logo when expanded.
-          ...(navigator.userAgent.includes('Mac') ? { paddingTop: 38 } : {}),
+          // All longhand — do NOT mix the `padding` shorthand with `paddingTop`:
+          // on toggle React re-applies the shorthand and clobbers paddingTop
+          // (its value is unchanged so it isn't re-set), pulling the logo back
+          // up onto the traffic lights.
+          // macOS: paddingTop clears the native traffic lights with a gap.
+          paddingTop: navigator.userAgent.includes('Mac') ? 40 : 20,
+          paddingBottom: 16,
+          // Align the logo with the nav items (left) and keep the toggle clear
+          // of the right edge. Zero when collapsed so the toggle stays centered.
+          paddingLeft: collapsed ? 0 : 20,
+          paddingRight: collapsed ? 0 : 12,
           borderBottom: '1px solid var(--tb-sidebar-border)',
           display: 'flex',
           alignItems: 'center',
@@ -308,7 +317,6 @@ export default function App() {
             background: 'transparent', border: 'none', color: 'var(--tb-sidebar-faint)',
             cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px',
             borderRadius: 4, transition: 'all 0.2s',
-            marginRight: collapsed ? 0 : -4,
             flexShrink: 0,
             WebkitAppRegion: 'no-drag',
           }} onMouseOver={e => {
@@ -353,7 +361,8 @@ export default function App() {
         </nav>
 
         {/* Footer: ore mese per area */}
-        <SidebarFooter clients={clients} refreshKey={sidebarKey} collapsed={collapsed} />
+        <SidebarFooter clients={clients} refreshKey={sidebarKey} collapsed={collapsed}
+          onStatusChange={() => setWeekRefreshTick(t => t + 1)} />
       </div>
 
       {/* ── Main area ─────────────────────────────────────────────── */}
@@ -362,8 +371,8 @@ export default function App() {
         {/* Topbar (also the draggable window title region on macOS) */}
         <div style={{
           padding: '0 28px', height: 52,
-          // macOS: left padding so the native traffic lights keep breathing room.
-          paddingLeft: navigator.userAgent.includes('Mac') ? 78 : 28,
+          // I semafori macOS stanno sopra la sidebar, non qui: il titolo si allinea
+          // al contenuto (28px). Nessun padding extra.
           borderBottom: '1px solid var(--tb-topbar-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           background: 'var(--tb-topbar-bg)', flexShrink: 0,
@@ -399,10 +408,11 @@ export default function App() {
               autoFocusProject={autoFocusProject}
               slotCapacityHours={slotCapacityHours}
               onAutoFocusConsumed={() => setAutoFocusProject(null)}
-              onNavigateToAndamento={() => setScreen('panoramica')} />
+              onNavigateToAndamento={() => { setAndamentoLens('settimana'); setScreen('panoramica'); }} />
           )}
           {screen === 'panoramica' && (
-            <Panoramica clients={clients} projects={projects} recurring={recurring} screen={screen} />
+            <Panoramica clients={clients} projects={projects} recurring={recurring} screen={screen}
+              initialLens={andamentoLens} onLensConsumed={() => setAndamentoLens(null)} />
           )}
           {screen === 'billing' && (
             <BillingScreen clients={clients} projects={projects} screen={screen} />
@@ -503,7 +513,7 @@ function KeyboardHelp({ onClose }) {
   );
 }
 
-function SidebarFooter({ clients, refreshKey, collapsed }) {
+function SidebarFooter({ clients, refreshKey, collapsed, onStatusChange }) {
   const [statuses, setStatuses] = useState({});
   const weekKey = fmt(getMondayOfWeek(getToday()));
 
@@ -524,6 +534,7 @@ function SidebarFooter({ clients, refreshKey, collapsed }) {
       return next;
     });
     window.api.saveWeekAreaStatus({ weekKey, areaId, status });
+    onStatusChange?.();
   }
 
   const clientsWithStatus = clients.map(c => ({ ...c, areaStatus: statuses[c.id] ?? 'active' }));

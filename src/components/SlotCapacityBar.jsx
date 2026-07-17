@@ -28,7 +28,7 @@ export default function SlotCapacityBar({
         borderRadius: 3,
         background: 'var(--tb-bar-track)',
         border: '1px solid var(--tb-border-soft)',
-        overflow: 'visible',
+        overflow: 'hidden',
       }}>
         <div style={{
           position: 'absolute',
@@ -40,9 +40,10 @@ export default function SlotCapacityBar({
           borderRadius: 3,
           transition: 'width 0.25s ease',
         }} />
-        {overflow && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: `${Math.min(30, (fillPct - 1) * 100 || 15)}%`, borderRadius: '0 3px 3px 0' }} />}
-            <span className="tb-tick" style={{ left: '100%' }} />
       </div>
+      {overflow && (
+        <span title="Slot oltre capacità" className="tb-hatch" style={{ width: compact ? 7 : 8, height: compact ? 7 : 8, borderRadius: 2, flexShrink: 0 }} />
+      )}
       <span style={{
         flexShrink: 0,
         fontSize: compact ? 7 : 8,
