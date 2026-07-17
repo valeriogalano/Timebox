@@ -263,7 +263,9 @@ export default function App() {
 
       {/* ── Sidebar ─────────────────────────────────────────────── */}
       <div style={{
-        width: collapsed ? 64 : 200,
+        // collapsed width must contain the native macOS traffic lights (~72px),
+        // otherwise they straddle the sidebar/main border.
+        width: collapsed ? 78 : 200,
         background: 'var(--tb-sidebar-bg)',
         display: 'flex',
         flexDirection: 'column',
@@ -275,11 +277,17 @@ export default function App() {
 
         {/* Brand (also a draggable macOS title region; interactive children opt out) */}
         <div style={{
-          padding: '20px 0 16px',
-          // macOS: push the brand below the traffic-light vertical band (~38px).
-          // Same vertical offset in both states so the collapse/expand button
-          // sits at the same height as the logo when expanded.
-          ...(navigator.userAgent.includes('Mac') ? { paddingTop: 38 } : {}),
+          // All longhand — do NOT mix the `padding` shorthand with `paddingTop`:
+          // on toggle React re-applies the shorthand and clobbers paddingTop
+          // (its value is unchanged so it isn't re-set), pulling the logo back
+          // up onto the traffic lights.
+          // macOS: paddingTop clears the native traffic lights with a gap.
+          paddingTop: navigator.userAgent.includes('Mac') ? 40 : 20,
+          paddingBottom: 16,
+          // Align the logo with the nav items (left) and keep the toggle clear
+          // of the right edge. Zero when collapsed so the toggle stays centered.
+          paddingLeft: collapsed ? 0 : 20,
+          paddingRight: collapsed ? 0 : 12,
           borderBottom: '1px solid var(--tb-sidebar-border)',
           display: 'flex',
           alignItems: 'center',
@@ -308,7 +316,6 @@ export default function App() {
             background: 'transparent', border: 'none', color: 'var(--tb-sidebar-faint)',
             cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px',
             borderRadius: 4, transition: 'all 0.2s',
-            marginRight: collapsed ? 0 : -4,
             flexShrink: 0,
             WebkitAppRegion: 'no-drag',
           }} onMouseOver={e => {
