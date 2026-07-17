@@ -237,7 +237,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
           <Panel
             title="Blocchi pianificati senza azioni"
             empty={!loading && readyGroups.length === 0 ? 'Coperti' : null}
-            meta={!loading ? `${readyGroups.length} · ${fmtH(totals.reservedWithoutTasksHours || 0)}` : null}
+            meta={!loading ? fmtH(totals.reservedWithoutTasksHours || 0) : null}
           >
             {loading ? <SkeletonRows /> : readyGroups.slice(0, 8).map((group, index) => (
               <InsightRow
