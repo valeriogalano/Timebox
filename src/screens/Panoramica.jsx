@@ -451,6 +451,10 @@ function DaDecidereInsights({ perAreaWeekly }) {
             <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginTop: 2 }}>
               {it.kind === 'under' ? 'sotto-piano' : 'oltre piano'} {it.weeksOff}/{it.of} sett → {it.to}
             </div>
+            {/* Gravità = magnitudine: quanto ci si avvicina a PERSIST_WINDOW/PERSIST_WINDOW */}
+            <div title={`Gravità ${it.weeksOff} su ${PERSIST_WINDOW} settimane`} style={{ height: 4, borderRadius: 2, background: 'var(--tb-bar-track)', marginTop: 8, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${Math.round(it.severity * 100)}%`, background: it.color, borderRadius: 2 }} />
+            </div>
           </div>
         ))}
       </div>

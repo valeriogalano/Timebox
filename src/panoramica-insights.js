@@ -21,10 +21,11 @@ export function persistentAreaInsights(perAreaWeekly, window = PERSIST_WINDOW, m
       else if (w.done > w.planned * OVER) over++;
     }
     if (under >= min) {
-      items.push({ color: client.color, area: client.name, kind: 'under', weeksOff: under, of: closed.length, to: 'Aree' });
+      items.push({ color: client.color, area: client.name, kind: 'under', weeksOff: under, of: closed.length, severity: under / window, to: 'Aree' });
     } else if (over >= min) {
-      items.push({ color: client.color, area: client.name, kind: 'over', weeksOff: over, of: closed.length, to: 'Settimana' });
+      items.push({ color: client.color, area: client.name, kind: 'over', weeksOff: over, of: closed.length, severity: over / window, to: 'Settimana' });
     }
   }
-  return items;
+  // Più settimane fuori piano = più grave: le aree peggiori in cima.
+  return items.sort((a, b) => b.weeksOff - a.weeksOff);
 }

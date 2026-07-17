@@ -41,6 +41,16 @@ describe('persistentAreaInsights', () => {
     assert.deepEqual(persistentAreaInsights([area('A', weeks)]), []);
   });
 
+  test('severity = weeksOff/window e aree piu\' gravi ordinate in cima', () => {
+    const mild = area('mild', [...Array.from({ length: PERSIST_WINDOW - 3 }, () => wk(10, 10)), wk(1, 10), wk(1, 10), wk(1, 10)]); // 3 sotto
+    const bad = area('bad', Array.from({ length: PERSIST_WINDOW }, () => wk(1, 10)));                                              // 8 sotto
+    const items = persistentAreaInsights([mild, bad]);
+    assert.equal(items[0].area, 'bad');            // piu' grave prima
+    assert.equal(items[0].severity, 1);            // 8/8
+    assert.equal(items[1].area, 'mild');
+    assert.ok(items[1].severity < items[0].severity);
+  });
+
   test('settimane senza piano (planned 0) non contano come sotto', () => {
     const weeks = Array.from({ length: PERSIST_WINDOW }, () => wk(0, 0));
     assert.deepEqual(persistentAreaInsights([area('A', weeks)]), []);
