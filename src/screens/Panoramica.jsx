@@ -927,8 +927,8 @@ function TrendChart({ data, capacity, mode }) {
                 }} title={`Svolto: ${fmtH(t.done)}`}>
                   {t.current && t.done > 0 && (
                     <div style={{
-                      position: 'absolute', left: 0, right: 0, top: -16, textAlign: 'center',
-                      fontSize: 9, fontWeight: 800, color: 'var(--tb-text-primary)',
+                      position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: -16,
+                      whiteSpace: 'nowrap', fontSize: 9, fontWeight: 800, color: 'var(--tb-text-primary)',
                     }}>{fmtH(t.done)}</div>
                   )}
                 </div>
