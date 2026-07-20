@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-07-20
+
 ### Added
 - Ricorrenza: la sezione "Override ripetuti" è collassabile (elemento nativo `<details>`) con badge del conteggio nell'intestazione.
 

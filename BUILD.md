@@ -118,11 +118,13 @@ For normal development without publishing new versions, use feature branches, co
 
 Before creating a tag:
 
-1. Update `version` in `package.json`.
-2. Run `npm install --package-lock-only --ignore-scripts` if the lockfile needs metadata updates.
-3. Run `npm test`.
-4. Run `npm run build`.
-5. Create and push a semver tag, for example `v0.4.1`.
+1. Finalize `CHANGELOG.md`: rename the current `## [Unreleased]` heading to `## [x.y.z] - YYYY-MM-DD` and leave a new empty `## [Unreleased]` above it.
+2. Update `version` in `package.json`.
+3. Run `npm install --package-lock-only --ignore-scripts` if the lockfile needs metadata updates.
+4. Run `npm test`.
+5. Run `npm run build`.
+6. Commit the version bump, lockfile, and changelog together with the message `chore(release): x.y.z`.
+7. Create and push a semver tag matching the version, for example `git tag v0.4.1 && git push origin main v0.4.1`. Pushing the `v*` tag triggers `release.yml`.
 
 The workflow uses `GITHUB_TOKEN` with `contents: write` and `electron-builder` with GitHub as the publish provider. Installer artifacts and `latest*.yml` metadata are uploaded to the GitHub Release and used by `electron-updater`.
 
