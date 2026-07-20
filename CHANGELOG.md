@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Ricorrenza: la sezione "Override ripetuti" è collassabile (elemento nativo `<details>`) con badge del conteggio nell'intestazione.
+
+### Changed
+- Ricorrenza: gli "Override ripetuti" sono ordinati e raggruppati per giorno in ordine di lettura settimanale (giorno → fascia → più corretti prima); rimosso il giorno ridondante dalle singole righe.
+- Ricorrenza: la barra di capacità dello slot è ora in fondo alla cella, coerente con le viste Settimana e Oggi.
+- Navigazione: la settimana selezionata si mantiene passando tra Settimana e Andamento (prima Andamento aveva uno stato indipendente che si azzerava).
+
+### Fixed
+- Andamento: il sovraccarico (e "oltre tetto") usa una freccia verso l'alto invece che verso destra, coerente con la freccia verso il basso del sottocarico.
+
 ## [0.9.2] - 2026-07-17
 
 ### Added
