@@ -412,6 +412,7 @@ export default function App() {
           )}
           {screen === 'panoramica' && (
             <Panoramica clients={clients} projects={projects} recurring={recurring} screen={screen}
+              weekOffset={weekOffset} setWeekOffset={setWeekOffset}
               initialLens={andamentoLens} onLensConsumed={() => setAndamentoLens(null)} />
           )}
           {screen === 'billing' && (

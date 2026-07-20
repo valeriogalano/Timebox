@@ -59,7 +59,8 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
         occurrences: s.deltas.length,
       }))
       .filter(s => !dismissedDivergences.has(`${s.day}-${s.slot}-${s.clientId}`))
-      .sort((a, b) => b.occurrences - a.occurrences || Math.abs(b.avgDelta) - Math.abs(a.avgDelta));
+      // Ordine di lettura settimanale: giorno → fascia → più corretti prima.
+      .sort((a, b) => a.day - b.day || SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot) || b.occurrences - a.occurrences);
   }, [pastOverrides, recurring, dismissedDivergences]);
 
   async function applyDivergence(item) {
@@ -170,28 +171,41 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
       {/* Override ripetuti — drill-down (redesign #5a): slot dove lo storicizzato
           diverge dal template per almeno DIVERGENCE_MIN_OCCURRENCES delle ultime
           DIVERGENCE_HISTORY_WEEKS settimane passate. */}
-      <div style={{ border: '1px solid var(--tb-border)', borderRadius: 10, background: 'var(--tb-panel-bg)', padding: '12px 14px', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
-          <span className="tb-delta">Δ</span>
-          <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)' }}>Override ripetuti</span>
-          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}>slot che correggi a mano di continuo — il template non riflette come lavori</span>
-        </div>
+      <details open style={{ border: '1px solid var(--tb-border)', borderRadius: 10, background: 'var(--tb-panel-bg)', marginBottom: 16 }}>
+        <summary style={{ cursor: 'pointer', padding: '12px 14px', listStyle: 'revert' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, verticalAlign: 'middle' }}>
+            <span className="tb-delta">Δ</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)' }}>Override ripetuti</span>
+            {divergences.length > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-secondary)', background: 'var(--tb-panel-bg-subtle)', borderRadius: 8, padding: '1px 7px' }}>{divergences.length}</span>
+            )}
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}>slot che correggi a mano di continuo — il template non riflette come lavori</span>
+          </span>
+        </summary>
+        <div style={{ padding: '0 14px 12px' }}>
         {divergences.length === 0 ? (
           <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
             Nessuna divergenza ricorrente nelle ultime {DIVERGENCE_HISTORY_WEEKS} settimane.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {divergences.map(item => {
+            {divergences.map((item, idx) => {
               const client = clients.find(c => c.id === item.clientId);
               const template = recurring.find(r => r.day === item.day && r.slot === item.slot && r.clientId === item.clientId);
               const templateHours = template?.hours ?? 0;
               const key = `${item.day}-${item.slot}-${item.clientId}`;
+              const showDayHeader = idx === 0 || divergences[idx - 1].day !== item.day;
               return (
-                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', borderRadius: 6, background: 'var(--tb-panel-bg-subtle)' }}>
+                <React.Fragment key={key}>
+                {showDayHeader && (
+                  <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginTop: idx === 0 ? 0 : 4 }}>
+                    {DAY_SHORT[item.day]}
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', borderRadius: 6, background: 'var(--tb-panel-bg-subtle)' }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: client?.color ?? 'var(--tb-border)', flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)' }}>
-                    {DAY_SHORT[item.day]} · {SLOT_ROW_LABELS[item.slot]} · {client?.name ?? '—'}
+                    {SLOT_ROW_LABELS[item.slot]} · {client?.name ?? '—'}
                   </div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', whiteSpace: 'nowrap' }}>
                     template {fmtH(templateHours)} · effettivo {fmtH(templateHours + item.avgDelta)}
@@ -208,11 +222,13 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
                     color: 'var(--tb-text-muted)', cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
                   }}>Ignora</button>
                 </div>
+                </React.Fragment>
               );
             })}
           </div>
         )}
-      </div>
+        </div>
+      </details>
 
       <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', overflow: 'hidden', marginBottom: 16 }}>
         <div style={{ display: 'grid', gridTemplateColumns: `80px repeat(${RECURRING_DAYS}, 1fr)` }}>

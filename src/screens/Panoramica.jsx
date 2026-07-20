@@ -22,7 +22,7 @@ function fmtEur(n) {
 function statusFor(done, capacity) {
   if (capacity === 0) return { label: '—', glyph: '·', color: 'var(--tb-text-muted)' };
   const ratio = done / capacity;
-  if (ratio > 1.1)  return { label: 'Sovraccarico', glyph: '▸', color: 'var(--tb-text-primary)' };
+  if (ratio > 1.1)  return { label: 'Sovraccarico', glyph: '▴', color: 'var(--tb-text-primary)' };
   if (ratio < 0.85) return { label: 'Sottocarico',  glyph: '▾', color: 'var(--tb-text-muted)' };
   return { label: 'In linea', glyph: '▪', color: 'var(--tb-text-primary)' };
 }
@@ -91,8 +91,11 @@ function countWeeksInMonth(monthIdx, year) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function Panoramica({ clients, projects, recurring, screen, initialLens, onLensConsumed }) {
-  const [periodOffset, setPeriodOffset] = useState(0);
+export default function Panoramica({ clients, projects, recurring, screen, initialLens, onLensConsumed, weekOffset, setWeekOffset }) {
+  // Settimana condivisa con la vista Settimana (stato sollevato in App), così la
+  // selezione si mantiene passando da una schermata all'altra.
+  const periodOffset = weekOffset;
+  const setPeriodOffset = setWeekOffset;
   const [entries, setEntries]           = useState([]);
   const [projectTotals, setProjectTotals] = useState({});
   const [overridesByWeek, setOverridesByWeek] = useState({});
@@ -392,7 +395,7 @@ function RetroSummary({ stats, status, deltaH }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
           <span>{status.label} · capacità {fmtH(stats.capacity)}</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <span className="tb-glyph">{deltaH >= 0 ? '▸' : '▾'}</span>
+            <span className="tb-glyph">{deltaH >= 0 ? '▴' : '▾'}</span>
             Δ {deltaH >= 0 ? '+' : ''}{fmtH(deltaH)}
           </span>
         </div>
@@ -510,7 +513,7 @@ function DaDecidereInsights({ perAreaWeekly }) {
 // Lente "In prospettiva": proiezione a ritmo del template, per area, su orizzonte
 // configurabile (2/4 settimane, default 2). Il confronto ha senso solo contro un
 // TETTO: senza tetto non c'è envelope da sforare (kind='uncapped', nessun verdetto
-// over/under). Verdetto via glyph ▸/▪/·. Logica pura in ../panoramica-insights.
+// over/under). Verdetto via glyph ▴/▪/·. Logica pura in ../panoramica-insights.
 // Il ritmo è una stima (README §Dipendenze-dati p.2): a livello area si usa `recurring`.
 function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) {
   const rows = clients.map(c => {
@@ -522,7 +525,7 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
       rate: c.rate ?? 0, billable,
     });
     const verdict = p.kind === 'uncapped' ? { glyph: '·', label: 'Senza tetto' }
-      : p.kind === 'over' ? { glyph: '▸', label: billable ? 'Oltre tetto · ore non pagate' : 'Oltre tetto' }
+      : p.kind === 'over' ? { glyph: '▴', label: billable ? 'Oltre tetto · ore non pagate' : 'Oltre tetto' }
       : { glyph: '▪', label: 'Entro tetto' };
     return { c, rhythm, billable, verdict, ...p };
   });

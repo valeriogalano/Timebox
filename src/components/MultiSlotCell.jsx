@@ -103,7 +103,6 @@ export default function MultiSlotCell({
         ...style,
       }}
     >
-      <SlotCapacityBar plannedHours={plannedHours} capacityHours={capacityHours} compact />
       {blocks.map((block, i) => {
         const cl = clients.find(c => c.id === block.clientId);
         if (!cl) return null;
@@ -126,7 +125,7 @@ export default function MultiSlotCell({
       })}
       {isInternalDrag && insertIndex === blocks.length && <Divider />}
 
-      <div ref={addRef} style={{ marginTop: 'auto' }}>
+      <div ref={addRef}>
         {!addOpen ? (
           <button onClick={() => setAddOpen(true)}
             style={{
@@ -169,6 +168,11 @@ export default function MultiSlotCell({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Barra capacità in fondo, coerente con le viste Settimana e Oggi */}
+      <div style={{ marginTop: 'auto' }}>
+        <SlotCapacityBar plannedHours={plannedHours} capacityHours={capacityHours} compact />
       </div>
     </div>
   );
