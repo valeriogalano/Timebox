@@ -91,8 +91,11 @@ function countWeeksInMonth(monthIdx, year) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function Panoramica({ clients, projects, recurring, screen, initialLens, onLensConsumed }) {
-  const [periodOffset, setPeriodOffset] = useState(0);
+export default function Panoramica({ clients, projects, recurring, screen, initialLens, onLensConsumed, weekOffset, setWeekOffset }) {
+  // Settimana condivisa con la vista Settimana (stato sollevato in App), così la
+  // selezione si mantiene passando da una schermata all'altra.
+  const periodOffset = weekOffset;
+  const setPeriodOffset = setWeekOffset;
   const [entries, setEntries]           = useState([]);
   const [projectTotals, setProjectTotals] = useState({});
   const [overridesByWeek, setOverridesByWeek] = useState({});
