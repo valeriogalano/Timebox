@@ -444,19 +444,20 @@ function AreaConsuntivo({ clients, stats }) {
     })
     .filter(r => r.planned > 0 || r.done > 0);
   if (!rows.length) return null;
-  const COLS = 'minmax(0,1fr) 64px 64px 64px 84px';
+  const COLS = 'minmax(0,1fr) 64px 64px 64px 64px 40px';
   const numCell = { fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', textAlign: 'right' };
   const headCell = { fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' };
   return (
     <div>
       <SectionHeader title="Per area · consuntivo" subtitle="pianificato · tracciato · extra"
-        help={'Per ogni area, nella settimana selezionata: Piano = ore pianificate, Fatto = ore tracciate, Extra = ore fatte oltre il piano (max(0, fatto − piano)), Δ = fatto − piano. Il glyph è lo stato (sotto/in linea/sovraccarico).'} />
+        help={'Per ogni area, nella settimana selezionata: Piano = ore pianificate, Fatto = ore tracciate, Extra = ore fatte oltre il piano (max(0, fatto − piano)), Δ = fatto − piano. La colonna Stato è il verdetto (sotto/in linea/sovraccarico).'} />
       <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: '2px 12px', alignItems: 'center' }}>
         <span />
         <span style={headCell}>Piano</span>
         <span style={headCell}>Fatto</span>
         <span style={headCell}>Extra</span>
         <span style={headCell}>Δ</span>
+        <span style={headCell}>Stato</span>
         {rows.map(({ c, planned, done, extra, delta }) => {
           const v = statusFor(done, planned);
           return (
@@ -468,9 +469,9 @@ function AreaConsuntivo({ clients, stats }) {
               <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6, color: 'var(--tb-text-muted)' }}>{fmtH(planned)}</span>
               <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 }}>{fmtH(done)}</span>
               <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6, color: extra > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>{extra > 0 ? fmtH(extra) : '—'}</span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, fontSize: 12, fontWeight: 700, color: 'var(--tb-text-muted)', borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 }}>
-                <span className="tb-glyph" title={v.label}>{v.glyph}</span>
-                {delta >= 0 ? '+' : ''}{fmtH(delta)}
+              <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6, color: 'var(--tb-text-muted)' }}>{delta >= 0 ? '+' : ''}{fmtH(delta)}</span>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 }}>
+                <span className="tb-glyph" title={v.label} style={{ fontSize: 13 }}>{v.glyph}</span>
               </span>
             </React.Fragment>
           );
