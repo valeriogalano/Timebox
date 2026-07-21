@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-07-21
+
+### Fixed
+- Andamento: lo stato (sovraccarico/sottocarico/in linea) di "Per area · consuntivo" ha ora una colonna dedicata invece di condividere la cella con il Δ, per una lettura più immediata.
+- Oggi/Settimana: il tooltip dei task Todoist di un blocco resta visibile anche quando ci sono già ore tracciate, purché resti quota Todoist non coperta (prima spariva non appena veniva loggata qualunque ora).
+
 ## [0.9.3] - 2026-07-20
 
 ### Added
