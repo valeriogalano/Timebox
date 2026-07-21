@@ -636,7 +636,18 @@ function seedDemoData() {
     { weekKey: curWeekKey, dayIndex: todayIdx, slot: 'am',   blocks: [{ id: 'ov1', clientId: 'c1', hours: 1 }, { id: 'ov2', clientId: 'c4', hours: 2 }] },
     // Slot serale aggiunto a mano in un altro giorno → giorno modificato rispetto al template.
     { weekKey: curWeekKey, dayIndex: otherIdx, slot: 'sera', blocks: [{ id: 'ov3', clientId: 'c3', hours: 2 }] },
+    // PM di oggi: blocco dedicato (c3), in parte tracciato e in parte coperto da un
+    // task Todoist non ancora fatto (td11, 1.5h) → verifica del tooltip Todoist su
+    // un blocco parzialmente loggato. c3 non ha mai un blocco AM oggi (l'override
+    // sopra lo assegna sempre a c1/c4), quindi qui riceve tutte le ore tracciate
+    // di c3 nella giornata; se "oggi" cade di mercoledì il fixture aggiunge anche
+    // le 2.5h di e5 e il blocco risulta pieno (3/3) invece che parziale.
+    { weekKey: curWeekKey, dayIndex: todayIdx, slot: 'pm',   blocks: [{ id: 'ov4', clientId: 'c3', hours: 3 }] },
   ];
+  function fmtLocal(dt) {
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  }
+  const todayStr = fmtLocal(today);
   function pd(offset) {
     const dt = new Date(prevMonday);
     dt.setDate(dt.getDate() + offset);
@@ -665,6 +676,14 @@ function seedDemoData() {
       { id: 'td9',  projectId: 'p5', content: 'Schermata onboarding',  hours: 2,   slot: 'pm', completed: true, labels: ['Focus 🔕'] },
       { id: 'td10', projectId: 'p3', content: 'Revisione articolo SEO', hours: 2.5, slot: 'pm', completed: true, labels: ['IA 🤖', '🍅🍅'] },
     ]},
+    { date: todayStr, tasks: [
+      // Non ancora completato: copre 1.5h del blocco PM (ov4, 3h) già in parte
+      // tracciato (1h via entry dedicata) — lascia 0.5h scoperte.
+      { id: 'td11', projectId: 'p4', content: 'Alert soglie sensori — QA', hours: 1.5, slot: 'pm', completed: false, labels: ['Bug 🪲'] },
+    ]},
+  ];
+  const todayEntries = [
+    { id: 'e15', projectId: 'p4', date: todayStr, hours: 1, billableHours: null, slot: 'pm', billed: 0 },
   ];
 
   db.transaction(() => {
@@ -674,7 +693,7 @@ function seedDemoData() {
       insertProject.run(p.id, p.clientId, p.name, p.description ?? null, p.budgetHours, p.weeklyHours ?? null, p.position ?? 0);
     for (const r of INIT_RECURRING)
       insertRecurring.run(r.id, r.clientId, r.slot, r.day, r.hours, r.position ?? 0);
-    for (const e of getSeedEntries())
+    for (const e of [...getSeedEntries(), ...todayEntries])
       insertEntry.run(e.id, e.projectId, e.date, e.hours, e.billableHours ?? null, e.slot, e.billed);
     for (const { date, tasks } of todoistDays)
       db.prepare('INSERT OR REPLACE INTO todoist_cache (dateStr,tasksJson,syncedAt) VALUES (?,?,?)').run(date, JSON.stringify(tasks), now);
