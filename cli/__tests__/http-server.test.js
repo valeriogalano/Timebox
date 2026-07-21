@@ -125,8 +125,24 @@ describe('HTTP server', () => {
     const overrideDate = currentWeekDate(1);
     const { status, body } = await get(port, `/day-summary?date=${overrideDate}`);
     assert.equal(status, 200);
-    assert.equal(body.slots.am.source, 'template');
-    assert.equal(body.slots.pm.source, 'template');
+    // Seed data always overrides "today"'s AM slot (ov1/ov2) and, since the PM
+    // scenario added for the Todoist-tooltip fix, also "today"'s PM slot (ov4) —
+    // see db/queries.js seedDemoData. Whenever a real run happens to land on
+    // Tuesday, this fixture day IS today, so both slots source from the override
+    // instead of the template and the aggregate numbers shift accordingly.
+    const todayIdx = (new Date().getDay() + 6) % 7;
+    const isToday = todayIdx === 1;
+    assert.equal(body.slots.am.source, isToday ? 'override' : 'template');
+    assert.equal(body.slots.pm.source, isToday ? 'override' : 'template');
+    if (isToday) {
+      assert.equal(body.plannedCapacity, 7.5);
+      assert.equal(body.trackedHours, 10.5);
+      assert.equal(body.extraHours, 7);
+      assert.equal(body.residualCapacity, 4);
+      assert.ok(body.extra.some(item => item.area === 'Acme Corp' && item.hours === 3), 'includes overflow on the overridden AM area');
+      assert.ok(body.extra.some(item => item.area === 'The Blog' && item.hours === 4), 'includes overflow on the overridden PM area');
+      return;
+    }
     assert.equal(body.plannedCapacity, 7.5);
     assert.equal(body.trackedHours, 9.5);
     assert.equal(body.extraHours, 3);
