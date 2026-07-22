@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.5] - 2026-07-22
+
 ### Added
 - Andamento · Settimana: sulla settimana in corso la card Carico mostra il consuntivo fino al giorno corrente (esclude eventuali entry datate in avanti) e una proiezione fine settimana con due indicatori: "a piano" (consuntivo + ore pianificate dei giorni restanti, override o template) e "a ritmo" (consuntivo / giorni trascorsi × 7), entrambi con Δ vs capacità. Le settimane passate restano puro consuntivo.
 
 ### Changed
 - Giorno (già "Oggi"): la vista ora permette di cambiare il giorno visualizzato con i pulsanti ‹ › e il pulsante "Oggi" per tornare a oggi, esattamente come Settimana. Lo spostamento riallinea blocchi, override, timesheet e Todoist del giorno. Le scorciatoie ⌘← / ⌘→ e ⌘T ora navigano i giorni quando la schermata Giorno è attiva.
+- Sidebar: comprimendola ora scompare completamente invece di ridursi a striscia di icone; il controllo per riaprirla si sposta nella topbar accanto ai semafori di macOS (stile Todoist).
+
+### Fixed
+- Giorno: i titoli dei task Todoist nel pannello dei mismatch e nel dialog di importazione dei completati ora renderizzano il markdown invece di mostrarlo grezzo (**, *, ~~, backtick), coerenti con il tooltip dei blocchi.
 
 ## [0.9.4] - 2026-07-21
 
