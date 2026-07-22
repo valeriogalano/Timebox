@@ -14,7 +14,7 @@ import { DEFAULT_SLOT_CAPACITY_HOURS, SLOT_CAPACITY_SETTING_KEY, normalizeSlotCa
 
 const NAV_ITEMS = [
   { id: 'weekly',     label: 'Settimana',      icon: WeekIcon      },
-  { id: 'today',      label: 'Oggi',           icon: TodayIcon     },
+  { id: 'today',      label: 'Giorno',         icon: TodayIcon     },
   { id: 'panoramica', label: 'Andamento',       icon: ChartIcon     },
   { id: 'billing',    label: 'Rendiconto',      icon: BillingIcon   },
   { id: 'entries',    label: 'Registro',        icon: ListIcon      },
