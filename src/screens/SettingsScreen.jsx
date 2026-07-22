@@ -193,8 +193,8 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
               {[
                 ['⌘ L', 'Apre il quick-log per navigare a un progetto'],
                 ['⌘ T', 'Torna al Timesheet della settimana corrente'],
-                ['⌘ ←', 'Settimana precedente (solo nel Timesheet)'],
-                ['⌘ →', 'Settimana successiva (solo nel Timesheet)'],
+                ['⌘ ←', 'Giorno/settimana precedente'],
+                ['⌘ →', 'Giorno/settimana successiva'],
                 ['⌥ ← / →', 'In una cella del Timesheet: salva e va al giorno precedente / successivo'],
                 ['⌘ B', 'Espande / riduce la sidebar'],
                 ['⌘ ,', 'Apre le Impostazioni'],

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fmt, fmtH, getToday, getMondayOfWeek, SLOTS, currentSlot, effBillable } from '../utils';
+import { fmt, fmtH, getToday, addDays, getMondayOfWeek, SLOTS, currentSlot, effBillable, MONTHS_IT } from '../utils';
 import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks, resolveEntrySlot } from '../dayPlanning';
 import PlanningCell from '../components/PlanningCell';
 import TimeCell from '../components/TimeCell';
@@ -24,13 +24,20 @@ function mismatchTotal(counts = {}) {
     + (counts.estimatedBeyondResidualCapacity || 0);
 }
 
-export default function TodayView({ externalRefreshTick, projects, onSynced, clients = [], recurring = [], slotCapacityHours, onEntryChange }) {
+export default function TodayView({ externalRefreshTick, projects, onSynced, clients = [], recurring = [], slotCapacityHours, onEntryChange, dayOffset = 0, setDayOffset }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const today = fmt(getToday());
-  const weekKey = fmt(getMondayOfWeek(getToday()));
-  const dayIndex = (getToday().getDay() + 6) % 7; // Monday = 0, matching recurring.day
+  // Data selezionata = oggi + dayOffset giorni. dayOffset=0 equivale al vecchio
+  // comportamento (sempre "oggi"). Cambiare dayOffset sposta tutto: blocchi
+  // effettivi, override di settimana, entry tracciate, todoist del giorno.
+  const selectedDate = addDays(getToday(), dayOffset);
+  const today = fmt(selectedDate);
+  const weekKey = fmt(getMondayOfWeek(selectedDate));
+  const dayIndex = (selectedDate.getDay() + 6) % 7; // Monday = 0, matching recurring.day
+  const realToday = fmt(getToday());
+  const isToday = today === realToday;
+  const isFuture = today > realToday;
 
   // Single-day planning data (blocks, tracked hours, Todoist coverage, extra)
   const [rawEntries, setRawEntries] = useState([]);
@@ -135,7 +142,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
       existingSlot: existing?.slot,
       clientId: project?.clientId,
       blocksForSlot: effectiveBlocks,
-      fallback: currentSlot(),
+      fallback: isToday ? currentSlot() : 'am',
     });
     const billableHours = typeof payload === 'object'
       ? (payload.billableHours ?? null)
@@ -176,14 +183,15 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
     setDragging(null);
   }
 
-  // Stato area (attiva/mantenimento/chiusa) contestuale alla settimana corrente
-  // — qui sempre univoco perché "Oggi" ricade sempre in una sola settimana,
-  // a differenza di Andamento/Rendiconto dove il periodo può attraversarne più di una.
+  // Stato area (attiva/mantenimento/chiusa) contestuale alla settimana in cui
+  // ricade il giorno selezionato — qui sempre univoco perché un giorno ricade
+  // sempre in una sola settimana, a differenza di Andamento/Rendiconto dove il
+  // periodo può attraversarne più di una.
   const clientsWithStatus = clients.map(c => ({ ...c, areaStatus: weekAreaStatuses[c.id] ?? 'active' }));
 
   const dayEntries = mergeProjectDayEntries(rawEntries);
   const planning = computeDayPlanning({
-    dayIndex, isToday: true, isFuture: false,
+    dayIndex, isToday, isFuture,
     recurring, weekOverrides, weekKey,
     rawDayEntries: rawEntries, dayEntries,
     clients, projects,
@@ -204,17 +212,23 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <NavBtn onClick={() => setDayOffset?.(o => o - 1)}>‹</NavBtn>
+          <div style={{
+            fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)',
+            minWidth: 170, textAlign: 'center',
+          }}>
             {new Date(`${today}T00:00:00`).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
             {data?.syncedAt ? ` · Todoist ${formatSyncDate(data.syncedAt)}` : ''}
           </div>
+          <NavBtn onClick={() => setDayOffset?.(o => o + 1)}>›</NavBtn>
+          {dayOffset !== 0 && <NavBtn small onClick={() => setDayOffset?.(0)}>Oggi</NavBtn>}
         </div>
         <TodoistControlBar>
           <TodoistSyncButton
             onRefresh={syncFromTodoist}
             lastSyncLabel={syncedAt ? new Date(syncedAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : null}
-            title="Aggiorna i task da Todoist per oggi"
+            title="Aggiorna i task da Todoist per questo giorno"
           />
           <TodoistImportButton dates={[today]} projects={projects} onOpen={setTodoistImportDialog} />
         </TodoistControlBar>
@@ -232,6 +246,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
           clients={clientsWithStatus} projects={projects} projectTotals={projectTotals}
           planning={planning} slotPlannedTotals={slotPlannedTotals}
           slotCapacityHours={slotCapacityHours} hasTodoistSync={!!syncedAt}
+          isToday={isToday} isFuture={isFuture}
           addBlockToSlot={addBlockToSlot} updateBlockInSlot={updateBlockInSlot}
           removeBlockFromSlot={removeBlockFromSlot} setSlotOverride={setSlotOverride}
           dragging={dragging} setDragging={setDragging} handleDrop={handleDrop}
@@ -319,7 +334,7 @@ const SLOT_META = {
 
 function DayPlanningPanel({
   loading, clients, projects, projectTotals, planning, slotPlannedTotals,
-  slotCapacityHours, hasTodoistSync,
+  slotCapacityHours, hasTodoistSync, isToday, isFuture,
   addBlockToSlot, updateBlockInSlot, removeBlockFromSlot, setSlotOverride,
   dragging, setDragging, handleDrop,
   dayEntries, onSaveDayEntry, onResetBillable,
@@ -371,7 +386,7 @@ function DayPlanningPanel({
                         blockFill={planning.blockFill}
                         todoistByClient={planning.todoistByCS[slot.key]} todoistTasksByClient={planning.todoistTasksByCS[slot.key]}
                         hasTodoistSync={hasTodoistSync}
-                        isToday isFuture={false} isWeekend={false} editable
+                        isToday={isToday} isFuture={isFuture} isWeekend={dayIndex >= 5} editable
                         onAddBlock={(cid, h) => addBlockToSlot(slot.key, cid, h)}
                         onUpdateBlock={(bid, h) => updateBlockInSlot(slot.key, bid, h)}
                         onRemoveBlock={bid => removeBlockFromSlot(slot.key, bid)}
@@ -388,7 +403,7 @@ function DayPlanningPanel({
           {!loading && (planning.extraBlocks.length > 0 || planning.orphanTodoist.length > 0) && (
             <div style={{ padding: '0 12px 12px' }}>
               <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase', marginBottom: 5 }}>Extra / fuori piano</div>
-              <ExtraCell blocks={planning.extraBlocks} orphanTodoist={planning.orphanTodoist} clients={clients} isToday isFuture={false} />
+              <ExtraCell blocks={planning.extraBlocks} orphanTodoist={planning.orphanTodoist} clients={clients} isToday={isToday} isFuture={isFuture} />
             </div>
           )}
         </>
@@ -461,7 +476,7 @@ function DayTimesheet({ loading, dayEntries, clients, projects, onSaveDayEntry, 
                 billableHours={entry.billableHours ?? null}
                 billed={entry.billed ?? false}
                 isBillable={client.billing !== 'none'}
-                isFuture={false} isToday
+                isFuture={isFuture} isToday={isToday}
                 clientColor={client.color}
                 colIndex={0}
                 projectId={project.id}
@@ -673,4 +688,17 @@ function SkeletonRows() {
   return Array.from({ length: 3 }, (_, index) => (
     <div key={index} style={{ height: 47, borderRadius: 6, background: 'var(--tb-panel-bg-subtle)', opacity: 0.7 }} />
   ));
+}
+
+function NavBtn({ children, onClick, small }) {
+  return (
+    <button onClick={onClick} style={{
+      width: small ? 'auto' : 30, height: 30, borderRadius: 6,
+      background: 'var(--tb-navbtn-bg)', border: '1px solid var(--tb-navbtn-border)',
+      color: 'var(--tb-navbtn-text)', fontSize: small ? 11 : 14, fontWeight: 700, cursor: 'pointer',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: "'Open Sans',sans-serif",
+      padding: small ? '0 10px' : 0,
+    }}>{children}</button>
+  );
 }

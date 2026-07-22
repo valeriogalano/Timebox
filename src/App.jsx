@@ -62,6 +62,7 @@ export default function App() {
   // ponytail: dev-only deep-link so headless screenshots can target a screen via ?screen=id
   const [screen, setScreen]     = useState(() => new URLSearchParams(location.search).get('screen') || 'weekly');
   const [weekOffset, setWeekOffset] = useState(0);
+  const [dayOffset, setDayOffset] = useState(0);
   const [clients, setClients]   = useState([]);
   const [projects, setProjects] = useState([]);
   const [recurring, setRecurring] = useState([]);
@@ -167,12 +168,15 @@ export default function App() {
           blurActiveInput();
           setScreen('weekly');
           setWeekOffset(0);
+          setDayOffset(0);
           break;
         case 'ArrowLeft':
           if (screen === 'weekly') { e.preventDefault(); blurActiveInput(); setWeekOffset(o => o - 1); }
+          else if (screen === 'today') { e.preventDefault(); blurActiveInput(); setDayOffset(o => o - 1); }
           break;
         case 'ArrowRight':
           if (screen === 'weekly') { e.preventDefault(); blurActiveInput(); setWeekOffset(o => o + 1); }
+          else if (screen === 'today') { e.preventDefault(); blurActiveInput(); setDayOffset(o => o + 1); }
           break;
         case 'b':
           e.preventDefault();
@@ -395,6 +399,7 @@ export default function App() {
               externalRefreshTick={weekRefreshTick}
               clients={clients} projects={projects} recurring={recurring}
               slotCapacityHours={slotCapacityHours}
+              dayOffset={dayOffset} setDayOffset={setDayOffset}
               onEntryChange={refreshSidebar}
               onSynced={() => setWeekRefreshTick(t => t + 1)}
             />
