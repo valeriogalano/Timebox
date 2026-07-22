@@ -172,10 +172,19 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
     const { startStr, endStr } = weekRange(periodOffset);
     const periodEntries = entries.filter(e => e.date >= startStr && e.date <= endStr);
 
+    // Settimana in corso: il consuntivo è "fino al giorno corrente" (esclude
+    // eventuali entry datate in avanti). La proiezione fine settimana (vedi sotto)
+    // parte da questo consuntivo.
+    const isCurrentWeek = periodOffset === 0;
+    const todayStr = fmt(getToday());
+    const consuntivoEntries = isCurrentWeek
+      ? periodEntries.filter(e => e.date <= todayStr)
+      : periodEntries;
+
     const actualByClient = {};
     const billableByClient = {};
     clients.forEach(c => { actualByClient[c.id] = 0; billableByClient[c.id] = 0; });
-    periodEntries.forEach(e => {
+    consuntivoEntries.forEach(e => {
       const cid = projectClientMap[e.projectId];
       if (cid != null) {
         actualByClient[cid] = (actualByClient[cid] ?? 0) + e.hours;
@@ -198,12 +207,46 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
 
     const actualByProject = {};
     projects.forEach(p => { actualByProject[p.id] = 0; });
-    periodEntries.forEach(e => {
+    consuntivoEntries.forEach(e => {
       if (e.projectId in actualByProject) actualByProject[e.projectId] += e.hours;
     });
 
-    return { actualByClient, plannedByClient, actualByProject, numWeeks: 1, capacity, totalDone, billedDoneEur, projectionEur, billableDoneHours };
-  }, [entries, periodOffset, clients, projects, projectClientMap, plannedByClientEffective]);
+    // Proiezione fine settimana, solo sulla settimana in corso non ancora conclusa.
+    // - a piano: consuntivo + ore pianificate (override o template) dei giorni da
+    //   domani a domenica. Risponde a "se completo il piano, dove arrivo?".
+    // - a ritmo: consuntivo / giorni trascorsi × 7. Risponde a "se continuo così,
+    //   dove arrivo?" indipendentemente dal piano.
+    let projTemplateHours = null, projRhythmHours = null, daysElapsed = null;
+    if (isCurrentWeek) {
+      const monday = addDays(getMondayOfWeek(getToday()), periodOffset * 7);
+      const de = Math.floor((getToday() - monday) / 86400000) + 1; // lun=1 … dom=7
+      daysElapsed = de;
+      if (de < PLANNING_DAYS) {
+        const todayIdx = de - 1;
+        const remainingByClient = {};
+        clients.forEach(c => { remainingByClient[c.id] = 0; });
+        const weekOverride = overridesByWeek[currentWeekKey];
+        for (let d = todayIdx + 1; d < PLANNING_DAYS; d++) {
+          for (const slot of SLOTS) {
+            const dayOverride = weekOverride && weekOverride[d];
+            const blocks = dayOverride && dayOverride[slot] !== undefined
+              ? dayOverride[slot]
+              : recurring.filter(r => r.day === d && r.slot === slot).map(r => ({ clientId: r.clientId, hours: r.hours }));
+            blocks.forEach(b => { if (b.clientId in remainingByClient) remainingByClient[b.clientId] += b.hours; });
+          }
+        }
+        const remainingPlanned = Object.values(remainingByClient).reduce((s, v) => s + v, 0);
+        projTemplateHours = totalDone + remainingPlanned;
+        projRhythmHours  = de > 0 ? totalDone / de * PLANNING_DAYS : 0;
+      }
+    }
+
+    return {
+      actualByClient, plannedByClient, actualByProject, numWeeks: 1,
+      capacity, totalDone, billedDoneEur, projectionEur, billableDoneHours,
+      projTemplateHours, projRhythmHours, daysElapsed,
+    };
+  }, [entries, periodOffset, clients, projects, projectClientMap, plannedByClientEffective, recurring, overridesByWeek, currentWeekKey]);
 
   // Build trend data (weekly)
   const trendData = useMemo(() => {
@@ -284,7 +327,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
         </div>
         <div className="tb-seg">
           {[
-            { key: 'settimana', label: 'Settimana', help: 'Consuntivo della settimana chiusa: carico vs capacità e stato, fatturabile a consumo, per area (pianificato/tracciato/extra/Δ) e budget progetti. Serve la chiusura settimanale.' },
+            { key: 'settimana', label: 'Settimana', help: 'Consuntivo della settimana: carico vs capacità e stato, fatturabile a consumo, per area (pianificato/tracciato/extra/Δ) e budget progetti. Sulla settimana in corso il carico è fino a oggi con proiezione fine settimana (a piano e a ritmo); sulle settimane chiuse è il consuntivo completo e serve la chiusura settimanale.' },
             { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane: aggregato pianificato/svolto/capacità, mini-trend per area e le divergenze persistenti da decidere. Serve a scoprire la deriva del ritmo.' },
             { key: 'prospettiva', label: 'In prospettiva', help: 'Dove sto andando: proiezione a ritmo template su 2 o 4 settimane, confronto con limiti/envelope e valore atteso (o ore perse).' },
           ].map((o, idx) => (
@@ -378,7 +421,7 @@ function RetroSummary({ stats, status, deltaH }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
       {/* Carico + Stato fusi, modellati sullo specchietto capacità della Settimana */}
       <Card>
-        <CardLabel help={'Ore svolte (tracciate) sulla capacità della settimana.\n\n% = svolto ÷ capacità. Δ = svolto − capacità. Stato: sotto-carico sotto 0,85×, in linea fino a 1,1×, sovraccarico oltre.'}>Carico della settimana</CardLabel>
+        <CardLabel help={'Ore svolte (tracciate) sulla capacità della settimana.\n\n% = svolto ÷ capacità. Δ = svolto − capacità. Stato: sotto-carico sotto 0,85×, in linea fino a 1,1×, sovraccarico oltre.\n\nSulla settimana in corso il valore è il consuntivo fino a oggi; sotto, la proiezione fine settimana: "a piano" = consuntivo + piano dei giorni restanti; "a ritmo" = consuntivo / giorni trascorsi × 7.'}>Carico della settimana</CardLabel>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
             <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
@@ -399,6 +442,24 @@ function RetroSummary({ stats, status, deltaH }) {
             Δ {deltaH >= 0 ? '+' : ''}{fmtH(deltaH)}
           </span>
         </div>
+        {stats.projTemplateHours != null && stats.daysElapsed > 0 && stats.daysElapsed < PLANNING_DAYS && (
+          <div style={{
+            marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--tb-border-soft)',
+            display: 'flex', flexDirection: 'column', gap: 6,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <ProjectionIcon />
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)', letterSpacing: '0.03em' }}>
+                Proiezione fine settimana
+                <span style={{ color: 'var(--tb-text-muted)', fontWeight: 600, marginLeft: 6 }}>· {PLANNING_DAYS - stats.daysElapsed}g al termine</span>
+              </span>
+            </div>
+            <ProjRow label="a piano" value={stats.projTemplateHours} capacity={stats.capacity}
+              hint="consuntivo + ore pianificate (override o template) dei giorni da domani a domenica" />
+            <ProjRow label="a ritmo" value={stats.projRhythmHours} capacity={stats.capacity}
+              hint="consuntivo / giorni trascorsi × 7: estrapolazione del ritmo attuale" />
+          </div>
+        )}
       </Card>
 
       <Card>
@@ -921,6 +982,24 @@ function ProjectionIcon() {
       <path d="M1 9L4 6L6 7.5L10 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M7.5 2H10V4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+// Riga di proiezione fine settimana (carico): valore orario + Δ vs capacità.
+// Usata solo sulla settimana in corso non ancora conclusa.
+function ProjRow({ label, value, capacity, hint }) {
+  const delta = value - capacity;
+  return (
+    <div title={hint} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.02em' }}>{label}</span>
+      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(value)}</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+          <span className="tb-glyph">{delta >= 0 ? '▴' : '▾'}</span>
+          {delta >= 0 ? '+' : ''}{fmtH(delta)}
+        </span>
+      </span>
+    </div>
   );
 }
 
