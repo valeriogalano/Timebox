@@ -246,7 +246,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
           clients={clientsWithStatus} projects={projects} projectTotals={projectTotals}
           planning={planning} slotPlannedTotals={slotPlannedTotals}
           slotCapacityHours={slotCapacityHours} hasTodoistSync={!!syncedAt}
-          isToday={isToday} isFuture={isFuture}
+          isToday={isToday} isFuture={isFuture} isWeekend={dayIndex >= 5}
           addBlockToSlot={addBlockToSlot} updateBlockInSlot={updateBlockInSlot}
           removeBlockFromSlot={removeBlockFromSlot} setSlotOverride={setSlotOverride}
           dragging={dragging} setDragging={setDragging} handleDrop={handleDrop}
@@ -334,7 +334,7 @@ const SLOT_META = {
 
 function DayPlanningPanel({
   loading, clients, projects, projectTotals, planning, slotPlannedTotals,
-  slotCapacityHours, hasTodoistSync, isToday, isFuture,
+  slotCapacityHours, hasTodoistSync, isToday, isFuture, isWeekend,
   addBlockToSlot, updateBlockInSlot, removeBlockFromSlot, setSlotOverride,
   dragging, setDragging, handleDrop,
   dayEntries, onSaveDayEntry, onResetBillable,
@@ -386,7 +386,7 @@ function DayPlanningPanel({
                         blockFill={planning.blockFill}
                         todoistByClient={planning.todoistByCS[slot.key]} todoistTasksByClient={planning.todoistTasksByCS[slot.key]}
                         hasTodoistSync={hasTodoistSync}
-                        isToday={isToday} isFuture={isFuture} isWeekend={dayIndex >= 5} editable
+                        isToday={isToday} isFuture={isFuture} isWeekend={isWeekend} editable
                         onAddBlock={(cid, h) => addBlockToSlot(slot.key, cid, h)}
                         onUpdateBlock={(bid, h) => updateBlockInSlot(slot.key, bid, h)}
                         onRemoveBlock={bid => removeBlockFromSlot(slot.key, bid)}
