@@ -5,6 +5,7 @@ import PlanningCell from '../components/PlanningCell';
 import TimeCell from '../components/TimeCell';
 import SlotCapacityBar from '../components/SlotCapacityBar';
 import ExtraCell from '../components/ExtraCell';
+import MarkdownText from '../components/MarkdownText';
 import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
 
 function formatSyncDate(value) {
@@ -675,7 +676,7 @@ function MismatchGroup({ label, count = 0, items = [], itemLabel }) {
       {items.slice(0, 4).map((item, index) => (
         <InsightRow
           key={`${label}-${index}`}
-          title={itemLabel(item)}
+          title={<MarkdownText text={itemLabel(item)} />}
           value={item.slot?.toUpperCase?.() || ''}
           meta={item.project || item.todoistProject || ''}
           color="var(--tb-text-muted)"

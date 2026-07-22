@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { toHHMM, parseHHMM, fmtH } from '../utils';
+import MarkdownText from './MarkdownText';
 
 export function TodoistControlBar({ children }) {
   return (
@@ -283,13 +284,14 @@ export function TodoistImportDialog({ dialog, clients, projects, onClose, onImpo
                           (currentIndex + direction + tasks.length) % tasks.length
                         )}
                       />
-                      <span style={{
-                        minWidth: 0, fontSize: 11, fontWeight: 650,
-                        color: 'var(--tb-text-primary)', lineHeight: 1.35,
-                        overflowWrap: 'anywhere',
-                      }}>
-                        {task.content || task.title || '(senza titolo)'}
-                      </span>
+                      <MarkdownText
+                        text={task.content || task.title || '(senza titolo)'}
+                        style={{
+                          minWidth: 0, fontSize: 11, fontWeight: 650,
+                          color: 'var(--tb-text-primary)', lineHeight: 1.35,
+                          overflowWrap: 'anywhere',
+                        }}
+                      />
                     </div>
                   );
                 })}
