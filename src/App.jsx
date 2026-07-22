@@ -215,6 +215,7 @@ export default function App() {
   }, []);
 
   const topbarDate = getToday().toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const isMac = navigator.userAgent.includes('Mac');
 
   if (loading) {
     return (
@@ -268,9 +269,9 @@ export default function App() {
 
       {/* ── Sidebar ─────────────────────────────────────────────── */}
       <div style={{
-        // collapsed width must contain the native macOS traffic lights (~72px),
-        // otherwise they straddle the sidebar/main border.
-        width: collapsed ? 78 : 200,
+        // Collapsed = sidebar fully hidden (Todoist-style): the reopen control
+        // lives in the topbar, next to the native macOS traffic lights.
+        width: collapsed ? 0 : 200,
         background: 'var(--tb-sidebar-bg)',
         display: 'flex',
         flexDirection: 'column',
@@ -374,15 +375,37 @@ export default function App() {
 
         {/* Topbar (also the draggable window title region on macOS) */}
         <div style={{
-          padding: '0 28px', height: 52,
-          // I semafori macOS stanno sopra la sidebar, non qui: il titolo si allinea
-          // al contenuto (28px). Nessun padding extra.
+          // All longhand — do NOT mix the `padding` shorthand with a changing
+          // `paddingLeft` (same React clobbering issue as the sidebar brand).
+          paddingTop: 0,
+          paddingBottom: 0,
+          paddingRight: 28,
+          // Con la sidebar nascosta i semafori macOS stanno sopra la topbar:
+          // il contenuto (bottone di riapertura + titolo) parte dopo i semafori.
+          paddingLeft: collapsed && isMac ? 84 : 28,
+          height: 52,
           borderBottom: '1px solid var(--tb-topbar-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           background: 'var(--tb-topbar-bg)', flexShrink: 0,
           WebkitAppRegion: 'drag',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {collapsed && (
+              <button onClick={toggleSidebar} title="Mostra la sidebar (⌘B)" style={{
+                background: 'transparent', border: 'none', color: 'var(--tb-text-muted)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px',
+                margin: '0 0 0 -6px', borderRadius: 4, transition: 'all 0.2s',
+                WebkitAppRegion: 'no-drag',
+              }} onMouseOver={e => {
+                e.currentTarget.style.background = 'var(--tb-navbtn-hover)';
+                e.currentTarget.style.color = 'var(--tb-topbar-text)';
+              }} onMouseOut={e => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--tb-text-muted)';
+              }}>
+                <ExpandIcon />
+              </button>
+            )}
             <h1 style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-topbar-text)', letterSpacing: '-0.01em' }}>
               {NAV_ITEMS.find(n => n.id === screen)?.label}
             </h1>
