@@ -410,6 +410,7 @@ function DayPlanningPanel({
       ) : (
         <DayTimesheet
           loading={loading} dayEntries={dayEntries} clients={clients} projects={projects}
+          isToday={isToday} isFuture={isFuture}
           onSaveDayEntry={onSaveDayEntry} onResetBillable={onResetBillable} />
       )}
     </section>
@@ -431,7 +432,7 @@ function TabBtn({ active, onClick, children }) {
 // Timesheet del giorno: una riga per progetto tracciato oggi, cella TimeCell
 // identica al timesheet settimanale. Per registrare su un progetto non ancora
 // presente si usa il QuickLog (⌘L), che poi lo fa comparire qui.
-function DayTimesheet({ loading, dayEntries, clients, projects, onSaveDayEntry, onResetBillable }) {
+function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFuture, onSaveDayEntry, onResetBillable }) {
   const [viewMode, setViewMode] = useState('tracked');
   if (loading) return <div style={{ padding: 12 }}><SkeletonRows /></div>;
 
