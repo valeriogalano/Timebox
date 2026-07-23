@@ -528,14 +528,15 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     SLOTS.flatMap(slot => d.slotBlocks[slot])
       .filter(block => validClientIds.has(block.clientId))
       .forEach(b => {
-      if (!weekTotalSummary[b.clientId]) weekTotalSummary[b.clientId] = { planned: 0, actual: 0 };
+      if (!weekTotalSummary[b.clientId]) weekTotalSummary[b.clientId] = { planned: 0, actual: 0, plannedFuture: 0 };
       weekTotalSummary[b.clientId].planned += b.hours;
+      if (d.isFuture) weekTotalSummary[b.clientId].plannedFuture += b.hours;
       });
     // Actual: All entries (planned + extra)
     d.dayEntries.forEach(e => {
       const p = projects.find(p2 => p2.id === e.projectId);
       if (!p) return;
-      if (!weekTotalSummary[p.clientId]) weekTotalSummary[p.clientId] = { planned: 0, actual: 0 };
+      if (!weekTotalSummary[p.clientId]) weekTotalSummary[p.clientId] = { planned: 0, actual: 0, plannedFuture: 0 };
       weekTotalSummary[p.clientId].actual += e.hours;
     });
   });
@@ -1503,6 +1504,7 @@ function WeeklySummaryStrip({ summary, clients, open, onToggle }) {
           {items.map(({ client, data }) => {
             const planned = data.planned || 0;
             const actual = data.actual || 0;
+            const projected = actual + (data.plannedFuture || 0);
             const pct = planned > 0 ? Math.min(1, actual / planned) : (actual > 0 ? 1 : 0);
             const over = planned > 0 && actual > planned;
             return (
@@ -1522,6 +1524,11 @@ function WeeklySummaryStrip({ summary, clients, open, onToggle }) {
                   <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct * 100}%`, background: client.color, borderRadius: 2 }} />
                   {over && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: '18%', borderRadius: '0 2px 2px 0' }} />}
                 </div>
+                {data.plannedFuture > 0 && (
+                  <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--tb-text-faint)', marginTop: 4 }}>
+                    previsto {toHHMM(projected)}
+                  </div>
+                )}
               </div>
             );
           })}
