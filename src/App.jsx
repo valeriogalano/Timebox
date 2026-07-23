@@ -151,32 +151,37 @@ export default function App() {
 
   useEffect(() => {
     function onKeyDown(e) {
-      if (!e.metaKey) return;
       const tag = document.activeElement?.tagName;
+      const isEditing = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable;
+
+      // Bare-key / Shift shortcuts: swallowed while typing in a field (like Todoist)
+      if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (isEditing) return;
+        if (e.key === 'q' || e.key === 'Q') {
+          e.preventDefault();
+          setQuickLogOpen(o => !o);
+          return;
+        }
+        if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+          const delta = e.key === 'ArrowRight' ? 1 : -1;
+          if (screen === 'weekly') { e.preventDefault(); setWeekOffset(o => o + delta); }
+          else if (screen === 'today') { e.preventDefault(); setDayOffset(o => o + delta); }
+          return;
+        }
+      }
+
+      if (!e.metaKey) return;
       const blurActiveInput = () => {
         if (tag === 'INPUT' || tag === 'TEXTAREA') document.activeElement.blur();
       };
 
       switch (e.key) {
-        case 'l':
-          e.preventDefault();
-          blurActiveInput();
-          setQuickLogOpen(o => !o);
-          break;
         case 't':
           e.preventDefault();
           blurActiveInput();
           setScreen('weekly');
           setWeekOffset(0);
           setDayOffset(0);
-          break;
-        case 'ArrowLeft':
-          if (screen === 'weekly') { e.preventDefault(); blurActiveInput(); setWeekOffset(o => o - 1); }
-          else if (screen === 'today') { e.preventDefault(); blurActiveInput(); setDayOffset(o => o - 1); }
-          break;
-        case 'ArrowRight':
-          if (screen === 'weekly') { e.preventDefault(); blurActiveInput(); setWeekOffset(o => o + 1); }
-          else if (screen === 'today') { e.preventDefault(); blurActiveInput(); setDayOffset(o => o + 1); }
           break;
         case 'b':
           e.preventDefault();
@@ -485,10 +490,11 @@ function KeyboardHelp({ onClose }) {
   }, [onClose]);
 
   const shortcuts = [
-    ['⌘ L',     'Apre il QuickLog'],
+    ['Q',       'Apre il QuickLog'],
     ['⌘ T',     'Timesheet della settimana corrente'],
-    ['⌘ ← / →', 'Settimana precedente / successiva'],
+    ['⇧ ← / →', 'Settimana precedente / successiva'],
     ['⌥ ← / →', 'In una cella del timesheet: salva e si sposta di giorno sulla stessa riga'],
+    ['Enter',   'In una cella del timesheet: salva e scende di una riga'],
     ['⌘ B',     'Espande / riduce la sidebar'],
     ['⌘ ,',     'Impostazioni'],
     ['⌘ 1–9',   'Naviga alle schermate in ordine sidebar'],
