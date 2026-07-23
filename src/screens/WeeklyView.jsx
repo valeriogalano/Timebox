@@ -39,15 +39,6 @@ function BudgetMeter({ level }) {
   );
 }
 
-// Stesse soglie di statusFor() in Panoramica.jsx (0.85/1.1), applicate qui alla previsione di fine settimana.
-function areaLoadStatus(projected, planned) {
-  if (!(planned > 0)) return { label: '—', glyph: '·' };
-  const ratio = projected / planned;
-  if (ratio > 1.1) return { label: 'Sovraccarico', glyph: '▴' };
-  if (ratio < 0.85) return { label: 'Sottocarico', glyph: '▾' };
-  return { label: 'In linea', glyph: '▪' };
-}
-
 function summarizeBlocksByClient(blocks, validClientIds) {
   const summary = {};
   for (const block of blocks) {
@@ -537,15 +528,14 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     SLOTS.flatMap(slot => d.slotBlocks[slot])
       .filter(block => validClientIds.has(block.clientId))
       .forEach(b => {
-      if (!weekTotalSummary[b.clientId]) weekTotalSummary[b.clientId] = { planned: 0, actual: 0, plannedFuture: 0 };
+      if (!weekTotalSummary[b.clientId]) weekTotalSummary[b.clientId] = { planned: 0, actual: 0 };
       weekTotalSummary[b.clientId].planned += b.hours;
-      if (d.isFuture) weekTotalSummary[b.clientId].plannedFuture += b.hours;
       });
     // Actual: All entries (planned + extra)
     d.dayEntries.forEach(e => {
       const p = projects.find(p2 => p2.id === e.projectId);
       if (!p) return;
-      if (!weekTotalSummary[p.clientId]) weekTotalSummary[p.clientId] = { planned: 0, actual: 0, plannedFuture: 0 };
+      if (!weekTotalSummary[p.clientId]) weekTotalSummary[p.clientId] = { planned: 0, actual: 0 };
       weekTotalSummary[p.clientId].actual += e.hours;
     });
   });
@@ -1513,21 +1503,16 @@ function WeeklySummaryStrip({ summary, clients, open, onToggle }) {
           {items.map(({ client, data }) => {
             const planned = data.planned || 0;
             const actual = data.actual || 0;
-            const projected = actual + (data.plannedFuture || 0);
             const pct = planned > 0 ? Math.min(1, actual / planned) : (actual > 0 ? 1 : 0);
             const over = planned > 0 && actual > planned;
-            const status = areaLoadStatus(projected, planned);
             return (
               <div key={client.id} style={{
                 flex: '1 1 140px', minWidth: 140,
                 background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
                 borderLeft: `3px solid ${client.color}`, borderRadius: 6, padding: '8px 10px',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: client.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {client.name}
-                  </span>
-                  <span className="tb-glyph" title={status.label} style={{ fontSize: 11, color: 'var(--tb-text-muted)', flexShrink: 0 }}>{status.glyph}</span>
+                <div style={{ fontSize: 10, fontWeight: 700, color: client.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {client.name}
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)', marginTop: 2 }}>
                   {toHHMM(actual)}
@@ -1537,11 +1522,6 @@ function WeeklySummaryStrip({ summary, clients, open, onToggle }) {
                   <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct * 100}%`, background: client.color, borderRadius: 2 }} />
                   {over && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: '18%', borderRadius: '0 2px 2px 0' }} />}
                 </div>
-                {data.plannedFuture > 0 && (
-                  <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--tb-text-faint)', marginTop: 4 }}>
-                    previsto {toHHMM(projected)}
-                  </div>
-                )}
               </div>
             );
           })}

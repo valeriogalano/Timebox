@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Andamento · Settimana: la tabella "Per area · consuntivo" mostra, sulla settimana in corso, una colonna Previsto = consuntivo fino a oggi + ore pianificate dei giorni restanti (stessa proiezione "a piano" già presente sul totale nella card Carico).
+
+### Removed
+- Settimana: la striscia di riepilogo per area non mostra più la proiezione fine settimana né il glifo di stato del carico (0.9.6). La proiezione per area vive ora in Andamento · Settimana, dove il metodo la colloca. Sostituisce due indicatori posti nella schermata sbagliata.
+
 ## [0.9.6] - 2026-07-23
 
 ### Added
