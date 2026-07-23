@@ -1334,7 +1334,7 @@ function TemplateDivergencePanel({ summary, clients, onRestore, onClose }) {
             }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: client?.color ?? 'var(--tb-border)', flexShrink: 0 }} />
               <span style={{ fontWeight: 800, color: 'var(--tb-text-primary)', whiteSpace: 'nowrap' }}>
-                {DAY_SHORT[row.dayIndex]} · {row.slot.toUpperCase()}
+                {DAY_SHORT[row.dayIndex]} · {SLOT_ROW_META[row.slot]?.label ?? row.slot}
               </span>
               <span style={{ color: 'var(--tb-text-muted)', flex: 1 }}>
                 template {fmtH(row.templateHours)} → settimana {fmtH(row.actualHours)}
