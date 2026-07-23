@@ -66,7 +66,16 @@ export default function TimeCell({
   }
 
   function onKeyDown(e) {
-    if (e.key === 'Enter') commit();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commit();
+      const currentCell = inputRef.current?.closest('[data-timecell]');
+      const col = currentCell?.dataset.col;
+      const colCells = getTimeCells().filter(el => el.dataset.col === col);
+      const cellIdx = colCells.indexOf(currentCell);
+      if (cellIdx >= 0 && cellIdx < colCells.length - 1) focusCell(colCells[cellIdx + 1]);
+      return;
+    }
     if (e.key === 'Escape') { setEditing(false); onEditEnd?.(); }
     if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();

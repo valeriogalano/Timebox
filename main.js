@@ -571,7 +571,9 @@ function setupIpc() {
       if (debug) logger.info('todoist:match', { content: t.content, date, matched: proj?.name ?? null });
       if (!proj) continue;
       const todoistProject = todoistProjects.find(project => project.id === t.project_id) ?? null;
-      const hours = parseTodoistDurationHours(t.duration);
+      // A task without a specific due time isn't placed in a slot, so its duration
+      // (if any survives on the Todoist side) must not count toward block capacity.
+      const hours = t.due?.datetime ? parseTodoistDurationHours(t.duration) : null;
       if (!hours) continue;
       if (!byDate[date]) byDate[date] = [];
       byDate[date].push({
