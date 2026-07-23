@@ -39,6 +39,15 @@ function BudgetMeter({ level }) {
   );
 }
 
+// Stesse soglie di statusFor() in Panoramica.jsx (0.85/1.1), applicate qui alla previsione di fine settimana.
+function areaLoadStatus(projected, planned) {
+  if (!(planned > 0)) return { label: '—', glyph: '·' };
+  const ratio = projected / planned;
+  if (ratio > 1.1) return { label: 'Sovraccarico', glyph: '▴' };
+  if (ratio < 0.85) return { label: 'Sottocarico', glyph: '▾' };
+  return { label: 'In linea', glyph: '▪' };
+}
+
 function summarizeBlocksByClient(blocks, validClientIds) {
   const summary = {};
   for (const block of blocks) {
@@ -1507,14 +1516,18 @@ function WeeklySummaryStrip({ summary, clients, open, onToggle }) {
             const projected = actual + (data.plannedFuture || 0);
             const pct = planned > 0 ? Math.min(1, actual / planned) : (actual > 0 ? 1 : 0);
             const over = planned > 0 && actual > planned;
+            const status = areaLoadStatus(projected, planned);
             return (
               <div key={client.id} style={{
                 flex: '1 1 140px', minWidth: 140,
                 background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
                 borderLeft: `3px solid ${client.color}`, borderRadius: 6, padding: '8px 10px',
               }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: client.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {client.name}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: client.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {client.name}
+                  </span>
+                  <span className="tb-glyph" title={status.label} style={{ fontSize: 11, color: 'var(--tb-text-muted)', flexShrink: 0 }}>{status.glyph}</span>
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)', marginTop: 2 }}>
                   {toHHMM(actual)}
