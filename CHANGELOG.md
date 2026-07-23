@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.6] - 2026-07-23
+
 ### Added
 - Andamento · Settimana: la striscia di riepilogo per area mostra la proiezione fine settimana, sommando alle ore già fatte le ore ancora pianificate sui giorni futuri, accanto al confronto consuntivo-vs-piano.
 - Andamento · Settimana: ogni area nella striscia di riepilogo ha ora un glifo di stato del carico (sottocarico / in linea / sovraccarico) sulla proiezione fine settimana, coerente con il glifo già presente sulle righe dei progetti.
