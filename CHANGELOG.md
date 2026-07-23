@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Andamento · Settimana: la striscia di riepilogo per area mostra la proiezione fine settimana, sommando alle ore già fatte le ore ancora pianificate sui giorni futuri, accanto al confronto consuntivo-vs-piano.
+- Andamento · Settimana: ogni area nella striscia di riepilogo ha ora un glifo di stato del carico (sottocarico / in linea / sovraccarico) sulla proiezione fine settimana, coerente con il glifo già presente sulle righe dei progetti.
+
+### Changed
+- Scorciatoie: allineate alle convenzioni di Todoist per chi usa entrambe le app. QuickLog passa da ⌘L a Q; la navigazione settimana da ⌘← / ⌘→ a ⇧← / ⇧→; nel timesheet Enter salva la cella e scende di una riga (complemento verticale di ⌥← / ⌥→). Le scorciatoie a tasto singolo vengono ignorate mentre si sta scrivendo in un campo.
+
+### Fixed
+- Giorno: una task Todoist con scadenza solo di data (senza orario) non viene più conteggiata in "Oltre blocco" nel pannello dei mismatch, dato che non è assegnata ad alcuna fascia Mattina/Pomeriggio/Sera.
+- Andamento · Settimana: il pannello delle divergenze usa le etichette standard Mattina/Pomeriggio/Sera invece delle chiavi grezze (AM/PM/SERA).
+
 ## [0.9.5] - 2026-07-22
 
 ### Added
