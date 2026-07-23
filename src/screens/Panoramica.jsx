@@ -216,7 +216,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
     //   domani a domenica. Risponde a "se completo il piano, dove arrivo?".
     // - a ritmo: consuntivo / giorni trascorsi × 7. Risponde a "se continuo così,
     //   dove arrivo?" indipendentemente dal piano.
-    let projTemplateHours = null, projRhythmHours = null, daysElapsed = null;
+    let projTemplateHours = null, projRhythmHours = null, daysElapsed = null, projByClient = null;
     if (isCurrentWeek) {
       const monday = addDays(getMondayOfWeek(getToday()), periodOffset * 7);
       const de = Math.floor((getToday() - monday) / 86400000) + 1; // lun=1 … dom=7
@@ -238,13 +238,16 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
         const remainingPlanned = Object.values(remainingByClient).reduce((s, v) => s + v, 0);
         projTemplateHours = totalDone + remainingPlanned;
         projRhythmHours  = de > 0 ? totalDone / de * PLANNING_DAYS : 0;
+        // Per area, stessa definizione "a piano": consuntivo (fino a oggi) + piano dei giorni restanti.
+        projByClient = {};
+        clients.forEach(c => { projByClient[c.id] = (actualByClient[c.id] ?? 0) + remainingByClient[c.id]; });
       }
     }
 
     return {
       actualByClient, plannedByClient, actualByProject, numWeeks: 1,
       capacity, totalDone, billedDoneEur, projectionEur, billableDoneHours,
-      projTemplateHours, projRhythmHours, daysElapsed,
+      projTemplateHours, projRhythmHours, daysElapsed, projByClient,
     };
   }, [entries, periodOffset, clients, projects, projectClientMap, plannedByClientEffective, recurring, overridesByWeek, currentWeekKey]);
 
@@ -505,17 +508,22 @@ function AreaConsuntivo({ clients, stats }) {
     })
     .filter(r => r.planned > 0 || r.done > 0);
   if (!rows.length) return null;
-  const COLS = 'minmax(0,1fr) 64px 64px 64px 64px 40px';
+  const proj = stats.projByClient; // presente solo sulla settimana in corso non conclusa
+  const COLS = proj
+    ? 'minmax(0,1fr) 64px 64px 64px 64px 64px 40px'
+    : 'minmax(0,1fr) 64px 64px 64px 64px 40px';
   const numCell = { fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', textAlign: 'right' };
   const headCell = { fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' };
+  const topCell = { borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 };
   return (
     <div>
       <SectionHeader title="Per area · consuntivo" subtitle="pianificato · tracciato · extra"
-        help={'Per ogni area, nella settimana selezionata: Piano = ore pianificate, Fatto = ore tracciate, Extra = ore fatte oltre il piano (max(0, fatto − piano)), Δ = fatto − piano. La colonna Stato è il verdetto (sotto/in linea/sovraccarico).'} />
+        help={'Per ogni area, nella settimana selezionata: Piano = ore pianificate, Fatto = ore tracciate, Extra = ore fatte oltre il piano (max(0, fatto − piano)), Δ = fatto − piano. La colonna Stato è il verdetto (sotto/in linea/sovraccarico).\n\nSulla settimana in corso compare anche Previsto = consuntivo fino a oggi + ore pianificate dei giorni restanti (proiezione "a piano").'} />
       <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: '2px 12px', alignItems: 'center' }}>
         <span />
         <span style={headCell}>Piano</span>
         <span style={headCell}>Fatto</span>
+        {proj && <span style={headCell}>Previsto</span>}
         <span style={headCell}>Extra</span>
         <span style={headCell}>Δ</span>
         <span style={headCell}>Stato</span>
@@ -523,13 +531,14 @@ function AreaConsuntivo({ clients, stats }) {
           const v = statusFor(done, planned);
           return (
             <React.Fragment key={c.id}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, ...topCell }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
                 <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
               </span>
-              <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6, color: 'var(--tb-text-muted)' }}>{fmtH(planned)}</span>
-              <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 }}>{fmtH(done)}</span>
-              <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6, color: extra > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>{extra > 0 ? fmtH(extra) : '—'}</span>
+              <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-muted)' }}>{fmtH(planned)}</span>
+              <span style={{ ...numCell, ...topCell }}>{fmtH(done)}</span>
+              {proj && <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-secondary)' }}>{fmtH(proj[c.id] ?? done)}</span>}
+              <span style={{ ...numCell, ...topCell, color: extra > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>{extra > 0 ? fmtH(extra) : '—'}</span>
               <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6, color: 'var(--tb-text-muted)' }}>{delta >= 0 ? '+' : ''}{fmtH(delta)}</span>
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 }}>
                 <span className="tb-glyph" title={v.label} style={{ fontSize: 13 }}>{v.glyph}</span>
