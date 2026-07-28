@@ -3,6 +3,7 @@ import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, 
 import { areaMix } from '../area-colors';
 import { persistentAreaInsights, areaProjection, PERSIST_WINDOW, PERSIST_MIN } from '../panoramica-insights';
 import OverCapacityBar from '../components/OverCapacityBar';
+import Glyph from '../components/Glyph';
 
 // Redesign: nessun colore di stato. L'identità è solo l'area (client.color).
 // over/under/in-line si leggono per posizione/glyph, non per verde/arancio/rosso.
@@ -435,14 +436,14 @@ function RetroSummary({ stats, status, deltaH }) {
           </span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title={status.label}>
             <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{pct}%</span>
-            <span className="tb-glyph" style={{ fontSize: 16 }}>{status.glyph}</span>
+            <Glyph glyph={status.glyph} size={16} className="tb-glyph" title={status.label} />
           </span>
         </div>
         <CapacityBar done={stats.totalDone} capacity={stats.capacity} color={status.color} />
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
           <span>{status.label} · capacità {fmtH(stats.capacity)}</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <span className="tb-glyph">{deltaH >= 0 ? '▴' : '▾'}</span>
+            <Glyph glyph={deltaH >= 0 ? '▴' : '▾'} size={11} className="tb-glyph" />
             Δ {deltaH >= 0 ? '+' : ''}{fmtH(deltaH)}
           </span>
         </div>
@@ -511,8 +512,8 @@ function AreaConsuntivo({ clients, stats }) {
   if (!rows.length) return null;
   const proj = stats.projByClient; // presente solo sulla settimana in corso non conclusa
   const COLS = proj
-    ? 'minmax(0,1fr) 64px 64px 64px 64px 64px 40px'
-    : 'minmax(0,1fr) 64px 64px 64px 64px 40px';
+    ? '40px minmax(0,1fr) 64px 64px 64px 64px 64px'
+    : '40px minmax(0,1fr) 64px 64px 64px 64px';
   const numCell = { fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', textAlign: 'right' };
   const headCell = { fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' };
   const topCell = { borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 };
@@ -522,16 +523,19 @@ function AreaConsuntivo({ clients, stats }) {
         help={'Per ogni area, nella settimana selezionata: Piano = ore pianificate, Fatto = ore tracciate, Extra = ore fatte oltre il piano (max(0, fatto − piano)), Δ = fatto − piano. La colonna Stato è il verdetto (sotto/in linea/sovraccarico).\n\nSulla settimana in corso compare anche Previsto = consuntivo fino a oggi + ore pianificate dei giorni restanti (proiezione "a piano").'} />
       <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: '2px 12px', alignItems: 'center' }}>
         <span />
+        <span />
         <span style={headCell}>Piano</span>
         <span style={headCell}>Fatto</span>
         {proj && <span style={headCell}>Previsto</span>}
         <span style={headCell}>Extra</span>
         <span style={headCell}>Δ</span>
-        <span style={headCell}>Stato</span>
         {rows.map(({ c, planned, done, extra, delta }) => {
           const v = statusFor(done, planned);
           return (
             <React.Fragment key={c.id}>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', ...topCell }}>
+                <Glyph glyph={v.glyph} size={13} className="tb-glyph" title={v.label} />
+              </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, ...topCell }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
                 <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
@@ -541,9 +545,6 @@ function AreaConsuntivo({ clients, stats }) {
               {proj && <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-secondary)' }}>{fmtH(proj[c.id] ?? done)}</span>}
               <span style={{ ...numCell, ...topCell, color: extra > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>{extra > 0 ? fmtH(extra) : '—'}</span>
               <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6, color: 'var(--tb-text-muted)' }}>{delta >= 0 ? '+' : ''}{fmtH(delta)}</span>
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 }}>
-                <span className="tb-glyph" title={v.label} style={{ fontSize: 13 }}>{v.glyph}</span>
-              </span>
             </React.Fragment>
           );
         })}
@@ -669,7 +670,7 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 9, height: 9, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
               <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)', flex: 1 }}>{c.name}</span>
-              <span className="tb-glyph" title={verdict.label} style={{ fontSize: 15 }}>{verdict.glyph}</span>
+              <Glyph glyph={verdict.glyph} size={15} className="tb-glyph" title={verdict.label} />
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8, fontSize: 12, color: 'var(--tb-text-muted)' }}>
               <span><strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(rhythm)}</strong>/sett · proiettato <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(projected)}</strong></span>
@@ -714,7 +715,7 @@ function AreaSparkCard({ client, planned, weeks }) {
         <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {client.name}
         </span>
-        <span className="tb-glyph" title={verdict.label} style={{ fontSize: 12 }}>{verdict.glyph}</span>
+        <Glyph glyph={verdict.glyph} size={12} className="tb-glyph" title={verdict.label} />
       </div>
 
       <div style={{ position: 'relative', height: CHART_H }}>
@@ -985,7 +986,7 @@ function ProjRow({ label, value, capacity, hint }) {
       <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
         <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(value)}</span>
         <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-          <span className="tb-glyph">{delta >= 0 ? '▴' : '▾'}</span>
+          <Glyph glyph={delta >= 0 ? '▴' : '▾'} size={10} className="tb-glyph" />
           {delta >= 0 ? '+' : ''}{fmtH(delta)}
         </span>
       </span>

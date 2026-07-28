@@ -6,6 +6,7 @@ import TimeCell from '../components/TimeCell';
 import SlotCapacityBar from '../components/SlotCapacityBar';
 import ExtraCell from '../components/ExtraCell';
 import MarkdownText from '../components/MarkdownText';
+import Glyph from '../components/Glyph';
 import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
 
 function formatSyncDate(value) {
@@ -599,7 +600,7 @@ function TodayGauge({ planned, traced, capacity }) {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 7, border: '1px solid var(--tb-border-mid)', background: 'var(--tb-panel-bg-soft)' }}>
-          <span className="tb-glyph" style={{ fontSize: 15 }}>{verdict.glyph}</span>
+          <Glyph glyph={verdict.glyph} size={15} className="tb-glyph" title={verdict.label} />
           <div>
             <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1.1 }}>{verdict.label}</div>
             <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)', marginTop: 1 }}>{verdict.sub}</div>

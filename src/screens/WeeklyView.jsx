@@ -6,6 +6,7 @@ import TimeCell from '../components/TimeCell';
 import DivergenceDot from '../components/DivergenceDot';
 import SlotCapacityBar from '../components/SlotCapacityBar';
 import AreaStatusGlyph from '../components/AreaStatusGlyph';
+import Glyph from '../components/Glyph';
 import OverCapacityBar from '../components/OverCapacityBar';
 import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
 import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries, resolveEntrySlot } from '../dayPlanning';
@@ -1018,7 +1019,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 {d.plannedTotal > 0 && !d.isFuture && (
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}
                     title={d.delta >= 0 ? 'Sopra il piano' : 'Sotto il piano'}>
-                    <span className="tb-glyph">{d.delta >= 0 ? '▸' : '▾'}</span>
+                    <Glyph glyph={d.delta >= 0 ? '▸' : '▾'} size={10} className="tb-glyph" />
                     <span>{d.delta >= 0 ? '+' : ''}{fmtH(d.delta)}</span>
                   </div>
                 )}
@@ -1296,7 +1297,7 @@ function TemplateDivergenceBadge({ summary, open, onToggle }) {
     >
       <span className="tb-delta">Δ</span>
       <span>template {deltaLabel} · {summary.divergentSlots}/{summary.totalSlots}</span>
-      <span style={{ fontSize: 8, opacity: 0.8 }}>{open ? '▴' : '▾'}</span>
+      <Glyph glyph={open ? '▴' : '▾'} size={8} style={{ opacity: 0.8 }} />
     </button>
   );
 }
@@ -1493,7 +1494,7 @@ function WeeklySummaryStrip({ summary, clients, open, onToggle }) {
           background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
           fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', fontFamily: "'Open Sans', sans-serif",
         }}>
-          {open ? 'nascondi ▾' : 'mostra ▸'}
+          {open ? <>nascondi <Glyph glyph="▾" size={9} /></> : <>mostra <Glyph glyph="▸" size={9} /></>}
         </button>
       </div>
       {open && (
