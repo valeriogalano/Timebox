@@ -7,7 +7,7 @@
  * Theme-independent via [data-theme] overrides.
  */
 
-/* Github: stato area A/M/C, Δ override, ▸/▾/▪, ◇ divergenza — tutti neutri */
+/* Github: stato area A/M/C, Δ override, ▴/▾/▪, ◇ divergenza — tutti neutri */
 .tb-glyph {
   color: var(--tb-state-glyph);
   font-weight: 800;

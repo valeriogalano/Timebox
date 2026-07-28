@@ -602,7 +602,7 @@ function FreeCapacityCard({ loading, totals, capacity }) {
 //  - tick bianco pieno = ritmo atteso ora (time-of-day)
 //  - tick grigio       = piano del giorno
 //  - tick tratteggiato = capacità
-// Verdetto via glyph ▸/▾/▪ (sopra/sotto/in pari col ritmo).
+// Verdetto via glyph ▴/▾/▪ (sopra/sotto/in pari col ritmo).
 function TodayGauge({ planned, traced, capacity }) {
   const scale = Math.max(capacity, planned, traced, 0.001);
   const pct = v => `${Math.max(0, Math.min(100, (v / scale) * 100))}%`;
@@ -617,7 +617,7 @@ function TodayGauge({ planned, traced, capacity }) {
   const verdict = Math.abs(diff) < 0.25
     ? { glyph: '▪', label: 'In pari col ritmo', sub: `${fmtH(Math.abs(diff))} di scarto` }
     : diff > 0
-      ? { glyph: '▸', label: 'Sopra il ritmo', sub: `${fmtH(diff)} in avanti` }
+      ? { glyph: '▴', label: 'Sopra il ritmo', sub: `${fmtH(diff)} in avanti` }
       : { glyph: '▾', label: 'Sotto il ritmo', sub: `${fmtH(-diff)} indietro` };
   return (
     <div style={{ border: '1px solid var(--tb-border)', borderRadius: 10, background: 'var(--tb-panel-bg)', padding: '16px 18px' }}>
