@@ -4,6 +4,7 @@ import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks, resolve
 import PlanningCell from '../components/PlanningCell';
 import TimeCell from '../components/TimeCell';
 import SlotCapacityBar from '../components/SlotCapacityBar';
+import { dayCapacityHours } from '../slot-capacity';
 import ExtraCell from '../components/ExtraCell';
 import MarkdownText from '../components/MarkdownText';
 import Glyph from '../components/Glyph';
@@ -26,7 +27,7 @@ function mismatchTotal(counts = {}) {
     + (counts.estimatedBeyondResidualCapacity || 0);
 }
 
-export default function TodayView({ externalRefreshTick, projects, onSynced, clients = [], recurring = [], slotCapacityHours, onEntryChange, dayOffset = 0, setDayOffset }) {
+export default function TodayView({ externalRefreshTick, projects, onSynced, clients = [], recurring = [], slotCapacity, onEntryChange, dayOffset = 0, setDayOffset }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -247,7 +248,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
           loading={loading}
           clients={clientsWithStatus} projects={projects} projectTotals={projectTotals}
           planning={planning} slotPlannedTotals={slotPlannedTotals}
-          slotCapacityHours={slotCapacityHours} hasTodoistSync={!!syncedAt}
+          slotCapacity={slotCapacity} hasTodoistSync={!!syncedAt}
           isToday={isToday} isFuture={isFuture} isWeekend={dayIndex >= 5}
           addBlockToSlot={addBlockToSlot} updateBlockInSlot={updateBlockInSlot}
           removeBlockFromSlot={removeBlockFromSlot} setSlotOverride={setSlotOverride}
@@ -260,10 +261,10 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
             <TodayGauge
               planned={SLOTS.reduce((s, slot) => s + (slotPlannedTotals[slot] || 0), 0)}
               traced={rawEntries.reduce((s, e) => s + e.hours, 0)}
-              capacity={slotCapacityHours * SLOTS.length}
+              capacity={dayCapacityHours(slotCapacity)}
             />
           )}
-          <FreeCapacityCard loading={loading} totals={totals} capacity={slotCapacityHours * SLOTS.length} />
+          <FreeCapacityCard loading={loading} totals={totals} capacity={dayCapacityHours(slotCapacity)} />
 
           <Panel
             title="Blocchi pianificati senza azioni"
@@ -336,7 +337,7 @@ const SLOT_META = {
 
 function DayPlanningPanel({
   loading, clients, projects, projectTotals, planning, slotPlannedTotals,
-  slotCapacityHours, hasTodoistSync, isToday, isFuture, isWeekend,
+  slotCapacity, hasTodoistSync, isToday, isFuture, isWeekend,
   addBlockToSlot, updateBlockInSlot, removeBlockFromSlot, setSlotOverride,
   dragging, setDragging, handleDrop,
   dayEntries, onSaveDayEntry, onResetBillable,
@@ -397,7 +398,7 @@ function DayPlanningPanel({
                         draggingId={dragging?.blockId} />
                     )}
                   </div>
-                  <SlotCapacityBar plannedHours={slot.planned} loggedHours={slot.logged} capacityHours={slotCapacityHours} />
+                  <SlotCapacityBar plannedHours={slot.planned} loggedHours={slot.logged} capacityHours={slotCapacity[slot.key]} />
                 </div>
               );
             })}

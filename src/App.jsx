@@ -10,7 +10,7 @@ import RecurringScreen from './screens/RecurringScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import EntriesScreen from './screens/EntriesScreen';
 import TodoistLog from './screens/TodoistLog';
-import { DEFAULT_SLOT_CAPACITY_HOURS, SLOT_CAPACITY_SETTING_KEY, normalizeSlotCapacityHours } from './slot-capacity';
+import { SLOT_CAPACITY_SETTING_KEY, normalizeSlotCapacity } from './slot-capacity';
 
 const NAV_ITEMS = [
   { id: 'weekly',     label: 'Settimana',      icon: WeekIcon      },
@@ -76,7 +76,7 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [autoFocusProject, setAutoFocusProject] = useState(null);
   const [andamentoLens, setAndamentoLens] = useState(null); // deep-link: apre Andamento su una lente
-  const [slotCapacityHours, setSlotCapacityHours] = useState(DEFAULT_SLOT_CAPACITY_HOURS);
+  const [slotCapacity, setSlotCapacity] = useState(() => normalizeSlotCapacity());
   const refreshSidebar = useCallback(() => setSidebarKey(k => k + 1), []);
 
   const [theme, setThemeState] = useState(() => {
@@ -132,14 +132,14 @@ export default function App() {
 
   useEffect(() => {
     window.api.getSetting?.(SLOT_CAPACITY_SETTING_KEY)
-      .then(value => setSlotCapacityHours(normalizeSlotCapacityHours(value)))
-      .catch(() => setSlotCapacityHours(DEFAULT_SLOT_CAPACITY_HOURS));
+      .then(value => setSlotCapacity(normalizeSlotCapacity(value)))
+      .catch(() => setSlotCapacity(normalizeSlotCapacity()));
   }, []);
 
-  async function updateSlotCapacityHours(value) {
-    const normalized = normalizeSlotCapacityHours(value);
-    setSlotCapacityHours(normalized);
-    await window.api.setSetting?.(SLOT_CAPACITY_SETTING_KEY, String(normalized));
+  async function updateSlotCapacity(value) {
+    const normalized = normalizeSlotCapacity(value);
+    setSlotCapacity(normalized);
+    await window.api.setSetting?.(SLOT_CAPACITY_SETTING_KEY, JSON.stringify(normalized));
   }
 
   useEffect(() => {
@@ -426,7 +426,7 @@ export default function App() {
             <TodayView
               externalRefreshTick={weekRefreshTick}
               clients={clients} projects={projects} recurring={recurring}
-              slotCapacityHours={slotCapacityHours}
+              slotCapacity={slotCapacity}
               dayOffset={dayOffset} setDayOffset={setDayOffset}
               onEntryChange={refreshSidebar}
               onSynced={() => setWeekRefreshTick(t => t + 1)}
@@ -439,7 +439,7 @@ export default function App() {
               onEntryChange={refreshSidebar}
               externalRefreshTick={weekRefreshTick}
               autoFocusProject={autoFocusProject}
-              slotCapacityHours={slotCapacityHours}
+              slotCapacity={slotCapacity}
               onAutoFocusConsumed={() => setAutoFocusProject(null)}
               onNavigateToAndamento={() => { setAndamentoLens('settimana'); setScreen('panoramica'); }} />
           )}
@@ -459,7 +459,7 @@ export default function App() {
           {screen === 'recurring' && (
             <RecurringScreen
               clients={clients} recurring={recurring} setRecurring={setRecurring}
-              slotCapacityHours={slotCapacityHours} />
+              slotCapacity={slotCapacity} />
           )}
           {screen === 'entries' && (
             <EntriesScreen clients={clients} projects={projects} onEntryChange={refreshSidebar} />
@@ -470,8 +470,8 @@ export default function App() {
               theme={theme}
               setTheme={setTheme}
               onDataChange={refreshData}
-              slotCapacityHours={slotCapacityHours}
-              onSlotCapacityChange={updateSlotCapacityHours}
+              slotCapacity={slotCapacity}
+              onSlotCapacityChange={updateSlotCapacity}
             />
           )}
         </div>

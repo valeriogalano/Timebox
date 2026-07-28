@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { normalizeSlotCapacityHours } from '../slot-capacity';
+import { normalizeSlotCapacity, dayCapacityHours } from '../slot-capacity';
+import { SLOTS, SLOT_LABELS, fmtH } from '../utils';
 
-export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapacityHours, onSlotCapacityChange }) {
+const toDraft = capacity => Object.fromEntries(
+  Object.entries(normalizeSlotCapacity(capacity)).map(([slot, hours]) => [slot, String(hours)])
+);
+
+export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapacity, onSlotCapacityChange }) {
   const [busy, setBusy] = useState(false);
   const [dbPath, setDbPath] = useState('');
   const [todoistToken, setTodoistTokenState] = useState('');
   const [tokenSaved, setTokenSaved] = useState(false);
   const [tokenError, setTokenError] = useState('');
-  const [slotCapacityDraft, setSlotCapacityDraft] = useState(String(slotCapacityHours));
+  const [slotCapacityDraft, setSlotCapacityDraft] = useState(() => toDraft(slotCapacity));
   const [slotCapacitySaved, setSlotCapacitySaved] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [todoistDebug, setTodoistDebug] = useState(() => {
@@ -30,8 +35,8 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
   }
 
   useEffect(() => {
-    setSlotCapacityDraft(String(slotCapacityHours));
-  }, [slotCapacityHours]);
+    setSlotCapacityDraft(toDraft(slotCapacity));
+  }, [slotCapacity]);
 
   useEffect(() => {
     window.api.getDbPath().then(p => setDbPath(p || ''));
@@ -155,8 +160,8 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
   }
 
   async function handleSaveSlotCapacity() {
-    const normalized = normalizeSlotCapacityHours(slotCapacityDraft);
-    setSlotCapacityDraft(String(normalized));
+    const normalized = normalizeSlotCapacity(slotCapacityDraft);
+    setSlotCapacityDraft(toDraft(normalized));
     await onSlotCapacityChange?.(normalized);
     setSlotCapacitySaved(true);
     setTimeout(() => setSlotCapacitySaved(false), 2000);
@@ -236,26 +241,37 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
               Capacità per slot
             </div>
             <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
-              Target usato dalle barre di capacità in Timesheet e Ricorrenza
+              Target delle barre di capacità in Settimana, Giorno e Ricorrenza.
+              Giornata: {fmtH(dayCapacityHours(slotCapacityDraft))}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <input
-              type="number"
-              min="0.5"
-              max="12"
-              step="0.25"
-              value={slotCapacityDraft}
-              onChange={e => { setSlotCapacityDraft(e.target.value); setSlotCapacitySaved(false); }}
-              onKeyDown={e => { if (e.key === 'Enter') handleSaveSlotCapacity(); }}
-              style={{
-                width: 76, padding: '7px 9px', borderRadius: 6, fontSize: 12,
-                border: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg-soft)',
-                color: 'var(--tb-text-primary)', fontFamily: "'Open Sans', sans-serif",
-                outline: 'none', textAlign: 'right',
-              }}
-            />
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>h</span>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+            {SLOTS.map(slot => (
+              <label key={slot} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
+                  {SLOT_LABELS[slot]}
+                </span>
+                <input
+                  type="number"
+                  min="0.5"
+                  max="12"
+                  step="0.25"
+                  value={slotCapacityDraft[slot]}
+                  onChange={e => {
+                    setSlotCapacityDraft(prev => ({ ...prev, [slot]: e.target.value }));
+                    setSlotCapacitySaved(false);
+                  }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSaveSlotCapacity(); }}
+                  style={{
+                    width: 66, padding: '7px 9px', borderRadius: 6, fontSize: 12,
+                    border: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg-soft)',
+                    color: 'var(--tb-text-primary)', fontFamily: "'Open Sans', sans-serif",
+                    outline: 'none', textAlign: 'right',
+                  }}
+                />
+              </label>
+            ))}
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', paddingBottom: 8 }}>h</span>
             <button
               onClick={handleSaveSlotCapacity}
               disabled={busy}

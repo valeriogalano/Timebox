@@ -58,7 +58,7 @@ function blockSummariesDiffer(a, b) {
   return false;
 }
 
-export default function WeeklyView({ clients, projects, recurring, weekOffset, setWeekOffset, onEntryChange, externalRefreshTick, autoFocusProject, slotCapacityHours, onAutoFocusConsumed, onNavigateToAndamento }) {
+export default function WeeklyView({ clients, projects, recurring, weekOffset, setWeekOffset, onEntryChange, externalRefreshTick, autoFocusProject, slotCapacity, onAutoFocusConsumed, onNavigateToAndamento }) {
   const monday = addDays(getMondayOfWeek(getToday()), weekOffset * 7);
   const weekKey = getWeekKey(monday);
 
@@ -815,7 +815,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                         <SlotCapacityBar
                           plannedHours={plannedTotal}
                           loggedHours={d.slotLogged[slot]}
-                          capacityHours={slotCapacityHours}
+                          capacityHours={slotCapacity[slot]}
                           compact={planningCompact}
                         />
                       </div>

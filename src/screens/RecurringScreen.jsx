@@ -7,7 +7,7 @@ const SLOT_ROW_LABELS = { am: 'Mattina', pm: 'Pomeriggio', sera: 'Sera' };
 const DIVERGENCE_HISTORY_WEEKS = 8;
 const DIVERGENCE_MIN_OCCURRENCES = 3;
 
-export default function RecurringScreen({ clients, recurring, setRecurring, slotCapacityHours }) {
+export default function RecurringScreen({ clients, recurring, setRecurring, slotCapacity }) {
   const [dragging, setDragging] = useState(null); // { blockId, fromDay, fromSlot, clientId, hours }
   const [dragOver, setDragOver] = useState(null); // { day, slot }
 
@@ -272,7 +272,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
                       onDragOver={() => setDragOver({ day: i, slot })}
                       onDragLeave={() => setDragOver(null)}
                       onDrop={() => handleDrop(i, slot)}
-                      capacityHours={slotCapacityHours}
+                      capacityHours={slotCapacity[slot]}
                       style={{ borderLeft: '1px solid var(--tb-border-soft)', ...rowBottom }}
                     />
                   );
