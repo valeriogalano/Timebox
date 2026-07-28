@@ -440,6 +440,22 @@ function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFutur
   const [viewMode, setViewMode] = useState('tracked');
   // Stessa preferenza del timesheet settimanale: "Progetti lavorati" vs "Tutti i progetti"
   const [hideEmpty, setHideEmpty] = useState(() => localStorage.getItem('timebox-hide-empty-projects') === 'true');
+
+  useEffect(() => {
+    function onHideShortcut(e) {
+      if (!e.metaKey || !e.shiftKey || e.key.toLowerCase() !== 'h') return;
+      if (document.activeElement?.closest('input, textarea, [contenteditable="true"]')) return;
+      e.preventDefault();
+      setHideEmpty(v => {
+        const next = !v;
+        localStorage.setItem('timebox-hide-empty-projects', String(next));
+        return next;
+      });
+    }
+    document.addEventListener('keydown', onHideShortcut);
+    return () => document.removeEventListener('keydown', onHideShortcut);
+  }, []);
+
   if (loading) return <div style={{ padding: 12 }}><SkeletonRows /></div>;
 
   const entryByProject = new Map((dayEntries || []).map(e => [e.projectId, e]));
@@ -469,6 +485,7 @@ function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFutur
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
         <SegToggle
           opts={[{ k: 'worked', l: 'Progetti lavorati' }, { k: 'all', l: 'Tutti i progetti' }]}
+          title="Alterna tra Progetti lavorati e Tutti i progetti · ⌘⇧H"
           value={hideEmpty ? 'worked' : 'all'}
           onChange={next => {
             const nextHideEmpty = next === 'worked';
@@ -520,11 +537,11 @@ function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFutur
   );
 }
 
-function SegToggle({ opts, value, onChange }) {
+function SegToggle({ opts, value, onChange, title }) {
   return (
     <div style={{ display: 'inline-flex', border: '1px solid var(--tb-border-mid)', borderRadius: 6, overflow: 'hidden' }}>
       {opts.map(o => (
-        <button key={o.k} onClick={() => onChange(o.k)} style={{
+        <button key={o.k} onClick={() => onChange(o.k)} title={title} style={{
           fontSize: 10, fontWeight: 800, padding: '3px 9px', border: 'none', cursor: 'pointer',
           background: value === o.k ? 'var(--tb-tab-active-bg)' : 'transparent',
           color: value === o.k ? 'var(--tb-tab-active-text)' : 'var(--tb-text-muted)',
