@@ -194,7 +194,7 @@ async function cmdStatus(flags) {
   console.log(`This week:   ${fmtHB(d.weekTotal || 0, wBill)}`);
   if (d.alerts && d.alerts.length) {
     console.log('\nAlerts:');
-    for (const a of d.alerts) console.log(`  ⚠  ${a}`);
+    for (const a of d.alerts) console.log(`  ⚠  ${a.label ?? a}`);
   }
   console.log('');
 }

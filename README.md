@@ -225,7 +225,7 @@ While the app is open, a local API is available at `http://127.0.0.1:37373`.
 | `GET` | `/projects?area=&client=&search=&all=1` | Project list with budgets and logged totals. |
 | `GET` | `/clients?search=` | Area/client list. |
 | `GET` | `/areas?search=` | Alias for `/clients`. |
-| `GET` | `/status` | Today, week, and budget-alert overview. |
+| `GET` | `/status` | Today, week, and alerts (project budget, project weekly limit, area limit). |
 | `POST` | `/log` | Log hours: `{ project, hours, slot, date, add, billableHours }`. |
 | `POST` | `/projects` | Create a project in an area. |
 | `PATCH` | `/projects/:id` | Update project name, area, description, budget, or weekly limit. |

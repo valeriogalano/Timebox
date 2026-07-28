@@ -1,7 +1,17 @@
 'use strict';
 
 const { getEntries, getProjects, getClients, getProjectTotals } = require('../../db/queries');
-const { getMondayOfWeek, addDays, fmt, effBillable } = require('../format');
+const { getMondayOfWeek, addDays, fmt, effBillable, fmtH } = require('../format');
+
+const ALERT_THRESHOLD = 0.8;
+
+function sumByArea(byProject, projectMap) {
+  return Object.entries(byProject).reduce((acc, [projectId, h]) => {
+    const p = projectMap[projectId];
+    if (p) acc[p.clientId] = (acc[p.clientId] ?? 0) + h;
+    return acc;
+  }, {});
+}
 
 function billableSum(entries, projectMap, clientMap) {
   return entries.reduce((s, e) => {
@@ -30,22 +40,40 @@ function getStatusData(today) {
 
   const totals = getProjectTotals();
 
-  const alerts = projects
-    .filter(p => !p.archived && p.budgetHours)
-    .map(p => {
-      const logged = totals[p.id] || 0;
-      const pct = logged / p.budgetHours;
-      return {
-        client: clientMap[p.clientId]?.name || '?',
-        area: clientMap[p.clientId]?.name || '?',
-        project: p.name,
-        logged,
-        budget: p.budgetHours,
-        pct,
-      };
-    })
-    .filter(a => a.pct >= 0.8)
-    .sort((a, b) => b.pct - a.pct);
+  const weekByProject = weekEntries.reduce((acc, e) => {
+    acc[e.projectId] = (acc[e.projectId] ?? 0) + e.hours;
+    return acc;
+  }, {});
+  const weekByArea = sumByArea(weekByProject, projectMap);
+  const areaTotals = sumByArea(totals, projectMap);
+
+  // Un alert per ogni tetto configurato che è all'80% o oltre: budget di progetto,
+  // limite settimanale di progetto, limite d'area (settimanale o globale).
+  const alerts = [];
+  const addAlert = ({ kind, area, project, logged, limit, scope }) => {
+    if (!(limit > 0)) return;
+    const pct = logged / limit;
+    if (pct < ALERT_THRESHOLD) return;
+    alerts.push({
+      kind, area, client: area, project: project ?? null,
+      logged, limit, budget: limit, pct,
+      label: `${area}${project ? ` › ${project}` : ''} — ${fmtH(logged)} / ${fmtH(limit)} ${scope} (${Math.round(pct * 100)}%)`,
+    });
+  };
+
+  for (const p of projects.filter(p => !p.archived)) {
+    const area = clientMap[p.clientId]?.name || '?';
+    addAlert({ kind: 'project-budget', area, project: p.name, logged: totals[p.id] || 0, limit: p.budgetHours, scope: 'budget' });
+    addAlert({ kind: 'project-weekly', area, project: p.name, logged: weekByProject[p.id] || 0, limit: p.weeklyHours, scope: 'sett.' });
+  }
+  for (const c of clients) {
+    if (c.limitType === 'weekly') {
+      addAlert({ kind: 'area-weekly', area: c.name, logged: weekByArea[c.id] || 0, limit: c.limitHours, scope: 'sett.' });
+    } else if (c.limitType === 'global') {
+      addAlert({ kind: 'area-total', area: c.name, logged: areaTotals[c.id] || 0, limit: c.limitHours, scope: 'tot.' });
+    }
+  }
+  alerts.sort((a, b) => b.pct - a.pct);
 
   return { today, todayTotal, weekTotal, todayBillable, weekBillable, alerts };
 }

@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { createTestDb } = require('./helpers');
 const { getStatusData } = require('../commands/status');
 const { logHours } = require('../commands/log');
-const { saveProject, getProjects } = require('../../db/queries');
+const { saveProject, getProjects, getClients, saveClient } = require('../../db/queries');
 
 const TEST_DATE = '2020-09-01';
 
@@ -58,7 +58,48 @@ describe('getStatusData', () => {
     const hoursToLog = target.budgetHours * 0.85;
     logHours({ projectName: target.name, hoursStr: String(hoursToLog), slot: 'am', date: '2020-09-15', add: false });
     const data = getStatusData('2020-09-15');
-    assert.ok(data.alerts.some(a => a.project === target.name));
+    assert.ok(data.alerts.some(a => a.project === target.name && a.kind === 'project-budget'));
     assert.ok(data.alerts.every(a => a.pct >= 0.8));
+  });
+
+  test('alerts include areas at or above 80% of their weekly limit', () => {
+    createTestDb();
+    const area = getClients().find(c => c.limitType === 'weekly' && c.limitHours > 0);
+    assert.ok(area, 'Need an area with a weekly limit for this test');
+    const project = getProjects().find(p => p.clientId === area.id && !p.archived);
+    logHours({ projectName: project.name, hoursStr: String(area.limitHours * 0.9), slot: 'am', date: '2020-09-15', add: false });
+
+    const data = getStatusData('2020-09-15');
+    const alert = data.alerts.find(a => a.kind === 'area-weekly' && a.area === area.name);
+    assert.ok(alert, 'Expected a weekly area alert');
+    assert.equal(alert.project, null);
+    assert.equal(alert.limit, area.limitHours);
+
+    // fuori dalla settimana del limite → nessun alert d'area
+    assert.equal(getStatusData('2020-10-15').alerts.some(a => a.kind === 'area-weekly'), false);
+  });
+
+  test('alerts include projects at or above 80% of their weekly limit', () => {
+    createTestDb();
+    const project = getProjects().find(p => !p.archived);
+    saveProject({ ...project, weeklyHours: 10 });
+    logHours({ projectName: project.name, hoursStr: '9', slot: 'am', date: '2020-09-15', add: false });
+
+    const alert = getStatusData('2020-09-15').alerts
+      .find(a => a.kind === 'project-weekly' && a.project === project.name);
+    assert.ok(alert, 'Expected a weekly project alert');
+    assert.equal(alert.limit, 10);
+    assert.ok(alert.label.includes('sett.'));
+  });
+
+  test('no alert when the area has no limit configured', () => {
+    createTestDb();
+    const area = getClients().find(c => c.limitType === 'weekly' && c.limitHours > 0);
+    saveClient({ ...area, limitType: 'none', limitHours: null });
+    const project = getProjects().find(p => p.clientId === area.id && !p.archived);
+    logHours({ projectName: project.name, hoursStr: '40', slot: 'am', date: '2020-09-15', add: false });
+
+    const data = getStatusData('2020-09-15');
+    assert.equal(data.alerts.some(a => a.area === area.name && a.kind.startsWith('area-')), false);
   });
 });

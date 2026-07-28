@@ -687,6 +687,7 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8, fontSize: 12, color: 'var(--tb-text-muted)' }}>
               <span><strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(rhythm)}</strong>/sett · proiettato <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(projected)}</strong></span>
               {hasCap && <span>· tetto {fmtH(cap)}</span>}
+              {hasCap && <span>· {over ? 'oltre di' : 'margine'} {fmtH(Math.abs(cap - projected))}</span>}
             </div>
             <OverCapacityBar
               value={hasCap ? projected : 1} cap={hasCap ? cap : 0}

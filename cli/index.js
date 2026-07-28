@@ -199,7 +199,7 @@ program
 // ── status ─────────────────────────────────────────────────────────────────────
 program
   .command('status')
-  .description('Quick overview: today, current week, budget alerts')
+  .description('Quick overview: today, current week, budget and limit alerts')
   .option('--json', 'Output JSON')
   .action((opts) => {
     run(() => {
@@ -213,11 +213,8 @@ program
       console.log(`Today (${fmtDay(todayObj)}):   ${fmtH(data.todayTotal)}`);
       console.log(`Current week:   ${fmtH(data.weekTotal)}`);
       if (data.alerts.length > 0) {
-        console.log('\nBudget alerts:');
-        for (const a of data.alerts) {
-          const pct = Math.round(a.pct * 100);
-          console.log(`  ⚠  ${a.area || a.client} › ${a.project} — ${fmtH(a.logged)} / ${fmtH(a.budget)} (${pct}%)`);
-        }
+        console.log('\nAlerts:');
+        for (const a of data.alerts) console.log(`  ⚠  ${a.label}`);
       }
     });
   });
