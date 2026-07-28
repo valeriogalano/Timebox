@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.7] - 2026-07-28
 
 ### Added
+- Giorno · Ore: switch "progetti lavorati / tutti" come in Settimana (stessa preferenza in localStorage, scorciatoia ⌘⇧H), così da poter registrare ore su qualsiasi progetto non archiviato direttamente dalla griglia del giorno.
+- Alert di `status`: oltre ai budget totali di progetto vengono segnalati anche il limite settimanale di progetto, il limite settimanale d'area e il limite globale d'area, sempre con soglia all'80%. Prima un'area oltre il tetto settimanale non produceva alcun segnale.
+- Andamento · In prospettiva: margine residuo (o sforamento) esplicito accanto al tetto di ogni area.
 - Aree: ogni area ha uno stato di default (attiva / minima / chiusa), impostabile in Aree. Vale in tutte le settimane in cui non c'è un override esplicito, così le aree di routine o occasionali non partono più come attive ogni settimana.
 - Andamento · Settimana: la tabella "Per area · consuntivo" mostra, sulla settimana in corso, una colonna Previsto = consuntivo fino a oggi + ore pianificate dei giorni restanti (stessa proiezione "a piano" già presente sul totale nella card Carico).
 - Pianificazione: la capacità di slot diventa un valore per fascia (Mattina/Pomeriggio/Sera) invece di uno solo per l'intera giornata. I database esistenti continuano a funzionare: un valore singolo viene letto come stessa capacità per tutte e tre le fasce. Il totale giornaliero in Giorno è ora la somma delle tre fasce.
@@ -23,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Andamento · Settimana: le righe di dettaglio delle divergenze sono una griglia con Template / Effettivo / Δ / Sett. allineati in colonna.
 
 ### Fixed
+- Gli alert di budget stampavano `[object Object]` nella modalità standalone e nel server MCP: ogni alert porta ora una `label` già formattata, usata da CLI, standalone e MCP.
 - Le barre "carico su capacità" non disegnano più l'eccedenza fuori dalla card (header Settimana, Andamento settimana e prospettiva, riepilogo per area): la traccia è clampata al tetto e lo sforamento è segnalato da un quadratino tratteggiato accanto, come già faceva la barra di capacità di slot in Settimana e Pianificato.
 - Andamento · Settimana: il conteggio delle divergenze non può più superare il numero di settimane nella finestra di storico (le occorrenze sono deduplicate per settimana).
 
