@@ -162,7 +162,7 @@ In development, wrappers point at repository files. In packaged builds, they poi
 | `GET` | `/day/insights?date=` | Aggregated daily diagnostics for `TodayView`. |
 | `GET` | `/week?offset=` | `getWeekData(today, offset)`. |
 | `GET` | `/area-statuses?week=` | Weekly area status rows for a Monday `weekKey`. |
-| `POST` | `/area-statuses` | Save `{ weekKey, areaId, status }`; `active` removes the explicit row. |
+| `POST` | `/area-statuses` | Save `{ weekKey, areaId, status }`; every status is stored explicitly. Areas without a row fall back to `clients.defaultStatus`. |
 | `GET` | `/projects?area=&client=&search=&all=` | `getProjectsData(...)`. |
 | `GET` | `/clients?search=` | `getClientsData(...)`. |
 | `GET` | `/areas?search=` | Alias for clients/areas. |
@@ -192,7 +192,7 @@ codex mcp add timebox -- timebox-mcp
 ## SQLite Schema
 
 ```sql
-clients        (id, name, color, billable, billing, rate, limitType, limitHours, position)
+clients        (id, name, color, billable, billing, rate, limitType, limitHours, position, defaultStatus)
 projects       (id, clientId, name, description, budgetHours, weeklyHours, position, archived)
 recurring      (id, clientId, slot, day, hours, position)
 entries        (id, projectId, date, hours, billableHours, slot, billed)

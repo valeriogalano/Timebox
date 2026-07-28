@@ -6,7 +6,7 @@ const {
   getClients,
   getRecurring,
   getWeekOverrides,
-  getWeekAreaStatuses,
+  getWeekAreaStatusMap,
 } = require('../../db/queries');
 const { fmt, getMondayOfWeek, effBillable } = require('../format');
 const { SLOTS, normalizeSlot } = require('../../lib/domain');
@@ -70,7 +70,7 @@ function getDaySummaryData(date) {
   const clients = getClients();
   const projectMap = Object.fromEntries(projects.map(project => [project.id, project]));
   const clientMap = Object.fromEntries(clients.map(client => [client.id, client]));
-  const areaStatusMap = Object.fromEntries(getWeekAreaStatuses(weekKey).map(row => [row.areaId, row.status]));
+  const areaStatusMap = getWeekAreaStatusMap(weekKey);
   const areaStatuses = clients.map(client => ({
     areaId: client.id,
     area: client.name,

@@ -15,6 +15,7 @@ const {
   getRecurring,
   saveWeekAreaStatus,
   getWeekAreaStatuses,
+  saveClient,
   deleteClient,
   deleteProject,
   hasProjectEntries,
@@ -64,6 +65,23 @@ describe('referential integrity', () => {
     assert.equal(getRecurring().some(row => row.clientId === client.id), false);
     assert.equal(getWeekAreaStatuses('2026-06-22').some(row => row.areaId === client.id), false);
     assert.equal(getEntries('2000-01-01', '2999-12-31').some(row => projectIds.includes(row.projectId)), false);
+  });
+});
+
+describe('default area status', () => {
+  test('an area without a weekly override keeps its own default, and active is a real override', () => {
+    createTestDb();
+    const [client] = getClients();
+    assert.equal(client.defaultStatus, 'active', 'areas default to active until set otherwise');
+
+    saveClient({ ...client, defaultStatus: 'minimal' });
+    assert.equal(getClients().find(c => c.id === client.id).defaultStatus, 'minimal');
+
+    // 'active' non è "nessun override": su un'area a default minimal è l'eccezione
+    // della settimana, quindi deve restare persistita.
+    saveWeekAreaStatus({ weekKey: '2026-06-22', areaId: client.id, status: 'active' });
+    const stored = getWeekAreaStatuses('2026-06-22').find(r => r.areaId === client.id);
+    assert.equal(stored?.status, 'active');
   });
 });
 

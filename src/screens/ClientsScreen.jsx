@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AREA_STATUS_OPTIONS } from './WeeklyView';
 
 const BILLING_OPTIONS = ['none', 'hourly', 'fixed'];
 const COLORS = [
@@ -193,6 +194,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
     const newClient = {
       id, name: 'Nuova area', color: COLORS[clients.length % COLORS.length].hex,
       billable: false, billing: 'hourly', rate: null, limitType: 'weekly', limitHours: null,
+      defaultStatus: 'active',
       position: maxPos + 1,
     };
     window.api.saveClient(newClient);
@@ -446,6 +448,28 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                         cursor: 'pointer', flexShrink: 0, boxSizing: 'border-box',
                       }} />
                   ))}
+                </div>
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <label style={formLabel} title="Stato usato nelle settimane in cui non lo imposti a mano">
+                  Stato di default
+                </label>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {AREA_STATUS_OPTIONS.map(({ key, label, title }) => {
+                    const on = (sel.defaultStatus ?? 'active') === key;
+                    return (
+                      <button key={key} title={title} onClick={() => updateClient('defaultStatus', key)}
+                        style={{
+                          flex: 1, padding: '8px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
+                          border: on ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
+                          background: on ? sel.color + '15' : 'transparent',
+                          color: on ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
+                          fontFamily: "'Open Sans', sans-serif",
+                        }}>
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

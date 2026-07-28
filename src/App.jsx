@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getToday, fmt, getMondayOfWeek, currentSlot } from './utils';
 import QuickLogModal from './components/QuickLogModal';
 import TodayView from './screens/TodayView';
-import WeeklyView, { AreaStatusPanel } from './screens/WeeklyView';
+import WeeklyView, { AreaStatusPanel, withAreaStatus } from './screens/WeeklyView';
 import Panoramica from './screens/Panoramica';
 import BillingScreen from './screens/BillingScreen';
 import ClientsScreen from './screens/ClientsScreen';
@@ -562,17 +562,12 @@ function SidebarFooter({ clients, refreshKey, collapsed, onStatusChange }) {
   if (collapsed) return null;
 
   function setAreaStatus(areaId, status) {
-    setStatuses(prev => {
-      const next = { ...prev };
-      if (status === 'active') delete next[areaId];
-      else next[areaId] = status;
-      return next;
-    });
+    setStatuses(prev => ({ ...prev, [areaId]: status }));
     window.api.saveWeekAreaStatus({ weekKey, areaId, status });
     onStatusChange?.();
   }
 
-  const clientsWithStatus = clients.map(c => ({ ...c, areaStatus: statuses[c.id] ?? 'active' }));
+  const clientsWithStatus = withAreaStatus(clients, statuses);
 
   return (
     <div style={{ padding: '14px 20px', borderTop: '1px solid var(--tb-sidebar-border)' }}>

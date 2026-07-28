@@ -15,13 +15,18 @@ function getClients() {
 
 function saveClient(client) {
   db.prepare(`
-    INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position)
-    VALUES (@id,@name,@color,@billable,@billing,@rate,@limitType,@limitHours,@position)
+    INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position,defaultStatus)
+    VALUES (@id,@name,@color,@billable,@billing,@rate,@limitType,@limitHours,@position,@defaultStatus)
     ON CONFLICT(id) DO UPDATE SET
       name=excluded.name, color=excluded.color, billable=excluded.billable,
       billing=excluded.billing, rate=excluded.rate,
-      limitType=excluded.limitType, limitHours=excluded.limitHours, position=excluded.position
-  `).run({ position: 0, ...client, billable: client.billable ? 1 : 0 });
+      limitType=excluded.limitType, limitHours=excluded.limitHours, position=excluded.position,
+      defaultStatus=excluded.defaultStatus
+  `).run({
+    position: 0, ...client,
+    billable: client.billable ? 1 : 0,
+    defaultStatus: normalizeAreaStatus(client.defaultStatus),
+  });
 }
 
 function deleteClient(id) {
@@ -41,7 +46,7 @@ function deleteClient(id) {
 }
 
 function normalizeClient(row) {
-  return { ...row, billable: row.billable === 1 };
+  return { ...row, billable: row.billable === 1, defaultStatus: normalizeAreaStatus(row.defaultStatus) };
 }
 
 // ── Projects ───────────────────────────────────────────────────────────────────
@@ -434,11 +439,15 @@ function deleteWeekOverride(weekKey, dayIndex, slot) {
 // ── Week Area Status ──────────────────────────────────────────────────────────
 const WEEK_AREA_STATUSES = new Set(['active', 'minimal', 'closed']);
 
+function normalizeAreaStatus(status) {
+  return WEEK_AREA_STATUSES.has(status) ? status : 'active';
+}
+
 function normalizeWeekAreaStatus(row) {
   return {
     weekKey: row.weekKey,
     areaId: row.areaId,
-    status: WEEK_AREA_STATUSES.has(row.status) ? row.status : 'active',
+    status: normalizeAreaStatus(row.status),
   };
 }
 
@@ -448,18 +457,20 @@ function getWeekAreaStatuses(weekKey) {
   ).all(weekKey).map(normalizeWeekAreaStatus);
 }
 
+// Stato effettivo di ogni area nella settimana: il default dell'area, sovrascritto
+// dall'override settimanale quando c'è. Unico punto in cui i due si combinano.
 function getWeekAreaStatusMap(weekKey) {
-  return Object.fromEntries(getWeekAreaStatuses(weekKey).map(row => [row.areaId, row.status]));
+  const map = Object.fromEntries(getClients().map(c => [c.id, c.defaultStatus]));
+  for (const row of getWeekAreaStatuses(weekKey)) map[row.areaId] = row.status;
+  return map;
 }
 
 function saveWeekAreaStatus({ weekKey, areaId, status }) {
   if (!weekKey || !areaId) throw new Error('weekKey and areaId are required');
-  const normalized = WEEK_AREA_STATUSES.has(status) ? status : 'active';
+  const normalized = normalizeAreaStatus(status);
   const id = `${weekKey}-${areaId}`;
-  if (normalized === 'active') {
-    db.prepare('DELETE FROM week_area_status WHERE id=?').run(id);
-    return { weekKey, areaId, status: 'active' };
-  }
+  // 'active' si persiste come tutti gli altri: con i default per area, "attiva"
+  // può essere l'eccezione della settimana rispetto a un default minimal/closed.
   db.prepare(`
     INSERT INTO week_area_status (id,weekKey,areaId,status)
     VALUES (?,?,?,?)

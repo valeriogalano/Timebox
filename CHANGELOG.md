@@ -8,7 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Aree: ogni area ha uno stato di default (attiva / minima / chiusa), impostabile in Aree. Vale in tutte le settimane in cui non c'è un override esplicito, così le aree di routine o occasionali non partono più come attive ogni settimana.
 - Andamento · Settimana: la tabella "Per area · consuntivo" mostra, sulla settimana in corso, una colonna Previsto = consuntivo fino a oggi + ore pianificate dei giorni restanti (stessa proiezione "a piano" già presente sul totale nella card Carico).
+
+### Changed
+- Lo stato settimanale `attiva` viene ora salvato come override esplicito invece di essere dedotto dall'assenza di una riga: su un'area con default minima o chiusa, "attiva" è l'eccezione della settimana e deve poter essere registrata.
 
 ### Removed
 - Settimana: la striscia di riepilogo per area non mostra più la proiezione fine settimana né il glifo di stato del carico (0.9.6). La proiezione per area vive ora in Andamento · Settimana, dove il metodo la colloca. Sostituisce due indicatori posti nella schermata sbagliata.

@@ -23,6 +23,16 @@ export const AREA_STATUS_OPTIONS = [
   { key: 'closed', label: 'Chiusa', title: 'Area chiusa questa settimana' },
 ];
 
+// Lo stato della settimana è un override esplicito; senza override vale il default
+// dell'area (Output → attiva, routine → minima, occasionale → chiusa).
+export function areaStatusOf(client, statuses) {
+  return statuses?.[client.id] ?? client.defaultStatus ?? 'active';
+}
+
+export function withAreaStatus(clients, statuses) {
+  return clients.map(c => ({ ...c, areaStatus: areaStatusOf(c, statuses) }));
+}
+
 function getWeekKey(monday) { return fmt(monday); }
 
 function budgetLevel(pct) {
@@ -245,7 +255,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const currentAreaStatuses = weekAreaStatuses[weekKey] ?? {};
 
   function areaStatus(areaId) {
-    return currentAreaStatuses[areaId] ?? 'active';
+    const client = clients.find(c => c.id === areaId);
+    return client ? areaStatusOf(client, currentAreaStatuses) : 'active';
   }
 
   function setSlotOverride(dayIndex, slot, newBlocks) {
@@ -515,7 +526,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   }
 
   const weekDateStrs = days.map(d => d.dateStr);
-  const clientsWithStatus = clients.map(c => ({ ...c, areaStatus: areaStatus(c.id) }));
+  const clientsWithStatus = withAreaStatus(clients, currentAreaStatuses);
   const clientsWithProjects = clients.map(c => ({
     ...c,
     areaStatus: areaStatus(c.id),

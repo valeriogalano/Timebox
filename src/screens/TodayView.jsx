@@ -9,6 +9,7 @@ import ExtraCell from '../components/ExtraCell';
 import MarkdownText from '../components/MarkdownText';
 import Glyph from '../components/Glyph';
 import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
+import { withAreaStatus } from './WeeklyView';
 
 function formatSyncDate(value) {
   if (!value) return 'Mai sincronizzato';
@@ -190,7 +191,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
   // ricade il giorno selezionato — qui sempre univoco perché un giorno ricade
   // sempre in una sola settimana, a differenza di Andamento/Rendiconto dove il
   // periodo può attraversarne più di una.
-  const clientsWithStatus = clients.map(c => ({ ...c, areaStatus: weekAreaStatuses[c.id] ?? 'active' }));
+  const clientsWithStatus = withAreaStatus(clients, weekAreaStatuses);
 
   const dayEntries = mergeProjectDayEntries(rawEntries);
   const planning = computeDayPlanning({

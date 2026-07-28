@@ -294,7 +294,9 @@ describe('HTTP server', () => {
     assert.deepEqual(reset.body, { weekKey, areaId: 'c3', status: 'active' });
     const resetStatuses = await get(port, `/area-statuses?week=${weekKey}`);
     assert.equal(resetStatuses.status, 200);
-    assert.ok(!resetStatuses.body.some(row => row.areaId === 'c3'), 'active is stored implicitly');
+    // 'active' è un override esplicito come gli altri: su un'area con default
+    // minimal/closed è l'eccezione della settimana, quindi va persistita.
+    assert.ok(resetStatuses.body.some(row => row.areaId === 'c3' && row.status === 'active'));
   });
 
   it('GET /week?offset=-1 → different week from /week', async () => {

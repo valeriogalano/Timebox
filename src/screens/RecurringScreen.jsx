@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DAY_SHORT, fmtH, SLOTS, getToday, getMondayOfWeek, fmt, addDays } from '../utils';
 import MultiSlotCell from '../components/MultiSlotCell';
+import { withAreaStatus } from './WeeklyView';
 
 const RECURRING_DAYS = DAY_SHORT.length;
 const SLOT_ROW_LABELS = { am: 'Mattina', pm: 'Pomeriggio', sera: 'Sera' };
@@ -84,7 +85,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
       setStatuses(Object.fromEntries(rows.map(row => [row.areaId, row.status])));
     });
   }, []);
-  const clientsWithStatus = clients.map(c => ({ ...c, areaStatus: statuses[c.id] ?? 'active' }));
+  const clientsWithStatus = withAreaStatus(clients, statuses);
 
   useEffect(() => {
     function onDragEnd() { setDragging(null); setDragOver(null); }

@@ -196,7 +196,7 @@ Do not publish personal databases, exports, screenshots, Todoist tokens, or real
 ## Database Schema
 
 ```sql
-clients        (id, name, color, billable, billing, rate, limitType, limitHours, position)
+clients        (id, name, color, billable, billing, rate, limitType, limitHours, position, defaultStatus)
 projects       (id, clientId, name, description, budgetHours, weeklyHours, position, archived)
 recurring      (id, clientId, slot, day, hours, position)
 entries        (id, projectId, date, hours, billableHours, slot, billed)
@@ -221,7 +221,7 @@ While the app is open, a local API is available at `http://127.0.0.1:37373`.
 | `GET` | `/day/insights?date=YYYY-MM-DD` | Aggregated daily diagnostics for the Oggi screen. |
 | `GET` | `/week?offset=N` | Weekly summary; `0` is current week, `-1` is last week. |
 | `GET` | `/area-statuses?week=YYYY-MM-DD` | Weekly area statuses for a Monday week key. |
-| `POST` | `/area-statuses` | Save an area status: `{ weekKey, areaId, status }`; `active` is implicit. |
+| `POST` | `/area-statuses` | Save an area status: `{ weekKey, areaId, status }`. Every status is stored explicitly; areas with no row for the week fall back to `clients.defaultStatus`. |
 | `GET` | `/projects?area=&client=&search=&all=1` | Project list with budgets and logged totals. |
 | `GET` | `/clients?search=` | Area/client list. |
 | `GET` | `/areas?search=` | Alias for `/clients`. |

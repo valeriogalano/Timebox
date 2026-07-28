@@ -98,7 +98,8 @@ function initDb(dbPath) {
       rate REAL,
       limitType TEXT,
       limitHours REAL,
-      position INTEGER DEFAULT 0
+      position INTEGER DEFAULT 0,
+      defaultStatus TEXT DEFAULT 'active'
     );
     CREATE TABLE IF NOT EXISTS projects (
       id TEXT PRIMARY KEY,
@@ -170,6 +171,7 @@ function initDb(dbPath) {
   // Migrations
   try { db.exec('ALTER TABLE recurring ADD COLUMN position INTEGER DEFAULT 0'); } catch (_) {}
   try { db.exec('ALTER TABLE clients ADD COLUMN billable INTEGER DEFAULT 1'); } catch (_) {}
+  try { db.exec("ALTER TABLE clients ADD COLUMN defaultStatus TEXT DEFAULT 'active'"); } catch (_) {}
   try {
     db.exec('ALTER TABLE clients ADD COLUMN position INTEGER DEFAULT 0');
     const clientRows = db.prepare('SELECT id FROM clients ORDER BY rowid').all();
