@@ -157,7 +157,7 @@ const TOOLS = [
   },
   {
     name: 'status',
-    description: 'Get a quick overview: hours logged today and this week, plus any budget alerts.',
+    description: 'Get a quick overview: hours logged today and this week, plus any alerts on project budgets, project weekly limits and area limits.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -678,9 +678,9 @@ async function callTool(name, args) {
     ];
     if (d.alerts?.length) {
       lines.push('\nAlerts:');
-      for (const a of d.alerts) lines.push(`  ⚠ ${a}`);
+      for (const a of d.alerts) lines.push(`  ⚠ ${a.label ?? a}`);
     } else {
-      lines.push('\nNo budget alerts.');
+      lines.push('\nNo alerts.');
     }
     return lines.join('\n');
   }
