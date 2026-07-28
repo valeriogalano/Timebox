@@ -1030,7 +1030,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 {d.plannedTotal > 0 && !d.isFuture && (
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}
                     title={d.delta >= 0 ? 'Sopra il piano' : 'Sotto il piano'}>
-                    <Glyph glyph={d.delta >= 0 ? '▸' : '▾'} size={10} className="tb-glyph" />
+                    <Glyph glyph={d.delta >= 0 ? '▴' : '▾'} size={10} className="tb-glyph" />
                     <span>{d.delta >= 0 ? '+' : ''}{fmtH(d.delta)}</span>
                   </div>
                 )}
@@ -1308,7 +1308,7 @@ function TemplateDivergenceBadge({ summary, open, onToggle }) {
     >
       <span className="tb-delta">Δ</span>
       <span>template {deltaLabel} · {summary.divergentSlots}/{summary.totalSlots}</span>
-      <Glyph glyph={open ? '▴' : '▾'} size={8} style={{ opacity: 0.8 }} />
+      <Glyph glyph={open ? '▾' : '▸'} size={8} style={{ opacity: 0.8 }} />
     </button>
   );
 }
