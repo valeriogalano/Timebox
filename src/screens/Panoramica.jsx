@@ -368,9 +368,6 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
       {/* ── Lente "Trend" ── 8 settimane: aggregato + per area + divergenze persistenti ── */}
       {trendLens === 'trend' && (
         <>
-          {/* Da decidere: divergenze area↔piano PERSISTENTI (non la settimana singola) */}
-          <DaDecidereInsights perAreaWeekly={perAreaWeekly} />
-
           <Card padding={0}>
             <div style={{ padding: '14px 18px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
@@ -393,6 +390,9 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
               ))}
             </div>
           </div>
+
+          {/* Da decidere: divergenze area↔piano PERSISTENTI (non la settimana singola) */}
+          <DaDecidereInsights perAreaWeekly={perAreaWeekly} />
         </>
       )}
 
@@ -548,25 +548,45 @@ function AreaConsuntivo({ clients, stats }) {
 // Lente "Trend" → "Da decidere": divergenze area↔piano PERSISTENTI (fuori piano
 // in >= PERSIST_MIN delle ultime PERSIST_WINDOW settimane chiuse), non lo scarto della
 // singola settimana — quello è rumore e non giustifica di toccare il ritmo/template.
-// Logica pura in ../panoramica-insights. Link indirizzano alla vista utile.
+// Logica pura in ../panoramica-insights. `to` è la vista dove si agisce, resa come
+// suggerimento testuale: non è un link, la navigazione resta al tab bar.
 function DaDecidereInsights({ perAreaWeekly }) {
   const items = persistentAreaInsights(perAreaWeekly);
   if (!items.length) return null;
   return (
     <div>
       <SectionHeader title="Da decidere" subtitle={`persistente · ≥${PERSIST_MIN} sett fuori piano su ${PERSIST_WINDOW}`}
-        help={`Un'area compare solo se è fuori piano (svolto sotto 0,85× o oltre 1,1× il piano) in almeno ${PERSIST_MIN} delle ultime ${PERSIST_WINDOW} settimane chiuse — la settimana in corso è esclusa. Il badge N/${PERSIST_WINDOW} è la gravità: più settimane fuori piano, più in alto l'area.`} />
+        help={`Un'area compare solo se è fuori piano (svolto sotto 0,85× o oltre 1,1× il piano) in almeno ${PERSIST_MIN} delle ultime ${PERSIST_WINDOW} settimane chiuse — la settimana in corso è esclusa. Il conteggio N/M è la gravità (M = settimane chiuse effettivamente disponibili): più settimane fuori piano, più in alto l'area.`} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
         {items.map((it, i) => (
-          <div key={i} style={{ position: 'relative', border: '1px solid var(--tb-border)', borderLeft: `3px solid ${it.color}`, borderRadius: 8, background: 'var(--tb-panel-bg)', padding: '10px 12px' }}>
-            {/* Gravità = magnitudine: quanto ci si avvicina a PERSIST_WINDOW/PERSIST_WINDOW */}
-            <span
-              title={`Gravità ${it.weeksOff} su ${PERSIST_WINDOW} settimane fuori piano`}
-              style={{ position: 'absolute', top: 8, right: 10, fontSize: 10, fontWeight: 800, color: it.color, letterSpacing: '0.02em' }}
-            >{it.weeksOff}/{PERSIST_WINDOW}</span>
-            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', paddingRight: 28 }}>{it.area}</div>
-            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginTop: 2 }}>
-              {it.kind === 'under' ? 'sotto-piano' : 'oltre piano'} → {it.to}
+          <div key={i} style={{
+            background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
+            borderLeft: `3px solid ${it.color}`, borderRadius: 8, padding: '12px 14px',
+          }}>
+            {/* Stessa griglia di AreaSparkCard: nome a sinistra, verdetto a destra. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {it.area}
+              </span>
+              {/* Il bordo è il colore dell'area, non lo stato: under/over lo porta il glifo. */}
+              <Glyph glyph={it.kind === 'under' ? '▾' : '▴'} size={12} className="tb-glyph"
+                title={it.kind === 'under' ? 'Sotto il piano' : 'Oltre il piano'} />
+            </div>
+
+            {/* Niente split valore/stato come in AreaSparkCard: lì i due angoli incorniciano il
+                grafico, qui non c'è. Una frase sola. `of` = settimane chiuse realmente in
+                archivio, non sempre PERSIST_WINDOW. */}
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
+              <span style={{ fontWeight: 800, color: 'var(--tb-text-primary)' }}>
+                {it.kind === 'under' ? 'Sotto piano' : 'Oltre piano'}
+              </span>{' '}
+              {/* nowrap: il numero non deve restare orfano a capo dalla sua unità */}
+              <span style={{ color: it.color, fontWeight: 800, whiteSpace: 'nowrap' }}>{it.weeksOff} settimane</span>
+              {' '}su {it.of}
+            </div>
+
+            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginTop: 6 }}>
+              {it.kind === 'under' ? `Rivedi il ritmo in ${it.to}` : `Ribilancia in ${it.to}`}
             </div>
           </div>
         ))}
