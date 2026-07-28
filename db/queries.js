@@ -629,7 +629,7 @@ function seedDemoData() {
   const insertProject   = db.prepare('INSERT INTO projects (id,clientId,name,description,budgetHours,weeklyHours,position) VALUES (?,?,?,?,?,?,?)');
   const insertRecurring = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours,position) VALUES (?,?,?,?,?,?)');
   const insertEntry     = db.prepare('INSERT INTO entries (id,projectId,date,hours,billableHours,slot,billed) VALUES (?,?,?,?,?,?,?)');
-  const insertOverride  = db.prepare('INSERT INTO week_overrides (id,weekKey,dayIndex,slot,blocksJson) VALUES (?,?,?,?,?)');
+  const insertOverride  = db.prepare('INSERT OR REPLACE INTO week_overrides (id,weekKey,dayIndex,slot,blocksJson) VALUES (?,?,?,?,?)');
 
   const today = new Date();
   const prevMonday = new Date(today);
@@ -697,6 +697,37 @@ function seedDemoData() {
     { id: 'e15', projectId: 'p4', date: todayStr, hours: 1, billableHours: null, slot: 'pm', billed: 0 },
   ];
 
+  // Storico divergenze: snapshot nelle ultime 8 settimane passate (w=1..8) con
+  // pattern divergenti dal template attuale, così il drill-down "Override
+  // ripetuti" di RecurringScreen ha dati reali da mostrare dopo "Carica dati
+  // demo". Le settimane w=1..8 corrispondono a [curMonday-7 .. curMonday-56],
+  // che è esattamente la finestra [fromWeekKey, toWeekKey] usata dalla query.
+  // 1) PM giorno 3 (Mer): template ha solo c4 2h; qui inseriamo c3 2h + c4 2h.
+  //    Divergenza per c3: template 0h -> effettivo 2h, 5 occorrenze su 8.
+  // 2) AM giorno 4 (Ven): template ha c1 3.5h; qui scendo a c1 2h.
+  //    Divergenza per c1: template 3.5h -> effettivo 2h, 4 occorrenze su 8.
+  const historicDivergences = [];
+  for (let w = 1; w <= 8; w++) {
+    const dt = new Date(curMonday);
+    dt.setDate(dt.getDate() - 7 * w);
+    const wk = fmtLocal(dt);
+    if ([1, 2, 3, 5, 6].includes(w)) {
+      historicDivergences.push({
+        weekKey: wk, dayIndex: 3, slot: 'pm',
+        blocks: [
+          { id: `hd-c3-pm-${w}`, clientId: 'c3', hours: 2 },
+          { id: `hd-c4-pm-${w}`, clientId: 'c4', hours: 2 },
+        ],
+      });
+    }
+    if ([1, 2, 4, 7].includes(w)) {
+      historicDivergences.push({
+        weekKey: wk, dayIndex: 4, slot: 'am',
+        blocks: [{ id: `hd-c1-am-${w}`, clientId: 'c1', hours: 2 }],
+      });
+    }
+  }
+
   db.transaction(() => {
     for (const c of INIT_CLIENTS)
       insertClient.run(c.id, c.name, c.color, c.billable ?? 1, c.billing, c.rate, c.limitType ?? null, c.limitHours, c.position ?? 0);
@@ -708,7 +739,7 @@ function seedDemoData() {
       insertEntry.run(e.id, e.projectId, e.date, e.hours, e.billableHours ?? null, e.slot, e.billed);
     for (const { date, tasks } of todoistDays)
       db.prepare('INSERT OR REPLACE INTO todoist_cache (dateStr,tasksJson,syncedAt) VALUES (?,?,?)').run(date, JSON.stringify(tasks), now);
-    for (const o of weekOverrides)
+    for (const o of [...weekOverrides, ...historicDivergences])
       insertOverride.run(`${o.weekKey}-${o.dayIndex}-${o.slot}`, o.weekKey, o.dayIndex, o.slot, JSON.stringify(o.blocks));
   })();
 }

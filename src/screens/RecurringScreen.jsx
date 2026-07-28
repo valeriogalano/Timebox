@@ -25,31 +25,39 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
   }, []);
 
   const divergences = React.useMemo(() => {
-    const byWeek = {};
+    // Difensiva: una sola delta per (weekKey, day, slot, clientId). Il PRIMARY KEY
+    // su week_overrides garantisce al più uno snapshot per combinazione, ma il
+    // conteggio via forEach poteva gonfiarsi in presenza di duplicati per
+    // weekKey (mai possibile per schema, ma isolato qui per evitare ribilanci
+    // errati di occurrences > DIVERGENCE_HISTORY_WEEKS).
+    const unique = new Map();
     pastOverrides.forEach(r => {
-      const week = byWeek[r.weekKey] ?? (byWeek[r.weekKey] = {});
-      const day = week[r.dayIndex] ?? (week[r.dayIndex] = {});
-      day[r.slot] = r.blocks;
+      const blocks = r.blocks || [];
+      const templateBlocks = recurring.filter(rr => rr.day === r.dayIndex && rr.slot === r.slot);
+      const clientIds = new Set([
+        ...blocks.map(b => b.clientId),
+        ...templateBlocks.map(b => b.clientId),
+      ]);
+      clientIds.forEach(clientId => {
+        const actual = blocks.filter(b => b.clientId === clientId).reduce((s, b) => s + b.hours, 0);
+        const template = templateBlocks.filter(b => b.clientId === clientId).reduce((s, b) => s + b.hours, 0);
+        const delta = actual - template;
+        if (Math.abs(delta) < 0.01) return;
+        const id = `${r.weekKey}|${r.dayIndex}|${r.slot}|${clientId}`;
+        unique.set(id, { day: r.dayIndex, slot: r.slot, clientId, weekKey: r.weekKey, delta });
+      });
     });
 
     const stats = {};
-    Object.values(byWeek).forEach(week => {
-      for (let day = 0; day < RECURRING_DAYS; day++) {
-        for (const slot of SLOTS) {
-          const overrideBlocks = week[day]?.[slot];
-          if (overrideBlocks === undefined) continue; // nessuno snapshot per questo giorno/slot in questa settimana
-          const templateBlocks = recurring.filter(r => r.day === day && r.slot === slot);
-          const clientIds = new Set([...overrideBlocks.map(b => b.clientId), ...templateBlocks.map(r => r.clientId)]);
-          clientIds.forEach(clientId => {
-            const actual = overrideBlocks.filter(b => b.clientId === clientId).reduce((s, b) => s + b.hours, 0);
-            const template = templateBlocks.filter(r => r.clientId === clientId).reduce((s, r) => s + r.hours, 0);
-            const delta = actual - template;
-            if (Math.abs(delta) < 0.01) return;
-            const key = `${day}-${slot}-${clientId}`;
-            (stats[key] ?? (stats[key] = { day, slot, clientId, deltas: [] })).deltas.push(delta);
-          });
-        }
-      }
+    unique.forEach(entry => {
+      const key = `${entry.day}-${entry.slot}-${entry.clientId}`;
+      const stat = stats[key] ?? (stats[key] = {
+        day: entry.day, slot: entry.slot, clientId: entry.clientId,
+        deltas: [], weekKeys: new Set(),
+      });
+      if (stat.weekKeys.has(entry.weekKey)) return; // difensiva: mai più di una delta per settimana
+      stat.weekKeys.add(entry.weekKey);
+      stat.deltas.push(entry.delta);
     });
 
     return Object.values(stats)
@@ -65,8 +73,20 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
   }, [pastOverrides, recurring, dismissedDivergences]);
 
   async function applyDivergence(item) {
+    const client = clients.find(c => c.id === item.clientId);
     const template = recurring.find(r => r.day === item.day && r.slot === item.slot && r.clientId === item.clientId);
-    const newHours = Math.max(0, Math.round(((template?.hours ?? 0) + item.avgDelta) * 4) / 4);
+    const templateHours = template?.hours ?? 0;
+    const newHours = Math.max(0, Math.round((templateHours + item.avgDelta) * 4) / 4);
+    const action = template
+      ? (newHours <= 0 ? 'eliminare' : 'aggiornare')
+      : 'aggiungere';
+    const msg =
+      `Confermi di ${action} il blocco ricorrente per ${client?.name ?? '—'} in ${SLOT_ROW_LABELS[item.slot]} di ${DAY_SHORT[item.day]}?\n\n` +
+      `Template attuale: ${fmtH(templateHours)}\n` +
+      `Effettivo medio: ${fmtH(templateHours + item.avgDelta)} (${item.avgDelta > 0 ? '+' : ''}${fmtH(item.avgDelta)})\n` +
+      `Nuovo template: ${fmtH(newHours)}\n` +
+      `Occorrenze: ${item.occurrences}/${DIVERGENCE_HISTORY_WEEKS}`;
+    if (!window.confirm(msg)) return;
     if (template && newHours <= 0) await removeBlock(template.id);
     else if (template) await updateBlock(template.id, newHours);
     else if (newHours > 0) await addBlock(item.day, item.slot, item.clientId, newHours);
@@ -189,43 +209,66 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
             Nessuna divergenza ricorrente nelle ultime {DIVERGENCE_HISTORY_WEEKS} settimane.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {divergences.map((item, idx) => {
-              const client = clients.find(c => c.id === item.clientId);
-              const template = recurring.find(r => r.day === item.day && r.slot === item.slot && r.clientId === item.clientId);
-              const templateHours = template?.hours ?? 0;
-              const key = `${item.day}-${item.slot}-${item.clientId}`;
-              const showDayHeader = idx === 0 || divergences[idx - 1].day !== item.day;
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {(() => {
+              const DIVERGENCE_COLUMNS = '14px minmax(150px, 1fr) 64px 80px 60px 48px 188px';
+              const buttonBase = {
+                fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5,
+                border: '1px solid var(--tb-border)', cursor: 'pointer',
+                fontFamily: "'Open Sans', sans-serif",
+              };
+              const th = (label, align = 'right') => ({
+                textAlign: align, fontSize: 9, fontWeight: 800, letterSpacing: '0.08em',
+                textTransform: 'uppercase', color: 'var(--tb-text-faint)', paddingBottom: 4,
+              });
               return (
-                <React.Fragment key={key}>
-                {showDayHeader && (
-                  <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginTop: idx === 0 ? 0 : 4 }}>
-                    {DAY_SHORT[item.day]}
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: DIVERGENCE_COLUMNS, gap: 8, padding: '0 8px' }}>
+                    <div />
+                    <div style={th('Fascia · Area', 'left')}>Fascia · Area</div>
+                    <div style={th()}>Template</div>
+                    <div style={th()}>Effettivo</div>
+                    <div style={th()}>Δ</div>
+                    <div style={th()}>Sett.</div>
+                    <div style={th('Azioni', 'right')}>Azioni</div>
                   </div>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', borderRadius: 6, background: 'var(--tb-panel-bg-subtle)' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: client?.color ?? 'var(--tb-border)', flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)' }}>
-                    {SLOT_ROW_LABELS[item.slot]} · {client?.name ?? '—'}
-                  </div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', whiteSpace: 'nowrap' }}>
-                    template {fmtH(templateHours)} · effettivo {fmtH(templateHours + item.avgDelta)}
-                    {' '}({item.avgDelta > 0 ? '+' : ''}{fmtH(item.avgDelta)}) · {item.occurrences}/{DIVERGENCE_HISTORY_WEEKS} sett.
-                  </div>
-                  <button onClick={() => applyDivergence(item)} style={{
-                    fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5,
-                    border: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg)',
-                    color: 'var(--tb-text-primary)', cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
-                  }}>Applica al template</button>
-                  <button onClick={() => dismissDivergence(item)} style={{
-                    fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5,
-                    border: '1px solid var(--tb-border)', background: 'transparent',
-                    color: 'var(--tb-text-muted)', cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
-                  }}>Ignora</button>
-                </div>
-                </React.Fragment>
+                  {divergences.map((item, idx) => {
+                    const client = clients.find(c => c.id === item.clientId);
+                    const template = recurring.find(r => r.day === item.day && r.slot === item.slot && r.clientId === item.clientId);
+                    const templateHours = template?.hours ?? 0;
+                    const effettivo = templateHours + item.avgDelta;
+                    const key = `${item.day}-${item.slot}-${item.clientId}`;
+                    const showDayHeader = idx === 0 || divergences[idx - 1].day !== item.day;
+                    const cellNum = { textAlign: 'right', fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--tb-text-secondary)', whiteSpace: 'nowrap' };
+                    return (
+                      <React.Fragment key={key}>
+                        {showDayHeader && (
+                          <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginTop: idx === 0 ? 2 : 6, marginBottom: 2 }}>
+                            {DAY_SHORT[item.day]}
+                          </div>
+                        )}
+                        <div style={{ display: 'grid', gridTemplateColumns: DIVERGENCE_COLUMNS, gap: 8, alignItems: 'center', padding: '6px 8px', borderRadius: 6, background: 'var(--tb-panel-bg-subtle)' }}>
+                          <div style={{ width: 10, height: 10, borderRadius: '50%', background: client?.color ?? 'var(--tb-border)' }} />
+                          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {SLOT_ROW_LABELS[item.slot]} · {client?.name ?? '—'}
+                          </div>
+                          <div style={cellNum}>{fmtH(templateHours)}</div>
+                          <div style={{ ...cellNum, color: 'var(--tb-text-primary)', fontWeight: 800 }}>{fmtH(effettivo)}</div>
+                          <div style={{ ...cellNum, color: item.avgDelta > 0 ? 'var(--tb-tone-positive, green)' : 'var(--tb-tone-negative, red)' }}>
+                            {item.avgDelta > 0 ? '+' : ''}{fmtH(item.avgDelta)}
+                          </div>
+                          <div style={cellNum}>{`${item.occurrences}/${DIVERGENCE_HISTORY_WEEKS}`}</div>
+                          <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                            <button onClick={() => applyDivergence(item)} style={{ ...buttonBase, background: 'var(--tb-panel-bg)', color: 'var(--tb-text-primary)' }}>Applica</button>
+                            <button onClick={() => dismissDivergence(item)} style={{ ...buttonBase, background: 'transparent', color: 'var(--tb-text-muted)' }}>Ignora</button>
+                          </div>
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
+                </>
               );
-            })}
+            })()}
           </div>
         )}
         </div>
