@@ -6,6 +6,7 @@ import TimeCell from '../components/TimeCell';
 import DivergenceDot from '../components/DivergenceDot';
 import SlotCapacityBar from '../components/SlotCapacityBar';
 import AreaStatusGlyph from '../components/AreaStatusGlyph';
+import OverCapacityBar from '../components/OverCapacityBar';
 import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
 import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries, resolveEntrySlot } from '../dayPlanning';
 
@@ -1463,10 +1464,7 @@ function CapacityMirror({ actual, planned, billable, extra, onNavigate }) {
           <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{pct}%</span>
         )}
       </div>
-      <div style={{ position: 'relative', height: 3, borderRadius: 2, background: 'var(--tb-bar-track)', marginTop: 6, overflow: 'visible' }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, pct)}%`, background: 'var(--tb-bar-tracked)', borderRadius: 2 }} />
-        {pct > 100 && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: `${Math.min(30, pct - 100)}%`, borderRadius: '0 2px 2px 0' }} />}
-      </div>
+      <OverCapacityBar value={pct} cap={100} height={3} style={{ marginTop: 6 }} />
       <div style={{ display: 'flex', gap: 8, marginTop: 5, fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
         <span>Fatt. {fmtH(billable)}</span>
         <span>NF {fmtH(nonBillable)}</span>
@@ -1503,8 +1501,6 @@ function WeeklySummaryStrip({ summary, clients, open, onToggle }) {
           {items.map(({ client, data }) => {
             const planned = data.planned || 0;
             const actual = data.actual || 0;
-            const pct = planned > 0 ? Math.min(1, actual / planned) : (actual > 0 ? 1 : 0);
-            const over = planned > 0 && actual > planned;
             return (
               <div key={client.id} style={{
                 flex: '1 1 140px', minWidth: 140,
@@ -1518,10 +1514,11 @@ function WeeklySummaryStrip({ summary, clients, open, onToggle }) {
                   {toHHMM(actual)}
                   <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-faint)' }}> / {toHHMM(planned)}</span>
                 </div>
-                <div style={{ position: 'relative', height: 3, borderRadius: 2, background: 'var(--tb-bar-track)', marginTop: 5, overflow: 'visible' }}>
-                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct * 100}%`, background: client.color, borderRadius: 2 }} />
-                  {over && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: '18%', borderRadius: '0 2px 2px 0' }} />}
-                </div>
+                <OverCapacityBar
+                  value={planned > 0 ? actual : (actual > 0 ? 1 : 0)}
+                  cap={planned > 0 ? planned : (actual > 0 ? 1 : 0)}
+                  color={client.color} height={3} style={{ marginTop: 5 }}
+                />
               </div>
             );
           })}

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
 import { areaMix } from '../area-colors';
 import { persistentAreaInsights, areaProjection, PERSIST_WINDOW, PERSIST_MIN } from '../panoramica-insights';
+import OverCapacityBar from '../components/OverCapacityBar';
 
 // Redesign: nessun colore di stato. L'identità è solo l'area (client.color).
 // over/under/in-line si leggono per posizione/glyph, non per verde/arancio/rosso.
@@ -674,10 +675,11 @@ function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) 
               <span><strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(rhythm)}</strong>/sett · proiettato <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(projected)}</strong></span>
               {hasCap && <span>· tetto {fmtH(cap)}</span>}
             </div>
-            <div style={{ position: 'relative', height: 8, borderRadius: 4, background: 'var(--tb-bar-track)', marginTop: 8, overflow: 'visible' }}>
-              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${hasCap ? Math.min(100, ratio * 100) : 100}%`, background: c.color, borderRadius: 4, opacity: hasCap ? 1 : 0.4 }} />
-              {over && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: '100%', width: `${Math.min(30, (ratio - 1) * 100)}%`, borderRadius: '0 4px 4px 0' }} />}
-            </div>
+            <OverCapacityBar
+              value={hasCap ? projected : 1} cap={hasCap ? cap : 0}
+              color={c.color} fillOpacity={hasCap ? 1 : 0.4}
+              style={{ marginTop: 8 }}
+            />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
               <span>{verdict.label}</span>
               {billable && (
@@ -884,22 +886,8 @@ function Segmented({ value, options, onChange, small }) {
   );
 }
 
-function CapacityBar({ done, capacity, color }) {
-  const pct = capacity > 0 ? Math.min(1.2, done / capacity) : 0;
-  const over = pct > 1;
-  return (
-    <div style={{
-      position: 'relative', height: 10, borderRadius: 5,
-      background: 'var(--tb-bar-track)', marginTop: 14, overflow: 'visible',
-    }}>
-      <div style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0,
-        width: Math.min(100, pct * 100) + '%',
-        background: 'var(--tb-bar-tracked)', borderRadius: 5, transition: 'width 0.4s ease',
-      }} />
-      {over && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: `${100}%`, width: `${Math.min(20, (pct - 1) * 100)}%`, borderRadius: '0 5px 5px 0' }} />}
-    </div>
-  );
+function CapacityBar({ done, capacity }) {
+  return <OverCapacityBar value={done} cap={capacity} height={10} style={{ marginTop: 14 }} />;
 }
 
 function Bar({ value, max, color, thin }) {
@@ -914,13 +902,6 @@ function Bar({ value, max, color, thin }) {
         width: Math.min(100, pct * 100) + '%',
         background: color, borderRadius: 4, transition: 'width 0.4s ease',
       }} />
-      {pct > 1 && (
-        <div style={{
-          position: 'absolute', left: '100%', top: -1, bottom: -1,
-          width: Math.min(20, (pct - 1) * 100) + '%',
-          background: COL_OVER, borderRadius: '0 4px 4px 0',
-        }} />
-      )}
     </div>
   );
 }
