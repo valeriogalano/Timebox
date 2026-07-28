@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { persistentAreaInsights, areaProjection, PERSIST_WINDOW, PERSIST_MIN } from '../panoramica-insights.js';
+import { persistentAreaInsights, areaProjection, statusFor, PERSIST_WINDOW, PERSIST_MIN } from '../panoramica-insights.js';
 
 const area = (name, weeks) => ({ client: { id: name, name, color: '#000' }, weeks });
 // helper: settimana chiusa con done/planned
@@ -100,5 +100,29 @@ describe('areaProjection', () => {
     const nb = areaProjection({ rhythm: 10, horizon: 2, limitType: 'weekly', limitHours: 8, rate: 50, billable: false });
     assert.equal(nb.potentialEur, 0);
     assert.equal(nb.lostEur, 0);
+  });
+});
+
+describe('statusFor', () => {
+  test('mezz\'ora di scarto è rumore, anche su un piano piccolo', () => {
+    assert.equal(statusFor(1.5, 1).kind, 'on');    // +50% ma solo +30m
+    assert.equal(statusFor(0.5, 1).kind, 'on');
+  });
+
+  test('la tolleranza scala col piano (10%)', () => {
+    assert.equal(statusFor(43, 40).kind, 'on');    // +3h ma dentro il 10%
+    assert.equal(statusFor(45, 40).kind, 'over');  // +5h, fuori
+  });
+
+  test('glifo doppio solo oltre la soglia marcata (2h o 30%)', () => {
+    assert.equal(statusFor(4.5, 2).glyph, '▴▴');   // +2h30 e +125%
+    assert.equal(statusFor(3, 2).glyph, '▴');      // +1h, +50%
+    assert.equal(statusFor(26, 40).glyph, '▾▾');   // -14h, oltre il 30%
+    assert.equal(statusFor(30, 40).glyph, '▾');    // -10h (25%): fuori piano ma non marcato
+  });
+
+  test('senza piano non c\'è verdetto', () => {
+    assert.equal(statusFor(5, 0).kind, 'none');
+    assert.equal(statusFor(5, 0).glyph, '·');
   });
 });

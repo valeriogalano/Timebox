@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
 import { areaMix } from '../area-colors';
-import { persistentAreaInsights, areaProjection, PERSIST_WINDOW, PERSIST_MIN } from '../panoramica-insights';
+import { persistentAreaInsights, areaProjection, statusFor, PERSIST_WINDOW, PERSIST_MIN } from '../panoramica-insights';
 import OverCapacityBar from '../components/OverCapacityBar';
 import Glyph from '../components/Glyph';
 
@@ -19,14 +19,6 @@ const SMALL_MULT_WEEKS = TREND_WEEKS;
 function fmtEur(n) {
   if (n == null) return '—';
   return '€' + Math.round(n).toLocaleString('it-IT');
-}
-
-function statusFor(done, capacity) {
-  if (capacity === 0) return { label: '—', glyph: '·', color: 'var(--tb-text-muted)' };
-  const ratio = done / capacity;
-  if (ratio > 1.1)  return { label: 'Sovraccarico', glyph: '▴', color: 'var(--tb-text-primary)' };
-  if (ratio < 0.85) return { label: 'Sottocarico',  glyph: '▾', color: 'var(--tb-text-muted)' };
-  return { label: 'In linea', glyph: '▪', color: 'var(--tb-text-primary)' };
 }
 
 function clientWeeklyCapacity(clientId, recurring) {
@@ -439,7 +431,7 @@ function RetroSummary({ stats, status, deltaH }) {
             <Glyph glyph={status.glyph} size={16} className="tb-glyph" title={status.label} />
           </span>
         </div>
-        <CapacityBar done={stats.totalDone} capacity={stats.capacity} color={status.color} />
+        <CapacityBar done={stats.totalDone} capacity={stats.capacity} />
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
           <span>{status.label} · capacità {fmtH(stats.capacity)}</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -520,7 +512,7 @@ function AreaConsuntivo({ clients, stats }) {
   return (
     <div>
       <SectionHeader title="Per area · consuntivo" subtitle="pianificato · tracciato · extra"
-        help={'Per ogni area, nella settimana selezionata: Piano = ore pianificate, Fatto = ore tracciate, Extra = ore fatte oltre il piano (max(0, fatto − piano)), Δ = fatto − piano. La colonna Stato è il verdetto (sotto/in linea/sovraccarico).\n\nSulla settimana in corso compare anche Previsto = consuntivo fino a oggi + ore pianificate dei giorni restanti (proiezione "a piano").'} />
+        help={'Per ogni area, nella settimana selezionata: Piano = ore pianificate, Fatto = ore tracciate, Extra = ore fatte oltre il piano (max(0, fatto − piano)), Δ = fatto − piano. La colonna Stato è il verdetto: sotto mezz\'ora (o 10% del piano) di scarto si resta "in linea"; oltre, un glifo ▴/▾, e due glifi quando lo scarto supera 2h (o il 30% del piano).\n\nSulla settimana in corso compare anche Previsto = consuntivo fino a oggi + ore pianificate dei giorni restanti (proiezione "a piano").'} />
       <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: '2px 12px', alignItems: 'center' }}>
         <span />
         <span />
