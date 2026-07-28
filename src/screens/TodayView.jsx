@@ -438,13 +438,21 @@ function TabBtn({ active, onClick, children }) {
 // presente si usa il QuickLog (⌘L), che poi lo fa comparire qui.
 function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFuture, onSaveDayEntry, onResetBillable }) {
   const [viewMode, setViewMode] = useState('tracked');
+  // Stessa preferenza del timesheet settimanale: "Progetti lavorati" vs "Tutti i progetti"
+  const [hideEmpty, setHideEmpty] = useState(() => localStorage.getItem('timebox-hide-empty-projects') === 'true');
   if (loading) return <div style={{ padding: 12 }}><SkeletonRows /></div>;
 
-  const rows = (dayEntries || [])
-    .map(entry => {
-      const project = projects.find(p => p.id === entry.projectId);
-      const client = project ? clients.find(c => c.id === project.clientId) : null;
-      return project && client ? { entry, project, client } : null;
+  const entryByProject = new Map((dayEntries || []).map(e => [e.projectId, e]));
+  const visibleProjects = hideEmpty
+    ? (dayEntries || []).map(e => projects.find(p => p.id === e.projectId)).filter(Boolean)
+    : projects.filter(p => !p.archived);
+
+  const rows = visibleProjects
+    .map(project => {
+      const client = clients.find(c => c.id === project.clientId);
+      const entry = entryByProject.get(project.id)
+        ?? { projectId: project.id, hours: 0, billableHours: null, billed: false };
+      return client ? { entry, project, client } : null;
     })
     .filter(Boolean)
     .sort((a, b) =>
@@ -458,8 +466,18 @@ function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFutur
 
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <DayViewToggle value={viewMode} onChange={setViewMode} />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+        <SegToggle
+          opts={[{ k: 'worked', l: 'Progetti lavorati' }, { k: 'all', l: 'Tutti i progetti' }]}
+          value={hideEmpty ? 'worked' : 'all'}
+          onChange={next => {
+            const nextHideEmpty = next === 'worked';
+            setHideEmpty(nextHideEmpty);
+            localStorage.setItem('timebox-hide-empty-projects', String(nextHideEmpty));
+          }} />
+        <SegToggle
+          opts={[{ k: 'tracked', l: 'Tracciate' }, { k: 'billable', l: 'Fatturabili' }]}
+          value={viewMode} onChange={setViewMode} />
       </div>
       {rows.length === 0 ? (
         <div style={{ padding: '28px 8px', textAlign: 'center', color: 'var(--tb-text-muted)', fontSize: 11, fontWeight: 700, lineHeight: 1.6 }}>
@@ -502,8 +520,7 @@ function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFutur
   );
 }
 
-function DayViewToggle({ value, onChange }) {
-  const opts = [{ k: 'tracked', l: 'Tracciate' }, { k: 'billable', l: 'Fatturabili' }];
+function SegToggle({ opts, value, onChange }) {
   return (
     <div style={{ display: 'inline-flex', border: '1px solid var(--tb-border-mid)', borderRadius: 6, overflow: 'hidden' }}>
       {opts.map(o => (
