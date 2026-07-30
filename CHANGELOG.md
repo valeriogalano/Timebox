@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Interfaccia: l'overlay `?` contiene ora anche una legenda dei glifi di segnale (in linea, sopra/sotto con il doppio glifo per lo scarto marcato, nessun verdetto, divergenza dal template, ore da fatturare/fatturate, stato dell'area). Il colore non distingue sopra e sotto per scelta, quindi senza legenda i glifi restavano da indovinare. L'overlay si apre anche cliccando un `?` in topbar, dopo la data corrente.
+- Giorno: i pannelli "Blocchi pianificati senza azioni" e "Mismatch dopo sync" hanno un `?` che spiega cosa mostrano; per i mismatch, i quattro gruppi (non mappati, fuori pianificazione, oltre blocco, capacità oltre residuo) sono descritti uno per uno.
+
+### Changed
+- Giorno: le righe di "Mismatch dopo sync" dispongono le informazioni come "Blocchi pianificati senza azioni" — identità nel titolo, contesto nel meta con lo slot davanti, e la colonna destra sempre riservata alle ore (stimate, o lo sforo dove c'è). Prima a destra compariva la fascia (AM/PM), che occupava la posizione del numero senza esserlo, e la quantità era accodata al titolo del task. Cade anche il livello "Fuori posto / In più": le righe stanno a una sola profondità come nell'altro pannello.
+
+### Fixed
+- Andamento: un'area con ore tracciate ma nessuna ora pianificata non risulta più priva di verdetto nella colonna Stato di "Per area · consuntivo". Il verdetto usciva anticipatamente ogni volta che il piano era a zero, senza guardare le ore fatte: lavoro interamente fuori piano — il caso che dovrebbe gridare più forte — appariva come "—". Ora è "nessun verdetto" solo quando piano e consuntivo sono entrambi a zero.
+
+### Removed
+- Impostazioni: la sezione "Scorciatoie da tastiera" è rimossa. L'overlay `?` è ora l'unico posto che le documenta; l'elenco in Impostazioni era anche disallineato, elencava scorciatoie non più assegnate.
+
 ## [0.9.7] - 2026-07-28
 
 ### Added
