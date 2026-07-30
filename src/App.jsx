@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getToday, fmt, getMondayOfWeek, currentSlot } from './utils';
 import QuickLogModal from './components/QuickLogModal';
+import Glyph from './components/Glyph';
+import AreaStatusGlyph from './components/AreaStatusGlyph';
 import TodayView from './screens/TodayView';
 import WeeklyView, { AreaStatusPanel, withAreaStatus } from './screens/WeeklyView';
 import Panoramica from './screens/Panoramica';
@@ -415,8 +417,17 @@ export default function App() {
               {NAV_ITEMS.find(n => n.id === screen)?.label}
             </h1>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--tb-text-secondary)', fontWeight: 600 }}>
-            {topbarDate}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ fontSize: 11, color: 'var(--tb-text-secondary)', fontWeight: 600 }}>
+              {topbarDate}
+            </div>
+            <button onClick={() => setShowHelp(true)} title="Scorciatoie e glifi (?)" style={{
+              background: 'transparent', border: '1px solid var(--tb-border)', color: 'var(--tb-text-muted)',
+              cursor: 'pointer', width: 18, height: 18, borderRadius: '50%', padding: 0,
+              fontSize: 11, fontWeight: 800, lineHeight: 1, transition: 'all 0.2s',
+              WebkitAppRegion: 'no-drag',
+            }} onMouseOver={e => { e.currentTarget.style.color = 'var(--tb-topbar-text)'; }}
+              onMouseOut={e => { e.currentTarget.style.color = 'var(--tb-text-muted)'; }}>?</button>
           </div>
         </div>
 
@@ -504,6 +515,23 @@ function KeyboardHelp({ onClose }) {
     ['?',        'Mostra / nasconde questa guida'],
   ];
 
+  // Legenda dei glifi di segnale. Le viste li usano al posto del colore (over/under
+  // si leggono per forma, non per verde/rosso): senza legenda restano da indovinare.
+  const glyphs = [
+    [<Glyph glyph="▪" size={12} className="tb-glyph" />,  'In linea col piano / col ritmo, entro il tetto'],
+    [<Glyph glyph="▴" size={12} className="tb-glyph" />,  'Sopra: sovraccarico, sopra il ritmo, oltre il tetto'],
+    [<Glyph glyph="▴▴" size={12} className="tb-glyph" />, 'Scarto marcato in eccesso (oltre 2h o il 30% del piano)'],
+    [<Glyph glyph="▾" size={12} className="tb-glyph" />,  'Sotto: sottocarico, sotto il ritmo'],
+    [<Glyph glyph="▾▾" size={12} className="tb-glyph" />, 'Scarto marcato in difetto (oltre 2h o il 30% del piano)'],
+    [<span className="tb-glyph" style={{ fontSize: 12 }}>·</span>, 'Nessun verdetto: niente da confrontare (area ferma, nessun tetto)'],
+    [<span className="tb-glyph" style={{ fontSize: 12 }}>Δ</span>, 'Giorno modificato rispetto al template ricorrente'],
+    [<span className="tb-glyph" style={{ fontSize: 12 }}>○</span>, 'Ore da fatturare'],
+    [<span className="tb-glyph" style={{ fontSize: 12 }}>✓</span>, 'Ore fatturate'],
+    [<AreaStatusGlyph status="active" size={10} color="var(--tb-state-glyph)" />,  'Area attiva questa settimana'],
+    [<AreaStatusGlyph status="minimal" size={10} color="var(--tb-state-glyph)" />, 'Area da mantenere al minimo'],
+    [<AreaStatusGlyph status="closed" size={10} color="var(--tb-state-glyph)" />,  'Area chiusa questa settimana'],
+  ];
+
   const kbd = txt => (
     <kbd style={{
       fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
@@ -521,23 +549,45 @@ function KeyboardHelp({ onClose }) {
       <div onClick={e => e.stopPropagation()} style={{
         background: 'var(--tb-panel-bg)', borderRadius: 12,
         border: '1px solid var(--tb-border)',
-        width: 460, overflow: 'hidden',
+        width: 460, maxHeight: '80vh', overflowY: 'auto',
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
       }}>
         <div style={{
           padding: '14px 20px', borderBottom: '1px solid var(--tb-border-soft)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          position: 'sticky', top: 0, background: 'var(--tb-panel-bg)',
         }}>
           <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
-            Scorciatorie da tastiera
+            Scorciatoie e glifi
           </span>
           {kbd('Esc')}
         </div>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <tbody>
             {shortcuts.map(([keys, desc], i) => (
-              <tr key={i} style={{ borderBottom: i < shortcuts.length - 1 ? '1px solid var(--tb-border-soft)' : 'none' }}>
+              <tr key={i} style={{ borderBottom: '1px solid var(--tb-border-soft)' }}>
                 <td style={{ padding: '9px 12px 9px 20px', width: 120, whiteSpace: 'nowrap' }}>{kbd(keys)}</td>
+                <td style={{ padding: '9px 20px 9px 0', fontSize: 11, color: 'var(--tb-text-secondary)' }}>{desc}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ padding: '10px 20px 0', fontSize: 10, color: 'var(--tb-text-muted)' }}>
+          Le scorciatoie non sono attive mentre un campo di testo è in focus.
+        </div>
+        <div style={{
+          padding: '12px 20px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.06em',
+          textTransform: 'uppercase', color: 'var(--tb-text-muted)',
+        }}>
+          Glifi
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <tbody>
+            {glyphs.map(([glyph, desc], i) => (
+              <tr key={i} style={{ borderBottom: i < glyphs.length - 1 ? '1px solid var(--tb-border-soft)' : 'none' }}>
+                <td style={{ padding: '9px 12px 9px 20px', width: 120 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24 }}>{glyph}</span>
+                </td>
                 <td style={{ padding: '9px 20px 9px 0', fontSize: 11, color: 'var(--tb-text-secondary)' }}>{desc}</td>
               </tr>
             ))}

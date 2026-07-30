@@ -14,8 +14,11 @@ export const TOL_PCT = 0.10;
 export const STRONG_HOURS = 2;    // oltre: scarto marcato → glifo doppio
 export const STRONG_PCT = 0.30;
 
+// Piano a zero con ore fatte è sovraccarico, non "nessun verdetto": è lavoro
+// interamente fuori piano, il caso che il verdetto deve gridare più forte.
+// Solo piano 0 E fatto 0 è davvero "—" (area senza attività nella settimana).
 export function statusFor(done, planned) {
-  if (!(planned > 0)) return { kind: 'none', level: 0, label: '—', glyph: '·', color: 'var(--tb-text-muted)' };
+  if (!(planned > 0) && !(done > 0)) return { kind: 'none', level: 0, label: '—', glyph: '·', color: 'var(--tb-text-muted)' };
   const delta = (done || 0) - planned;
   const tol = Math.max(TOL_HOURS, planned * TOL_PCT);
   if (Math.abs(delta) <= tol) {

@@ -187,42 +187,6 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
 
   return (
     <div>
-      <Section title="Scorciatorie da tastiera">
-        <div style={{ padding: '16px 20px' }}>
-          <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginBottom: 14 }}>
-            Tutte le scorciatorie usano <kbd style={{ fontFamily: 'monospace', fontSize: 11, background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)', borderRadius: 4, padding: '1px 5px' }}>⌘</kbd> come modificatore (alcune anche <kbd style={{ fontFamily: 'monospace', fontSize: 11, background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)', borderRadius: 4, padding: '1px 5px' }}>⇧</kbd>).
-            Le scorciatoie globali non sono attive quando un campo di testo è in focus; nel timesheet puoi usare anche <kbd style={{ fontFamily: 'monospace', fontSize: 11, background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)', borderRadius: 4, padding: '1px 5px' }}>⌥ ← / →</kbd> mentre modifichi una cella.
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <tbody>
-              {[
-                ['⌘ L', 'Apre il quick-log per navigare a un progetto'],
-                ['⌘ T', 'Torna al Timesheet della settimana corrente'],
-                ['⌘ ←', 'Giorno/settimana precedente'],
-                ['⌘ →', 'Giorno/settimana successiva'],
-                ['⌥ ← / →', 'In una cella del Timesheet: salva e va al giorno precedente / successivo'],
-                ['⌘ B', 'Espande / riduce la sidebar'],
-                ['⌘ ,', 'Apre le Impostazioni'],
-                ['⌘ 1–8', 'Naviga alle schermate in ordine sidebar'],
-                ['⌘ ⇧ H', 'Nascondi / mostra progetti senza ore (Timesheet)'],
-                ['⌘ ⇧ V', 'Alterna vista Tracciate / Fatturabili (Timesheet)'],
-                ['?',      'Mostra / nasconde l\'overlay delle scorciatorie'],
-              ].map(([keys, desc], i, arr) => (
-                <tr key={i} style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--tb-border-soft)' : 'none' }}>
-                  <td style={{ padding: '9px 12px 9px 0', width: 90, whiteSpace: 'nowrap' }}>
-                    <kbd style={{
-                      fontFamily: 'monospace', fontSize: 11,
-                      background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)',
-                      borderRadius: 4, padding: '2px 6px', color: 'var(--tb-text-primary)', fontWeight: 700,
-                    }}>{keys}</kbd>
-                  </td>
-                  <td style={{ padding: '9px 0', color: 'var(--tb-text-secondary)', fontSize: 11 }}>{desc}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Section>
       <Section title="Aspetto">
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--tb-border-soft)' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 6 }}>

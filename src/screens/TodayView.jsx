@@ -269,6 +269,7 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
 
           <Panel
             title="Blocchi pianificati senza azioni"
+            help={'Blocchi che hai pianificato per oggi ma che nessun task Todoist copre ancora: ore riservate senza niente di concreto da farci.\n\nOgni riga è area · slot. Il numero a destra sono le ore scoperte del blocco (disponibili − stimate dai task); sotto, quanto Todoist copre e su quanto.'}
             empty={!loading && readyGroups.length === 0 ? 'Coperti' : null}
             meta={!loading ? fmtH(totals.reservedWithoutTasksHours || 0) : null}
           >
@@ -285,19 +286,28 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
 
           <Panel
             title="Mismatch dopo sync"
+            help={'Task Todoist di oggi che non tornano col piano. Il numero a destra di ogni riga sono le ore: stimate del task, o lo sforo dove c\'è.\n\nNON MAPPATI · task senza un progetto Timebox corrispondente: non sai su cosa andrebbero a finire le ore.\n\nFUORI PIANIFICAZIONE · task di un\'area per cui oggi non hai pianificato nessun blocco in quello slot.\n\nOLTRE BLOCCO · task che stima più ore di quante ne restino libere nel suo blocco.\n\nCAPACITÀ OLTRE RESIDUO · la somma delle stime di oggi supera la capacità che resta nella giornata.'}
             empty={!loading && totalMismatches === 0 ? 'Pulito' : null}
             meta={!loading ? `${totalMismatches} · ${fmtH(totals.estimatedHours || 0)} stimate` : null}
           >
             {loading ? <SkeletonRows /> : (
               <>
-                <MismatchSection label="Fuori posto" sub="task non collocati correttamente">
-                  <MismatchGroup label="Non mappati" count={counts.tasksWithoutTimeboxProject} items={mismatches.tasksWithoutTimeboxProject} itemLabel={item => item.title} />
-                  <MismatchGroup label="Fuori pianificazione" count={counts.tasksOutsidePlannedArea} items={mismatches.tasksOutsidePlannedArea} itemLabel={item => `${item.title} · ${item.area}`} />
-                </MismatchSection>
-                <MismatchSection label="In più" sub="più lavoro stimato di quanto pianificato">
-                  <MismatchGroup label="Oltre blocco" count={counts.tasksOverBlockCapacity} items={mismatches.tasksOverBlockCapacity} itemLabel={item => `${item.title} · +${fmtH(item.overflowHours)}`} />
-                  <MismatchGroup label="Capacità oltre residuo" count={counts.estimatedBeyondResidualCapacity} items={mismatches.estimatedBeyondResidualCapacity ? [mismatches.estimatedBeyondResidualCapacity] : []} itemLabel={item => `+${fmtH(item.overflowHours)} oltre residuo`} />
-                </MismatchSection>
+                <MismatchGroup label="Non mappati" count={counts.tasksWithoutTimeboxProject} items={mismatches.tasksWithoutTimeboxProject}
+                  itemLabel={item => item.title}
+                  itemMeta={item => metaLine(slotLabel(item), item.todoistProject)}
+                  itemValue={item => fmtH(item.estimatedHours || 0)} />
+                <MismatchGroup label="Fuori pianificazione" count={counts.tasksOutsidePlannedArea} items={mismatches.tasksOutsidePlannedArea}
+                  itemLabel={item => item.title}
+                  itemMeta={item => metaLine(slotLabel(item), item.area, item.project)}
+                  itemValue={item => fmtH(item.estimatedHours || 0)} />
+                <MismatchGroup label="Oltre blocco" count={counts.tasksOverBlockCapacity} items={mismatches.tasksOverBlockCapacity}
+                  itemLabel={item => item.title}
+                  itemMeta={item => metaLine(slotLabel(item), item.project, `${fmtH(item.estimatedHours || 0)} su ${fmtH(item.availableBeforeTask || 0)} disponibili`)}
+                  itemValue={item => `+${fmtH(item.overflowHours || 0)}`} />
+                <MismatchGroup label="Capacità oltre residuo" count={counts.estimatedBeyondResidualCapacity} items={mismatches.estimatedBeyondResidualCapacity ? [mismatches.estimatedBeyondResidualCapacity] : []}
+                  itemLabel={() => 'Stime oltre il residuo del giorno'}
+                  itemMeta={item => `${fmtH(item.estimatedHours || 0)} stimate su ${fmtH(item.residualCapacity || 0)} residue`}
+                  itemValue={item => `+${fmtH(item.overflowHours || 0)}`} />
               </>
             )}
           </Panel>
@@ -575,10 +585,7 @@ function FreeCapacityCard({ loading, totals, capacity }) {
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9, fontWeight: 850, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
           Capacità libera della giornata
-          <span
-            title={help}
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 9, cursor: 'help', letterSpacing: 0 }}
-          >?</span>
+          <HelpDot text={help} />
         </div>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', marginTop: 8, whiteSpace: 'nowrap' }}>Tempo della giornata ancora disponibile</div>
       </div>
@@ -625,10 +632,7 @@ function TodayGauge({ planned, traced, capacity }) {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
             Carico di oggi · adesso
-            <span
-              title={'Il piano di oggi viene distribuito in modo uniforme sulla giornata lavorativa (9:00–18:00). In base all\'ora attuale si calcola quante ore dovresti aver già tracciato a questo punto: quello è il ritmo atteso.\n\nIl verdetto confronta le ore che hai davvero tracciato con quel ritmo: più avanti = sopra il ritmo, meno = sotto.'}
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 9, cursor: 'help', letterSpacing: 0 }}
-            >?</span>
+            <HelpDot text={'Il piano di oggi viene distribuito in modo uniforme sulla giornata lavorativa (9:00–18:00). In base all\'ora attuale si calcola quante ore dovresti aver già tracciato a questo punto: quello è il ritmo atteso.\n\nIl verdetto confronta le ore che hai davvero tracciato con quel ritmo: più avanti = sopra il ritmo, meno = sotto.'} />
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
             <span style={{ fontSize: 30, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtH(traced)}</span>
@@ -661,11 +665,23 @@ function TodayGauge({ planned, traced, capacity }) {
   );
 }
 
-function Panel({ title, empty, meta, children }) {
+export function HelpDot({ text }) {
+  return (
+    <span
+      title={text}
+      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 9, cursor: 'help', letterSpacing: 0, flexShrink: 0 }}
+    >?</span>
+  );
+}
+
+function Panel({ title, help, empty, meta, children }) {
   return (
     <section style={{ border: '1px solid var(--tb-border)', borderRadius: 8, background: 'var(--tb-panel-bg)', overflow: 'hidden', minHeight: 260 }}>
-      <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: 12, fontWeight: 850, color: 'var(--tb-text-primary)' }}>{title}</h2>
+      <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 850, color: 'var(--tb-text-primary)' }}>
+          {title}
+          {help && <HelpDot text={help} />}
+        </h2>
         {empty
           ? <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-muted)' }}>{empty}</span>
           : meta && <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-muted)' }}>{meta}</span>}
@@ -689,21 +705,16 @@ function InsightRow({ title, value, meta, color }) {
   );
 }
 
-function MismatchSection({ label, sub, children }) {
-  const hasContent = React.Children.toArray(children).some(Boolean);
-  if (!hasContent) return null;
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
-      <div>
-        <div style={{ fontSize: 11, fontWeight: 850, color: 'var(--tb-text-primary)' }}>{label}</div>
-        <div style={{ fontSize: 9, fontWeight: 650, color: 'var(--tb-text-faint)' }}>{sub}</div>
-      </div>
-      {children}
-    </div>
-  );
-}
+// Le righe dei mismatch tengono le informazioni nella stessa posizione di
+// "Blocchi pianificati senza azioni": identità nel titolo, contesto nel meta
+// (slot compreso — nel titolo verrebbe troncato coi titoli lunghi dei task),
+// e la colonna destra riservata alle ore. Prima lì stava lo slot: occupava lo
+// slot ottico del numero senza esserlo, ed era la ragione per cui i due
+// pannelli si leggevano in due modi diversi a parità di layout.
+const metaLine = (...parts) => parts.filter(Boolean).join(' · ');
+const slotLabel = item => item.slot?.toUpperCase?.() || '';
 
-function MismatchGroup({ label, count = 0, items = [], itemLabel }) {
+function MismatchGroup({ label, count = 0, items = [], itemLabel, itemMeta, itemValue }) {
   if (!count) return null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -714,9 +725,9 @@ function MismatchGroup({ label, count = 0, items = [], itemLabel }) {
         <InsightRow
           key={`${label}-${index}`}
           title={<MarkdownText text={itemLabel(item)} />}
-          value={item.slot?.toUpperCase?.() || ''}
-          meta={item.project || item.todoistProject || ''}
-          color="var(--tb-text-muted)"
+          meta={itemMeta(item)}
+          value={itemValue(item)}
+          color="var(--tb-text-primary)"
         />
       ))}
     </div>
