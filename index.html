@@ -389,13 +389,13 @@
             },
             mismatches: {
               tasksWithoutTimeboxProject: [
-                { title: 'Chiamata commerciale nuovo lead', estimatedHours: 0.5 },
+                { title: 'Chiamata commerciale nuovo lead', todoistProject: 'Inbox', slot: 'am', estimatedHours: 0.5 },
               ],
               tasksOutsidePlannedArea: [
-                { title: 'Fix urgente bug pagamento', area: 'Acme Corp', estimatedHours: 1 },
+                { title: 'Fix urgente bug pagamento', area: 'Acme Corp', project: 'Portale clienti', slot: 'am', estimatedHours: 1 },
               ],
               tasksOverBlockCapacity: [
-                { title: 'Refactor modulo export', area: 'GreenTech SA', overflowHours: 1 },
+                { title: 'Refactor modulo export', area: 'GreenTech SA', project: 'Dashboard emissioni', slot: 'pm', estimatedHours: 2, availableBeforeTask: 1, blockHours: 2.5, overflowHours: 1 },
               ],
               blocksWithoutReadyTasks: [{
                 slot: 'pm',
@@ -408,7 +408,7 @@
                 missingHours: 1.5,
                 reason: 'insufficient_tasks',
               }],
-              estimatedBeyondResidualCapacity: { overflowHours: 1.5 },
+              estimatedBeyondResidualCapacity: { estimatedHours: 4, residualCapacity: 2.5, overflowHours: 1.5 },
             },
           },
         }),
