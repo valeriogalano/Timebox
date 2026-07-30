@@ -121,8 +121,15 @@ describe('statusFor', () => {
     assert.equal(statusFor(30, 40).glyph, '▾');    // -10h (25%): fuori piano ma non marcato
   });
 
-  test('senza piano non c\'è verdetto', () => {
-    assert.equal(statusFor(5, 0).kind, 'none');
-    assert.equal(statusFor(5, 0).glyph, '·');
+  test('senza piano e senza ore non c\'è verdetto', () => {
+    assert.equal(statusFor(0, 0).kind, 'none');
+    assert.equal(statusFor(0, 0).glyph, '·');
+  });
+
+  test('ore fatte senza piano sono sovraccarico', () => {
+    assert.equal(statusFor(5, 0).kind, 'over');     // 5h tutte fuori piano
+    assert.equal(statusFor(5, 0).glyph, '▴▴');      // oltre 2h di scarto
+    assert.equal(statusFor(1, 0).glyph, '▴');       // 1h: fuori piano ma non marcato
+    assert.equal(statusFor(0.25, 0).kind, 'on');    // 15m: rumore di tracciamento
   });
 });
