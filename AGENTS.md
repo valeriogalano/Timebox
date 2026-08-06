@@ -214,7 +214,7 @@ There are three database paths, and confusing them is easy — the first launch 
 
 A `timebox.db` sitting in the repository root is **not** the app's database — it is a leftover copy and is gitignored. To find the real one, read `config.json` in the app-data directory, or call the `app:getDbPath` IPC handler.
 
-An empty database is seeded with demo clients, projects, recurring blocks, sample entries, and Todoist cache data.
+`initDb` creates schema, indexes and migrations only — it performs no inserts, so a new database stays empty. Demo clients, projects, recurring blocks, sample entries and Todoist cache data come from `seedDemoData` in `db/queries.js`, reachable only through Settings (IPC `db:seedDemoData`); it calls `resetAllData` first, so it replaces whatever the open database contains. Tests that need fixtures must call it themselves.
 
 ---
 

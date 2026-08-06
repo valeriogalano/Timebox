@@ -58,7 +58,7 @@ Once opened, the path is recorded in `config.json` inside the per-user app-data 
 
 Development runs (`npm start`) always use a separate `timebox-dev.db` in the app-data directory and never touch the database above.
 
-When the database is empty, Timebox seeds demo areas, projects, recurring blocks, entries, and cached Todoist rows so the interface can be explored immediately.
+A new database starts empty: nothing is seeded automatically. To explore the interface with sample content, load it explicitly from Settings, which seeds demo areas, projects, recurring blocks, entries, and cached Todoist rows. Loading demo data replaces the current contents of the open database.
 
 ---
 
