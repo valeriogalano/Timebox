@@ -53,21 +53,43 @@ export function persistentAreaInsights(perAreaWeekly, window = PERSIST_WINDOW, m
   return items.sort((a, b) => b.weeksOff - a.weeksOff);
 }
 
-// Lente "In prospettiva": proiezione a ritmo template di un'area su `horizon` settimane,
-// confrontata col TETTO se esiste. Senza tetto non c'è envelope da sforare: confrontare
-// la proiezione col ritmo stesso è degenere (ratio sempre 1 → sempre "sotto-utilizzata"),
-// quindi kind='uncapped' e nessun verdetto over/under. weekly → il tetto scala con
-// l'orizzonte; global → tetto fisso sull'intero periodo.
-export function areaProjection({ rhythm, horizon, limitType, limitHours = 0, rate = 0, billable = false }) {
-  const projected = rhythm * horizon;
-  const cap = limitType === 'weekly' ? limitHours * horizon
-            : limitType === 'global' ? limitHours
-            : null;
-  const hasCap = cap != null && cap > 0;
-  const over = hasCap && projected > cap;
-  const ratio = hasCap ? projected / cap : 0;
-  const potentialEur = billable ? projected * rate : 0;
-  const lostEur = over && billable ? (projected - cap) * rate : 0;
-  const kind = !hasCap ? 'uncapped' : over ? 'over' : 'within';
-  return { projected, cap, hasCap, ratio, over, potentialEur, lostEur, kind };
+// Lente "In prospettiva": quanto manca a esaurire i tetti CUMULATIVI (budget totale
+// di progetto, limite globale d'area). I tetti *settimanali* non stanno qui: si
+// azzerano ogni settimana, quindi non li si "raggiunge" mai — il loro numero utile è
+// il margine della settimana corrente, che si legge in Settimana.
+//
+// Il ritmo di proiezione è quello MISURATO sulle ultime settimane chiuse, non il ritmo
+// template: il template sovrastima (INVALSI 14,25h/sett a fronte di ~10,6 reali) e a
+// livello progetto non esiste affatto, perché `recurring` mappa solo le aree.
+export const RUNWAY_WINDOW = 4;   // settimane chiuse su cui si misura il ritmo
+
+// Fasce, non settimane esatte: il ritmo misurato ha un'incertezza più larga della
+// distanza fra "3" e "4 settimane", quindi un numero preciso comunicherebbe una
+// precisione che il dato non ha. 8 è il fondo scala, allineato alla finestra di Trend.
+const BANDS = [
+  { max: 2,        band: 'entro2',  label: 'Esaurito entro 2 settimane', glyph: '▴▴' },
+  { max: 4,        band: 'entro4',  label: 'Esaurito entro 4 settimane', glyph: '▴'  },
+  { max: 8,        band: 'entro8',  label: 'Esaurito entro 8 settimane', glyph: '▪'  },
+  { max: Infinity, band: 'oltre8',  label: 'Oltre 8 settimane',          glyph: '▪'  },
+];
+
+export function capRunway({ cap, consumed = 0, rhythm = 0 }) {
+  if (!(cap > 0)) {
+    return { hasCap: false, remaining: 0, weeks: null, band: 'nocap', label: 'Senza tetto', glyph: '·' };
+  }
+  const remaining = cap - consumed;
+  const base = { hasCap: true, cap, consumed, remaining, rhythm, ratio: consumed / cap };
+  // Tetto già sfondato: è il caso che il verdetto deve gridare più forte, non un
+  // runway a zero settimane da leggere come "quasi".
+  if (remaining <= 0) {
+    return { ...base, weeks: 0, band: 'esaurito', label: 'Tetto esaurito', glyph: '▴▴' };
+  }
+  // Ritmo nullo: il progetto è fermo. Dividere darebbe Infinity, che stampato come
+  // "oltre 8 settimane" mentirebbe dicendo che il lavoro procede lentamente.
+  if (!(rhythm > 0)) {
+    return { ...base, weeks: null, band: 'nessuno', label: 'Fermo · nessun esaurimento previsto', glyph: '·' };
+  }
+  const weeks = remaining / rhythm;
+  const { band, label, glyph } = BANDS.find(b => weeks <= b.max);
+  return { ...base, weeks, band, label, glyph };
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
 import { areaMix } from '../area-colors';
-import { persistentAreaInsights, areaProjection, statusFor, PERSIST_WINDOW, PERSIST_MIN } from '../panoramica-insights';
+import { persistentAreaInsights, capRunway, statusFor, PERSIST_WINDOW, PERSIST_MIN, RUNWAY_WINDOW } from '../panoramica-insights';
 import OverCapacityBar from '../components/OverCapacityBar';
 import Glyph from '../components/Glyph';
 
@@ -94,7 +94,6 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
   const [projectTotals, setProjectTotals] = useState({});
   const [overridesByWeek, setOverridesByWeek] = useState({});
   const [trendLens, setTrendLens] = useState(initialLens || 'settimana'); // settimana | trend | prospettiva
-  const [horizon, setHorizon]     = useState(2);            // 1 | 2 | 4 settimane
 
   // Deep-link (es. dallo specchietto in Settimana → Andamento/Settimana): consuma
   // l'intento una volta, così le aperture successive tornano al default.
@@ -297,6 +296,63 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
     });
   }, [clients, recurring, entries, overridesByWeek, periodOffset, projectClientMap, currentWeekKey, plannedByClientEffective]);
 
+  // Ritmo MISURATO: media delle ore tracciate sulle ultime RUNWAY_WINDOW settimane
+  // CHIUSE (la corrente è in corso e leggerebbe sempre basso). Una settimana vuota conta
+  // come zero solo se il soggetto era già attivo prima della finestra: per un progetto
+  // appena nato le settimane precedenti alla prima entry sono "non ancora nato", non
+  // "fermo", e includerle dimezzerebbe il ritmo.
+  function measuredRhythm(matches) {
+    const weeks = Array.from({ length: RUNWAY_WINDOW }, (_, i) => {
+      const monday   = addDays(getMondayOfWeek(getToday()), (i - RUNWAY_WINDOW + periodOffset) * 7);
+      const startStr = fmt(monday);
+      const endStr   = fmt(addDays(monday, 6));
+      const done = entries
+        .filter(e => e.date >= startStr && e.date <= endStr && matches(e))
+        .reduce((s, e) => s + e.hours, 0);
+      return { startStr, done };
+    });
+    const hadHistoryBefore = entries.some(e => e.date < weeks[0].startStr && matches(e));
+    const firstActive = weeks.findIndex(w => w.done > 0);
+    const counted = hadHistoryBefore ? weeks : (firstActive === -1 ? [] : weeks.slice(firstActive));
+    const hours = counted.reduce((s, w) => s + w.done, 0);
+    return { rhythm: counted.length ? hours / counted.length : 0, weeksCounted: counted.length };
+  }
+
+  // Righe della lente "In prospettiva": SOLO tetti cumulativi (limite globale d'area,
+  // budget totale di progetto). I tetti settimanali non compaiono — si azzerano ogni
+  // settimana, quindi non li si raggiunge mai: il loro numero utile è il margine della
+  // settimana corrente, che si legge in Settimana.
+  const capRows = useMemo(() => {
+    const rows = [];
+    clients.forEach(c => {
+      if (c.limitType !== 'global' || !(c.limitHours > 0)) return;
+      const ids = new Set(projects.filter(p => p.clientId === c.id).map(p => p.id));
+      const consumed = [...ids].reduce((s, id) => s + (projectTotals[id] ?? 0), 0);
+      const { rhythm, weeksCounted } = measuredRhythm(e => ids.has(e.projectId));
+      rows.push({
+        key: `area-${c.id}`, kind: 'Area', name: c.name, color: c.color,
+        template: clientWeeklyCapacity(c.id, recurring),
+        rate: isBillableClient(c) ? c.rate : 0, weeksCounted,
+        ...capRunway({ cap: c.limitHours, consumed, rhythm }),
+      });
+    });
+    projects.forEach(p => {
+      if (!(p.budgetHours > 0) || p.archived) return;   // budget di un progetto chiuso = storia
+      const area = clients.find(c => c.id === p.clientId);
+      const { rhythm, weeksCounted } = measuredRhythm(e => e.projectId === p.id);
+      rows.push({
+        key: `proj-${p.id}`, kind: 'Progetto', name: p.name, subtitle: area?.name,
+        color: area?.color ?? 'var(--tb-text-muted)',
+        template: null,   // `recurring` mappa le aree, non i progetti: nessun ritmo template
+        rate: area && isBillableClient(area) ? area.rate : 0, weeksCounted,
+        ...capRunway({ cap: p.budgetHours, consumed: projectTotals[p.id] ?? 0, rhythm }),
+      });
+    });
+    // Il più vicino al tetto in cima: è la riga su cui si decide.
+    const order = { esaurito: 0, entro2: 1, entro4: 2, entro8: 3, oltre8: 4, nessuno: 5 };
+    return rows.sort((a, b) => (order[a.band] - order[b.band]) || (b.ratio - a.ratio));
+  }, [clients, projects, recurring, projectTotals, entries, periodOffset]);
+
   const status  = statusFor(stats.totalDone, stats.capacity);
   const deltaH  = stats.totalDone - stats.capacity;
   const label   = periodLabel('week', periodOffset);
@@ -326,7 +382,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
           {[
             { key: 'settimana', label: 'Settimana', help: 'Consuntivo della settimana: carico vs capacità e stato, fatturabile a consumo, per area (pianificato/tracciato/extra/Δ) e budget progetti. Sulla settimana in corso il carico è fino a oggi con proiezione fine settimana (a piano e a ritmo); sulle settimane chiuse è il consuntivo completo e serve la chiusura settimanale.' },
             { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane: aggregato pianificato/svolto/capacità, mini-trend per area e le divergenze persistenti da decidere. Serve a scoprire la deriva del ritmo.' },
-            { key: 'prospettiva', label: 'In prospettiva', help: 'Dove sto andando: proiezione a ritmo template su 2 o 4 settimane, confronto con limiti/envelope e valore atteso (o ore perse).' },
+            { key: 'prospettiva', label: 'In prospettiva', help: `Quanto manca a esaurire i tetti cumulativi: budget totale dei progetti e limite globale delle aree, proiettati sul ritmo misurato nelle ultime ${RUNWAY_WINDOW} settimane chiuse. I tetti settimanali non stanno qui: si azzerano ogni settimana, il loro margine si legge in Settimana.` },
           ].map((o, idx) => (
             <span
               key={o.key}
@@ -396,14 +452,8 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
         </>
       )}
 
-      {/* ── Lente "In prospettiva" ── proiezione a ritmo template per area ── */}
-      {trendLens === 'prospettiva' && (
-        <ProspettivaLens
-          clients={clients} projects={projects} recurring={recurring}
-          horizon={horizon} setHorizon={setHorizon} capacity={stats.capacity}
-          weekProjectHours={{}} projectTotals={projectTotals}
-        />
-      )}
+      {/* ── Lente "In prospettiva" ── runway sui tetti cumulativi ── */}
+      {trendLens === 'prospettiva' && <ProspettivaLens rows={capRows} />}
     </div>
   );
 }
@@ -595,112 +645,91 @@ function DaDecidereInsights({ perAreaWeekly }) {
   );
 }
 
-// Lente "In prospettiva": proiezione a ritmo del template, per area, su orizzonte
-// configurabile (2/4 settimane, default 2). Il confronto ha senso solo contro un
-// TETTO: senza tetto non c'è envelope da sforare (kind='uncapped', nessun verdetto
-// over/under). Verdetto via glyph ▴/▪/·. Logica pura in ../panoramica-insights.
-// Il ritmo è una stima (README §Dipendenze-dati p.2): a livello area si usa `recurring`.
-function ProspettivaLens({ clients, recurring, horizon, setHorizon, capacity }) {
-  const rows = clients.map(c => {
-    const rhythm = clientWeeklyCapacity(c.id, recurring);     // h/sett a ritmo template
-    const billable = isBillableClient(c);
-    const p = areaProjection({
-      rhythm, horizon,
-      limitType: c.limitType, limitHours: c.limitHours,
-      rate: c.rate ?? 0, billable,
-    });
-    const verdict = p.kind === 'uncapped' ? { glyph: '·', label: 'Senza tetto' }
-      : p.kind === 'over' ? { glyph: '▴', label: billable ? 'Oltre tetto · ore non pagate' : 'Oltre tetto' }
-      : { glyph: '▪', label: 'Entro tetto' };
-    return { c, rhythm, billable, verdict, ...p };
-  });
-  // Aree con tetto in cima (sono quelle decisionali), le più vicine/oltre il tetto prima;
-  // le aree senza tetto in fondo e smorzate.
-  rows.sort((a, b) => (a.hasCap !== b.hasCap ? (a.hasCap ? -1 : 1) : b.ratio - a.ratio));
-  const totalProjected = rows.reduce((s, r) => s + r.projected, 0);
-  const totalValue = rows.reduce((s, r) => s + r.potentialEur, 0);
-  const totalLost = rows.reduce((s, r) => s + r.lostEur, 0);
-  const capWindow = capacity > 0 ? capacity * horizon : 0;
-  const capPct = capWindow > 0 ? Math.round(totalProjected / capWindow * 100) : null;
+// Lente "In prospettiva": quanto manca a esaurire i tetti CUMULATIVI. Non proietta più
+// il ritmo template su un orizzonte: quel calcolo era invariante (ritmo x N contro
+// limite x N dà sempre lo stesso rapporto, qualunque N) e il template sovrastima il
+// ritmo reale. Qui il ritmo è misurato sulle settimane chiuse, e l'esito è una FASCIA
+// (entro 2/4/8 settimane), non un numero: il ritmo misurato non è preciso al punto di
+// distinguere 3 settimane da 4. Logica pura in ../panoramica-insights.
+function ProspettivaLens({ rows }) {
+  const totalRemaining = rows.reduce((s, r) => s + Math.max(0, r.remaining), 0);
+  const totalRemainingEur = rows.reduce((s, r) => s + Math.max(0, r.remaining) * r.rate, 0);
+  const urgent = rows.filter(r => r.band === 'esaurito' || r.band === 'entro2' || r.band === 'entro4').length;
+
+  if (rows.length === 0) {
+    return (
+      <Card>
+        <CardLabel>Nessun tetto cumulativo</CardLabel>
+        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--tb-text-muted)', lineHeight: 1.5 }}>
+          Questa lente legge i budget totali dei progetti e i limiti globali delle aree.
+          Non ce n'è nessuno impostato: aggiungi un budget a un progetto (schermata Progetti)
+          o un limite globale a un'area (schermata Aree) e comparirà qui.
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <SectionHeader inline title="Carico in prospettiva" subtitle={`${horizon} settimane a ritmo template`}
-          help={'Proiezione a ritmo template (ore ricorrenti/sett × orizzonte), su tutte le aree. Non tiene conto degli override né dello stato area della settimana: è "se il template gira così". I due KPI sotto: Carico (ore, vs capacità) e Valore (€). Dettaglio dei calcoli nel "?" di ciascuna card.'} />
-        <div className="tb-seg" style={{ marginLeft: 'auto' }}>
-          {[2, 4].map((n, idx) => (
-            <span key={n} data-on={horizon === n ? 'true' : 'false'} onClick={() => setHorizon(n)}
-              style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}>{n} sett</span>
-          ))}
-        </div>
-      </div>
-      {/* Due KPI come in Settimana (Carico / Fatturabile): capacità in ore, valore in € */}
-      <div style={{ display: 'grid', gridTemplateColumns: totalValue > 0 ? '1fr 1fr' : '1fr', gap: 14 }}>
+      <SectionHeader inline title="Tetti cumulativi" subtitle={`ritmo misurato · ultime ${RUNWAY_WINDOW} settimane chiuse`}
+        help={`Per ogni tetto cumulativo: consumato dall'inizio, ore residue e fra quante settimane lo esaurisci al ritmo misurato sulle ultime ${RUNWAY_WINDOW} settimane chiuse (la corrente è in corso e leggerebbe sempre basso).\n\nL'esito è una fascia — entro 2, 4, 8 settimane, oltre — non un numero esatto: il ritmo misurato ha un'incertezza più larga della distanza fra 3 e 4 settimane.\n\nI tetti settimanali non compaiono qui: si azzerano ogni settimana, quindi non li si raggiunge mai. Il loro margine si legge in Settimana.`} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: totalRemainingEur > 0 ? '1fr 1fr' : '1fr', gap: 14 }}>
         <Card>
-          <CardLabel help={'Somma su tutte le aree di: ritmo template (ore ricorrenti/sett) × orizzonte.\n\nLa barra e la % lo confrontano con la tua capacità sull\'orizzonte (capacità/sett × orizzonte): il bordo destro è la capacità, oltre la barra si tratteggia.'}>Carico proiettato</CardLabel>
+          <CardLabel help={'Somma delle ore che restano prima di esaurire i tetti cumulativi (tetto − consumato). I tetti già sfondati contano zero, non un residuo negativo.'}>Ore residue sui tetti</CardLabel>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-            <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtH(totalProjected)}</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>· {horizon} sett</span>
+            <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtH(totalRemaining)}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>· {rows.length} {rows.length === 1 ? 'tetto' : 'tetti'}</span>
           </div>
-          {capWindow > 0 && (
-            <>
-              <CapacityBar done={totalProjected} capacity={capWindow} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
-                <span>Capacità {fmtH(capWindow)}</span>
-                <span>≈ {capPct}%</span>
-              </div>
-            </>
-          )}
+          <div style={{ marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
+            {urgent > 0 ? `${urgent} da decidere entro 4 settimane` : 'nessuno entro 4 settimane'}
+          </div>
         </Card>
-        {totalValue > 0 && (
+        {totalRemainingEur > 0 && (
           <Card>
-            <CardLabel help={'Somma su tutte le aree fatturabili di: proiettato × tariffa oraria dell\'area = ricavo atteso a ritmo template sull\'orizzonte.\n\n"Perso oltre i tetti" = somma delle ore proiettate oltre il tetto × tariffa: ore che lavoreresti ma non fattureresti.'}>Valore proiettato</CardLabel>
+            <CardLabel help={'Ore residue × tariffa oraria dell\'area: quanto puoi ancora fatturare dentro i tetti. Solo aree fatturabili a ore.'}>Valore residuo fatturabile</CardLabel>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-              <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtEur(totalValue)}</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>· {horizon} sett</span>
-            </div>
-            <div style={{
-              marginTop: 10, padding: '8px 10px', borderRadius: 6, background: 'var(--tb-panel-bg-subtle)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)', letterSpacing: '0.03em' }}>
-                {totalLost > 0 ? 'Perso oltre i tetti' : 'Entro i tetti'}
-              </span>
-              <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
-                {totalLost > 0 ? fmtEur(totalLost) : '—'}
-              </span>
+              <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtEur(totalRemainingEur)}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>· entro i tetti</span>
             </div>
           </Card>
         )}
       </div>
 
-      <SectionHeader title="Per area · limiti e valore" subtitle="ritmo vs tetto"
-        help={'Per area: ritmo template/sett × orizzonte = proiettato, confrontato col tetto (limite settimanale × orizzonte, oppure limite globale fisso). La barra è normalizzata sul tetto: il bordo destro è il tetto, oltre il tetto la barra si tratteggia. Senza tetto non c\'è verdetto over/under (barra piena tenue). Valore = proiettato × tariffa; perso = ore oltre il tetto × tariffa (solo aree fatturabili).'} />
+      <SectionHeader title="Per tetto · consumo e residuo" subtitle="il più vicino al tetto in cima" />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {rows.map(({ c, rhythm, billable, projected, cap, hasCap, ratio, over, potentialEur, lostEur, verdict }) => (
-          <Card key={c.id} style={hasCap ? undefined : { opacity: 0.6 }}>
+        {rows.map(r => (
+          <Card key={r.key}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 9, height: 9, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)', flex: 1 }}>{c.name}</span>
-              <Glyph glyph={verdict.glyph} size={15} className="tb-glyph" title={verdict.label} />
+              <span style={{ width: 9, height: 9, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{r.name}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                {r.kind}{r.subtitle ? ` · ${r.subtitle}` : ''}
+              </span>
+              <span style={{ flex: 1 }} />
+              <Glyph glyph={r.glyph} size={15} className="tb-glyph" title={r.label} />
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8, fontSize: 12, color: 'var(--tb-text-muted)' }}>
-              <span><strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(rhythm)}</strong>/sett · proiettato <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(projected)}</strong></span>
-              {hasCap && <span>· tetto {fmtH(cap)}</span>}
-              {hasCap && <span>· {over ? 'oltre di' : 'margine'} {fmtH(Math.abs(cap - projected))}</span>}
+
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8, fontSize: 12, color: 'var(--tb-text-muted)', flexWrap: 'wrap' }}>
+              <span>consumato <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(r.consumed)}</strong> su {fmtH(r.cap)}</span>
+              <span>· {r.remaining > 0 ? 'restano' : 'oltre di'} <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(Math.abs(r.remaining))}</strong></span>
+              <span>· ritmo <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(r.rhythm)}</strong>/sett</span>
+              {r.template > 0 && <span>· template {fmtH(r.template)}/sett</span>}
             </div>
-            <OverCapacityBar
-              value={hasCap ? projected : 1} cap={hasCap ? cap : 0}
-              color={c.color} fillOpacity={hasCap ? 1 : 0.4}
-              style={{ marginTop: 8 }}
-            />
+
+            {/* Barra sul consumo: il bordo destro è il tetto, oltre si tratteggia. */}
+            <OverCapacityBar value={r.consumed} cap={r.cap} color={r.color} style={{ marginTop: 8 }} />
+
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
-              <span>{verdict.label}</span>
-              {billable && (
-                <span>valore <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtEur(potentialEur)}</strong>
-                  {lostEur > 0 && <span style={{ marginLeft: 8 }}>· perso <strong>{fmtEur(lostEur)}</strong></span>}
-                </span>
-              )}
+              <span>{r.label}</span>
+              <span>
+                {r.weeksCounted < RUNWAY_WINDOW && (
+                  <span style={{ marginRight: 8 }}>ritmo su {r.weeksCounted} {r.weeksCounted === 1 ? 'settimana' : 'settimane'}</span>
+                )}
+                {r.rate > 0 && r.remaining > 0 && (
+                  <>residuo <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtEur(r.remaining * r.rate)}</strong></>
+                )}
+              </span>
             </div>
           </Card>
         ))}

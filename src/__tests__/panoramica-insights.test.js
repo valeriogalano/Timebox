@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { persistentAreaInsights, areaProjection, statusFor, PERSIST_WINDOW, PERSIST_MIN } from '../panoramica-insights.js';
+import { persistentAreaInsights, capRunway, statusFor, PERSIST_WINDOW, PERSIST_MIN } from '../panoramica-insights.js';
 
 const area = (name, weeks) => ({ client: { id: name, name, color: '#000' }, weeks });
 // helper: settimana chiusa con done/planned
@@ -57,49 +57,54 @@ describe('persistentAreaInsights', () => {
   });
 });
 
-describe('areaProjection', () => {
-  test('senza tetto: nessun verdetto over/under (kind uncapped), niente ratio', () => {
-    const p = areaProjection({ rhythm: 10, horizon: 4, limitType: null });
-    assert.equal(p.kind, 'uncapped');
-    assert.equal(p.hasCap, false);
-    assert.equal(p.over, false);
-    assert.equal(p.projected, 40);
-    assert.equal(p.ratio, 0);
+describe('capRunway', () => {
+  test('senza tetto: nessun runway da leggere', () => {
+    const r = capRunway({ cap: 0, consumed: 10, rhythm: 5 });
+    assert.equal(r.hasCap, false);
+    assert.equal(r.band, 'nocap');
   });
 
-  test('tetto settimanale scala con l\'orizzonte e rileva lo sforo', () => {
-    // ritmo 10/sett, tetto 8/sett → su qualsiasi orizzonte projected>cap
-    const p2 = areaProjection({ rhythm: 10, horizon: 2, limitType: 'weekly', limitHours: 8 });
-    const p4 = areaProjection({ rhythm: 10, horizon: 4, limitType: 'weekly', limitHours: 8 });
-    assert.equal(p2.cap, 16);
-    assert.equal(p4.cap, 32);
-    assert.equal(p2.over, true);
-    assert.equal(p4.kind, 'over');            // non più sempre "entro tetto"
-    assert.ok(Math.abs(p2.ratio - p4.ratio) < 1e-9); // ratio = rhythm/limit, invariante
+  test('fasce 2/4/8 sulle settimane residue', () => {
+    // 10h residue: a 5h/sett = 2 sett, a 3h/sett ~3,3 sett, a 1,5h/sett ~6,7 sett
+    assert.equal(capRunway({ cap: 20, consumed: 10, rhythm: 5 }).band,   'entro2');
+    assert.equal(capRunway({ cap: 20, consumed: 10, rhythm: 3 }).band,   'entro4');
+    assert.equal(capRunway({ cap: 20, consumed: 10, rhythm: 1.5 }).band, 'entro8');
+    assert.equal(capRunway({ cap: 20, consumed: 10, rhythm: 0.5 }).band, 'oltre8');
   });
 
-  test('tetto settimanale entro soglia → within', () => {
-    const p = areaProjection({ rhythm: 6, horizon: 3, limitType: 'weekly', limitHours: 8 });
-    assert.equal(p.kind, 'within');
-    assert.equal(p.over, false);
+  test('i confini di fascia sono inclusivi: esattamente 2 e 4 settimane non scivolano su', () => {
+    assert.equal(capRunway({ cap: 10, consumed: 0, rhythm: 5 }).band,   'entro2');   // 2,0
+    assert.equal(capRunway({ cap: 10, consumed: 0, rhythm: 2.5 }).band, 'entro4');   // 4,0
+    assert.equal(capRunway({ cap: 10, consumed: 0, rhythm: 1.25 }).band, 'entro8');  // 8,0
   });
 
-  test('tetto globale fisso: la proiezione lo supera crescendo l\'orizzonte', () => {
-    const p1 = areaProjection({ rhythm: 10, horizon: 1, limitType: 'global', limitHours: 25 });
-    const p4 = areaProjection({ rhythm: 10, horizon: 4, limitType: 'global', limitHours: 25 });
-    assert.equal(p1.cap, 25);
-    assert.equal(p4.cap, 25);               // fisso
-    assert.equal(p1.over, false);
-    assert.equal(p4.over, true);            // 40 > 25
+  test('tetto gia sfondato: esaurito, non un residuo negativo da leggere come quasi', () => {
+    const r = capRunway({ cap: 20, consumed: 25, rhythm: 5 });
+    assert.equal(r.band, 'esaurito');
+    assert.equal(r.weeks, 0);
+    assert.equal(r.remaining, -5);
   });
 
-  test('valore e ore perse solo se billable e oltre tetto', () => {
-    const p = areaProjection({ rhythm: 10, horizon: 2, limitType: 'weekly', limitHours: 8, rate: 50, billable: true });
-    assert.equal(p.potentialEur, 20 * 50);            // projected 20 * rate
-    assert.equal(p.lostEur, (20 - 16) * 50);          // (projected-cap) * rate
-    const nb = areaProjection({ rhythm: 10, horizon: 2, limitType: 'weekly', limitHours: 8, rate: 50, billable: false });
-    assert.equal(nb.potentialEur, 0);
-    assert.equal(nb.lostEur, 0);
+  test('ritmo nullo: fermo, non "oltre 8 settimane" (Infinity non si stampa come lento)', () => {
+    const r = capRunway({ cap: 20, consumed: 5, rhythm: 0 });
+    assert.equal(r.band, 'nessuno');
+    assert.equal(r.weeks, null);
+    assert.equal(r.remaining, 15);
+  });
+
+  test('il ritmo non e piu invariante: raddoppiarlo dimezza le settimane', () => {
+    const slow = capRunway({ cap: 40, consumed: 0, rhythm: 4 });
+    const fast = capRunway({ cap: 40, consumed: 0, rhythm: 8 });
+    assert.equal(slow.weeks, 10);
+    assert.equal(fast.weeks, 5);
+    assert.notEqual(slow.band, fast.band);
+  });
+
+  test('caso reale Moveo: 70h di budget, 45,25 consumate, ritmo 6,44/sett', () => {
+    const r = capRunway({ cap: 70, consumed: 45.25, rhythm: 6.4375 });
+    assert.equal(r.remaining, 24.75);
+    assert.ok(r.weeks > 3.8 && r.weeks < 3.9);
+    assert.equal(r.band, 'entro4');
   });
 });
 
