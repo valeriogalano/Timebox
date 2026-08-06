@@ -307,7 +307,7 @@ Recurring template edits call `freezeWeeksBeforeRecurringChange` first. Past wee
 |---|---|
 | `fmtH(h)` | `2.5 -> "2h 30m"`, `3 -> "3h"`, `0 -> "0h"`, negative values keep a leading `-`. |
 | `toHHMM(h)` | `2.5 -> "2:30"`, `0 -> ""`. |
-| `parseHHMM(str)` | Accepts `2:30`, `2.5`, `2,5`, and empty string. |
+| `parseHHMM(str, threshold?)` | Accepts `2:30`, `2.5`, `2,5`, and empty string. A bare number greater than the threshold is read as minutes (`90` -> `1.5`); the threshold defaults to the configured one (`src/hours-threshold.js`, setting `hoursMinutesThreshold`, default 9) and is passed explicitly in tests. A value containing `:` is always explicit and never converted. |
 | `getMondayOfWeek(date)` | Monday for the containing ISO-style week. |
 | `addDays(date, n)` | Returns a new date. |
 | `fmt(date)` | Returns `YYYY-MM-DD`. |

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Impostazioni · Pianificazione: la soglia oltre cui un numero senza due punti digitato in un campo ore viene letto come minuti è configurabile fra 1 e 24, con default 9. Prima era fissa a 12, quindi chi non la configura vede cambiare l'interpretazione di "10", "11" e "12", che ora sono minuti. Serve perché la soglia giusta dipende da come si registra: chi lavora a blocchi lunghi vuole poter scrivere "14" e ottenere 14 ore, chi registra sempre in minuti la vuole bassa. Scrivere "1:30" resta sempre esplicito e non passa dalla soglia.
 - Interfaccia: l'overlay `?` contiene ora anche una legenda dei glifi di segnale (in linea, sopra/sotto con il doppio glifo per lo scarto marcato, nessun verdetto, divergenza dal template, ore da fatturare/fatturate, stato dell'area). Il colore non distingue sopra e sotto per scelta, quindi senza legenda i glifi restavano da indovinare. L'overlay si apre anche cliccando un `?` in topbar, dopo la data corrente.
 - Giorno: i pannelli "Blocchi pianificati senza azioni" e "Mismatch dopo sync" hanno un `?` che spiega cosa mostrano; per i mismatch, i quattro gruppi (non mappati, fuori pianificazione, oltre blocco, capacità oltre residuo) sono descritti uno per uno.
 
@@ -20,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Andamento: un'area con ore tracciate ma nessuna ora pianificata non risulta più priva di verdetto nella colonna Stato di "Per area · consuntivo". Il verdetto usciva anticipatamente ogni volta che il piano era a zero, senza guardare le ore fatte: lavoro interamente fuori piano — il caso che dovrebbe gridare più forte — appariva come "—". Ora è "nessun verdetto" solo quando piano e consuntivo sono entrambi a zero.
 
 ### Removed
+- `parseHHMM` duplicata in `lib/domain.js`: era codice morto, nessun modulo la importava e nessun test la copriva. Restava a divergere in silenzio dalla versione del renderer, che ora ha una soglia configurabile.
 - Andamento · In prospettiva: il selettore di orizzonte 2/4 settimane e le righe delle aree senza tetto (sette card smorzate che non esprimevano alcun verdetto). La lente elenca ora soltanto i tetti cumulativi effettivamente impostati, e quando non ce n'è nessuno lo dice spiegando dove impostarne uno.
 - Impostazioni: la sezione "Scorciatoie da tastiera" è rimossa. L'overlay `?` è ora l'unico posto che le documenta; l'elenco in Impostazioni era anche disallineato, elencava scorciatoie non più assegnate.
 

@@ -4,6 +4,10 @@ import {
   getMondayOfWeek, addDays, fmt, fmtH, toHHMM, parseHHMM,
   effBillable, normalizeSlot, slotForDate,
 } from '../utils.js';
+import {
+  DEFAULT_MINUTES_THRESHOLD, normalizeMinutesThreshold,
+  getMinutesThreshold, setMinutesThreshold,
+} from '../hours-threshold.js';
 
 describe('getMondayOfWeek', () => {
   test('returns the same week Monday for a mid-week date', () => {
@@ -49,14 +53,67 @@ describe('parseHHMM', () => {
   test('parses colon clock format as hours', () => {
     assert.equal(parseHHMM('1:30'), 1.5);
   });
-  test('treats a bare number above 12 as minutes', () => {
+  test('treats a bare number above the threshold as minutes', () => {
     assert.equal(parseHHMM('90'), 1.5);
   });
-  test('treats a bare number up to 12 as hours', () => {
+  test('treats a bare number up to the threshold as hours', () => {
     assert.equal(parseHHMM('8'), 8);
+  });
+  // Fissa il default, non solo la meccanica: a 9, "10" sono minuti.
+  test('col default, 9 sono ore e 10 sono minuti', () => {
+    assert.equal(DEFAULT_MINUTES_THRESHOLD, 9);
+    assert.equal(parseHHMM('9'), 9);
+    assert.equal(parseHHMM('10'), 10 / 60);
   });
   test('accepts comma decimals', () => {
     assert.equal(parseHHMM('1,5'), 1.5);
+  });
+
+  // La soglia si passa esplicitamente: i test non devono dipendere dallo stato del modulo.
+  test('la soglia sposta il confine fra ore e minuti', () => {
+    assert.equal(parseHHMM('8', 6), 8 / 60);   // 8 > 6 -> minuti
+    assert.equal(parseHHMM('8', 12), 8);       // 8 <= 12 -> ore
+    assert.equal(parseHHMM('20', 24), 20);     // soglia alta: restano ore
+  });
+  test('il confine e inclusivo: il valore uguale alla soglia resta ore', () => {
+    assert.equal(parseHHMM('6', 6), 6);
+    assert.equal(parseHHMM('7', 6), 7 / 60);
+  });
+  test('i due punti vincono sulla soglia, qualunque essa sia', () => {
+    assert.equal(parseHHMM('1:30', 1), 1.5);
+    assert.equal(parseHHMM('20:00', 1), 20);
+  });
+});
+
+describe('normalizeMinutesThreshold', () => {
+  test('default su valori non numerici', () => {
+    assert.equal(normalizeMinutesThreshold(undefined), DEFAULT_MINUTES_THRESHOLD);
+    assert.equal(normalizeMinutesThreshold('abc'), DEFAULT_MINUTES_THRESHOLD);
+    assert.equal(normalizeMinutesThreshold(null), DEFAULT_MINUTES_THRESHOLD);
+    assert.equal(normalizeMinutesThreshold(''), DEFAULT_MINUTES_THRESHOLD);
+  });
+  test('clamp fra 1 e 24 e arrotondamento a intero', () => {
+    assert.equal(normalizeMinutesThreshold(0), 1);
+    assert.equal(normalizeMinutesThreshold(-5), 1);
+    assert.equal(normalizeMinutesThreshold(99), 24);
+    assert.equal(normalizeMinutesThreshold('7.6'), 8);
+  });
+  test('legge la stringa che arriva dal setting', () => {
+    assert.equal(normalizeMinutesThreshold('10'), 10);
+  });
+});
+
+describe('setMinutesThreshold', () => {
+  test('cambia la soglia usata da parseHHMM senza argomento', () => {
+    const original = getMinutesThreshold();
+    try {
+      setMinutesThreshold(6);
+      assert.equal(parseHHMM('8'), 8 / 60);
+      setMinutesThreshold(12);
+      assert.equal(parseHHMM('8'), 8);
+    } finally {
+      setMinutesThreshold(original);
+    }
   });
 });
 
