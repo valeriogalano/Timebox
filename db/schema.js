@@ -9,11 +9,17 @@ const INIT_CLIENTS = [
 
 const INIT_PROJECTS = [
   { id: 'p1', clientId: 'c1', name: 'Website Redesign',  description: 'Restyling completo del sito pubblico: UX, UI e ottimizzazione mobile.',          budgetHours: 80,   weeklyHours: 10,   position: 0 },
-  { id: 'p2', clientId: 'c1', name: 'API Integration',   description: 'Integrazione REST con i sistemi ERP del cliente, autenticazione OAuth2.',         budgetHours: 40,   weeklyHours: null, position: 1 },
+  // I budget dei progetti demo sono tarati perché la lente "In prospettiva" mostri fasce
+  // di esaurimento DIVERSE invece di sette volte "oltre 8 settimane": p2 quasi esaurito,
+  // p6 già oltre il tetto, p5 a metà strada, p1 e p4 il caso sano, p7 fermo (nessuna ora).
+  { id: 'p2', clientId: 'c1', name: 'API Integration',   description: 'Integrazione REST con i sistemi ERP del cliente, autenticazione OAuth2.',         budgetHours: 5,    weeklyHours: null, position: 1 },
   { id: 'p3', clientId: 'c2', name: 'Monthly Articles',  description: 'Quattro articoli mensili su tech e produttività per il blog editoriale.',          budgetHours: null, weeklyHours: 5,    position: 0 },
   { id: 'p4', clientId: 'c3', name: 'Dashboard MVP',     description: 'Prima versione della dashboard IoT: grafici real-time e alert soglie sensori.',    budgetHours: 120,  weeklyHours: null, position: 0 },
-  { id: 'p5', clientId: 'c3', name: 'Mobile App',        description: 'App iOS/Android per monitoraggio impianti in campo, offline-first.',               budgetHours: 60,   weeklyHours: null, position: 1 },
-  { id: 'p6', clientId: 'c4', name: 'Brand Identity',    description: 'Logo, palette colori, tipografia e linee guida per il nuovo brand dello studio.',  budgetHours: 30,   weeklyHours: null, position: 0 },
+  { id: 'p5', clientId: 'c3', name: 'Mobile App',        description: 'App iOS/Android per monitoraggio impianti in campo, offline-first.',               budgetHours: 10,   weeklyHours: null, position: 1 },
+  { id: 'p6', clientId: 'c4', name: 'Brand Identity',    description: 'Logo, palette colori, tipografia e linee guida per il nuovo brand dello studio.',  budgetHours: 4,    weeklyHours: null, position: 0 },
+  // Nessuna entry e nessun task: è l'unico modo deterministico di mostrare il verdetto
+  // "Fermo · nessun esaurimento previsto". Non aggiungere ore a questo progetto.
+  { id: 'p7', clientId: 'c1', name: 'Data Migration',    description: 'Migrazione dello storico dal vecchio gestionale. Approvata, non ancora iniziata.', budgetHours: 25,   weeklyHours: null, position: 2 },
 ];
 
 const INIT_RECURRING = [

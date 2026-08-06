@@ -12,12 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Giorno: i pannelli "Blocchi pianificati senza azioni" e "Mismatch dopo sync" hanno un `?` che spiega cosa mostrano; per i mismatch, i quattro gruppi (non mappati, fuori pianificazione, oltre blocco, capacità oltre residuo) sono descritti uno per uno.
 
 ### Changed
+- Andamento · In prospettiva: la lente risponde a "fra quanto esaurisco i tetti" invece di proiettare il ritmo template su 2 o 4 settimane. Copre i tetti **cumulativi** — budget totale dei progetti e limite globale delle aree — mostrando consumato, ore residue e la fascia di esaurimento (entro 2, 4, 8 settimane, oltre), sul ritmo **misurato** nelle ultime 4 settimane chiuse. La proiezione precedente non portava informazione: con un tetto settimanale il rapporto proiettato/tetto è invariante rispetto all'orizzonte (ritmo × N contro limite × N), quindi il selettore 2/4 settimane non cambiava nulla; e il ritmo template sovrastima quello reale (INVALSI: 14,25h/sett a fronte di ~10,6 tracciate) oltre a non esistere affatto sui progetti, che `recurring` non mappa. I tetti settimanali non compaiono più in questa lente: azzerandosi ogni settimana non li si raggiunge mai, e il loro margine si legge in Settimana. I due KPI in testa diventano "Ore residue sui tetti" e "Valore residuo fatturabile", al posto di Carico e Valore proiettati.
 - Giorno: le righe di "Mismatch dopo sync" dispongono le informazioni come "Blocchi pianificati senza azioni" — identità nel titolo, contesto nel meta con lo slot davanti, e la colonna destra sempre riservata alle ore (stimate, o lo sforo dove c'è). Prima a destra compariva la fascia (AM/PM), che occupava la posizione del numero senza esserlo, e la quantità era accodata al titolo del task. Cade anche il livello "Fuori posto / In più": le righe stanno a una sola profondità come nell'altro pannello.
 
 ### Fixed
 - Andamento: un'area con ore tracciate ma nessuna ora pianificata non risulta più priva di verdetto nella colonna Stato di "Per area · consuntivo". Il verdetto usciva anticipatamente ogni volta che il piano era a zero, senza guardare le ore fatte: lavoro interamente fuori piano — il caso che dovrebbe gridare più forte — appariva come "—". Ora è "nessun verdetto" solo quando piano e consuntivo sono entrambi a zero.
 
 ### Removed
+- Andamento · In prospettiva: il selettore di orizzonte 2/4 settimane e le righe delle aree senza tetto (sette card smorzate che non esprimevano alcun verdetto). La lente elenca ora soltanto i tetti cumulativi effettivamente impostati, e quando non ce n'è nessuno lo dice spiegando dove impostarne uno.
 - Impostazioni: la sezione "Scorciatoie da tastiera" è rimossa. L'overlay `?` è ora l'unico posto che le documenta; l'elenco in Impostazioni era anche disallineato, elencava scorciatoie non più assegnate.
 
 ## [0.9.7] - 2026-07-28
