@@ -345,6 +345,10 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
         color: area?.color ?? 'var(--tb-text-muted)',
         template: null,   // `recurring` mappa le aree, non i progetti: nessun ritmo template
         rate: area && isBillableClient(area) ? area.rate : 0, weeksCounted,
+        // Se l'area ha già un tetto cumulativo, questo budget è ANNIDATO dentro quello:
+        // la riga si mostra comunque, ma nei totali va contata una volta sola o le ore
+        // (e il valore) risulterebbero raddoppiate.
+        insideCappedArea: !!(area && area.limitType === 'global' && area.limitHours > 0),
         ...capRunway({ cap: p.budgetHours, consumed: projectTotals[p.id] ?? 0, rhythm }),
       });
     });
@@ -652,8 +656,13 @@ function DaDecidereInsights({ perAreaWeekly }) {
 // (entro 2/4/8 settimane), non un numero: il ritmo misurato non è preciso al punto di
 // distinguere 3 settimane da 4. Logica pura in ../panoramica-insights.
 function ProspettivaLens({ rows }) {
-  const totalRemaining = rows.reduce((s, r) => s + Math.max(0, r.remaining), 0);
-  const totalRemainingEur = rows.reduce((s, r) => s + Math.max(0, r.remaining) * r.rate, 0);
+  // I totali sommano solo i tetti NON annidati: il budget di un progetto la cui area ha
+  // già un limite globale è compreso in quel limite, e contarli entrambi raddoppierebbe
+  // ore e valore. Le righe restano tutte, il doppio conteggio riguarda solo la somma.
+  const topLevel = rows.filter(r => !r.insideCappedArea);
+  const totalRemaining = topLevel.reduce((s, r) => s + Math.max(0, r.remaining), 0);
+  const totalRemainingEur = topLevel.reduce((s, r) => s + Math.max(0, r.remaining) * r.rate, 0);
+  const nested = rows.length - topLevel.length;
   const urgent = rows.filter(r => r.band === 'esaurito' || r.band === 'entro2' || r.band === 'entro4').length;
 
   if (rows.length === 0) {
@@ -676,10 +685,12 @@ function ProspettivaLens({ rows }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: totalRemainingEur > 0 ? '1fr 1fr' : '1fr', gap: 14 }}>
         <Card>
-          <CardLabel help={'Somma delle ore che restano prima di esaurire i tetti cumulativi (tetto − consumato). I tetti già sfondati contano zero, non un residuo negativo.'}>Ore residue sui tetti</CardLabel>
+          <CardLabel help={'Somma delle ore che restano prima di esaurire i tetti cumulativi (tetto − consumato). I tetti già sfondati contano zero, non un residuo negativo.\n\nLa somma conta solo i tetti non annidati: il budget di un progetto la cui area ha già un limite globale è compreso in quel limite, quindi contribuisce una volta sola. Le righe sotto li mostrano comunque tutti.'}>Ore residue sui tetti</CardLabel>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
             <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtH(totalRemaining)}</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>· {rows.length} {rows.length === 1 ? 'tetto' : 'tetti'}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
+              · {topLevel.length} {topLevel.length === 1 ? 'tetto' : 'tetti'}{nested > 0 ? ` · ${nested} annidati` : ''}
+            </span>
           </div>
           <div style={{ marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
             {urgent > 0 ? `${urgent} da decidere entro 4 settimane` : 'nessuno entro 4 settimane'}
@@ -687,7 +698,7 @@ function ProspettivaLens({ rows }) {
         </Card>
         {totalRemainingEur > 0 && (
           <Card>
-            <CardLabel help={'Ore residue × tariffa oraria dell\'area: quanto puoi ancora fatturare dentro i tetti. Solo aree fatturabili a ore.'}>Valore residuo fatturabile</CardLabel>
+            <CardLabel help={'Ore residue × tariffa oraria dell\'area: quanto puoi ancora fatturare dentro i tetti. Solo aree fatturabili a ore.\n\nCome le ore, conta solo i tetti non annidati, per non fatturare due volte lo stesso residuo.'}>Valore residuo fatturabile</CardLabel>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
               <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtEur(totalRemainingEur)}</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>· entro i tetti</span>
@@ -696,7 +707,8 @@ function ProspettivaLens({ rows }) {
         )}
       </div>
 
-      <SectionHeader title="Per tetto · consumo e residuo" subtitle="il più vicino al tetto in cima" />
+      <SectionHeader title="Per tetto · consumo e residuo" subtitle="il più vicino al tetto in cima"
+        help={`Una riga per tetto cumulativo, aree e progetti insieme, ordinate per urgenza: prima le fasce più vicine all'esaurimento, e a pari fascia il tetto con la percentuale di consumo più alta.\n\nOgni riga: ore consumate dall'inizio sul tetto, ore residue, ritmo misurato al netto della settimana in corso e — sulle aree, dove esiste — il ritmo del template accanto, per vedere se stai lavorando come avevi pianificato. La barra è normalizzata sul tetto: il bordo destro è il tetto, oltre si tratteggia.\n\nQuando la finestra di misura è incompleta la riga lo dichiara ("ritmo su N settimane"): succede se il tetto è nato di recente o se il lavoro è iniziato dentro le ultime ${RUNWAY_WINDOW} settimane.\n\nI verdetti: entro 2/4/8 settimane o oltre 8 sono la fascia di esaurimento; "Tetto esaurito" è già oltre il tetto; "Fermo" significa nessuna ora nella finestra, quindi nessun esaurimento prevedibile — non un esaurimento lontano.\n\nUn budget di progetto la cui area ha già un limite globale compare qui ma non nei totali in testa, dove sarebbe contato due volte.`} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.map(r => (
           <Card key={r.key}>
