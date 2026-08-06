@@ -1,3 +1,5 @@
+import { getMinutesThreshold } from './hours-threshold.js';
+
 export const DAY_SHORT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 export const MONTHS_IT = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
@@ -62,9 +64,11 @@ function parseClockInput(str) {
   return parseFloat(value.replace(',', '.')) || 0;
 }
 
-export function parseHHMM(str) {
+// La soglia arriva dal setting (vedi ./hours-threshold): omessa, si usa quella corrente.
+// Passala esplicitamente nei test, così non dipendono dallo stato del modulo.
+export function parseHHMM(str, threshold = getMinutesThreshold()) {
   const numeric = parseClockInput(str);
-  return numeric > 12 && !String(str || '').includes(':') ? numeric / 60 : numeric;
+  return numeric > threshold && !String(str || '').includes(':') ? numeric / 60 : numeric;
 }
 
 export function effBillable(entry) {

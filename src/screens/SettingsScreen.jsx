@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { normalizeSlotCapacity, dayCapacityHours } from '../slot-capacity';
+import { DEFAULT_MINUTES_THRESHOLD, normalizeMinutesThreshold } from '../hours-threshold';
 import { SLOTS, SLOT_LABELS, fmtH } from '../utils';
 
 const toDraft = capacity => Object.fromEntries(
   Object.entries(normalizeSlotCapacity(capacity)).map(([slot, hours]) => [slot, String(hours)])
 );
 
-export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapacity, onSlotCapacityChange }) {
+export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapacity, onSlotCapacityChange, minutesThreshold, onMinutesThresholdChange }) {
   const [busy, setBusy] = useState(false);
   const [dbPath, setDbPath] = useState('');
   const [todoistToken, setTodoistTokenState] = useState('');
@@ -14,6 +15,8 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
   const [tokenError, setTokenError] = useState('');
   const [slotCapacityDraft, setSlotCapacityDraft] = useState(() => toDraft(slotCapacity));
   const [slotCapacitySaved, setSlotCapacitySaved] = useState(false);
+  const [thresholdDraft, setThresholdDraft] = useState(() => String(minutesThreshold ?? DEFAULT_MINUTES_THRESHOLD));
+  const [thresholdSaved, setThresholdSaved] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [todoistDebug, setTodoistDebug] = useState(() => {
     try { return localStorage.getItem('timebox-todoist-debug') === 'true'; } catch { return false; }
@@ -37,6 +40,10 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
   useEffect(() => {
     setSlotCapacityDraft(toDraft(slotCapacity));
   }, [slotCapacity]);
+
+  useEffect(() => {
+    setThresholdDraft(String(minutesThreshold ?? DEFAULT_MINUTES_THRESHOLD));
+  }, [minutesThreshold]);
 
   useEffect(() => {
     window.api.getDbPath().then(p => setDbPath(p || ''));
@@ -167,6 +174,14 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
     setTimeout(() => setSlotCapacitySaved(false), 2000);
   }
 
+  async function handleSaveThreshold() {
+    const normalized = normalizeMinutesThreshold(thresholdDraft);
+    setThresholdDraft(String(normalized));
+    await onMinutesThresholdChange?.(normalized);
+    setThresholdSaved(true);
+    setTimeout(() => setThresholdSaved(false), 2000);
+  }
+
   async function handleCheckForUpdates() {
     setUpdateBusy(true);
     const result = await window.api.checkForUpdates?.();
@@ -248,6 +263,49 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
                 transition: 'background 0.2s',
               }}>
               {slotCapacitySaved ? '✓ Salvato' : 'Salva'}
+            </button>
+          </div>
+        </div>
+        <div style={{ padding: '16px 20px', borderTop: '1px solid var(--tb-border-soft)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', marginBottom: 6 }}>
+              Soglia ore/minuti
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
+              Nei campi ore, un numero senza due punti più grande di questa soglia viene letto come minuti.
+              Con {normalizeMinutesThreshold(thresholdDraft)}: “{normalizeMinutesThreshold(thresholdDraft)}” = {fmtH(normalizeMinutesThreshold(thresholdDraft))},
+              “{normalizeMinutesThreshold(thresholdDraft) + 1}” = {fmtH((normalizeMinutesThreshold(thresholdDraft) + 1) / 60)}.
+              Scrivere “1:30” resta sempre esplicito.
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <input
+              type="number"
+              min="1"
+              max="24"
+              step="1"
+              value={thresholdDraft}
+              onChange={e => { setThresholdDraft(e.target.value); setThresholdSaved(false); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleSaveThreshold(); }}
+              style={{
+                width: 66, padding: '7px 9px', borderRadius: 6, fontSize: 12,
+                border: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg-soft)',
+                color: 'var(--tb-text-primary)', fontFamily: "'Open Sans', sans-serif",
+                outline: 'none', textAlign: 'right',
+              }}
+            />
+            <button
+              onClick={handleSaveThreshold}
+              disabled={busy}
+              style={{
+                padding: '7px 16px', borderRadius: 6, border: 'none',
+                background: 'var(--tb-text-primary)',
+                color: 'var(--tb-panel-bg)', fontSize: 12, fontWeight: 700,
+                cursor: busy ? 'not-allowed' : 'pointer',
+                fontFamily: "'Open Sans', sans-serif",
+                transition: 'background 0.2s',
+              }}>
+              {thresholdSaved ? '✓ Salvato' : 'Salva'}
             </button>
           </div>
         </div>

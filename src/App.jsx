@@ -13,6 +13,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import EntriesScreen from './screens/EntriesScreen';
 import TodoistLog from './screens/TodoistLog';
 import { SLOT_CAPACITY_SETTING_KEY, normalizeSlotCapacity } from './slot-capacity';
+import { MINUTES_THRESHOLD_SETTING_KEY, DEFAULT_MINUTES_THRESHOLD, setMinutesThreshold } from './hours-threshold';
 
 const NAV_ITEMS = [
   { id: 'weekly',     label: 'Settimana',      icon: WeekIcon      },
@@ -79,6 +80,7 @@ export default function App() {
   const [autoFocusProject, setAutoFocusProject] = useState(null);
   const [andamentoLens, setAndamentoLens] = useState(null); // deep-link: apre Andamento su una lente
   const [slotCapacity, setSlotCapacity] = useState(() => normalizeSlotCapacity());
+  const [minutesThreshold, setMinutesThresholdState] = useState(DEFAULT_MINUTES_THRESHOLD);
   const refreshSidebar = useCallback(() => setSidebarKey(k => k + 1), []);
 
   const [theme, setThemeState] = useState(() => {
@@ -142,6 +144,20 @@ export default function App() {
     const normalized = normalizeSlotCapacity(value);
     setSlotCapacity(normalized);
     await window.api.setSetting?.(SLOT_CAPACITY_SETTING_KEY, JSON.stringify(normalized));
+  }
+
+  // La soglia ore/minuti va anche nel modulo, non solo nello stato: `parseHHMM` la legge
+  // da lì senza riceverla come prop. Lo stato serve solo a ridisegnare il campo.
+  useEffect(() => {
+    window.api.getSetting?.(MINUTES_THRESHOLD_SETTING_KEY)
+      .then(value => setMinutesThresholdState(setMinutesThreshold(value)))
+      .catch(() => setMinutesThresholdState(setMinutesThreshold(undefined)));
+  }, []);
+
+  async function updateMinutesThreshold(value) {
+    const normalized = setMinutesThreshold(value);
+    setMinutesThresholdState(normalized);
+    await window.api.setSetting?.(MINUTES_THRESHOLD_SETTING_KEY, String(normalized));
   }
 
   useEffect(() => {
@@ -483,6 +499,8 @@ export default function App() {
               onDataChange={refreshData}
               slotCapacity={slotCapacity}
               onSlotCapacityChange={updateSlotCapacity}
+              minutesThreshold={minutesThreshold}
+              onMinutesThresholdChange={updateMinutesThreshold}
             />
           )}
         </div>
