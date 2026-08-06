@@ -44,13 +44,19 @@ npm run build
 
 `npm run rebuild` compiles `better-sqlite3` against Electron 31 headers. Do not skip it after installing dependencies if you want the Electron app to open correctly.
 
-The app database is created automatically in Electron's per-user app-data directory. Typical defaults are:
+The app database is created automatically in a `Timebox` folder inside the user's Documents directory, so that it sits where personal backups already reach:
 
 ```text
-macOS:   ~/Library/Application Support/Timebox/timebox.db
-Windows: %APPDATA%\Timebox\timebox.db
-Linux:   ~/.config/Timebox/timebox.db
+macOS:   ~/Documents/Timebox/timebox.db
+Windows: %USERPROFILE%\Documents\Timebox\timebox.db
+Linux:   ~/Documents/Timebox/timebox.db
 ```
+
+On macOS the Documents folder is protected, so the first launch asks for permission to access it. Denying it leaves the app unable to open its database; you can then pick another location from Settings.
+
+Once opened, the path is recorded in `config.json` inside the per-user app-data directory, and that recorded path wins on every later launch. Changing the default therefore never moves an existing installation's database.
+
+Development runs (`npm start`) always use a separate `timebox-dev.db` in the app-data directory and never touch the database above.
 
 When the database is empty, Timebox seeds demo areas, projects, recurring blocks, entries, and cached Todoist rows so the interface can be explored immediately.
 
