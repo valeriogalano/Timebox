@@ -760,7 +760,12 @@ app.whenReady().then(() => {
   });
 
   const config = loadConfig();
-  const defaultDbPath = path.join(app.getPath('userData'), 'timebox.db');
+  // Documents, not userData: the database is the user's own data and must live where
+  // their backups already reach. userData is not backed up either, and it is wiped on
+  // uninstall or app reset, which would take the only copy of the tracking history
+  // with it. On macOS the first launch therefore triggers the TCC prompt for
+  // Documents; a denial surfaces as the "Impossibile aprire il database" dialog below.
+  const defaultDbPath = path.join(app.getPath('documents'), 'Timebox', 'timebox.db');
   // In dev the app runs as the unsigned node_modules Electron binary, which
   // lacks the installed app's TCC grant for ~/Documents. Use a dev-only DB in
   // userData so dev never touches the TCC-protected (config.dbPath) location.

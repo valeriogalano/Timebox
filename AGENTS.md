@@ -202,7 +202,17 @@ settings       (key, value)
 todoist_cache  (dateStr, tasksJson, syncedAt)
 ```
 
-The database is created at `app.getPath('userData')/timebox.db` unless the user selects another file. Startup runs migrations from `db/schema.js`, enables WAL mode, and uses exclusive locking to reduce iCloud Drive conflicts.
+Startup runs migrations from `db/schema.js`, enables WAL mode, and uses exclusive locking to reduce iCloud Drive conflicts.
+
+There are three database paths, and confusing them is easy — the first launch resolves one of them and then records it, so from the second launch on only `config.json` matters:
+
+| role | path | chosen by |
+| --- | --- | --- |
+| default, first launch | `app.getPath('documents')/Timebox/timebox.db` | `defaultDbPath` in `main.js`; on macOS this triggers the TCC prompt for Documents |
+| user-selected | anything | the picker in Settings, persisted as `config.dbPath` in `app.getPath('userData')/config.json` |
+| development | `app.getPath('userData')/timebox-dev.db` | hard-coded whenever `ELECTRON_START_URL` is set, because the unsigned `node_modules` Electron binary has no TCC grant for Documents |
+
+A `timebox.db` sitting in the repository root is **not** the app's database — it is a leftover copy and is gitignored. To find the real one, read `config.json` in the app-data directory, or call the `app:getDbPath` IPC handler.
 
 An empty database is seeded with demo clients, projects, recurring blocks, sample entries, and Todoist cache data.
 

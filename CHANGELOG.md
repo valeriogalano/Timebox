@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Giorno: i pannelli "Blocchi pianificati senza azioni" e "Mismatch dopo sync" hanno un `?` che spiega cosa mostrano; per i mismatch, i quattro gruppi (non mappati, fuori pianificazione, oltre blocco, capacità oltre residuo) sono descritti uno per uno.
 
 ### Changed
+- Il database predefinito viene creato in `Documenti/Timebox/timebox.db` invece che nella cartella dati dell'applicazione. Il database è dato dell'utente e deve stare dove arrivano i suoi backup: la cartella dati non è backuppata e viene rimossa alla disinstallazione o al reset dell'app, portandosi via l'unica copia dello storico. Su macOS il primo avvio chiede quindi il permesso di accesso a Documenti, e un rifiuto si presenta come il dialogo "Impossibile aprire il database", da cui si può scegliere un'altra posizione. Le installazioni esistenti non si spostano: il percorso in uso è registrato in `config.json` e vince a ogni avvio successivo al primo.
 - Giorno: le righe di "Mismatch dopo sync" dispongono le informazioni come "Blocchi pianificati senza azioni" — identità nel titolo, contesto nel meta con lo slot davanti, e la colonna destra sempre riservata alle ore (stimate, o lo sforo dove c'è). Prima a destra compariva la fascia (AM/PM), che occupava la posizione del numero senza esserlo, e la quantità era accodata al titolo del task. Cade anche il livello "Fuori posto / In più": le righe stanno a una sola profondità come nell'altro pannello.
 
 ### Fixed
