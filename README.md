@@ -236,7 +236,7 @@ While the app is open, a local API is available at `http://127.0.0.1:37373`.
 | `POST` | `/projects` | Create a project in an area. |
 | `PATCH` | `/projects/:id` | Update project name, area, description, budget, or weekly limit. |
 | `DELETE` | `/projects/:id` | Delete a project with no entries. |
-| `POST` | `/projects/merge` | Merge entries from one project into another, then delete the source project. |
+| `POST` | `/projects/merge` | Merge entries from one project into another, then delete the source project (`deleteSource: false` keeps it at 0h). |
 | `PATCH` | `/areas/:id` | Rename an area. |
 | `PATCH` | `/clients/:id` | Alias for renaming an area. |
 
@@ -337,7 +337,7 @@ Exposed tools:
 | `move_project` | Move a project to another area. |
 | `create_project` | Create a project. |
 | `delete_project` | Delete a project with no entries. |
-| `merge_project_entries` | Move entries into another project and delete the source project. |
+| `merge_project_entries` | Move entries into another project and delete the source project (`deleteSource: false` keeps it at 0h, to archive separately). |
 | `get_recurring` | List all recurring template blocks (day, slot, area, hours). |
 | `set_recurring_slot` | Replace all recurring blocks for one day+slot (e.g. Mon AM). |
 | `get_week_overrides` | List overrides for a specific week (weekKey = Monday ISO date). |

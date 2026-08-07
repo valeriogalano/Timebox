@@ -171,7 +171,7 @@ In development, wrappers point at repository files. In packaged builds, they poi
 | `POST` | `/projects` | Create a project. |
 | `PATCH` | `/projects/:id` | Update project fields or move area. |
 | `DELETE` | `/projects/:id` | Delete a project with no entries. |
-| `POST` | `/projects/merge` | Merge entries from one project into another. |
+| `POST` | `/projects/merge` | Merge entries from one project into another, then delete the source (`deleteSource: false` keeps it). |
 | `PATCH` | `/areas/:id` | Rename an area. |
 | `PATCH` | `/clients/:id` | Rename an area through legacy naming. |
 

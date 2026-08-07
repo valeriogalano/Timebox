@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const { createTestDb } = require('./helpers');
 const { createHttpServer } = require('../http-server');
-const { getClients, getEntries, setTodoistCache } = require('../../db/queries');
+const { getClients, getEntries, getProjects, hasProjectEntries, setTodoistCache } = require('../../db/queries');
 
 function currentWeekDate(offset) {
   const today = new Date();
@@ -511,6 +511,21 @@ describe('HTTP server', () => {
     assert.equal(body.count, 1);
     assert.equal(body.from, 'Merge Source');
     assert.equal(body.to, 'Merge Dest');
+    assert.equal(body.sourceDeleted, true);
+    assert.ok(!getProjects().some(p => p.id === src.id), 'source project deleted');
+  });
+
+  it('POST /projects/merge with deleteSource false → keeps the source at 0h', async () => {
+    const clients = getClients();
+    const { body: src } = await post(port, '/projects', { name: 'Keep Source', areaId: clients[0].id });
+    const { body: dst } = await post(port, '/projects', { name: 'Keep Dest',   areaId: clients[0].id });
+    await post(port, '/log', { project: 'Keep Source', hours: '1', date: '2025-08-01' });
+    const { status, body } = await post(port, '/projects/merge', { fromId: src.id, toId: dst.id, deleteSource: false });
+    assert.equal(status, 200);
+    assert.equal(body.count, 1);
+    assert.equal(body.sourceDeleted, false);
+    assert.ok(getProjects().some(p => p.id === src.id), 'source project still exists');
+    assert.ok(!hasProjectEntries(src.id), 'source project left with no entries');
   });
 
   it('POST /projects/merge with unknown fromId → 400', async () => {

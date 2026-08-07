@@ -86,7 +86,9 @@ function mergeBillable(aBillable, aHours, bBillable, bHours) {
   return a + b;
 }
 
-function mergeProjectEntries(fromId, toId) {
+// deleteSource: false consolida le ore lasciando in piedi il progetto sorgente (a 0h),
+// da archiviare a parte quando serve conservare traccia del progetto accorpato.
+function mergeProjectEntries(fromId, toId, deleteSource = true) {
   let count = 0;
   db.transaction(() => {
     const sources = db.prepare('SELECT * FROM entries WHERE projectId = ?').all(fromId);
@@ -103,7 +105,7 @@ function mergeProjectEntries(fromId, toId) {
         db.prepare('UPDATE entries SET projectId = ? WHERE id = ?').run(toId, e.id);
       }
     }
-    db.prepare('DELETE FROM projects WHERE id = ?').run(fromId);
+    if (deleteSource) db.prepare('DELETE FROM projects WHERE id = ?').run(fromId);
   })();
   return { count };
 }
