@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- MCP: `merge_project_entries` accetta `deleteSource`. Il default resta `true`, quindi il comportamento non cambia, ma con `false` le ore si consolidano nel progetto destinatario lasciando in piedi il sorgente a 0h, da archiviare separatamente con `update_project`. Il tool sovrapponeva due esigenze diverse: consolidare un progetto chiuso, dove l'eliminazione è corretta, e accorpare il tracking conservando traccia dei progetti originali, che prima costringeva a rinunciare al merge. La descrizione del tool esplicita ora che l'eliminazione non è reversibile.
+- Andamento · Da decidere: ogni card riporta la distribuzione dello scarto ("8 settimane sotto · picco -4h") e, in tooltip, il dettaglio svolto/pianificato settimana per settimana con le settimane fuori piano marcate. La media da sola non distingue un ritmo da un episodio — lo stesso -9h medio può essere otto settimane fiacche o una sola saltata — e le due cose portano a decisioni opposte.
+
+### Changed
+- Andamento · Da decidere: un'area compare in base alla **media** dello svolto contro la media del pianificato sulle settimane chiuse, non più al conteggio delle settimane fuori piano. Le settimane sopra e sotto si compensano. La card alimenta una sola decisione — se la ricorrenza di un'area è tarata male — e la ricorrenza è una media settimanale per costruzione: se pianifico 10h e ne faccio in media 7, il piano è alto di 3h a prescindere da come si distribuiscono. Il conteggio misurava invece la volatilità: un'area a 5h e 15h alternate risultava fuori piano 8 volte su 8 pur avendo il template tarato bene, e la card mandava a correggerlo. Quando entrambe le direzioni superavano la soglia, poi, il verso mostrato era arbitrario e vinceva sempre "sotto". La card riporta ora le due medie a confronto ("6h/sett contro 10h pianificate") invece di "N settimane su M": è direttamente il numero da scrivere nella ricorrenza. Servono almeno 4 settimane chiuse con un piano perché un'area compaia.
+
 ## [0.9.8] - 2026-08-07
 
 ### Added
