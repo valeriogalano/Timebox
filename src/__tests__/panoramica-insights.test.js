@@ -1,59 +1,92 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { persistentAreaInsights, capRunway, statusFor, PERSIST_WINDOW, PERSIST_MIN } from '../panoramica-insights.js';
+import { areaPlanFitInsights, capRunway, statusFor, PERSIST_WINDOW, MIN_HISTORY } from '../panoramica-insights.js';
 
 const area = (name, weeks) => ({ client: { id: name, name, color: '#000' }, weeks });
 // helper: settimana chiusa con done/planned
-const wk = (done, planned) => ({ done, planned, isCurrent: false });
+let wkSeq = 0;
+const wk = (done, planned) => ({ week: `2026-01-${String(++wkSeq % 28 + 1).padStart(2, '0')}`, done, planned, isCurrent: false });
+const rep = (n, w) => Array.from({ length: n }, () => w);
 
-describe('persistentAreaInsights', () => {
-  test('flag sotto-piano solo se persistente (>= PERSIST_MIN su PERSIST_WINDOW)', () => {
-    // 3 settimane sotto (done < 85% planned), il resto in linea
-    const weeks = [wk(10, 10), wk(10, 10), wk(10, 10), wk(10, 10), wk(10, 10), wk(2, 10), wk(2, 10), wk(2, 10)];
-    const items = persistentAreaInsights([area('A', weeks)]);
+describe('areaPlanFitInsights', () => {
+  test('flag sotto-piano quando la MEDIA dello svolto e\' sotto il piano', () => {
+    const items = areaPlanFitInsights([area('A', rep(PERSIST_WINDOW, wk(6, 10)))]);
     assert.equal(items.length, 1);
     assert.equal(items[0].kind, 'under');
-    assert.equal(items[0].weeksOff, 3);
+    assert.equal(items[0].avgDone, 6);
+    assert.equal(items[0].avgPlanned, 10);
+    assert.equal(items[0].of, PERSIST_WINDOW);
     assert.equal(items[0].to, 'Aree');
   });
 
-  test('una sola settimana storta = rumore, nessun insight', () => {
-    const weeks = Array.from({ length: PERSIST_WINDOW }, () => wk(10, 10));
-    weeks[weeks.length - 1] = wk(1, 10);
-    assert.deepEqual(persistentAreaInsights([area('A', weeks)]), []);
+  test('settimane sopra e sotto si compensano: la ricorrenza e\' tarata bene', () => {
+    // +5h e -5h alternate su un piano da 10h: media esatta, nessuna decisione da prendere
+    const weeks = Array.from({ length: PERSIST_WINDOW }, (_, i) => wk(i % 2 ? 15 : 5, 10));
+    assert.deepEqual(areaPlanFitInsights([area('A', weeks)]), []);
   });
 
-  test('oltre piano persistente → Settimana', () => {
-    const weeks = Array.from({ length: PERSIST_WINDOW }, () => wk(20, 10)); // sempre >110%
-    const items = persistentAreaInsights([area('A', weeks)]);
+  test('una settimana storta si diluisce nella media e non fa scattare nulla', () => {
+    const weeks = rep(PERSIST_WINDOW, wk(10, 10));
+    weeks[weeks.length - 1] = wk(5, 10);   // -5h su 80h pianificate: dentro tolleranza
+    assert.deepEqual(areaPlanFitInsights([area('A', weeks)]), []);
+  });
+
+  test('una settimana abbastanza estrema sposta la media e l\' area compare', () => {
+    // Nessun guard anti-spike: -9h su 80h sono l' 11% in meno, e la card riporta le due
+    // medie a confronto — sta a chi legge decidere se e\' un episodio o un ritmo.
+    const weeks = rep(PERSIST_WINDOW, wk(10, 10));
+    weeks[weeks.length - 1] = wk(1, 10);
+    const items = areaPlanFitInsights([area('A', weeks)]);
+    assert.equal(items.length, 1);
+    assert.equal(items[0].kind, 'under');
+    // La distribuzione e' cio' che distingue l'episodio dal ritmo, ed e' in card.
+    assert.equal(items[0].weeksOff, 1);
+    assert.equal(items[0].peakDelta, -9);
+  });
+
+  test('distribuzione: un ritmo costante marca tutte le settimane, non una', () => {
+    const items = areaPlanFitInsights([area('A', rep(PERSIST_WINDOW, wk(6, 10)))]);
+    assert.equal(items[0].weeksOff, PERSIST_WINDOW);
+    assert.equal(items[0].peakDelta, -4);
+    assert.equal(items[0].weeks.length, PERSIST_WINDOW);
+  });
+
+  test('oltre piano in media → Settimana', () => {
+    const items = areaPlanFitInsights([area('A', rep(PERSIST_WINDOW, wk(20, 10)))]);
     assert.equal(items[0].kind, 'over');
     assert.equal(items[0].to, 'Settimana');
-    assert.ok(items[0].weeksOff >= PERSIST_MIN);
   });
 
-  test('la settimana corrente (in corso) è esclusa dal conteggio', () => {
-    // 2 settimane chiuse sotto + corrente sotto: 2 < PERSIST_MIN → niente flag
-    const weeks = [
-      ...Array.from({ length: PERSIST_WINDOW - 3 }, () => wk(10, 10)),
-      wk(1, 10), wk(1, 10),
-      { done: 0, planned: 10, isCurrent: true },
-    ];
-    assert.deepEqual(persistentAreaInsights([area('A', weeks)]), []);
+  test('molte settimane poco sotto non battono poche settimane molto sopra', () => {
+    // 4 sett a -0,5h e 4 a +4h: il vecchio conteggio diceva 'under', il netto e\' +14h
+    const weeks = [...rep(4, wk(9.5, 10)), ...rep(4, wk(14, 10))];
+    const items = areaPlanFitInsights([area('A', weeks)]);
+    assert.equal(items[0].kind, 'over');
   });
 
-  test('severity = weeksOff/window e aree piu\' gravi ordinate in cima', () => {
-    const mild = area('mild', [...Array.from({ length: PERSIST_WINDOW - 3 }, () => wk(10, 10)), wk(1, 10), wk(1, 10), wk(1, 10)]); // 3 sotto
-    const bad = area('bad', Array.from({ length: PERSIST_WINDOW }, () => wk(1, 10)));                                              // 8 sotto
-    const items = persistentAreaInsights([mild, bad]);
-    assert.equal(items[0].area, 'bad');            // piu' grave prima
-    assert.equal(items[0].severity, 1);            // 8/8
+  test('la settimana corrente (in corso) e\' esclusa dalla media', () => {
+    const weeks = [...rep(PERSIST_WINDOW, wk(10, 10)), { done: 0, planned: 10, isCurrent: true }];
+    assert.deepEqual(areaPlanFitInsights([area('A', weeks)]), []);
+  });
+
+  test('sotto MIN_HISTORY settimane con piano non si tocca il template', () => {
+    const weeks = [...rep(PERSIST_WINDOW - (MIN_HISTORY - 1), wk(0, 0)), ...rep(MIN_HISTORY - 1, wk(1, 10))];
+    assert.deepEqual(areaPlanFitInsights([area('A', weeks)]), []);
+  });
+
+  test('settimane senza piano (planned 0) non entrano nella media', () => {
+    // 4 settimane senza piano + 4 in linea: la media resta in linea, non sotto
+    const weeks = [...rep(4, wk(0, 0)), ...rep(4, wk(10, 10))];
+    assert.deepEqual(areaPlanFitInsights([area('A', weeks)]), []);
+  });
+
+  test('severity = scarto proporzionale e aree piu\' gravi ordinate in cima', () => {
+    const mild = area('mild', rep(PERSIST_WINDOW, wk(8, 10)));   // -20%
+    const bad  = area('bad',  rep(PERSIST_WINDOW, wk(1, 10)));   // -90%
+    const items = areaPlanFitInsights([mild, bad]);
+    assert.equal(items[0].area, 'bad');
+    assert.ok(items[0].severity > items[1].severity);
     assert.equal(items[1].area, 'mild');
-    assert.ok(items[1].severity < items[0].severity);
-  });
-
-  test('settimane senza piano (planned 0) non contano come sotto', () => {
-    const weeks = Array.from({ length: PERSIST_WINDOW }, () => wk(0, 0));
-    assert.deepEqual(persistentAreaInsights([area('A', weeks)]), []);
   });
 });
 

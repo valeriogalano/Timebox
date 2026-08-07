@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
 import { areaMix } from '../area-colors';
-import { persistentAreaInsights, capRunway, statusFor, PERSIST_WINDOW, PERSIST_MIN, RUNWAY_WINDOW } from '../panoramica-insights';
+import { areaPlanFitInsights, capRunway, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_WINDOW } from '../panoramica-insights';
 import OverCapacityBar from '../components/OverCapacityBar';
 import Glyph from '../components/Glyph';
 
@@ -290,7 +290,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
           .filter(e => e.date >= startStr && e.date <= endStr && projectClientMap[e.projectId] === c.id)
           .reduce((s, e) => s + e.hours, 0);
         const weekPlanned = plannedByClientForWeek(startStr)[c.id] ?? 0;
-        return { done, planned: weekPlanned, isCurrent: startStr === currentWeekKey };
+        return { week: startStr, done, planned: weekPlanned, isCurrent: startStr === currentWeekKey };
       });
       return { client: c, planned, weeks };
     });
@@ -599,18 +599,29 @@ function AreaConsuntivo({ clients, stats }) {
   );
 }
 
-// Lente "Trend" → "Da decidere": divergenze area↔piano PERSISTENTI (fuori piano
-// in >= PERSIST_MIN delle ultime PERSIST_WINDOW settimane chiuse), non lo scarto della
-// singola settimana — quello è rumore e non giustifica di toccare il ritmo/template.
+// Lente "Trend" → "Da decidere": la domanda è "la ricorrenza di quest'area è tarata
+// male?". Media dello svolto contro media del pianificato sulle settimane chiuse — una
+// sopra e una sotto si compensano, perché la ricorrenza è una media per costruzione.
 // Logica pura in ../panoramica-insights. `to` è la vista dove si agisce, resa come
 // suggerimento testuale: non è un link, la navigazione resta al tab bar.
+// Tooltip di verifica: svolto contro pianificato settimana per settimana, così un -9h di
+// media si riconosce a colpo d'occhio come otto settimane fiacche o una sola saltata.
+// Il ▾/▴ marca le settimane che il verdetto conta come fuori piano.
+function weeklyBreakdownTitle({ weeks, kind }) {
+  const rows = weeks.map(w => {
+    const off = statusFor(w.done, w.planned).kind === kind;
+    return `${w.week.slice(8, 10)}/${w.week.slice(5, 7)}  ${fmtH(w.done)} / ${fmtH(w.planned)}${off ? (kind === 'under' ? '  ▾' : '  ▴') : ''}`;
+  });
+  return `Settimana per settimana (svolto / pianificato)\n${rows.join('\n')}`;
+}
+
 function DaDecidereInsights({ perAreaWeekly }) {
-  const items = persistentAreaInsights(perAreaWeekly);
+  const items = areaPlanFitInsights(perAreaWeekly);
   if (!items.length) return null;
   return (
     <div>
-      <SectionHeader title="Da decidere" subtitle={`persistente · ≥${PERSIST_MIN} sett fuori piano su ${PERSIST_WINDOW}`}
-        help={`Un'area compare solo se è fuori piano (svolto sotto 0,85× o oltre 1,1× il piano) in almeno ${PERSIST_MIN} delle ultime ${PERSIST_WINDOW} settimane chiuse — la settimana in corso è esclusa. Il conteggio N/M è la gravità (M = settimane chiuse effettivamente disponibili): più settimane fuori piano, più in alto l'area.`} />
+      <SectionHeader title="Da decidere" subtitle={`media su ${PERSIST_WINDOW} settimane chiuse`}
+        help={`Un'area compare se la MEDIA dello svolto diverge dalla media del pianificato (sotto 0,85× o oltre 1,1×) sulle ultime ${PERSIST_WINDOW} settimane chiuse con un piano — la settimana in corso è esclusa. Le settimane sopra e sotto si compensano: la domanda è se la ricorrenza è tarata male, non se una singola settimana è andata storta. Servono almeno ${MIN_HISTORY} settimane di storia. Le aree con lo scarto proporzionale più grande stanno in cima.`} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
         {items.map((it, i) => (
           <div key={i} style={{
@@ -628,15 +639,23 @@ function DaDecidereInsights({ perAreaWeekly }) {
             </div>
 
             {/* Niente split valore/stato come in AreaSparkCard: lì i due angoli incorniciano il
-                grafico, qui non c'è. Una frase sola. `of` = settimane chiuse realmente in
-                archivio, non sempre PERSIST_WINDOW. */}
+                grafico, qui non c'è. Una frase sola. Le due medie a confronto, non lo scarto:
+                avgDone è già il numero da scrivere nella ricorrenza. `of` = settimane chiuse
+                con piano realmente in archivio, non sempre PERSIST_WINDOW. */}
             <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
-              <span style={{ fontWeight: 800, color: 'var(--tb-text-primary)' }}>
-                {it.kind === 'under' ? 'Sotto piano' : 'Oltre piano'}
-              </span>{' '}
               {/* nowrap: il numero non deve restare orfano a capo dalla sua unità */}
-              <span style={{ color: it.color, fontWeight: 800, whiteSpace: 'nowrap' }}>{it.weeksOff} settimane</span>
-              {' '}su {it.of}
+              <span style={{ color: it.color, fontWeight: 800, whiteSpace: 'nowrap' }}>{fmtH(it.avgDone)}/sett</span>
+              {' '}contro <span style={{ fontWeight: 800, color: 'var(--tb-text-primary)', whiteSpace: 'nowrap' }}>{fmtH(it.avgPlanned)} pianificate</span>
+              {' '}su {it.of} sett
+            </div>
+
+            {/* Distribuzione: la media non distingue un ritmo da un episodio, e le due cose
+                portano a decisioni opposte. Il dettaglio settimana per settimana sta nel
+                tooltip (stesso `title` nativo di HelpDot) invece che in un blocco espandibile:
+                è una lettura di verifica, non un secondo livello di navigazione. */}
+            <div title={weeklyBreakdownTitle(it)} style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)', marginTop: 3, cursor: 'help', borderBottom: '1px dotted var(--tb-border-mid)', display: 'inline-block' }}>
+              {it.weeksOff === 1 ? '1 settimana' : `${it.weeksOff} settimane`} {it.kind === 'under' ? 'sotto' : 'sopra'}
+              {' · picco '}<span style={{ whiteSpace: 'nowrap' }}>{fmtH(it.peakDelta)}</span>
             </div>
 
             <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginTop: 6 }}>
