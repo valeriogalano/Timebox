@@ -278,13 +278,14 @@ const TOOLS = [
   },
   {
     name: 'merge_project_entries',
-    description: 'Move all logged entries from one project into another (summing hours on the same day+slot), then delete the source project.',
+    description: 'Move all logged entries from one project into another (summing hours on the same day+slot). By default the source project is then DELETED and this is not reversible. Pass deleteSource: false to keep the source project (left at 0h) when you want to preserve a record of it — archive it afterwards with update_project.',
     inputSchema: {
       type: 'object',
       required: ['fromId', 'toId'],
       properties: {
-        fromId: { type: 'string', description: 'Source project id (will be deleted)' },
+        fromId: { type: 'string', description: 'Source project id (deleted unless deleteSource is false)' },
         toId: { type: 'string', description: 'Destination project id' },
+        deleteSource: { type: 'boolean', description: 'Delete the source project after moving its entries (default: true)' },
       },
     },
   },
@@ -775,8 +776,8 @@ async function callTool(name, args) {
   }
 
   if (name === 'merge_project_entries') {
-    const d = await httpRequest('/projects/merge', 'POST', { fromId: args.fromId, toId: args.toId });
-    return `Merged ${d.count} entries from '${d.from}' into '${d.to}'. Project '${d.from}' deleted.`;
+    const d = await httpRequest('/projects/merge', 'POST', { fromId: args.fromId, toId: args.toId, deleteSource: args.deleteSource });
+    return `Merged ${d.count} entries from '${d.from}' into '${d.to}'. Project '${d.from}' ${d.sourceDeleted ? 'deleted' : 'kept (now at 0h)'}.`;
   }
 
   if (name === 'get_recurring') {

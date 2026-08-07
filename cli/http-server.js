@@ -141,16 +141,17 @@ function createHttpServer() {
       }
 
       if (req.method === 'POST' && p === '/projects/merge') {
-        const { fromId, toId } = await readBody(req);
+        const { fromId, toId, deleteSource } = await readBody(req);
         if (!fromId || !toId) return json(res, 400, { error: 'fromId and toId are required' });
         const allProjects = getProjects();
         const from = allProjects.find(pr => pr.id === fromId);
         const to   = allProjects.find(pr => pr.id === toId);
         if (!from) return json(res, 400, { error: `Project not found: ${fromId}` });
         if (!to)   return json(res, 400, { error: `Project not found: ${toId}` });
-        const { count } = mergeProjectEntries(fromId, toId);
+        const keepSource = deleteSource === false;
+        const { count } = mergeProjectEntries(fromId, toId, !keepSource);
         emitter.emit('change', 'structure');
-        return json(res, 200, { count, from: from.name, to: to.name });
+        return json(res, 200, { count, from: from.name, to: to.name, sourceDeleted: !keepSource });
       }
 
       if (req.method === 'POST' && p === '/projects') {
