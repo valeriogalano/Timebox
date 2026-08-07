@@ -224,7 +224,7 @@ const TOOLS = [
   },
   {
     name: 'update_project',
-    description: 'Update one or more fields of a Timebox project (name, description, budgetHours, weeklyHours). Use find_project to get the id first. Only include the fields you want to change.',
+    description: 'Update one or more fields of a Timebox project (name, description, budgetHours, weeklyHours, archived). Use find_project to get the id first. Only include the fields you want to change. Archiving keeps logged hours and hides the project from active lists and Todoist import matching; use archived: false to unarchive.',
     inputSchema: {
       type: 'object',
       required: ['id'],
@@ -234,6 +234,7 @@ const TOOLS = [
         description: { type: 'string', description: 'New description (pass empty string to clear it)' },
         budgetHours: { type: 'number', description: 'New total budget in hours (pass 0 to clear)' },
         weeklyHours: { type: 'number', description: 'New weekly hours limit (pass 0 to clear)' },
+        archived: { type: 'boolean', description: 'Archive (true) or unarchive (false) the project' },
       },
     },
   },
@@ -736,12 +737,14 @@ async function callTool(name, args) {
     if (args.description !== undefined) body.description = args.description || null;
     if (args.budgetHours !== undefined) body.budgetHours = args.budgetHours || null;
     if (args.weeklyHours !== undefined) body.weeklyHours = args.weeklyHours || null;
+    if (args.archived !== undefined)    body.archived = args.archived;
     const d = await httpRequest(`/projects/${encodeURIComponent(args.id)}`, 'PATCH', body);
     const parts = [];
     if (args.name !== undefined)        parts.push(`name: '${d.name}'`);
     if (args.description !== undefined) parts.push(`description: ${d.description ? `'${d.description}'` : 'cleared'}`);
     if (args.budgetHours !== undefined) parts.push(`budget: ${d.budgetHours ? `${d.budgetHours}h` : 'cleared'}`);
     if (args.weeklyHours !== undefined) parts.push(`weekly limit: ${d.weeklyHours ? `${d.weeklyHours}h` : 'cleared'}`);
+    if (args.archived !== undefined)    parts.push(d.archived ? 'archived' : 'unarchived');
     return `Project '${d.name}' updated — ${parts.join(', ')}.`;
   }
 

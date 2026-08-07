@@ -188,10 +188,11 @@ function createHttpServer() {
         if ('description' in body)          updated.description = body.description ?? null;
         if ('budgetHours' in body)          updated.budgetHours = body.budgetHours ?? null;
         if ('weeklyHours' in body)          updated.weeklyHours = body.weeklyHours ?? null;
+        if ('archived' in body)             updated.archived = !!body.archived;
         saveProject(updated);
         const client = getClients().find(c => c.id === updated.clientId);
         emitter.emit('change', 'structure');
-        return json(res, 200, { id, name: updated.name, clientId: updated.clientId, areaId: updated.clientId, client: client?.name, area: client?.name, description: updated.description, budgetHours: updated.budgetHours, weeklyHours: updated.weeklyHours });
+        return json(res, 200, { id, name: updated.name, clientId: updated.clientId, areaId: updated.clientId, client: client?.name, area: client?.name, description: updated.description, budgetHours: updated.budgetHours, weeklyHours: updated.weeklyHours, archived: updated.archived });
       }
 
       if (req.method === 'DELETE' && p.startsWith('/projects/') && p !== '/projects/') {
