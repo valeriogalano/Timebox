@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.8] - 2026-08-07
+
 ### Added
 - Impostazioni · Pianificazione: la soglia oltre cui un numero senza due punti digitato in un campo ore viene letto come minuti è configurabile fra 1 e 24, con default 9. Prima era fissa a 12, quindi chi non la configura vede cambiare l'interpretazione di "10", "11" e "12", che ora sono minuti. Serve perché la soglia giusta dipende da come si registra: chi lavora a blocchi lunghi vuole poter scrivere "14" e ottenere 14 ore, chi registra sempre in minuti la vuole bassa. Scrivere "1:30" resta sempre esplicito e non passa dalla soglia.
 - Interfaccia: l'overlay `?` contiene ora anche una legenda dei glifi di segnale (in linea, sopra/sotto con il doppio glifo per lo scarto marcato, nessun verdetto, divergenza dal template, ore da fatturare/fatturate, stato dell'area). Il colore non distingue sopra e sotto per scelta, quindi senza legenda i glifi restavano da indovinare. L'overlay si apre anche cliccando un `?` in topbar, dopo la data corrente.
