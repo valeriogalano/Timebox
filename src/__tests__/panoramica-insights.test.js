@@ -4,7 +4,8 @@ import { areaPlanFitInsights, capRunway, statusFor, PERSIST_WINDOW, MIN_HISTORY 
 
 const area = (name, weeks) => ({ client: { id: name, name, color: '#000' }, weeks });
 // helper: settimana chiusa con done/planned
-const wk = (done, planned) => ({ done, planned, isCurrent: false });
+let wkSeq = 0;
+const wk = (done, planned) => ({ week: `2026-01-${String(++wkSeq % 28 + 1).padStart(2, '0')}`, done, planned, isCurrent: false });
 const rep = (n, w) => Array.from({ length: n }, () => w);
 
 describe('areaPlanFitInsights', () => {
@@ -38,6 +39,16 @@ describe('areaPlanFitInsights', () => {
     const items = areaPlanFitInsights([area('A', weeks)]);
     assert.equal(items.length, 1);
     assert.equal(items[0].kind, 'under');
+    // La distribuzione e' cio' che distingue l'episodio dal ritmo, ed e' in card.
+    assert.equal(items[0].weeksOff, 1);
+    assert.equal(items[0].peakDelta, -9);
+  });
+
+  test('distribuzione: un ritmo costante marca tutte le settimane, non una', () => {
+    const items = areaPlanFitInsights([area('A', rep(PERSIST_WINDOW, wk(6, 10)))]);
+    assert.equal(items[0].weeksOff, PERSIST_WINDOW);
+    assert.equal(items[0].peakDelta, -4);
+    assert.equal(items[0].weeks.length, PERSIST_WINDOW);
   });
 
   test('oltre piano in media → Settimana', () => {

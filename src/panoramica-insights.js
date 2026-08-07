@@ -52,8 +52,17 @@ export function areaPlanFitInsights(perAreaWeekly, window = PERSIST_WINDOW, minH
     // alla somma vale come applicata alla media, senza soglie nuove da tarare.
     const { kind, level } = statusFor(done, planned);
     if (kind === 'on' || kind === 'none') continue;
+    // La media dice SE il piano e' fuori taratura, non se lo e' per un ritmo o per un
+    // episodio: -9h possono essere -1,1h per otto settimane o una settimana sola saltata.
+    // Le due cose portano a decisioni opposte, quindi la distribuzione va mostrata.
+    const off  = closed.filter(w => statusFor(w.done, w.planned).kind === kind);
+    const peak = off.reduce((a, w) => Math.abs(w.done - w.planned) > Math.abs(a.done - a.planned) ? w : a, off[0]);
     items.push({
       color: client.color, area: client.name, kind, level,
+      weeksOff: off.length,
+      peakDelta: peak ? (peak.done || 0) - peak.planned : 0,
+      peakWeek: peak?.week ?? null,
+      weeks: closed,
       // Il numero utile è la media settimanale: è esattamente ciò che va scritto nella
       // ricorrenza, non uno scarto da ricalcolare a mente.
       avgDone: done / closed.length,

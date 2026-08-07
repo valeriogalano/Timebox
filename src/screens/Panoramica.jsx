@@ -290,7 +290,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
           .filter(e => e.date >= startStr && e.date <= endStr && projectClientMap[e.projectId] === c.id)
           .reduce((s, e) => s + e.hours, 0);
         const weekPlanned = plannedByClientForWeek(startStr)[c.id] ?? 0;
-        return { done, planned: weekPlanned, isCurrent: startStr === currentWeekKey };
+        return { week: startStr, done, planned: weekPlanned, isCurrent: startStr === currentWeekKey };
       });
       return { client: c, planned, weeks };
     });
@@ -604,6 +604,17 @@ function AreaConsuntivo({ clients, stats }) {
 // sopra e una sotto si compensano, perché la ricorrenza è una media per costruzione.
 // Logica pura in ../panoramica-insights. `to` è la vista dove si agisce, resa come
 // suggerimento testuale: non è un link, la navigazione resta al tab bar.
+// Tooltip di verifica: svolto contro pianificato settimana per settimana, così un -9h di
+// media si riconosce a colpo d'occhio come otto settimane fiacche o una sola saltata.
+// Il ▾/▴ marca le settimane che il verdetto conta come fuori piano.
+function weeklyBreakdownTitle({ weeks, kind }) {
+  const rows = weeks.map(w => {
+    const off = statusFor(w.done, w.planned).kind === kind;
+    return `${w.week.slice(8, 10)}/${w.week.slice(5, 7)}  ${fmtH(w.done)} / ${fmtH(w.planned)}${off ? (kind === 'under' ? '  ▾' : '  ▴') : ''}`;
+  });
+  return `Settimana per settimana (svolto / pianificato)\n${rows.join('\n')}`;
+}
+
 function DaDecidereInsights({ perAreaWeekly }) {
   const items = areaPlanFitInsights(perAreaWeekly);
   if (!items.length) return null;
@@ -636,6 +647,15 @@ function DaDecidereInsights({ perAreaWeekly }) {
               <span style={{ color: it.color, fontWeight: 800, whiteSpace: 'nowrap' }}>{fmtH(it.avgDone)}/sett</span>
               {' '}contro <span style={{ fontWeight: 800, color: 'var(--tb-text-primary)', whiteSpace: 'nowrap' }}>{fmtH(it.avgPlanned)} pianificate</span>
               {' '}su {it.of} sett
+            </div>
+
+            {/* Distribuzione: la media non distingue un ritmo da un episodio, e le due cose
+                portano a decisioni opposte. Il dettaglio settimana per settimana sta nel
+                tooltip (stesso `title` nativo di HelpDot) invece che in un blocco espandibile:
+                è una lettura di verifica, non un secondo livello di navigazione. */}
+            <div title={weeklyBreakdownTitle(it)} style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)', marginTop: 3, cursor: 'help', borderBottom: '1px dotted var(--tb-border-mid)', display: 'inline-block' }}>
+              {it.weeksOff === 1 ? '1 settimana' : `${it.weeksOff} settimane`} {it.kind === 'under' ? 'sotto' : 'sopra'}
+              {' · picco '}<span style={{ whiteSpace: 'nowrap' }}>{fmtH(it.peakDelta)}</span>
             </div>
 
             <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginTop: 6 }}>
