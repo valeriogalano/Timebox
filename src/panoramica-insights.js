@@ -1,10 +1,17 @@
-// "Da decidere" (lente "Nel tempo"): un insight vale la decisione solo se la
-// divergenza area↔piano è PERSISTENTE, non lo scarto di una singola settimana
-// (rumore). Un'area entra se è fuori piano in >= PERSIST_MIN delle ultime
-// PERSIST_WINDOW settimane CHIUSE — la corrente è in corso e va esclusa, altrimenti
-// leggerebbe sempre sotto-piano. Fuori piano = stesso verdetto di statusFor.
+// "Da decidere" (lente "Nel tempo"): la decisione che questa card alimenta è una sola —
+// "la RICORRENZA di quest'area è tarata male?". È strutturale, non riguarda la prossima
+// settimana (quella si legge in Settimana, e infatti la corrente è esclusa dal calcolo).
+//
+// Per quella domanda la misura giusta è la MEDIA: la ricorrenza è una media settimanale
+// per costruzione, quindi se pianifico 10h/sett e ne faccio 7 il piano è tarato 3h troppo
+// alto, e come si distribuiscono quelle 7h è irrilevante — sopra e sotto DEVONO compensarsi.
+// Contare le settimane fuori piano misurava un'altra cosa, la volatilità: un'area a 5h e
+// 15h alternate è fuori piano 8 volte su 8 ma la ricorrenza è tarata benissimo, e mandare
+// a toccarla peggiorerebbe le cose.
 export const PERSIST_WINDOW = 8;  // allineata alla finestra dei trend della lente
-export const PERSIST_MIN = 3;
+// Sotto questo numero di settimane chiuse con piano non si cambia un template: due dati
+// non sono un ritmo.
+export const MIN_HISTORY = 4;
 
 // Verdetto piano↔consuntivo. Due soglie, ciascuna combinata in ore e in percentuale:
 // la percentuale da sola grida per le aree piccole (1h pianificata, 1h30 fatta = +50%
@@ -32,25 +39,32 @@ export function statusFor(done, planned) {
 
 // perAreaWeekly: [{ client, weeks: [{ done, planned, isCurrent }] }],
 // weeks in ordine cronologico (la corrente è l'ultima).
-export function persistentAreaInsights(perAreaWeekly, window = PERSIST_WINDOW, min = PERSIST_MIN) {
+export function areaPlanFitInsights(perAreaWeekly, window = PERSIST_WINDOW, minHistory = MIN_HISTORY) {
   const items = [];
   for (const { client, weeks } of perAreaWeekly) {
-    const closed = weeks.filter(w => !w.isCurrent).slice(-window);
-    let under = 0, over = 0;
-    for (const w of closed) {
-      if (!(w.planned > 0)) continue;                 // area chiusa/senza piano quella settimana
-      const kind = statusFor(w.done, w.planned).kind;
-      if (kind === 'under') under++;
-      else if (kind === 'over') over++;
-    }
-    if (under >= min) {
-      items.push({ color: client.color, area: client.name, kind: 'under', weeksOff: under, of: closed.length, severity: under / window, to: 'Aree' });
-    } else if (over >= min) {
-      items.push({ color: client.color, area: client.name, kind: 'over', weeksOff: over, of: closed.length, severity: over / window, to: 'Settimana' });
-    }
+    // Le settimane senza piano non sono "sotto piano": l'area era chiusa o non
+    // pianificata, includerle nella media abbasserebbe il ritmo di riferimento.
+    const closed = weeks.filter(w => !w.isCurrent).slice(-window).filter(w => w.planned > 0);
+    if (closed.length < minHistory) continue;
+    const done    = closed.reduce((s, w) => s + (w.done || 0), 0);
+    const planned = closed.reduce((s, w) => s + w.planned, 0);
+    // statusFor sui TOTALI: la tolleranza si scala già sul pianificato, quindi applicata
+    // alla somma vale come applicata alla media, senza soglie nuove da tarare.
+    const { kind, level } = statusFor(done, planned);
+    if (kind === 'on' || kind === 'none') continue;
+    items.push({
+      color: client.color, area: client.name, kind, level,
+      // Il numero utile è la media settimanale: è esattamente ciò che va scritto nella
+      // ricorrenza, non uno scarto da ricalcolare a mente.
+      avgDone: done / closed.length,
+      avgPlanned: planned / closed.length,
+      of: closed.length,
+      severity: Math.abs(done - planned) / planned,
+      to: kind === 'under' ? 'Aree' : 'Settimana',
+    });
   }
-  // Più settimane fuori piano = più grave: le aree peggiori in cima.
-  return items.sort((a, b) => b.weeksOff - a.weeksOff);
+  // Scarto proporzionale più grande = piano più fuori taratura: in cima.
+  return items.sort((a, b) => b.severity - a.severity);
 }
 
 // Lente "In prospettiva": quanto manca a esaurire i tetti CUMULATIVI (budget totale
