@@ -210,6 +210,26 @@ describe('MCP server', () => {
     assert.ok(text.includes('['), 'contains area bracket');
   });
 
+  it('tools/call update_project archived → excluded from default project list, restored on unarchive', async () => {
+    const archive = await rpc(mcp, msg('tools/call', {
+      name: 'update_project',
+      arguments: { id: 'p6', archived: true },
+    }));
+    assert.ok(archive.result.content[0].text.includes('archived'));
+
+    const afterArchive = await rpc(mcp, msg('tools/call', { name: 'projects', arguments: {} }));
+    assert.ok(!afterArchive.result.content[0].text.includes('Brand Identity'));
+
+    const unarchive = await rpc(mcp, msg('tools/call', {
+      name: 'update_project',
+      arguments: { id: 'p6', archived: false },
+    }));
+    assert.ok(unarchive.result.content[0].text.includes('unarchived'));
+
+    const afterUnarchive = await rpc(mcp, msg('tools/call', { name: 'projects', arguments: {} }));
+    assert.ok(afterUnarchive.result.content[0].text.includes('Brand Identity'));
+  });
+
   it('tools/call areas → 4 seed areas', async () => {
     const res = await rpc(mcp, msg('tools/call', { name: 'areas', arguments: {} }));
     const text = res.result.content[0].text;
