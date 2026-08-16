@@ -15,10 +15,11 @@ function getWeekData(today, offset = 0) {
   const clientMap = Object.fromEntries(clients.map(c => [c.id, c]));
   const weekKey = fmt(monday);
   const areaStatusMap = getWeekAreaStatusMap(weekKey);
+  const resolveAreaStatus = clientId => areaStatusMap[clientId] ?? clientMap[clientId]?.defaultStatus ?? 'active';
   const areaStatuses = clients.map(client => ({
     areaId: client.id,
     area: client.name,
-    status: areaStatusMap[client.id] ?? 'active',
+    status: resolveAreaStatus(client.id),
   }));
 
   const days = [];
@@ -37,7 +38,7 @@ function getWeekData(today, offset = 0) {
           project: project?.name || e.projectId,
           client: client?.name || '?',
           area: client?.name || '?',
-          areaStatus: project ? (areaStatusMap[project.clientId] ?? 'active') : 'active',
+          areaStatus: project ? resolveAreaStatus(project.clientId) : 'active',
           isBillable,
           slot: e.slot,
         };

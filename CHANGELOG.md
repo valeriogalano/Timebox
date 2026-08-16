@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- MCP/CLI (`week`, `day_summary`): un'area senza override per la settimana risultava sempre "attiva", ignorando il suo `defaultStatus` (minima/chiusa). Il calcolo ricadeva su un fallback fisso invece che sul default dell'area, come già faceva la UI (`areaStatusOf`).
+
 ## [0.9.8] - 2026-08-07
 
 ### Added

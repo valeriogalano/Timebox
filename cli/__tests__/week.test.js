@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const { createTestDb } = require('./helpers');
 const { getWeekData } = require('../commands/week');
 const { logHours } = require('../commands/log');
+const { getClients, saveClient } = require('../../db/queries');
 
 describe('getWeekData', () => {
   before(() => createTestDb());
@@ -62,5 +63,14 @@ describe('getWeekData', () => {
     assert.equal(monday.totalBillable, 3);
     assert.equal(data.totalBillable, 3);
     assert.equal(monday.entries[0].billableHours, 3);
+  });
+
+  test('a week with no override falls back to the area default status, not "active"', () => {
+    const client = getClients()[0];
+    saveClient({ ...client, defaultStatus: 'closed' });
+    // Far-future week guaranteed to have no week_area_status override.
+    const data = getWeekData(new Date('2031-01-01T00:00:00'));
+    const status = data.areaStatuses.find(a => a.areaId === client.id);
+    assert.equal(status.status, 'closed');
   });
 });
