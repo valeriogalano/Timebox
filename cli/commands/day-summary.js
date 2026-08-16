@@ -29,13 +29,17 @@ function buildOverrideMap(rows) {
   }, {});
 }
 
+function resolveAreaStatus(clientId, clientMap, areaStatusMap) {
+  return areaStatusMap[clientId] ?? clientMap[clientId]?.defaultStatus ?? 'active';
+}
+
 function mapBlock(block, clientMap, areaStatusMap) {
   const client = clientMap[block.clientId];
   return {
     id: block.id,
     clientId: block.clientId,
     area: client?.name || '?',
-    areaStatus: areaStatusMap[block.clientId] ?? 'active',
+    areaStatus: resolveAreaStatus(block.clientId, clientMap, areaStatusMap),
     hours: block.hours,
   };
 }
@@ -50,7 +54,7 @@ function mapEntry(entry, projectMap, clientMap, areaStatusMap) {
     project: project?.name || entry.projectId,
     clientId: project?.clientId || null,
     area: client?.name || '?',
-    areaStatus: project ? (areaStatusMap[project.clientId] ?? 'active') : 'active',
+    areaStatus: project ? resolveAreaStatus(project.clientId, clientMap, areaStatusMap) : 'active',
     slot: normalizeSlot(entry.slot),
     hours: entry.hours,
     billableHours: entry.billableHours ?? null,
@@ -74,7 +78,7 @@ function getDaySummaryData(date) {
   const areaStatuses = clients.map(client => ({
     areaId: client.id,
     area: client.name,
-    status: areaStatusMap[client.id] ?? 'active',
+    status: resolveAreaStatus(client.id, clientMap, areaStatusMap),
   }));
 
   const plannedBlocks = {};
@@ -147,7 +151,7 @@ function getDaySummaryData(date) {
     extra: Object.entries(extraByClient).map(([clientId, hours]) => ({
       clientId,
       area: clientMap[clientId]?.name || '?',
-      areaStatus: areaStatusMap[clientId] ?? 'active',
+      areaStatus: resolveAreaStatus(clientId, clientMap, areaStatusMap),
       hours,
     })),
   };
