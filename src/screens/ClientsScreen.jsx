@@ -142,6 +142,11 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
   // Project move
   const [movingProjectId, setMovingProjectId] = useState(null);
 
+  // Archived projects visibility (nascosti di default)
+  const [showArchived, setShowArchived] = useState(false);
+  const archivedCount = selProjects.filter(p => p.archived).length;
+  const visibleProjects = showArchived ? selProjects : selProjects.filter(p => !p.archived);
+
   // Project drag-to-area
   const [projectDragOverAreaId, setProjectDragOverAreaId] = useState(null);
 
@@ -303,11 +308,14 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
       setProjectInsertIdx(null);
       return;
     }
-    const areaProjects = [...selProjects];
+    // ponytail: riordina solo i progetti visibili; se archiviati sono nascosti
+    // la loro posizione resta invariata (riemerge un ordine misto se poi li mostri)
+    const areaProjects = [...visibleProjects];
     const otherProjects = projects.filter(p => p.clientId !== selectedId);
+    const archivedUntouched = showArchived ? [] : selProjects.filter(p => p.archived);
     const newOrder = insertReorder(areaProjects, draggingProjectId, projectInsertIdx);
     const updated = newOrder.map((p, i) => ({ ...p, position: i }));
-    setProjects([...otherProjects, ...updated]);
+    setProjects([...otherProjects, ...updated, ...archivedUntouched]);
     updated.forEach(p => window.api.saveProject(p));
     setDraggingProjectId(null);
     setProjectInsertIdx(null);
@@ -547,11 +555,31 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
           <div style={{ borderTop: '1px solid var(--tb-border-soft)', paddingTop: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <SectionLabel>Progetti ({selProjects.length})</SectionLabel>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              {archivedCount > 0 && (
+                <button
+                  onClick={() => setShowArchived(v => !v)}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    border: '1px solid var(--tb-border-mid)',
+                    background: showArchived ? 'var(--tb-border-mid)' : 'var(--tb-panel-bg-soft)',
+                    color: showArchived ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontFamily: "'Open Sans', sans-serif",
+                    flexShrink: 0,
+                  }}
+                  title={showArchived ? "Nascondi i progetti archiviati" : "Mostra anche i progetti archiviati"}
+                >
+                  {showArchived ? 'Nascondi archiviati' : `Mostra archiviati (${archivedCount})`}
+                </button>
+              )}
               <button
                 onClick={sortSelectedProjectsAlphabetically}
                 disabled={selProjects.length < 2}
                 style={{
-                  marginBottom: 8,
                   padding: '6px 10px',
                   borderRadius: 6,
                   border: '1px solid var(--tb-border-mid)',
@@ -567,6 +595,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
               >
                 Ordina A-Z
               </button>
+              </div>
             </div>
 
             <div
@@ -575,7 +604,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
               onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setProjectInsertIdx(null); }}
               style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}
             >
-              {selProjects.map((p, i) => (
+              {visibleProjects.map((p, i) => (
                 <React.Fragment key={p.id}>
                   {projectInsertIdx === i && <Divider />}
                   <div
@@ -693,7 +722,7 @@ export default function ClientsScreen({ clients, projects, setClients, setProjec
                   </div>
                 </React.Fragment>
               ))}
-              {projectInsertIdx === selProjects.length && <Divider />}
+              {projectInsertIdx === visibleProjects.length && <Divider />}
             </div>
 
             <button onClick={addProject}
