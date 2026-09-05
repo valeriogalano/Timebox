@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.9] - 2026-09-05
+
 ### Added
 - Aree: toggle "Mostra archiviati" sopra l'elenco progetti di un'area, nascosti di default. Con più progetti chiusi nel tempo la lista diventava un cimitero in cui i progetti attivi si perdevano tra quelli archiviati.
 
 ### Fixed
-- MCP/CLI (`week`, `day_summary`): un'area senza override per la settimana risultava sempre "attiva", ignorando il suo `defaultStatus` (minima/chiusa). Il calcolo ricadeva su un fallback fisso invece che sul default dell'area, come già faceva la UI (`areaStatusOf`).
+- Un'area senza override per la settimana risultava sempre "attiva", ignorando il suo `defaultStatus` (minima/chiusa). Il calcolo ricadeva su un fallback fisso invece che sul default dell'area. Riguardava MCP e CLI (`week`, `day_summary`) e il pannello "Stato aree · settimana" nella barra laterale della Settimana, che mostrava uno stato diverso da quello della griglia accanto.
 
 ## [0.9.8] - 2026-08-07
 
