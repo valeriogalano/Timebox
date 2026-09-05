@@ -1200,7 +1200,7 @@ export function AreaStatusPanel({ clients, statuses, onChange, compact }) {
       width: compact ? '100%' : 'auto',
     }}>
       {clients.map(client => {
-        const current = statuses[client.id] ?? 'active';
+        const current = areaStatusOf(client, statuses);
         return (
           <div
             key={client.id}
