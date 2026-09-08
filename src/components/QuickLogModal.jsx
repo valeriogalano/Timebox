@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fmtH } from '../utils';
+import { getMinutesThreshold } from '../hours-threshold';
 
 function parseTimeSpec(s) {
   s = s.trim().toLowerCase();
@@ -14,7 +15,7 @@ function parseTimeSpec(s) {
   }
   if (/^\d+(?:[.,]\d+)?$/.test(s)) {
     const numeric = parseFloat(s.replace(',', '.'));
-    return numeric > 4 ? numeric / 60 : numeric;
+    return numeric > getMinutesThreshold() ? numeric / 60 : numeric;
   }
   return null;
 }

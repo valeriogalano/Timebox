@@ -118,7 +118,12 @@ export default function TodoistLog({ clients, projects }) {
     }
   }
 
-  const projectOptions = projects;
+  // Riassegnare un import è una scelta nuova: gli archiviati non sono candidati.
+  // Quello già assegnato resta in lista, o la select perderebbe il suo valore.
+  const activeProjects = projects.filter(p => !p.archived);
+  const optionsFor = projectId => activeProjects.some(p => p.id === projectId)
+    ? activeProjects
+    : [...activeProjects, ...projects.filter(p => p.id === projectId)];
 
   return (
     <div>
@@ -191,7 +196,7 @@ export default function TodoistLog({ clients, projects }) {
                           {SLOTS.map(slot => <option key={slot} value={slot}>{SLOT_LABELS[slot]}</option>)}
                         </select>
                         <select value={current.projectId} onChange={event => updateDraft('projectId', event.target.value)} style={inputStyle}>
-                          {projectOptions.map(option => {
+                          {optionsFor(current.projectId).map(option => {
                             const optionClient = clients.find(client => client.id === option.clientId);
                             return <option key={option.id} value={option.id}>{optionClient ? `${optionClient.name} · ` : ''}{option.name}</option>;
                           })}

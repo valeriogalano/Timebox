@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Andamento · Settimana: la sezione "Budget progetti" elencava anche i progetti archiviati, mentre la lente "In prospettiva" già li escludeva. Il budget di un progetto chiuso è storia, non una decisione aperta: con gli anni la sezione diventava un elenco di archiviati con in mezzo i pochi attivi.
+- Import Todoist: la select per riassegnare un task importato proponeva i progetti archiviati. Ora offre solo gli attivi; se il task è già assegnato a un archiviato, quello resta in lista per non perdere il valore corrente.
+- Ricerca rapida (⌘L): un numero nudo dopo il `+` veniva letto come minuti sopra 4 invece che sopra la soglia configurata in Impostazioni. Con la soglia a 9, `INVALSI+8` sommava 8 minuti al posto di 8 ore.
+
 ## [0.9.9] - 2026-09-05
 
 ### Added

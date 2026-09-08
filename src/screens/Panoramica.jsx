@@ -362,7 +362,9 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
   const label   = periodLabel('week', periodOffset);
   const isToday = periodOffset === 0;
 
-  const budgetProjects = projects.filter(p => p.budgetHours > 0 || p.weeklyHours > 0);
+  // Un progetto archiviato è storia: il suo budget non è più una decisione da prendere.
+  // Stessa regola della lente "In prospettiva" (vedi capRows).
+  const budgetProjects = projects.filter(p => !p.archived && (p.budgetHours > 0 || p.weeklyHours > 0));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 24 }}>
