@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.10] - 2026-09-08
+
 ### Fixed
 - Andamento · Settimana: la sezione "Budget progetti" elencava anche i progetti archiviati, mentre la lente "In prospettiva" già li escludeva. Il budget di un progetto chiuso è storia, non una decisione aperta: con gli anni la sezione diventava un elenco di archiviati con in mezzo i pochi attivi.
 - Import Todoist: la select per riassegnare un task importato proponeva i progetti archiviati. Ora offre solo gli attivi; se il task è già assegnato a un archiviato, quello resta in lista per non perdere il valore corrente.
