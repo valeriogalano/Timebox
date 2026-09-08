@@ -24,5 +24,13 @@ export default defineConfig({
     globals: true,
     include: ['src/**/*.test.jsx'],
     setupFiles: ['./src/__tests__/setup.js'],
+    // Copertura della sola UI: il resto (cli/, db/, lib/ e i moduli logici sotto
+    // src/) è misurato da c8 sui test `node --test`, che qui non girano.
+    coverage: {
+      provider: 'v8',
+      include: ['src/components/**/*.jsx', 'src/screens/**/*.jsx'],
+      reporter: ['text', 'json-summary'],
+      reportsDirectory: 'coverage/components',
+    },
   },
 });

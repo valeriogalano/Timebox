@@ -25,7 +25,15 @@ npm run build            # Vite -> renderer-dist/, then Electron loads renderer-
 
 # Tests
 npm test                 # rebuilds better-sqlite3 for Node, then runs node --test
+npm run coverage:components   # copertura dei componenti React (Vitest + v8)
 ```
+
+Coverage is measured in two halves, because the two suites run on different
+runners. `c8` covers the Node side (`cli/`, `db/`, `lib/` and the logic modules
+under `src/`) via the `node --test` suites. `npm run coverage:components` covers
+`src/components/` and `src/screens/` via Vitest, and writes to
+`coverage/components/`. The UI half sits around 10% today: it is low, but it is
+measured, so a pull request that lowers it is visible.
 
 Why `--ignore-scripts`: Node 25 is too recent for current `better-sqlite3` prebuilds. `npm run rebuild` uses `electron-rebuild` to download Electron 31 headers and compile the native module correctly. Do not remove this step.
 
