@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Ricerca rapida (⌘L): un numero nudo dopo il `+` veniva letto come minuti sopra 4 invece che sopra la soglia configurata in Impostazioni. Con la soglia a 9, `INVALSI+8` sommava 8 minuti al posto di 8 ore.
+
 ## [0.9.9] - 2026-09-05
 
 ### Added
