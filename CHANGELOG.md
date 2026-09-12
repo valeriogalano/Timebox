@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Pianificazione: il campo ore di un blocco ricorrente ignorava la soglia ore/minuti e non capiva i due punti, a differenza di tutti gli altri campi ore. Con la soglia a 9, scrivere `90` creava un blocco da 90 ore invece che da un'ora e mezza, e `1:30` veniva scartato in silenzio lasciando il blocco come era.
+
 ## [0.9.10] - 2026-09-08
 
 ### Fixed
