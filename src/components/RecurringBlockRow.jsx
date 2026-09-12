@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { areaMix } from '../area-colors';
+import { parseHHMM } from '../utils';
 import { AREA_STATUS_OPTIONS } from '../screens/WeeklyView';
 import AreaStatusGlyph from './AreaStatusGlyph';
 
@@ -28,8 +29,10 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
   }
 
   function commit() {
-    const v = parseFloat(draft.replace(',', '.'));
-    if (!isNaN(v) && v > 0) onUpdate(v);
+    // parseHHMM applica la soglia ore/minuti e capisce "1:30", come ogni altro
+    // campo ore: qui si scriveva a mano un parseFloat, che leggeva "90" come 90 ore.
+    const v = parseHHMM(draft);
+    if (v > 0) onUpdate(v);
     setEditingH(false);
   }
 
