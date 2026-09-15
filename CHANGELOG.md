@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Pianificazione: il campo ore di un blocco ricorrente ignorava la soglia ore/minuti e non capiva i due punti, a differenza di tutti gli altri campi ore. Con la soglia a 9, scrivere `90` creava un blocco da 90 ore invece che da un'ora e mezza, e `1:30` veniva scartato in silenzio lasciando il blocco come era.
+- L'overlay `?` non elencava il meter budget (le tre barrette crescenti di Settimana, Andamento e Panoramica) né il tratteggio "oltre soglia / oltre piano". Restavano segnali da indovinare, come tutti gli altri prima di essere aggiunti alla legenda.
 
 ## [0.9.10] - 2026-09-08
 
