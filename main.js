@@ -554,12 +554,25 @@ function setupIpc() {
     const projectsResult = await fetchTodoistProjects(headers);
     const todoistProjects = projectsResult.projects;
 
-    logger.info('todoist:sync tasks', { open: openTasks.length, projects: todoistProjects.length });
+    // Import new Todoist projects before matching, so a project created since
+    // the last "Importa progetti" run is matched on this same sync instead of
+    // staying unmapped until the next manual import. Matching then reads the
+    // up-to-date project list from the DB, not the (possibly stale) list the
+    // renderer passed in.
+    const importResult = q.importTodoistProjects(todoistProjects);
+    const currentProjects = importResult.added > 0 ? q.getProjects() : timboxProjects;
+    if (importResult.added > 0) {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send('db:changed', 'structure');
+      }
+    }
+
+    logger.info('todoist:sync tasks', { open: openTasks.length, projects: todoistProjects.length, imported: importResult.added });
 
     function matchProject(todoistProjectId) {
       const tp = todoistProjects.find(p => p.id === todoistProjectId);
       if (!tp) return null;
-      return timboxProjects.find(p => p.name === tp.name) ?? null;
+      return currentProjects.find(p => p.name === tp.name) ?? null;
     }
 
     const byDate = {};

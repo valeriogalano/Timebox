@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Sync Todoist: un progetto Todoist nuovo viene importato automaticamente durante la sincronizzazione, invece di restare non mappato finché non si passa da Impostazioni → Importa progetti. Il progetto Timebox creato per un'area senza corrispondenza per nome finisce ora nell'area di lavoro reale che condivide il colore Todoist del progetto, quando ce n'è esattamente una: eredita così ore pianificate e tetti invece di finire in un'area generica "Todoist - <Colore>" che il template ricorrente non copre. Con più aree dello stesso colore, o nessuna, resta il comportamento attuale.
+
 ### Fixed
 - Pianificazione: il campo ore di un blocco ricorrente ignorava la soglia ore/minuti e non capiva i due punti, a differenza di tutti gli altri campi ore. Con la soglia a 9, scrivere `90` creava un blocco da 90 ore invece che da un'ora e mezza, e `1:30` veniva scartato in silenzio lasciando il blocco come era.
 - Sync Todoist: un task il cui progetto Todoist non ha un progetto Timebox con lo stesso nome veniva scartato in silenzio. Ora resta visibile come non mappato nel pannello "Mismatch dopo sync" e nel tool `day_mismatches`, invece di sparire senza traccia.

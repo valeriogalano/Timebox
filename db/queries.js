@@ -141,11 +141,21 @@ function todoistColorLabel(colorKey) {
 }
 
 function getOrCreateTodoistClient(colorKey) {
+  const color = TODOIST_COLORS[colorKey] ?? '#E44332';
+  // Se un'area di lavoro reale (non generica) usa già lo stesso colore, un nuovo
+  // progetto Todoist finisce lì: eredita ore pianificate e tetti invece di finire
+  // in un'area generica "Todoist - <Colore>" che il template ricorrente non copre.
+  // Più aree con lo stesso colore (es. più aree rosse) sono ambiguità: si ricade
+  // sul comportamento generico invece di indovinare quale sia quella giusta.
+  const matchingAreas = db.prepare(
+    "SELECT * FROM clients WHERE id NOT LIKE 'todoist-%' AND LOWER(color) = LOWER(?)"
+  ).all(color);
+  if (matchingAreas.length === 1) return matchingAreas[0];
+
   const clientId = `todoist-${colorKey}`;
   let client = db.prepare('SELECT * FROM clients WHERE id=?').get(clientId);
   if (!client) {
     const maxPos = db.prepare('SELECT MAX(position) as m FROM clients').get().m ?? 0;
-    const color = TODOIST_COLORS[colorKey] ?? '#E44332';
     const name = `Todoist - ${todoistColorLabel(colorKey)}`;
     db.prepare(`
       INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position)
@@ -759,4 +769,5 @@ module.exports = {
   getTodoistCache, setTodoistCache, getAllTodoistCache, getImportedTodoistTasks,
   importTodoistProjects,
   resetAllData, seedDemoData,
+  TODOIST_COLORS,
 };
