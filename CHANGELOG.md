@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Pianificazione: il campo ore di un blocco ricorrente ignorava la soglia ore/minuti e non capiva i due punti, a differenza di tutti gli altri campi ore. Con la soglia a 9, scrivere `90` creava un blocco da 90 ore invece che da un'ora e mezza, e `1:30` veniva scartato in silenzio lasciando il blocco come era.
 - Pianificazione · Ricorrenza: "Override ripetuti" e Andamento · Da decidere contavano settimane fantasma. Alcune settimane in `week_overrides` erano salvate con la chiave di domenica invece che di lunedì (probabile scarto UTC su una scrittura fatta a mezzanotte locale), e ogni modifica al template ne rimaterializzava una nuova serie. Le righe di domenica orfane vengono riportate sotto la chiave di lunedì corretta, quelle duplicate di una riga di lunedì già esistente vengono scartate, e il congelamento delle settimane passate non genera più serie non-lunedì.
+- L'overlay `?` non elencava il meter budget (le tre barrette crescenti di Settimana, Andamento e Panoramica) né il tratteggio "oltre soglia / oltre piano". Restavano segnali da indovinare, come tutti gli altri prima di essere aggiunti alla legenda.
 
 ## [0.9.10] - 2026-09-08
 
