@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.11] - 2026-09-15
+
 ### Added
 - MCP: nuovo tool `update_area` per rinominare un'area e/o cambiarne il colore (palette Todoist, per chiave o hex). `PATCH /areas/:id` accetta ora anche `color`; `rename_area` resta invariato per compatibilità.
 
