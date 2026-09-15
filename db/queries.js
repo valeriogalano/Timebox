@@ -518,7 +518,9 @@ function getUsedWeekKeys() {
     ...db.prepare('SELECT DISTINCT date FROM entries').all().map(r => r.date),
     ...db.prepare('SELECT DISTINCT dateStr FROM todoist_cache').all().map(r => r.dateStr),
   ];
-  const explicitWeeks = db.prepare('SELECT DISTINCT weekKey FROM week_overrides').all().map(r => r.weekKey);
+  const explicitWeeks = db.prepare('SELECT DISTINCT weekKey FROM week_overrides').all()
+    .map(r => r.weekKey)
+    .filter(weekKey => toMonday(weekKey) === weekKey); // ignora chiavi non-lunedì: non devono propagarsi nel freeze
   const seedWeeks = [...new Set([...dates.map(toMonday), ...explicitWeeks])].sort();
   if (!seedWeeks.length) return [];
   return [...new Set([...getPastWeekKeysFrom(seedWeeks[0]), ...seedWeeks])].sort();
@@ -753,7 +755,7 @@ module.exports = {
   getRecurring, saveRecurring, deleteRecurring, deleteRecurringByClient,
   getEntries, getProjectTotals, saveEntry, deleteEntry,
   getTodoistImportIds, getTodoistImports, saveTodoistImport, updateTodoistImport, deleteTodoistImport, importCompletedTodoistTasks,
-  getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange,
+  getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange, toMonday,
   getWeekAreaStatuses, getWeekAreaStatusMap, saveWeekAreaStatus,
   getSetting, setSetting,
   getTodoistCache, setTodoistCache, getAllTodoistCache, getImportedTodoistTasks,

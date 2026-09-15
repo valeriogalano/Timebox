@@ -21,7 +21,7 @@ const {
   getProjects, saveProject, deleteProject,
   hasProjectEntries, mergeProjectEntries,
   getRecurring, saveRecurring, deleteRecurring,
-  getWeekOverrides, saveWeekOverride, deleteWeekOverride,
+  getWeekOverrides, saveWeekOverride, deleteWeekOverride, toMonday,
   getWeekAreaStatuses, saveWeekAreaStatus,
 } = require('../db/queries');
 
@@ -241,6 +241,8 @@ function createHttpServer() {
         const { weekKey, dayIndex, slot, blocks } = await readBody(req);
         if (!weekKey || dayIndex == null || !slot || !Array.isArray(blocks))
           return json(res, 400, { error: 'weekKey, dayIndex, slot and blocks[] are required' });
+        if (toMonday(weekKey) !== weekKey)
+          return json(res, 400, { error: 'weekKey must be the Monday (YYYY-MM-DD) of the target week' });
         saveWeekOverride({ weekKey, dayIndex, slot, blocks });
         emitter.emit('change', 'structure');
         return json(res, 200, { weekKey, dayIndex, slot, blocks });
