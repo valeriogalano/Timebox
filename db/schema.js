@@ -194,6 +194,19 @@ function initDb(dbPath) {
   try { db.exec('ALTER TABLE entries ADD COLUMN billableHours REAL'); } catch (_) {}
   try { db.exec("ALTER TABLE todoist_imports ADD COLUMN slot TEXT NOT NULL DEFAULT 'am'"); } catch (_) {}
   try { db.exec('ALTER TABLE todoist_imports ADD COLUMN note TEXT'); } catch (_) {}
+  // Alcuni week_overrides sono stati scritti con weekKey di domenica (probabile
+  // shift UTC su una scrittura di lunedì locale). weekKey + 1 giorno è la
+  // settimana giusta: la copiamo sotto la chiave di lunedì (INSERT OR IGNORE la
+  // lascia stare se esiste già) e poi eliminiamo tutte le righe di domenica.
+  db.exec(`
+    INSERT OR IGNORE INTO week_overrides (id, weekKey, dayIndex, slot, blocksJson)
+    SELECT date(weekKey, '+1 day') || '-' || dayIndex || '-' || slot,
+           date(weekKey, '+1 day'), dayIndex, slot, blocksJson
+    FROM week_overrides
+    WHERE strftime('%w', weekKey) = '0';
+
+    DELETE FROM week_overrides WHERE strftime('%w', weekKey) = '0';
+  `);
   db.exec("UPDATE todoist_imports SET slot = 'am' WHERE slot IS NULL OR slot NOT IN ('am', 'pm', 'sera')");
   db.exec(`
     UPDATE entries

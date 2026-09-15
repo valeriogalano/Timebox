@@ -22,7 +22,13 @@ const RECURRING = [
 ];
 
 function fmtDate(d) {
-  return d.toISOString().slice(0, 10);
+  // Local date formatting on purpose: toISOString() is UTC and, in a timezone
+  // ahead of UTC (e.g. Europe/Rome), turns a local Monday midnight into the
+  // previous day (a Sunday) — exactly the bug this suite exercises elsewhere.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function getMonday(date) {
