@@ -569,7 +569,6 @@ function setupIpc() {
       if (!date || !dateSet.has(date)) continue;
       const proj = matchProject(t.project_id);
       if (debug) logger.info('todoist:match', { content: t.content, date, matched: proj?.name ?? null });
-      if (!proj) continue;
       const todoistProject = todoistProjects.find(project => project.id === t.project_id) ?? null;
       // A task without a specific due time isn't placed in a slot, so its duration
       // (if any survives on the Todoist side) must not count toward block capacity.
@@ -579,13 +578,16 @@ function setupIpc() {
         || (typeof t.due?.date === 'string' && t.due.date.includes('T'));
       const hours = hasDueTime ? parseTodoistDurationHours(t.duration) : null;
       if (!hours) continue;
+      // No matching Timebox project: still surfaced (matchStatus 'unmatched',
+      // projectId null) so day_mismatches / the mismatches panel can show it as
+      // unmapped, instead of silently dropping it as before.
       if (!byDate[date]) byDate[date] = [];
       byDate[date].push({
         id: t.id,
         title: t.content ?? '',
-        projectId: proj.id,
+        projectId: proj ? proj.id : null,
         todoistProjectName: todoistProject?.name ?? null,
-        timeboxProjectName: proj.name,
+        timeboxProjectName: proj ? proj.name : null,
         content: t.content ?? '',
         labels: taskLabels(t),
         hours,
@@ -595,7 +597,7 @@ function setupIpc() {
         dayOrder: t.day_order ?? null,
         childOrder: t.child_order ?? null,
         order: t.order ?? null,
-        matchStatus: 'matched',
+        matchStatus: proj ? 'matched' : 'unmatched',
         completed: false,
       });
     }

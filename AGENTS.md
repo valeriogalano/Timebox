@@ -356,7 +356,7 @@ Dependency-free inline Markdown renderer used for Todoist task text. Supports bo
 2. `main.js` decrypts the token from `safeStorage`.
 3. Todoist REST API v1 returns open tasks and projects with cursor pagination.
 4. Tasks are filtered by due date.
-5. Todoist projects are matched to Timebox projects by name.
+5. Todoist projects are matched to Timebox projects by name. A task whose Todoist project has no Timebox match is still cached (`projectId: null`, `matchStatus: 'unmatched'`) instead of being dropped, so it shows up as unmapped in the mismatches panel/tool. Tasks without a due time or without a duration are skipped either way, by design.
 6. Task durations are converted to hours and assigned to AM/PM slots.
 7. Results are sorted with `lib/todoist-order.js`, saved in `todoist_cache`, and returned as `{ byDate }`.
 
