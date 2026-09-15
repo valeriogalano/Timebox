@@ -180,14 +180,14 @@ In development, wrappers point at repository files. In packaged builds, they poi
 | `PATCH` | `/projects/:id` | Update project fields or move area. |
 | `DELETE` | `/projects/:id` | Delete a project with no entries. |
 | `POST` | `/projects/merge` | Merge entries from one project into another, then delete the source (`deleteSource: false` keeps it). |
-| `PATCH` | `/areas/:id` | Rename an area. |
+| `PATCH` | `/areas/:id` | Rename an area and/or change its color. `color` accepts a Todoist palette key (e.g. `lavender`) or a hex from that palette (case-insensitive); anything else is a 400. |
 | `PATCH` | `/clients/:id` | Rename an area through legacy naming. |
 
 ### MCP Server
 
 `cli/mcp-server.js` implements MCP spec `2024-11-05` with JSON-RPC over stdio.
 
-Tools: `today`, `week`, `projects`, `areas`, `status`, `log_hours`, `find_area`, `find_project`, `rename_area`, `rename_project`, `update_project`, `move_project`, `create_project`, `delete_project`, `merge_project_entries`.
+Tools: `today`, `week`, `projects`, `areas`, `status`, `log_hours`, `find_area`, `find_project`, `rename_area`, `update_area`, `rename_project`, `update_project`, `move_project`, `create_project`, `delete_project`, `merge_project_entries`.
 
 Codex manual configuration:
 

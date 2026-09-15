@@ -79,10 +79,10 @@ describe('MCP server', () => {
     const res = await rpc(mcp, msg('tools/list', {}));
     const { tools } = res.result;
     assert.ok(Array.isArray(tools));
-    assert.equal(tools.length, 25);
+    assert.equal(tools.length, 26);
     const names = tools.map(t => t.name);
     for (const n of ['today', 'day_summary', 'day_free_capacity', 'day_ready_blocks', 'todoist_imported_tasks', 'day_mismatches', 'week', 'projects', 'areas', 'status', 'log_hours',
-      'find_area', 'find_project', 'rename_area', 'rename_project', 'update_project',
+      'find_area', 'find_project', 'rename_area', 'update_area', 'rename_project', 'update_project',
       'move_project', 'create_project', 'delete_project', 'merge_project_entries',
       'get_recurring', 'set_recurring_slot', 'get_week_overrides', 'set_week_override', 'clear_week_override']) {
       assert.ok(names.includes(n), `missing tool: ${n}`);
@@ -246,6 +246,30 @@ describe('MCP server', () => {
     const text = res.result.content[0].text;
     assert.ok(text.includes('Acme Corp'));
     assert.ok(text.includes('#'), 'contains area color');
+  });
+
+  it('tools/call update_area → changes name and color', async () => {
+    const found = await rpc(mcp, msg('tools/call', { name: 'find_area', arguments: { name: 'acme' } }));
+    const id = found.result.content[0].text.match(/^\[([^\]]+)\]/)[1];
+
+    const res = await rpc(mcp, msg('tools/call', {
+      name: 'update_area',
+      arguments: { id, name: 'Acme Renamed', color: 'lavender' },
+    }));
+    const text = res.result.content[0].text;
+    assert.ok(text.includes('Acme Renamed'));
+    assert.ok(text.includes('#eb96eb'));
+  });
+
+  it('tools/call update_area with an invalid color → error', async () => {
+    const found = await rpc(mcp, msg('tools/call', { name: 'find_area', arguments: { name: 'acme' } }));
+    const id = found.result.content[0].text.match(/^\[([^\]]+)\]/)[1];
+
+    const res = await rpc(mcp, msg('tools/call', {
+      name: 'update_area',
+      arguments: { id, color: 'not-a-color' },
+    }));
+    assert.ok(res.error || res.result?.isError, 'expected an error for an invalid color');
   });
 
   it('tools/call status → today and week totals', async () => {

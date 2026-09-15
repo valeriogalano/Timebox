@@ -332,6 +332,7 @@ Exposed tools:
 | `find_area` | Search areas by name. |
 | `find_project` | Search projects by name or description. |
 | `rename_area` | Rename an area. |
+| `update_area` | Rename an area and/or change its color (Todoist palette). |
 | `rename_project` | Rename a project. |
 | `update_project` | Update project metadata. |
 | `move_project` | Move a project to another area. |

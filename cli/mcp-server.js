@@ -211,6 +211,19 @@ const TOOLS = [
     },
   },
   {
+    name: 'update_area',
+    description: 'Rename a Timebox area and/or change its color. At least one of name/color is required. Use find_area to get the id first. Valid color keys (Todoist palette): berry_red, red, orange, yellow, olive_green, lime_green, green, mint_green, teal, sky_blue, light_blue, blue, grape, violet, lavender, magenta, salmon, charcoal, grey, taupe. A hex from the same palette (case-insensitive) also works.',
+    inputSchema: {
+      type: 'object',
+      required: ['id'],
+      properties: {
+        id: { type: 'string', description: 'Area id' },
+        name: { type: 'string', description: 'New name' },
+        color: { type: 'string', description: 'Color key (e.g. "lavender") or hex from the Todoist palette' },
+      },
+    },
+  },
+  {
     name: 'rename_project',
     description: 'Rename a Timebox project. Use find_project to get the id first.',
     inputSchema: {
@@ -725,6 +738,18 @@ async function callTool(name, args) {
   if (name === 'rename_client' || name === 'rename_area') {
     const d = await httpRequest(`/areas/${encodeURIComponent(args.id)}`, 'PATCH', { name: args.name });
     return `Area '${d.oldAreaName || d.oldName}' renamed to '${d.newAreaName || d.newName}'.`;
+  }
+
+  if (name === 'update_area') {
+    if (args.name === undefined && args.color === undefined) throw new Error('name or color is required');
+    const body = {};
+    if (args.name !== undefined)  body.name = args.name;
+    if (args.color !== undefined) body.color = args.color;
+    const d = await httpRequest(`/areas/${encodeURIComponent(args.id)}`, 'PATCH', body);
+    const parts = [];
+    if (args.name !== undefined)  parts.push(`name: '${d.newAreaName || d.newName}'`);
+    if (args.color !== undefined) parts.push(`color: ${d.color}`);
+    return `Area updated — ${parts.join(', ')}.`;
   }
 
   if (name === 'rename_project') {

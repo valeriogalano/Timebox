@@ -458,6 +458,32 @@ describe('HTTP server', () => {
     assert.equal(status, 404);
   });
 
+  it('PATCH /areas/:id → changes color by palette key', async () => {
+    const target = getClients()[0];
+    const { status, body } = await request(port, 'PATCH', `/areas/${target.id}`, { color: 'lavender' });
+    assert.equal(status, 200);
+    assert.equal(body.color, '#eb96eb');
+  });
+
+  it('PATCH /areas/:id → changes color by hex (case-insensitive)', async () => {
+    const target = getClients()[0];
+    const { status, body } = await request(port, 'PATCH', `/areas/${target.id}`, { color: '#EB96EB' });
+    assert.equal(status, 200);
+    assert.equal(body.color, '#eb96eb');
+  });
+
+  it('PATCH /areas/:id with a color outside the Todoist palette → 400', async () => {
+    const target = getClients()[0];
+    const { status } = await request(port, 'PATCH', `/areas/${target.id}`, { color: '#123456' });
+    assert.equal(status, 400);
+  });
+
+  it('PATCH /areas/:id without name or color → 400', async () => {
+    const target = getClients()[0];
+    const { status } = await request(port, 'PATCH', `/areas/${target.id}`, {});
+    assert.equal(status, 400);
+  });
+
   it('PATCH /projects/:id → renames project', async () => {
     const { body: created } = await post(port, '/projects', {
       name: 'Rename Me',
