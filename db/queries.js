@@ -133,6 +133,15 @@ const TODOIST_COLORS = {
   taupe:       '#ccac93',
 };
 
+// Accetta una chiave della palette Todoist (es. "lavender") o un hex della stessa
+// palette (case-insensitive) e restituisce sempre l'hex. null se non è nella palette.
+function resolveTodoistColor(input) {
+  if (!input) return null;
+  if (TODOIST_COLORS[input]) return TODOIST_COLORS[input];
+  const hex = Object.values(TODOIST_COLORS).find(h => h.toLowerCase() === String(input).toLowerCase());
+  return hex ?? null;
+}
+
 function todoistColorLabel(colorKey) {
   return colorKey
     .split('_')
@@ -759,4 +768,5 @@ module.exports = {
   getTodoistCache, setTodoistCache, getAllTodoistCache, getImportedTodoistTasks,
   importTodoistProjects,
   resetAllData, seedDemoData,
+  TODOIST_COLORS, resolveTodoistColor,
 };

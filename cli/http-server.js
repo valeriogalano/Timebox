@@ -23,6 +23,7 @@ const {
   getRecurring, saveRecurring, deleteRecurring,
   getWeekOverrides, saveWeekOverride, deleteWeekOverride,
   getWeekAreaStatuses, saveWeekAreaStatus,
+  resolveTodoistColor, TODOIST_COLORS,
 } = require('../db/queries');
 
 function serializeWeek(data) {
@@ -168,13 +169,21 @@ function createHttpServer() {
 
       if (req.method === 'PATCH' && ((p.startsWith('/clients/') && p !== '/clients/') || (p.startsWith('/areas/') && p !== '/areas/'))) {
         const id = p.startsWith('/areas/') ? p.slice('/areas/'.length) : p.slice('/clients/'.length);
-        const { name } = await readBody(req);
-        if (!name) return json(res, 400, { error: 'name is required' });
+        const { name, color } = await readBody(req);
+        if (!name && color === undefined) return json(res, 400, { error: 'name or color is required' });
         const existing = getClients().find(c => c.id === id);
         if (!existing) return json(res, 404, { error: `Area not found: ${id}` });
-        saveClient({ ...existing, name });
+        let resolvedColor = existing.color;
+        if (color !== undefined) {
+          resolvedColor = resolveTodoistColor(color);
+          if (!resolvedColor) {
+            return json(res, 400, { error: `Invalid color: ${color}. Use one of: ${Object.keys(TODOIST_COLORS).join(', ')} (or their hex).` });
+          }
+        }
+        const newName = name ?? existing.name;
+        saveClient({ ...existing, name: newName, color: resolvedColor });
         emitter.emit('change', 'structure');
-        return json(res, 200, { id, oldName: existing.name, newName: name, oldAreaName: existing.name, newAreaName: name });
+        return json(res, 200, { id, oldName: existing.name, newName, oldAreaName: existing.name, newAreaName: newName, color: resolvedColor });
       }
 
       if (req.method === 'PATCH' && p.startsWith('/projects/') && p !== '/projects/') {

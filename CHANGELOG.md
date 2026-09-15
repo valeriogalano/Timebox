@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- MCP: nuovo tool `update_area` per rinominare un'area e/o cambiarne il colore (palette Todoist, per chiave o hex). `PATCH /areas/:id` accetta ora anche `color`; `rename_area` resta invariato per compatibilità.
+
 ### Fixed
 - Pianificazione: il campo ore di un blocco ricorrente ignorava la soglia ore/minuti e non capiva i due punti, a differenza di tutti gli altri campi ore. Con la soglia a 9, scrivere `90` creava un blocco da 90 ore invece che da un'ora e mezza, e `1:30` veniva scartato in silenzio lasciando il blocco come era.
 
