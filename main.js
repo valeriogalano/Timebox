@@ -554,12 +554,25 @@ function setupIpc() {
     const projectsResult = await fetchTodoistProjects(headers);
     const todoistProjects = projectsResult.projects;
 
-    logger.info('todoist:sync tasks', { open: openTasks.length, projects: todoistProjects.length });
+    // Import new Todoist projects before matching, so a project created since
+    // the last "Importa progetti" run is matched on this same sync instead of
+    // staying unmapped until the next manual import. Matching then reads the
+    // up-to-date project list from the DB, not the (possibly stale) list the
+    // renderer passed in.
+    const importResult = q.importTodoistProjects(todoistProjects);
+    const currentProjects = importResult.added > 0 ? q.getProjects() : timboxProjects;
+    if (importResult.added > 0) {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send('db:changed', 'structure');
+      }
+    }
+
+    logger.info('todoist:sync tasks', { open: openTasks.length, projects: todoistProjects.length, imported: importResult.added });
 
     function matchProject(todoistProjectId) {
       const tp = todoistProjects.find(p => p.id === todoistProjectId);
       if (!tp) return null;
-      return timboxProjects.find(p => p.name === tp.name) ?? null;
+      return currentProjects.find(p => p.name === tp.name) ?? null;
     }
 
     const byDate = {};
@@ -569,7 +582,6 @@ function setupIpc() {
       if (!date || !dateSet.has(date)) continue;
       const proj = matchProject(t.project_id);
       if (debug) logger.info('todoist:match', { content: t.content, date, matched: proj?.name ?? null });
-      if (!proj) continue;
       const todoistProject = todoistProjects.find(project => project.id === t.project_id) ?? null;
       // A task without a specific due time isn't placed in a slot, so its duration
       // (if any survives on the Todoist side) must not count toward block capacity.
@@ -579,13 +591,16 @@ function setupIpc() {
         || (typeof t.due?.date === 'string' && t.due.date.includes('T'));
       const hours = hasDueTime ? parseTodoistDurationHours(t.duration) : null;
       if (!hours) continue;
+      // No matching Timebox project: still surfaced (matchStatus 'unmatched',
+      // projectId null) so day_mismatches / the mismatches panel can show it as
+      // unmapped, instead of silently dropping it as before.
       if (!byDate[date]) byDate[date] = [];
       byDate[date].push({
         id: t.id,
         title: t.content ?? '',
-        projectId: proj.id,
+        projectId: proj ? proj.id : null,
         todoistProjectName: todoistProject?.name ?? null,
-        timeboxProjectName: proj.name,
+        timeboxProjectName: proj ? proj.name : null,
         content: t.content ?? '',
         labels: taskLabels(t),
         hours,
@@ -595,7 +610,7 @@ function setupIpc() {
         dayOrder: t.day_order ?? null,
         childOrder: t.child_order ?? null,
         order: t.order ?? null,
-        matchStatus: 'matched',
+        matchStatus: proj ? 'matched' : 'unmatched',
         completed: false,
       });
     }

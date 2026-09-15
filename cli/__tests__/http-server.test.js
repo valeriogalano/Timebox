@@ -237,6 +237,45 @@ describe('HTTP server', () => {
     assert.equal(body.mismatches.estimatedBeyondResidualCapacity.overflowHours, 1);
   });
 
+  it('GET /day-mismatches with an explicit unmatched task (projectId null, matchStatus unmatched) → surfaced as unmapped, not crashing, not counted as a block', async () => {
+    // Shape emitted by main.js's todoist:sync handler for a Todoist task whose
+    // project has no Timebox counterpart: pushed into the cache instead of
+    // being dropped, with projectId null and matchStatus explicitly 'unmatched'.
+    setTodoistCache('2020-01-01', [
+      {
+        id: 'um1',
+        title: 'Task from an unmapped Todoist project',
+        content: 'Task from an unmapped Todoist project',
+        projectId: null,
+        todoistProjectName: 'Some Todoist Project',
+        timeboxProjectName: null,
+        hours: 1,
+        estimatedHours: 1,
+        slot: 'am',
+        matchStatus: 'unmatched',
+      },
+    ], '2026-06-16T10:00:00.000Z');
+
+    const { status: importedStatus, body: imported } = await get(port, '/todoist-imported?date=2020-01-01');
+    assert.equal(importedStatus, 200);
+    assert.equal(imported.tasks[0].matchStatus, 'unmatched');
+    assert.equal(imported.tasks[0].timeboxProjectId, null);
+    assert.equal(imported.tasks[0].todoistProject, 'Some Todoist Project');
+
+    const { status, body } = await get(port, '/day-mismatches?date=2020-01-01');
+    assert.equal(status, 200);
+    assert.equal(body.counts.tasksWithoutTimeboxProject, 1);
+    assert.equal(body.mismatches.tasksWithoutTimeboxProject[0].title, 'Task from an unmapped Todoist project');
+    // Not counted as "outside a planned area" or "over block capacity": those
+    // groups only ever look at matched tasks.
+    assert.equal(body.counts.tasksOutsidePlannedArea, 0);
+    assert.equal(body.counts.tasksOverBlockCapacity, 0);
+
+    const { status: rbStatus, body: rb } = await get(port, '/day-ready-blocks?date=2020-01-01');
+    assert.equal(rbStatus, 200);
+    assert.ok(rb.groups.every(group => group.projects.every(p => p.taskCount === 0)), 'unmatched task does not fill any block');
+  });
+
   it('GET /day/insights → aggregates GUI-ready daily diagnostics', async () => {
     setTodoistCache('2020-01-08', [
       { id: 'di1', projectId: 'p4', content: 'Sensor triage', hours: 1, slot: 'am' },
