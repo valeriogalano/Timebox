@@ -5,9 +5,13 @@ import { AREA_STATUS_OPTIONS } from '../screens/WeeklyView';
 import AreaStatusGlyph from './AreaStatusGlyph';
 
 const PX_PER_H = 64;
-// Le ore non scendono mai sotto 0,5 (vedi MultiSlotCell e il resize qui sotto),
-// quindi il pavimento è esattamente l'altezza del valore minimo possibile: non
-// schiaccia mai un valore reale come faceva una costante fissa.
+// Resize e popup di aggiunta blocco (MultiSlotCell) non scendono mai sotto
+// 0,5h, quindi per quei percorsi il pavimento è esattamente l'altezza del
+// valore minimo possibile e non schiaccia nulla. Il campo ore testuale invece
+// accetta anche frazioni più piccole (soglia minuti in parseHHMM): in quel
+// caso, come già con la vecchia costante fissa, il blocco può risultare più
+// basso di quanto le sue ore dicano — ponytail: casistica rara e già
+// preesistente, non risolta qui.
 const MIN_BLOCK_H = 0.5 * PX_PER_H;
 
 export default function RecurringBlockRow({ block, client, onUpdate, onRemove, onDuplicate, onDragStart, isDragging }) {
