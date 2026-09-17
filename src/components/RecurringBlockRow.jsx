@@ -4,7 +4,15 @@ import { parseHHMM } from '../utils';
 import { AREA_STATUS_OPTIONS } from '../screens/WeeklyView';
 import AreaStatusGlyph from './AreaStatusGlyph';
 
-const PX_PER_H = 40;
+const PX_PER_H = 64;
+// Resize e popup di aggiunta blocco (MultiSlotCell) non scendono mai sotto
+// 0,5h, quindi per quei percorsi il pavimento è esattamente l'altezza del
+// valore minimo possibile e non schiaccia nulla. Il campo ore testuale invece
+// accetta anche frazioni più piccole (soglia minuti in parseHHMM): in quel
+// caso, come già con la vecchia costante fissa, il blocco può risultare più
+// basso di quanto le sue ore dicano — ponytail: casistica rara e già
+// preesistente, non risolta qui.
+const MIN_BLOCK_H = 0.5 * PX_PER_H;
 
 export default function RecurringBlockRow({ block, client, onUpdate, onRemove, onDuplicate, onDragStart, isDragging }) {
   const [hover, setHover] = useState(false);
@@ -20,7 +28,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
   }, [editingH]);
 
   const displayHours = liveHours ?? block.hours;
-  const blockH = Math.max(36, displayHours * PX_PER_H);
+  const blockH = Math.max(MIN_BLOCK_H, displayHours * PX_PER_H);
 
   function startEdit(e) {
     e.stopPropagation();
@@ -126,7 +134,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
               }} />
           ) : (
             <span onClick={startEdit} style={{
-              fontSize: 9, color: areaMix(client.color, 53), cursor: 'text',
+              fontSize: 9, color: client.color, cursor: 'text',
               borderBottom: `1px dashed ${areaMix(client.color, 27)}`,
             }}>
               {displayHours}h
