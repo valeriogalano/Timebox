@@ -148,7 +148,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
       {/* Override ripetuti — drill-down (redesign #5a): slot dove lo storicizzato
           diverge dal template per almeno DIVERGENCE_MIN_OCCURRENCES delle ultime
           DIVERGENCE_HISTORY_WEEKS settimane passate. */}
-      <details open style={{ border: '1px solid var(--tb-border)', borderRadius: 10, background: 'var(--tb-panel-bg)', marginBottom: 16 }}>
+      <details style={{ border: '1px solid var(--tb-border)', borderRadius: 10, background: 'var(--tb-panel-bg)', marginBottom: 16 }}>
         <summary style={{ cursor: 'pointer', padding: '12px 14px', listStyle: 'revert' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, verticalAlign: 'middle' }}>
             <span className="tb-delta">Δ</span>
