@@ -4,7 +4,11 @@ import { parseHHMM } from '../utils';
 import { AREA_STATUS_OPTIONS } from '../screens/WeeklyView';
 import AreaStatusGlyph from './AreaStatusGlyph';
 
-const PX_PER_H = 40;
+const PX_PER_H = 64;
+// Le ore non scendono mai sotto 0,5 (vedi MultiSlotCell e il resize qui sotto),
+// quindi il pavimento è esattamente l'altezza del valore minimo possibile: non
+// schiaccia mai un valore reale come faceva una costante fissa.
+const MIN_BLOCK_H = 0.5 * PX_PER_H;
 
 export default function RecurringBlockRow({ block, client, onUpdate, onRemove, onDuplicate, onDragStart, isDragging }) {
   const [hover, setHover] = useState(false);
@@ -20,7 +24,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
   }, [editingH]);
 
   const displayHours = liveHours ?? block.hours;
-  const blockH = Math.max(36, displayHours * PX_PER_H);
+  const blockH = Math.max(MIN_BLOCK_H, displayHours * PX_PER_H);
 
   function startEdit(e) {
     e.stopPropagation();
@@ -126,7 +130,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
               }} />
           ) : (
             <span onClick={startEdit} style={{
-              fontSize: 9, color: areaMix(client.color, 53), cursor: 'text',
+              fontSize: 9, color: client.color, cursor: 'text',
               borderBottom: `1px dashed ${areaMix(client.color, 27)}`,
             }}>
               {displayHours}h
