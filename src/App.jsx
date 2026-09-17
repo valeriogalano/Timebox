@@ -548,7 +548,7 @@ function KeyboardHelp({ onClose }) {
     [<AreaStatusGlyph status="active" size={10} color="var(--tb-state-glyph)" />,  'Area attiva questa settimana'],
     [<AreaStatusGlyph status="minimal" size={10} color="var(--tb-state-glyph)" />, 'Area da mantenere al minimo'],
     [<AreaStatusGlyph status="closed" size={10} color="var(--tb-state-glyph)" />,  'Area chiusa questa settimana'],
-    [<span className="tb-meter" data-level={3}><i /><i /><i /></span>, 'Meter budget: più barrette accese, più vicino o oltre il limite (soglie diverse per vista)'],
+    [<span className="tb-meter" data-level={3}><i /><i /><i /></span>, 'Meter budget: più barrette accese, più vicino o oltre il limite (50/80/100%)'],
     [<span className="tb-hatch" style={{ width: 12, height: 12, borderRadius: 3, display: 'inline-block' }} />, 'Tratteggio: oltre soglia / oltre piano'],
   ];
 

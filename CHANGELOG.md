@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Sync Todoist: l'import automatico dei progetti non crea più un progetto Timebox per l'Inbox né per un progetto Todoist che ha figli — erano contenitori organizzativi, mai lavoro su cui loggare ore.
+- Meter budget: la scala di allerta (50/80/100%) è ora la stessa in Settimana, Dashboard e nel pannello di pianificazione, che prima usavano soglie diverse fra loro (una anche su base 0–100 invece che 0–1). In Dashboard il meter compare già dal primo livello, non solo dal secondo.
+
+### Fixed
+- Sync Todoist: se la chiamata REST ai progetti o alla lista dei task aperti falliva, la sincronizzazione proseguiva con dati vuoti invece di segnalare l'errore — la giornata si riempiva di task "non mappati" che in realtà erano a posto. Ora la sync torna un errore esplicito, mostrato con un avviso invece che in silenzio.
+- Pianificazione · Giorno e Settimana: il tratteggio che segnala uno slot come possibile destinazione di un blocco trascinato poteva restare acceso dopo il rilascio, quando il drop veniva assorbito da un riordino interno allo stesso slot o cadeva fuori da ogni zona valida.
+
 ## [0.9.11] - 2026-09-15
 
 ### Added

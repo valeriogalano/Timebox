@@ -99,3 +99,37 @@ describe('importTodoistProjects — area color matching', () => {
     assert.equal(getProjects().length, before + 1, 'does not duplicate on a second import');
   });
 });
+
+describe('importTodoistProjects — skips organizational containers', () => {
+  beforeEach(() => {
+    createTestDb();
+    resetAllData();
+  });
+
+  it('skips the Inbox project and any project that has children, importing only real leaf projects', () => {
+    const { added } = importTodoistProjects([
+      { id: 'inbox', name: 'Inbox', color: 'charcoal', is_inbox_project: true },
+      { id: 'parent', name: 'Aree di responsabilità', color: 'charcoal' },
+      { id: 'child', name: 'Casa', color: 'blue', parent_id: 'parent' },
+    ]);
+
+    assert.equal(added, 1);
+    const names = getProjects().map(p => p.name);
+    assert.ok(names.includes('Casa'));
+    assert.ok(!names.includes('Inbox'));
+    assert.ok(!names.includes('Aree di responsabilità'));
+  });
+
+  it('accepts the camelCase field shape too (inboxProject / parentId)', () => {
+    const { added } = importTodoistProjects([
+      { id: 'inbox', name: 'Inbox', color: 'charcoal', inboxProject: true },
+      { id: 'parent', name: 'Archivio', color: 'charcoal' },
+      { id: 'child', name: 'Progetto chiuso', color: 'blue', parentId: 'parent' },
+    ]);
+
+    assert.equal(added, 1);
+    const names = getProjects().map(p => p.name);
+    assert.ok(names.includes('Progetto chiuso'));
+    assert.ok(!names.includes('Archivio'));
+  });
+});

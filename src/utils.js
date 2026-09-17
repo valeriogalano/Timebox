@@ -96,3 +96,14 @@ export function slotForDate(date) {
 export function currentSlot() {
   return slotForDate(new Date());
 }
+
+// Shared budget-meter alert scale, used for both project budgets/weekly caps
+// and area limits: 0 nothing to flag, 1 half consumed, 2 near the cap, 3 at or
+// over it. `pct` is a ratio (1 = 100%), not a percentage.
+export function budgetAlertLevel(pct) {
+  if (pct == null) return 0;
+  if (pct >= 1) return 3;
+  if (pct >= 0.8) return 2;
+  if (pct >= 0.5) return 1;
+  return 0;
+}

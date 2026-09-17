@@ -545,13 +545,23 @@ function setupIpc() {
     do {
       const url = 'https://api.todoist.com/api/v1/tasks?limit=200' + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
       const res = await fetch(url, { headers });
-      if (!res.ok) { logger.info('todoist:sync open_error', { status: res.status }); break; }
+      // A failed page must not be treated as "no more tasks": returning an error
+      // here, instead of silently keeping whatever was fetched so far, avoids
+      // matching against a truncated task list further down.
+      if (!res.ok) {
+        logger.info('todoist:sync open_error', { status: res.status });
+        return { error: 'api_error', status: res.status };
+      }
       const data = await res.json();
       openTasks.push(...(data.results ?? data.tasks ?? []));
       cursor = data.next_cursor ?? null;
     } while (cursor);
 
     const projectsResult = await fetchTodoistProjects(headers);
+    // Without this, a failed projects call left todoistProjects empty, so every
+    // task matched to nothing and the day filled up with false "unmapped" tasks
+    // instead of surfacing the real cause.
+    if (projectsResult.error) return { error: projectsResult.error, status: projectsResult.status };
     const todoistProjects = projectsResult.projects;
 
     // Import new Todoist projects before matching, so a project created since

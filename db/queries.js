@@ -175,14 +175,24 @@ function getOrCreateTodoistClient(colorKey) {
   return client;
 }
 
+function isTodoistContainer(tp, parentIds) {
+  // Inbox and any project that has children are organizational containers, never
+  // something hours get logged against — importing them just litters the
+  // generic "Todoist - <Color>" area with names that are never real work.
+  if (tp.is_inbox_project ?? tp.inbox_project ?? tp.inboxProject ?? false) return true;
+  return parentIds.has(tp.id);
+}
+
 function importTodoistProjects(todoistProjects) {
   const existing = db.prepare('SELECT name FROM projects').all().map(r => r.name);
   const existingSet = new Set(existing);
+  const parentIds = new Set(todoistProjects.map(tp => tp.parent_id ?? tp.parentId ?? null).filter(Boolean));
 
   const maxProjPos = db.prepare('SELECT MAX(position) as m FROM projects').get().m ?? 0;
   let added = 0;
   todoistProjects.forEach((tp, i) => {
     if (existingSet.has(tp.name)) return;
+    if (isTodoistContainer(tp, parentIds)) return;
     const colorKey = tp.color ?? 'charcoal';
     const client = getOrCreateTodoistClient(colorKey);
     db.prepare(`
