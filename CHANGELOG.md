@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.12] - 2026-09-17
+
 ### Changed
 - Sync Todoist: l'import automatico dei progetti non crea più un progetto Timebox per l'Inbox né per un progetto Todoist che ha figli — erano contenitori organizzativi, mai lavoro su cui loggare ore.
 - Meter budget: la scala di allerta (50/80/100%) è ora la stessa in Settimana, Dashboard e nel pannello di pianificazione, che prima usavano soglie diverse fra loro (una anche su base 0–100 invece che 0–1). In Dashboard il meter compare già dal primo livello, non solo dal secondo.
