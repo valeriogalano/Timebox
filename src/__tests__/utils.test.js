@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   getMondayOfWeek, addDays, fmt, fmtH, toHHMM, parseHHMM,
-  effBillable, normalizeSlot, slotForDate,
+  effBillable, normalizeSlot, slotForDate, budgetAlertLevel,
 } from '../utils.js';
 import {
   DEFAULT_MINUTES_THRESHOLD, normalizeMinutesThreshold,
@@ -143,5 +143,26 @@ describe('slotForDate', () => {
     assert.equal(slotForDate(new Date('2026-07-15T09:00:00')), 'am');
     assert.equal(slotForDate(new Date('2026-07-15T13:00:00')), 'pm');
     assert.equal(slotForDate(new Date('2026-07-15T18:00:00')), 'sera');
+  });
+});
+
+describe('budgetAlertLevel', () => {
+  test('0 below 50%, at the boundary it is level 1', () => {
+    assert.equal(budgetAlertLevel(0.49), 0);
+    assert.equal(budgetAlertLevel(0.5), 1);
+  });
+  test('level 2 starts at 80%', () => {
+    assert.equal(budgetAlertLevel(0.79), 1);
+    assert.equal(budgetAlertLevel(0.8), 2);
+  });
+  test('level 3 starts at 100% and stays 3 beyond it', () => {
+    assert.equal(budgetAlertLevel(0.99), 2);
+    assert.equal(budgetAlertLevel(1), 3);
+    assert.equal(budgetAlertLevel(1.5), 3);
+  });
+  test('null/undefined and zero are level 0', () => {
+    assert.equal(budgetAlertLevel(null), 0);
+    assert.equal(budgetAlertLevel(undefined), 0);
+    assert.equal(budgetAlertLevel(0), 0);
   });
 });

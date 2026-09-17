@@ -97,6 +97,10 @@ export default function TodayView({ externalRefreshTick, projects, onSynced, cli
         alert('Token Todoist non configurato. Vai in Impostazioni → Todoist per inserirlo.');
         return;
       }
+      if (result.error) {
+        alert(`Sincronizzazione Todoist non riuscita (${result.error}${result.status ? `, HTTP ${result.status}` : ''}).`);
+        return;
+      }
       const now = new Date().toISOString();
       const tasks = result.byDate[today] ?? [];
       await window.api.setTodoistCache(today, tasks, now);
@@ -406,6 +410,7 @@ function DayPlanningPanel({
                         onRemoveBlock={bid => removeBlockFromSlot(slot.key, bid)}
                         onReorder={newBlocks => setSlotOverride(slot.key, newBlocks)}
                         onDragStart={(bid, cid, h) => setDragging({ blockId: bid, fromSlot: slot.key, clientId: cid, hours: h })}
+                        onDragEnd={() => setDragging(null)}
                         draggingId={dragging?.blockId} />
                     )}
                   </div>

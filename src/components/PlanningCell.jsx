@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { toHHMM, parseHHMM } from '../utils';
+import { toHHMM, parseHHMM, budgetAlertLevel as meterLevel } from '../utils';
 import { areaTints } from '../area-colors';
 import TodoistTaskTooltip from './TodoistTaskTooltip';
 import AreaStatusGlyph from './AreaStatusGlyph';
@@ -24,7 +24,7 @@ function PlanningBlock({
   block, cl, blockH, fillPct, delta, logged, overflow, todoistH, todoistTasks, hasTodoistSync,
   isFuture, isToday, editable, isDragging,
   editing, editDraft, setEditDraft, editRef, commitEdit, onStartEdit, onCancelEdit,
-  onRemove, onDragStart,
+  onRemove, onDragStart, onDragEnd,
   projects, projectTotals, weekProjectHours,
   compact,
 }) {
@@ -34,19 +34,19 @@ function PlanningBlock({
 
   const clientProjects = (projects || []).filter(p => p.clientId === block.clientId && !p.archived);
 
-  const budgetAlertLevel = clientProjects.reduce((maxLevel, p) => {
+  const projectBudgetLevel = clientProjects.reduce((maxLevel, p) => {
     if (!p.budgetHours) return maxLevel;
     const pct = ((projectTotals || {})[p.id] ?? 0) / p.budgetHours;
-    return Math.max(maxLevel, pct >= 1 ? 3 : pct >= 0.8 ? 2 : pct >= 0.5 ? 1 : 0);
+    return Math.max(maxLevel, meterLevel(pct));
   }, 0);
 
-  const weeklyAlertLevel = clientProjects.reduce((maxLevel, p) => {
+  const projectWeeklyLevel = clientProjects.reduce((maxLevel, p) => {
     if (!p.weeklyHours) return maxLevel;
     const pct = ((weekProjectHours || {})[p.id] ?? 0) / p.weeklyHours;
-    return Math.max(maxLevel, pct >= 1 ? 3 : pct >= 0.8 ? 2 : pct >= 0.5 ? 1 : 0);
+    return Math.max(maxLevel, meterLevel(pct));
   }, 0);
 
-  const budgetAlertLevel_combined = Math.max(budgetAlertLevel, weeklyAlertLevel);
+  const budgetAlertLevel_combined = Math.max(projectBudgetLevel, projectWeeklyLevel);
   const partial = !complete && logged > 0;
 
   const tints = areaTints(cl.color);
@@ -60,6 +60,7 @@ function PlanningBlock({
       onMouseLeave={() => setHover(false)}
       draggable={editable && !editing}
       onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       style={{
         position: 'relative',
         height: blockH,
@@ -197,7 +198,7 @@ export default function PlanningCell({
   todoistByClient, todoistTasksByClient, hasTodoistSync,
   compact,
   isToday, isFuture, isWeekend, editable,
-  onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onReorder, draggingId,
+  onAddBlock, onUpdateBlock, onRemoveBlock, onDragStart, onDragEnd, onReorder, draggingId,
 }) {
   const seenTodoistClients = new Set();
   const todoistRemainder = {};
@@ -354,6 +355,7 @@ export default function PlanningCell({
                 e.dataTransfer.setData('text/plain', block.id);
                 onDragStart && onDragStart(block.id, block.clientId, block.hours);
               }}
+              onDragEnd={onDragEnd}
               projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
             />
           </div>

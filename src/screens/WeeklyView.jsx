@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM, parseHHMM, effBillable, SLOTS } from '../utils';
+import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM, parseHHMM, effBillable, SLOTS, budgetAlertLevel } from '../utils';
 import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
 import TimeCell from '../components/TimeCell';
@@ -35,13 +35,6 @@ export function withAreaStatus(clients, statuses) {
 
 function getWeekKey(monday) { return fmt(monday); }
 
-function budgetLevel(pct) {
-  if (pct == null) return 0;
-  if (pct >= 1) return 3;
-  if (pct >= 0.8) return 2;
-  if (pct > 0) return 1;
-  return 0;
-}
 function BudgetMeter({ level }) {
   if (!level) return null;
   return (
@@ -293,6 +286,15 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     setDragging({ blockId, fromDay, fromSlot, clientId, hours });
   }
 
+  // dragend always fires on the dragged element regardless of where the drop
+  // landed (same slot, outside any drop zone, Escape), unlike drop which can be
+  // swallowed by an internal reorder's stopPropagation. Without this, dragOver's
+  // dashed outline and the dragged block's dimmed state could stay stuck on.
+  function handleDragEnd() {
+    setDragging(null);
+    setDragOver(null);
+  }
+
   function handleDrop(toDay, toSlot) {
     if (!dragging) return;
     const { blockId, fromDay, fromSlot, hours, clientId } = dragging;
@@ -458,6 +460,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       const result = await window.api.syncTodoist(projects, dateStrs, debug);
       if (result.error === 'no_token') {
         alert('Token Todoist non configurato. Vai in Impostazioni → Todoist per inserirlo.');
+        return;
+      }
+      if (result.error) {
+        alert(`Sincronizzazione Todoist non riuscita (${result.error}${result.status ? `, HTTP ${result.status}` : ''}).`);
         return;
       }
       const now = new Date().toISOString();
@@ -822,6 +828,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                           onRemoveBlock={bid => removeBlockFromSlot(i, slot, bid)}
                           onReorder={newBlocks => setSlotOverride(i, slot, newBlocks)}
                           onDragStart={(bid, cid, h) => handleDragStart(bid, i, slot, cid, h)}
+                          onDragEnd={handleDragEnd}
                           draggingId={dragging?.blockId} />
                         <SlotCapacityBar
                           plannedHours={plannedTotal}
@@ -945,12 +952,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               const rowHasValueInMode = viewMode === 'billable' ? clientBillable && weekTotal > 0 : weekTotal > 0;
               const topBorder = pi === 0 ? '2px solid var(--tb-border)' : 'none';
 
-              const weeklyOver = project.weeklyHours > 0 && weekTotal > project.weeklyHours;
-              const weeklyWarn = project.weeklyHours > 0 && !weeklyOver && weekTotal / project.weeklyHours >= 0.8;
-              const budgetPct  = project.budgetHours > 0 ? (projectTotals[project.id] ?? 0) / project.budgetHours : null;
-              const budgetOver = budgetPct != null && budgetPct >= 1;
-              const budgetWarn = budgetPct != null && !budgetOver && budgetPct >= 0.8;
-              const alertLevel = (weeklyOver || budgetOver) ? 3 : (weeklyWarn || budgetWarn) ? 2 : 0;
+              const weeklyPct = project.weeklyHours > 0 ? weekTotal / project.weeklyHours : null;
+              const budgetPct = project.budgetHours > 0 ? (projectTotals[project.id] ?? 0) / project.budgetHours : null;
+              const alertLevel = Math.max(budgetAlertLevel(weeklyPct), budgetAlertLevel(budgetPct));
 
               const rowActive = editingProject === project.id;
               return (
@@ -1162,7 +1166,7 @@ function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, proje
                 <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                   <span>Budget totale</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>
-                    <BudgetMeter level={budgetLevel(totalH / project.budgetHours)} />
+                    <BudgetMeter level={budgetAlertLevel(totalH / project.budgetHours)} />
                     {fmtH(totalH)} / {fmtH(project.budgetHours)}
                   </span>
                 </div>
@@ -1171,7 +1175,7 @@ function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, proje
                 <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                   <span>Limite sett.</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>
-                    <BudgetMeter level={budgetLevel(weekH / project.weeklyHours)} />
+                    <BudgetMeter level={budgetAlertLevel(weekH / project.weeklyHours)} />
                     {fmtH(weekH)} / {fmtH(project.weeklyHours)}
                   </span>
                 </div>

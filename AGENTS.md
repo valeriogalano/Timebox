@@ -354,8 +354,8 @@ Dependency-free inline Markdown renderer used for Todoist task text. Supports bo
 
 1. The renderer calls `window.api.syncTodoist(projects, dates, debug)`.
 2. `main.js` decrypts the token from `safeStorage`.
-3. Todoist REST API v1 returns open tasks and projects with cursor pagination.
-3b. New Todoist projects are imported automatically (`q.importTodoistProjects`) before matching, so a project created since the last manual import is matched on this same sync. If any were added, every window gets a `db:changed` `'structure'` notification so the renderer's project list picks them up without a restart.
+3. Todoist REST API v1 returns open tasks and projects with cursor pagination. A failed page of either call makes `todoist:sync` return `{ error, status }` instead of matching against a partial/empty list — a REST error used to be swallowed, leaving every task falsely `matchStatus: 'unmatched'`.
+3b. New Todoist projects are imported automatically (`q.importTodoistProjects`) before matching, so a project created since the last manual import is matched on this same sync. Inbox and any project that has children are skipped (`isTodoistContainer`) — they are organizational containers, never something hours get logged against. If any were added, every window gets a `db:changed` `'structure'` notification so the renderer's project list picks them up without a restart.
 4. Tasks are filtered by due date.
 5. Todoist projects are matched to Timebox projects by name, against the up-to-date project list from the DB. A task whose Todoist project has no Timebox match is still cached (`projectId: null`, `matchStatus: 'unmatched'`) instead of being dropped, so it shows up as unmapped in the mismatches panel/tool. Tasks without a due time or without a duration are skipped either way, by design.
 6. Task durations are converted to hours and assigned to AM/PM slots.

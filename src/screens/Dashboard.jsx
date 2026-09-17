@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getToday, MONTHS_IT, getMondayOfWeek, fmtH, effBillable } from '../utils';
+import { getToday, MONTHS_IT, getMondayOfWeek, fmtH, effBillable, budgetAlertLevel } from '../utils';
 
 export default function Dashboard({ clients, projects, screen }) {
   const [entries, setEntries] = useState([]);
@@ -32,8 +32,11 @@ export default function Dashboard({ clients, projects, screen }) {
     const weekH     = week.reduce((s, e) => s + e.hours, 0);
     const monthH    = month.reduce((s, e) => s + e.hours, 0);
     const usedH     = client.limitType === 'weekly' ? weekH : monthH;
-    const pct       = Math.min(100, client.limitHours > 0 ? (usedH / client.limitHours) * 100 : 0);
-    return { ...client, weekH, monthH, billedH, unbilledH, usedH, pct };
+    // ratio can exceed 1 when the limit is over; alertLevel needs that to tell
+    // "over" from "at the cap", pct stays clamped because it only sizes the bar.
+    const ratio     = client.limitHours > 0 ? usedH / client.limitHours : 0;
+    const pct       = Math.min(100, ratio * 100);
+    return { ...client, weekH, monthH, billedH, unbilledH, usedH, pct, alertLevel: budgetAlertLevel(ratio) };
   });
 
   const billableStats    = clientStats.filter(c => c.billing !== 'none');
@@ -129,18 +132,18 @@ function NavBtn({ onClick, children, small }) {
 function ClientCard({ client, totalTracked }) {
   // Colore = solo identità area (client.color), mai sostituito dall'alert.
   // Il livello di allerta (vicino al limite) si legge dal meter neutro, non dal colore.
-  const alertLevel = client.pct >= 90 ? 3 : client.pct >= 75 ? 2 : client.pct >= 50 ? 1 : 0;
+  const alertLevel = client.alertLevel;
   const shareOfTotal = totalTracked > 0 ? ((client.weekH / totalTracked) * 100).toFixed(0) : 0;
   return (
     <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, padding: 16, border: '1px solid var(--tb-panel-border)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <div style={{ width: 10, height: 10, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
         <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--tb-text-primary)', flex: 1 }}>{client.name}</span>
-        {alertLevel >= 2 && (
+        {alertLevel > 0 && (
           <span
             className="tb-meter"
             data-level={alertLevel}
-            title={alertLevel === 3 ? 'Limite superato al 90%+' : 'Limite all\'80%+'}
+            title={alertLevel === 3 ? 'Limite superato' : alertLevel === 2 ? 'Limite all\'80%+' : 'Limite al 50%+'}
             style={{ flexShrink: 0 }}
           >
             <i /><i /><i />
