@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.13] - 2026-09-17
+
 ### Changed
 - Ricorrenza: l'altezza dei blocchi nel template è ora proporzionale alle ore, con un pavimento pari al valore minimo possibile (0,5h) invece di una costante fissa che schiacciava tutti i valori piccoli alla stessa altezza. Migliorato anche il contrasto dell'etichetta ore sul blocco.
 - Ricorrenza: la lista degli override ripetuti parte chiusa invece che espansa, per lasciare subito visibile il template.
