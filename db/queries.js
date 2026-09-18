@@ -204,6 +204,19 @@ function importTodoistProjects(todoistProjects) {
   return { added };
 }
 
+// Active Timebox projects whose name isn't among the current Todoist projects.
+// Todoist's REST API only lists active projects, so "missing" here covers
+// archived, deleted and renamed alike — the caller (sync) just surfaces the
+// name, the maintainer decides what happened to it.
+function findProjectsMissingFromTodoist(todoistProjects) {
+  const todoistNames = new Set(todoistProjects.map(tp => tp.name));
+  return db.prepare(`
+    SELECT projects.id, projects.name, clients.name AS areaName
+    FROM projects JOIN clients ON clients.id = projects.clientId
+    WHERE projects.archived = 0
+  `).all().filter(p => !todoistNames.has(p.name));
+}
+
 function normalizeProject(row) {
   return { ...row, archived: row.archived === 1 };
 }
@@ -789,6 +802,7 @@ module.exports = {
   getSetting, setSetting,
   getTodoistCache, setTodoistCache, getAllTodoistCache, getImportedTodoistTasks,
   importTodoistProjects,
+  findProjectsMissingFromTodoist,
   resetAllData, seedDemoData,
   TODOIST_COLORS, resolveTodoistColor,
 };

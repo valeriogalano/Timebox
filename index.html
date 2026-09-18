@@ -412,7 +412,7 @@
             },
           },
         }),
-        syncTodoist: async () => ({ byDate: {} }),
+        syncTodoist: async () => ({ byDate: {}, missingInTodoist: [] }),
         getCompletedTodoistTasks: async (_projects, dates) => ({
           tasks: completedTodoistTasks.filter(task =>
             dates.includes(task.completedDate) &&

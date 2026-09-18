@@ -143,10 +143,17 @@ function taskLabels(task) {
 }
 
 async function fetchTodoistProjects(headers) {
-  const projRes = await fetch('https://api.todoist.com/api/v1/projects?limit=200', { headers });
-  if (!projRes.ok) return { error: 'api_error', status: projRes.status, projects: [] };
-  const projData = await projRes.json();
-  return { projects: projData.results ?? projData.projects ?? [] };
+  const projects = [];
+  let cursor = null;
+  do {
+    const url = 'https://api.todoist.com/api/v1/projects?limit=200' + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
+    const projRes = await fetch(url, { headers });
+    if (!projRes.ok) return { error: 'api_error', status: projRes.status, projects: [] };
+    const projData = await projRes.json();
+    projects.push(...(projData.results ?? projData.projects ?? []));
+    cursor = projData.next_cursor ?? null;
+  } while (cursor);
+  return { projects };
 }
 
 function getToolInstallInfo() {
@@ -626,7 +633,11 @@ function setupIpc() {
     }
     for (const date of Object.keys(byDate)) byDate[date].sort(todoistTaskOrder);
     logger.info('todoist:sync byDate', { dates: Object.keys(byDate), counts: Object.fromEntries(Object.entries(byDate).map(([d, ts]) => [d, ts.length])) });
-    return { byDate };
+    // Symmetric to importing new Todoist projects: an active Timebox project whose
+    // name isn't among the current Todoist projects (archived, deleted or renamed
+    // there) is surfaced so the maintainer decides, instead of silently drifting.
+    const missingInTodoist = q.findProjectsMissingFromTodoist(todoistProjects);
+    return { byDate, missingInTodoist };
   });
 
   ipcMain.handle('todoist:getCompletedTasks', async (_, timboxProjects, dates, debug) => {
