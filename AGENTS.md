@@ -360,9 +360,12 @@ Dependency-free inline Markdown renderer used for Todoist task text. Supports bo
 5. Todoist projects are matched to Timebox projects by name, against the up-to-date project list from the DB. A task whose Todoist project has no Timebox match is still cached (`projectId: null`, `matchStatus: 'unmatched'`) instead of being dropped, so it shows up as unmapped in the mismatches panel/tool. Tasks without a due time or without a duration are skipped either way, by design.
 6. Task durations are converted to hours and assigned to AM/PM slots.
 7. Results are sorted with `lib/todoist-order.js`, saved in `todoist_cache`, and returned as `{ byDate }`.
-8. `q.findProjectsMissingFromTodoist(todoistProjects)` also runs on every sync: it lists active Timebox projects whose name isn't among the current Todoist projects (archived, deleted, or renamed there, all indistinguishable since the REST API only lists active projects). Returned as `missingInTodoist` alongside `byDate`; the renderer shows it as an alert after a successful sync. Nothing is archived automatically — the maintainer decides.
 
 The weekly view syncs only today and future dates. Past cached tasks are still visible in TodoistLog.
+
+### Missing-from-Todoist Warning
+
+`todoist:importProjects` (Settings → CLI/MCP → "Importa progetti", not the weekly-view sync) also runs `q.findProjectsMissingFromTodoist(todoistProjects)` after importing: it lists active Timebox projects whose name isn't among the current Todoist projects. Since Todoist's REST API only lists active projects, this covers archived, deleted, and renamed alike, indistinguishably. Returned as `missingInTodoist` alongside `added`; `SettingsScreen` shows it as a plain list next to the import result. Nothing is archived automatically — the maintainer decides. Kept off the frequent weekly-view sync on purpose, so it stays a deliberate check rather than a recurring interruption.
 
 ### Explicit Todoist Mapping Decision
 

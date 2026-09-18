@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Sync Todoist: alla sincronizzazione compare un avviso con l'elenco dei progetti Timebox attivi il cui nome non è più tra i progetti Todoist (archiviato, cancellato o rinominato lì). Prima nessun segnale distingueva un progetto ancora vivo in Todoist da uno sparito.
+- Sync Todoist · Importa progetti: dopo l'import compare l'elenco dei progetti Timebox attivi il cui nome non è più tra i progetti Todoist (archiviato, cancellato o rinominato lì). Prima nessun segnale distingueva un progetto ancora vivo in Todoist da uno sparito.
 
 ### Fixed
 - Sync Todoist: la lista dei progetti Todoist veniva letta in una sola pagina da 200 risultati invece di scorrere tutte le pagine come già avviene per i task; oltre quella soglia i progetti mancanti nella risposta finivano trattati come non più esistenti su Todoist.

@@ -633,11 +633,7 @@ function setupIpc() {
     }
     for (const date of Object.keys(byDate)) byDate[date].sort(todoistTaskOrder);
     logger.info('todoist:sync byDate', { dates: Object.keys(byDate), counts: Object.fromEntries(Object.entries(byDate).map(([d, ts]) => [d, ts.length])) });
-    // Symmetric to importing new Todoist projects: an active Timebox project whose
-    // name isn't among the current Todoist projects (archived, deleted or renamed
-    // there) is surfaced so the maintainer decides, instead of silently drifting.
-    const missingInTodoist = q.findProjectsMissingFromTodoist(todoistProjects);
-    return { byDate, missingInTodoist };
+    return { byDate };
   });
 
   ipcMain.handle('todoist:getCompletedTasks', async (_, timboxProjects, dates, debug) => {
@@ -728,7 +724,12 @@ function setupIpc() {
     if (projectsResult.error) return { error: projectsResult.error, status: projectsResult.status };
     const todoistProjects = projectsResult.projects;
 
-    return q.importTodoistProjects(todoistProjects);
+    const importResult = q.importTodoistProjects(todoistProjects);
+    // Symmetric to the import itself: an active Timebox project whose name isn't
+    // among the current Todoist projects (archived, deleted or renamed there) is
+    // surfaced here too, so the maintainer decides instead of it silently drifting.
+    const missingInTodoist = q.findProjectsMissingFromTodoist(todoistProjects);
+    return { ...importResult, missingInTodoist };
   });
 
   ipcMain.handle('app:getDbPath', () => _dbPath);

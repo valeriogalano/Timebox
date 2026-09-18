@@ -478,10 +478,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       }
       setTodoistTasks(newTasks);
       setTodoistSync(newSync);
-      if (result.missingInTodoist?.length) {
-        const names = result.missingInTodoist.map(p => `${p.name} (${p.areaName})`).join('\n');
-        alert(`${result.missingInTodoist.length} progetti attivi non risultano più in Todoist (archiviati, cancellati o rinominati lì):\n\n${names}`);
-      }
     } catch (err) {
       alert(`Errore sincronizzazione Todoist: ${err.message}`);
     }

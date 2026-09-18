@@ -412,14 +412,14 @@
             },
           },
         }),
-        syncTodoist: async () => ({ byDate: {}, missingInTodoist: [] }),
+        syncTodoist: async () => ({ byDate: {} }),
         getCompletedTodoistTasks: async (_projects, dates) => ({
           tasks: completedTodoistTasks.filter(task =>
             dates.includes(task.completedDate) &&
             !todoistImports.some(item => item.todoistTaskId === task.id)
           ),
         }),
-        importTodoistProjects: async () => ({ added: 0 }),
+        importTodoistProjects: async () => ({ added: 0, missingInTodoist: [] }),
         getHttpPort: async () => 37373,
         getToolInstallInfo: async () => ({
           platform: 'browser',
