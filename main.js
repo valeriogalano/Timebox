@@ -143,10 +143,17 @@ function taskLabels(task) {
 }
 
 async function fetchTodoistProjects(headers) {
-  const projRes = await fetch('https://api.todoist.com/api/v1/projects?limit=200', { headers });
-  if (!projRes.ok) return { error: 'api_error', status: projRes.status, projects: [] };
-  const projData = await projRes.json();
-  return { projects: projData.results ?? projData.projects ?? [] };
+  const projects = [];
+  let cursor = null;
+  do {
+    const url = 'https://api.todoist.com/api/v1/projects?limit=200' + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
+    const projRes = await fetch(url, { headers });
+    if (!projRes.ok) return { error: 'api_error', status: projRes.status, projects: [] };
+    const projData = await projRes.json();
+    projects.push(...(projData.results ?? projData.projects ?? []));
+    cursor = projData.next_cursor ?? null;
+  } while (cursor);
+  return { projects };
 }
 
 function getToolInstallInfo() {
@@ -717,7 +724,12 @@ function setupIpc() {
     if (projectsResult.error) return { error: projectsResult.error, status: projectsResult.status };
     const todoistProjects = projectsResult.projects;
 
-    return q.importTodoistProjects(todoistProjects);
+    const importResult = q.importTodoistProjects(todoistProjects);
+    // Symmetric to the import itself: an active Timebox project whose name isn't
+    // among the current Todoist projects (archived, deleted or renamed there) is
+    // surfaced here too, so the maintainer decides instead of it silently drifting.
+    const missingInTodoist = q.findProjectsMissingFromTodoist(todoistProjects);
+    return { ...importResult, missingInTodoist };
   });
 
   ipcMain.handle('app:getDbPath', () => _dbPath);

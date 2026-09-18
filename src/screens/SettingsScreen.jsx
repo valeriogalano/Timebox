@@ -148,7 +148,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
     } else if (result.error) {
       setImportResult({ error: `Errore API Todoist (${result.status ?? result.error}).` });
     } else {
-      setImportResult({ added: result.added });
+      setImportResult({ added: result.added, missingInTodoist: result.missingInTodoist ?? [] });
       if (result.added > 0 && onDataChange) onDataChange();
     }
   }
@@ -393,6 +393,19 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
                   : importResult.added === 0
                     ? 'Nessun nuovo progetto da importare.'
                     : `${importResult.added} progett${importResult.added === 1 ? 'o importato' : 'i importati'}, ricarico…`}
+              </div>
+            )}
+            {importResult?.missingInTodoist?.length > 0 && (
+              <div style={{ fontSize: 11, marginTop: 8, color: 'var(--tb-text-secondary)' }}>
+                <div style={{ fontWeight: 700, marginBottom: 3 }}>
+                  {importResult.missingInTodoist.length} progett{importResult.missingInTodoist.length === 1 ? 'o' : 'i'} attiv{importResult.missingInTodoist.length === 1 ? 'o' : 'i'} non risulta{importResult.missingInTodoist.length === 1 ? '' : 'no'} più in Todoist
+                </div>
+                <div style={{ color: 'var(--tb-text-muted)', marginBottom: 4 }}>
+                  Archiviato, cancellato o rinominato lì: l'archiviazione qui resta manuale, da Aree.
+                </div>
+                {importResult.missingInTodoist.map(p => (
+                  <div key={p.id}>{p.name} · {p.areaName}</div>
+                ))}
               </div>
             )}
           </div>

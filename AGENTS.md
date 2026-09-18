@@ -363,6 +363,10 @@ Dependency-free inline Markdown renderer used for Todoist task text. Supports bo
 
 The weekly view syncs only today and future dates. Past cached tasks are still visible in TodoistLog.
 
+### Missing-from-Todoist Warning
+
+`todoist:importProjects` (Settings → CLI/MCP → "Importa progetti", not the weekly-view sync) also runs `q.findProjectsMissingFromTodoist(todoistProjects)` after importing: it lists active Timebox projects whose name isn't among the current Todoist projects. Since Todoist's REST API only lists active projects, this covers archived, deleted, and renamed alike, indistinguishably. Returned as `missingInTodoist` alongside `added`; `SettingsScreen` shows it as a plain list next to the import result. Nothing is archived automatically — the maintainer decides. Kept off the frequent weekly-view sync on purpose, so it stays a deliberate check rather than a recurring interruption.
+
 ### Explicit Todoist Mapping Decision
 
 Do not add a manual Todoist-project-to-Timebox-project mapping layer unless the maintainer reports concrete recurring sync friction.

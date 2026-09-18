@@ -7,8 +7,10 @@ const {
   getClients,
   getProjects,
   saveClient,
+  saveProject,
   resetAllData,
   importTodoistProjects,
+  findProjectsMissingFromTodoist,
   TODOIST_COLORS,
 } = require('../../db/queries');
 
@@ -131,5 +133,49 @@ describe('importTodoistProjects — skips organizational containers', () => {
     const names = getProjects().map(p => p.name);
     assert.ok(names.includes('Progetto chiuso'));
     assert.ok(!names.includes('Archivio'));
+  });
+});
+
+describe('findProjectsMissingFromTodoist', () => {
+  beforeEach(() => {
+    createTestDb();
+    resetAllData();
+  });
+
+  it('flags an active project whose name is no longer among the Todoist projects', () => {
+    saveClient({
+      id: 'design', name: 'Design', color: TODOIST_COLORS.lavender,
+      billable: true, billing: 'hourly', rate: 60, limitType: 'none', limitHours: null, position: 0,
+    });
+    saveProject({ id: 'p1', clientId: 'design', name: 'Sito clienti', archived: false, budgetHours: null });
+
+    const missing = findProjectsMissingFromTodoist([{ id: 't1', name: 'Other project', color: 'lavender' }]);
+
+    assert.deepEqual(missing.map(p => p.name), ['Sito clienti']);
+    assert.equal(missing[0].areaName, 'Design');
+  });
+
+  it('does not flag a project still present in Todoist', () => {
+    saveClient({
+      id: 'design', name: 'Design', color: TODOIST_COLORS.lavender,
+      billable: true, billing: 'hourly', rate: 60, limitType: 'none', limitHours: null, position: 0,
+    });
+    saveProject({ id: 'p1', clientId: 'design', name: 'Sito clienti', archived: false, budgetHours: null });
+
+    const missing = findProjectsMissingFromTodoist([{ id: 't1', name: 'Sito clienti', color: 'lavender' }]);
+
+    assert.deepEqual(missing, []);
+  });
+
+  it('does not flag an already archived project', () => {
+    saveClient({
+      id: 'design', name: 'Design', color: TODOIST_COLORS.lavender,
+      billable: true, billing: 'hourly', rate: 60, limitType: 'none', limitHours: null, position: 0,
+    });
+    saveProject({ id: 'p1', clientId: 'design', name: 'Sito vecchio', archived: true, budgetHours: null });
+
+    const missing = findProjectsMissingFromTodoist([]);
+
+    assert.deepEqual(missing, []);
   });
 });

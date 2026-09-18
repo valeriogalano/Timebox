@@ -419,7 +419,7 @@
             !todoistImports.some(item => item.todoistTaskId === task.id)
           ),
         }),
-        importTodoistProjects: async () => ({ added: 0 }),
+        importTodoistProjects: async () => ({ added: 0, missingInTodoist: [] }),
         getHttpPort: async () => 37373,
         getToolInstallInfo: async () => ({
           platform: 'browser',
