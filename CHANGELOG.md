@@ -8,9 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Settimana, Ricorrenza: accanto ai glifi delle aree al minimo e chiuse compare anche quello dell'area attiva, così ogni area mostra il suo stato.
+- Andamento · Settimana: i limiti di ore delle aree compaiono insieme a quelli dei progetti, e il consuntivo per area ha una colonna "Limite" per le aree con un tetto settimanale, con un avviso quando è superato.
 - Sync Todoist · Importa progetti: dopo l'import compare l'elenco dei progetti Timebox attivi il cui nome non è più tra i progetti Todoist (archiviato, cancellato o rinominato lì). Prima nessun segnale distingueva un progetto ancora vivo in Todoist da uno sparito.
 
+### Changed
+- Andamento · Settimana: "Budget progetti" è diviso in "Limiti della settimana" e "Budget totali". Il sottotitolo "indipendente dal periodo" valeva solo per il budget totale, mentre il limite settimanale cambia con la settimana selezionata. Ogni card mostra ora una sola barra.
+- Tooltip "?": i testi che elencavano colonne, indicatori o verdetti in un'unica frase sono scritti con una voce per riga.
+
 ### Fixed
+- Settimana: l'altezza dei blocchi segue la stessa scala di Ricorrenza (proporzionale alle ore, con pavimento a 0,5h). Prima tutto ciò che stava sotto 1,5h aveva la stessa altezza. Nei blocchi bassi la durata passa accanto al nome.
 - Sync Todoist: la lista dei progetti Todoist veniva letta in una sola pagina da 200 risultati invece di scorrere tutte le pagine come già avviene per i task; oltre quella soglia i progetti mancanti nella risposta finivano trattati come non più esistenti su Todoist.
 
 ## [0.9.13] - 2026-09-17
