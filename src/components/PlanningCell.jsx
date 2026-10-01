@@ -5,8 +5,16 @@ import TodoistTaskTooltip from './TodoistTaskTooltip';
 import AreaStatusGlyph from './AreaStatusGlyph';
 import { AREA_STATUS_OPTIONS } from '../screens/WeeklyView';
 
-const PX_PER_H = 30;
-const PX_PER_H_COMPACT = 18;
+// Stessa scala di RecurringBlockRow, così un blocco ha la stessa altezza in Settimana e
+// in Ricorrenza. Il pavimento è l'altezza di 0,5h, il valore minimo di un blocco: non
+// schiaccia mai un valore reale. La variante compact (colonne strette) scala in proporzione
+// ma non scende sotto 30px, il minimo che regge nome e barra.
+const PX_PER_H = 64;
+const PX_PER_H_COMPACT = 38;
+const MIN_BLOCK_H = 0.5 * PX_PER_H;
+const MIN_BLOCK_H_COMPACT = 30;
+// Sotto questa altezza il blocco non regge header + riga durata + barra impilati.
+const SHORT_BLOCK_H = 46;
 
 function Divider() {
   return (
@@ -53,6 +61,47 @@ function PlanningBlock({
   const barBg = tints.soft;
   const readoutColor = logged === 0 ? `color-mix(in srgb, ${cl.color} 70%, transparent)` : cl.color;
 
+  // Sotto questa altezza non entrano header, riga durata e barra una sopra l'altra:
+  // la durata passa nell'intestazione, accanto al nome.
+  const short = blockH < SHORT_BLOCK_H;
+
+  const durationEl = editing ? (
+    <input ref={editRef} value={editDraft}
+      onChange={e => setEditDraft(e.target.value)}
+      onBlur={commitEdit}
+      onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') onCancelEdit(); }}
+      onClick={e => e.stopPropagation()}
+      style={{
+        width: 48, padding: '1px 4px', borderRadius: 3, border: `1px solid ${cl.color}`,
+        fontSize: compact ? 10 : 11, fontWeight: 800, color: cl.color, textAlign: 'right',
+        fontFamily: "'Open Sans', sans-serif", outline: 'none',
+        background: 'var(--tb-input-bg)',
+      }} />
+  ) : (
+    <div
+      onClick={editable ? (e) => { e.stopPropagation(); onStartEdit(); } : undefined}
+      title={editable ? 'Modifica durata pianificata' : undefined}
+      style={{
+        display: 'flex', alignItems: 'baseline', gap: 2, flexShrink: 0,
+        fontFamily: "'Open Sans', sans-serif", lineHeight: 1,
+        cursor: editable ? 'text' : 'default',
+      }}>
+      {logged > 0 && (
+        <>
+          <span style={{ fontSize: compact ? 10 : 11, fontWeight: 400, color: readoutColor }}>
+            {toHHMM(logged)}
+          </span>
+          <span style={{ fontSize: compact ? 8 : 9, color: tints.border, fontWeight: 400 }}>/</span>
+        </>
+      )}
+      <span style={{
+        fontSize: logged > 0 ? (compact ? 8 : 9) : (compact ? 10 : 11),
+        fontWeight: 400,
+        color: logged > 0 ? `color-mix(in srgb, ${cl.color} 75%, transparent)` : cl.color,
+      }}>{toHHMM(block.hours)}</span>
+    </div>
+  );
+
   return (
     <div
       ref={blockRef}
@@ -68,7 +117,7 @@ function PlanningBlock({
         border: `1px solid ${tints.border}`,
         borderLeft: `3px solid ${cl.color}`,
         borderRadius: 5,
-        padding: compact ? '5px 6px 6px' : '5px 7px 6px',
+        padding: short ? '3px 6px 4px' : compact ? '5px 6px 6px' : '5px 7px 6px',
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
         cursor: editable && !editing ? 'grab' : 'default',
         opacity: isDragging ? 0.35 : 1,
@@ -76,8 +125,8 @@ function PlanningBlock({
         flexShrink: 0,
       }}
     >
-      {/* Header: client name + budget alert dot */}
-      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: 3 }}>
+      {/* Header: client name + budget alert dot (+ durata nei blocchi bassi) */}
+      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: 3, paddingRight: short && editable ? 18 : 0 }}>
         <span style={{
           fontSize: compact ? 9 : 10, fontWeight: 700, color: cl.color,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -98,48 +147,15 @@ function PlanningBlock({
             <i /><i /><i />
           </span>
         )}
+        {short && durationEl}
       </div>
 
       {/* Durata pianificata: readout, o input quando in modifica */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', marginBottom: 4 }}>
-        {editing ? (
-          <input ref={editRef} value={editDraft}
-            onChange={e => setEditDraft(e.target.value)}
-            onBlur={commitEdit}
-            onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') onCancelEdit(); }}
-            onClick={e => e.stopPropagation()}
-            style={{
-              width: 48, padding: '1px 4px', borderRadius: 3, border: `1px solid ${cl.color}`,
-              fontSize: compact ? 10 : 11, fontWeight: 800, color: cl.color, textAlign: 'right',
-              fontFamily: "'Open Sans', sans-serif", outline: 'none',
-              background: 'var(--tb-input-bg)',
-            }} />
-        ) : (
-          <div
-            onClick={editable ? (e) => { e.stopPropagation(); onStartEdit(); } : undefined}
-            title={editable ? 'Modifica durata pianificata' : undefined}
-            style={{
-              display: 'flex', alignItems: 'baseline', gap: 2,
-              fontFamily: "'Open Sans', sans-serif", lineHeight: 1,
-              cursor: editable ? 'text' : 'default',
-            }}>
-            {logged > 0 && (
-              <>
-                <span style={{ fontSize: compact ? 10 : 11, fontWeight: 400, color: readoutColor }}>
-                  {toHHMM(logged)}
-                </span>
-                <span style={{ fontSize: compact ? 8 : 9, color: tints.border, fontWeight: 400 }}>/</span>
-              </>
-            )}
-            <span style={{
-              fontSize: logged > 0 ? (compact ? 8 : 9) : (compact ? 10 : 11),
-              fontWeight: 400,
-              color: logged > 0 ? `color-mix(in srgb, ${cl.color} 75%, transparent)` : cl.color,
-            }}>{toHHMM(block.hours)}</span>
-          </div>
-        )}
-
-      </div>
+      {!short && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', marginBottom: 4 }}>
+          {durationEl}
+        </div>
+      )}
 
       {/* Todoist task tooltip — resta visibile finché c'è quota Todoist non coperta,
           anche se il blocco è già parzialmente loggato */}
@@ -209,7 +225,7 @@ export default function PlanningCell({
     const fill    = blockFill?.[block.id] ?? { logged: 0, hasExtra: false };
     const logged  = fill.logged;
     const pxPerH = compact ? PX_PER_H_COMPACT : PX_PER_H;
-    const minH = compact ? 30 : 46;
+    const minH = compact ? MIN_BLOCK_H_COMPACT : MIN_BLOCK_H;
     const blockH  = Math.max(minH, Math.round(block.hours * pxPerH));
     const fillPct = block.hours > 0 ? Math.min(1, logged / block.hours) : 0;
     const delta   = logged - block.hours;
