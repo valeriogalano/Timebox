@@ -1130,7 +1130,7 @@ function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, proje
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
           <span style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.name}</span>
-          {client.areaStatus !== 'active' && (
+          {client.areaStatus && (
             <span title={statusInfo.title}>
               <AreaStatusGlyph status={client.areaStatus} size={10} color="var(--tb-state-glyph)" />
             </span>
@@ -1463,7 +1463,7 @@ function CapacityMirror({ actual, planned, billable, extra, onNavigate }) {
           <span style={{ fontSize: 19, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em' }}>{fmtH(actual)}</span>{' '}
           <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(planned)}</span>
           <span
-            title={'Consuntivo dell\'intera settimana: ore effettivamente tracciate sul totale pianificato, e la percentuale di piano coperta.\n\nSotto: quota fatturabile (Fatt.), non fatturabile (NF) e le ore fatte oltre il piano (Extra). La freccia apre l\'Andamento.'}
+            title={'Consuntivo dell\'intera settimana: ore effettivamente tracciate sul totale pianificato, e la percentuale di piano coperta.\n\nSotto:\nFatt. = quota fatturabile\nNF = quota non fatturabile\nExtra = ore fatte oltre il piano\n\nLa freccia apre l\'Andamento.'}
             style={{ alignSelf: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 9, cursor: 'help', letterSpacing: 0 }}
           >?</span>
         </span>

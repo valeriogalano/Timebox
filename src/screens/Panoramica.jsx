@@ -364,7 +364,33 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
 
   // Un progetto archiviato è storia: il suo budget non è più una decisione da prendere.
   // Stessa regola della lente "In prospettiva" (vedi capRows).
-  const budgetProjects = projects.filter(p => !p.archived && (p.budgetHours > 0 || p.weeklyHours > 0));
+  const activeProjects = projects.filter(p => !p.archived);
+
+  // Due famiglie di tetti, con un significato diverso rispetto al periodo selezionato:
+  // - limiti della settimana: si azzerano ogni settimana, il fatto è quello del periodo;
+  // - budget totali: cumulati da inizio progetto, indipendenti dal periodo.
+  // Le aree vengono prima dei loro progetti.
+  // Il consumato di un limite globale d'area comprende anche i progetti archiviati (come in
+  // "In prospettiva"): le loro ore sono state spese sullo stesso tetto.
+  const areaProjectIds = c => projects.filter(p => p.clientId === c.id).map(p => p.id);
+  const limitCards = (areaType, projectHours, areaDone, projectDone) => [
+    ...clients
+      .filter(c => c.limitType === areaType && c.limitHours > 0)
+      .map(c => ({ key: `area-${c.id}`, title: c.name, color: c.color, limit: c.limitHours, done: areaDone(c) })),
+    ...activeProjects
+      .filter(p => p[projectHours] > 0)
+      .map(p => {
+        const c = clients.find(x => x.id === p.clientId);
+        return c && { key: `proj-${p.id}`, title: p.name, subtitle: c.name, color: c.color, limit: p[projectHours], done: projectDone(p) };
+      })
+      .filter(Boolean),
+  ];
+  const weeklyLimits = limitCards('weekly', 'weeklyHours',
+    c => stats.actualByClient[c.id] ?? 0,
+    p => stats.actualByProject[p.id] ?? 0);
+  const totalBudgets = limitCards('global', 'budgetHours',
+    c => areaProjectIds(c).reduce((sum, id) => sum + (projectTotals[id] ?? 0), 0),
+    p => projectTotals[p.id] ?? 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 24 }}>
@@ -386,9 +412,9 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
         </div>
         <div className="tb-seg">
           {[
-            { key: 'settimana', label: 'Settimana', help: 'Consuntivo della settimana: carico vs capacità e stato, fatturabile a consumo, per area (pianificato/tracciato/extra/Δ) e budget progetti. Sulla settimana in corso il carico è fino a oggi con proiezione fine settimana (a piano e a ritmo); sulle settimane chiuse è il consuntivo completo e serve la chiusura settimanale.' },
-            { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane: aggregato pianificato/svolto/capacità, mini-trend per area e le divergenze persistenti da decidere. Serve a scoprire la deriva del ritmo.' },
-            { key: 'prospettiva', label: 'In prospettiva', help: `Quanto manca a esaurire i tetti cumulativi: budget totale dei progetti e limite globale delle aree, proiettati sul ritmo misurato nelle ultime ${RUNWAY_WINDOW} settimane chiuse. I tetti settimanali non stanno qui: si azzerano ogni settimana, il loro margine si legge in Settimana.` },
+            { key: 'settimana', label: 'Settimana', help: 'Consuntivo della settimana selezionata.\n\nCarico: ore tracciate contro la capacità, con lo stato.\nFatturabile a consumo: ricavo delle ore fatturabili.\nPer area: pianificato, tracciato, extra e Δ.\nLimiti e budget: i tetti di aree e progetti.\n\nSulla settimana in corso il carico è fino a oggi, con proiezione a fine settimana (a piano e a ritmo). Sulle settimane chiuse è il consuntivo completo e serve la chiusura settimanale.' },
+            { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane, per scoprire la deriva del ritmo.\n\nAggregato: pianificato, svolto e capacità settimana per settimana.\nPer area: il mini-trend di ogni area.\nDa decidere: le divergenze persistenti fra piano e svolto.' },
+            { key: 'prospettiva', label: 'In prospettiva', help: `Quanto manca a esaurire i tetti cumulativi, proiettato sul ritmo misurato nelle ultime ${RUNWAY_WINDOW} settimane chiuse.\n\nBudget totale dei progetti.\nLimite globale delle aree.\n\nI tetti settimanali non stanno qui: si azzerano ogni settimana, il loro margine si legge in Settimana.` },
           ].map((o, idx) => (
             <span
               key={o.key}
@@ -408,22 +434,12 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
         <>
           <RetroSummary stats={stats} status={status} deltaH={deltaH} />
           <AreaConsuntivo clients={clients} stats={stats} />
-          {budgetProjects.length > 0 && (
-            <div>
-              <SectionHeader title="Budget progetti" subtitle="da inizio progetto · indipendente dal periodo" />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {budgetProjects.map(p => (
-                  <ProjectCardCockpit
-                    key={p.id}
-                    project={p}
-                    clients={clients}
-                    cumulativeDone={projectTotals[p.id] ?? 0}
-                    periodDone={stats.actualByProject[p.id] ?? 0}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+          <LimitSection title="Limiti della settimana" subtitle="nella settimana selezionata"
+            help={'Il tetto di ore che si azzera ogni settimana, contro le ore tracciate nella settimana selezionata.\n\nVale per le aree con limite settimanale e per i progetti con ore settimanali.'}
+            cards={weeklyLimits} />
+          <LimitSection title="Budget totali" subtitle="da inizio progetto · indipendente dal periodo"
+            help={'Il tetto complessivo di ore, contro tutte le ore tracciate da sempre: non cambia con la settimana selezionata.\n\nVale per le aree con limite globale e per i progetti con budget totale.'}
+            cards={totalBudgets} />
         </>
       )}
 
@@ -433,7 +449,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
           <Card padding={0}>
             <div style={{ padding: '14px 18px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-                <CardLabel inline help={'Ogni coppia di barre è una settimana (ultime 8): totale pianificato e totale svolto su tutte le aree. La linea tratteggiata è la capacità della settimana corrente.'}>Aggregato settimanale</CardLabel>
+                <CardLabel inline help={'Ogni coppia di barre è una settimana (ultime 8).\n\nBarre: totale pianificato e totale svolto su tutte le aree.\nLinea tratteggiata: capacità della settimana corrente.'}>Aggregato settimanale</CardLabel>
                 <Legend />
               </div>
             </div>
@@ -445,7 +461,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
           {/* Per-area: small-multiples, posizione vs linea-piano = segnale */}
           <div>
             <SectionHeader title="Per area" subtitle={`${SMALL_MULT_WEEKS} settimane · piano = ritmo template`}
-              help={`Mini-trend per area sulle ultime ${SMALL_MULT_WEEKS} settimane. Le barre sono le ore svolte (la più chiara è la settimana corrente); la linea tratteggiata è il piano = ritmo del template. Le settimane oltre-piano sono tratteggiate.`} />
+              help={`Mini-trend per area sulle ultime ${SMALL_MULT_WEEKS} settimane.\n\nBarre: ore svolte; la più chiara è la settimana corrente.\nLinea tratteggiata: il piano, cioè il ritmo del template.\nBarre tratteggiate: settimane oltre piano.`} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
               {perAreaWeekly.map(({ client, planned, weeks }) => (
                 <AreaSparkCard key={client.id} client={client} planned={planned} weeks={weeks} />
@@ -474,7 +490,7 @@ function RetroSummary({ stats, status, deltaH }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
       {/* Carico + Stato fusi, modellati sullo specchietto capacità della Settimana */}
       <Card>
-        <CardLabel help={'Ore svolte (tracciate) sulla capacità della settimana.\n\n% = svolto ÷ capacità. Δ = svolto − capacità. Stato: sotto-carico sotto 0,85×, in linea fino a 1,1×, sovraccarico oltre.\n\nSulla settimana in corso il valore è il consuntivo fino a oggi; sotto, la proiezione fine settimana: "a piano" = consuntivo + piano dei giorni restanti; "a ritmo" = consuntivo / giorni trascorsi × 7.'}>Carico della settimana</CardLabel>
+        <CardLabel help={'Ore svolte (tracciate) sulla capacità della settimana.\n\n% = svolto ÷ capacità\nΔ = svolto − capacità\nStato: sotto-carico sotto 0,85×, in linea fino a 1,1×, sovraccarico oltre\n\nSulla settimana in corso il valore è il consuntivo fino a oggi. Sotto, la proiezione fine settimana:\na piano = consuntivo + piano dei giorni restanti\na ritmo = consuntivo / giorni trascorsi × 7'}>Carico della settimana</CardLabel>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
             <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
@@ -559,16 +575,16 @@ function AreaConsuntivo({ clients, stats }) {
     .filter(r => r.planned > 0 || r.done > 0);
   if (!rows.length) return null;
   const proj = stats.projByClient; // presente solo sulla settimana in corso non conclusa
-  const COLS = proj
-    ? '40px minmax(0,1fr) 64px 64px 64px 64px 64px'
-    : '40px minmax(0,1fr) 64px 64px 64px 64px';
+  // Colonna Limite solo se qualche area ha un limite settimanale: altrimenti sarebbe tutta trattini.
+  const hasLimit = rows.some(r => r.c.limitType === 'weekly' && r.c.limitHours > 0);
+  const COLS = `40px minmax(0,1fr)${' 64px'.repeat(4 + (proj ? 1 : 0) + (hasLimit ? 1 : 0))}`;
   const numCell = { fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', textAlign: 'right' };
   const headCell = { fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' };
   const topCell = { borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 };
   return (
     <div>
       <SectionHeader title="Per area · consuntivo" subtitle="pianificato · tracciato · extra"
-        help={'Per ogni area, nella settimana selezionata: Piano = ore pianificate, Fatto = ore tracciate, Extra = ore fatte oltre il piano (max(0, fatto − piano)), Δ = fatto − piano. La colonna Stato è il verdetto: sotto mezz\'ora (o 10% del piano) di scarto si resta "in linea"; oltre, un glifo ▴/▾, e due glifi quando lo scarto supera 2h (o il 30% del piano).\n\nSulla settimana in corso compare anche Previsto = consuntivo fino a oggi + ore pianificate dei giorni restanti (proiezione "a piano").'} />
+        help={'Per ogni area, nella settimana selezionata.\n\nPiano = ore pianificate\nFatto = ore tracciate\nExtra = ore fatte oltre il piano, max(0, fatto − piano)\nΔ = fatto − piano\nLimite = tetto settimanale dell\'area, con ⚠ se superato (compare solo se qualche area ne ha uno)\n\nIl glifo a sinistra è il verdetto: sotto mezz\'ora (o 10% del piano) di scarto si resta "in linea"; oltre, un glifo ▴/▾, e due glifi quando lo scarto supera 2h (o il 30% del piano).\n\nSulla settimana in corso compare anche Previsto = consuntivo fino a oggi + ore pianificate dei giorni restanti (proiezione "a piano").'} />
       <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: '2px 12px', alignItems: 'center' }}>
         <span />
         <span />
@@ -577,6 +593,7 @@ function AreaConsuntivo({ clients, stats }) {
         {proj && <span style={headCell}>Previsto</span>}
         <span style={headCell}>Extra</span>
         <span style={headCell}>Δ</span>
+        {hasLimit && <span style={headCell}>Limite</span>}
         {rows.map(({ c, planned, done, extra, delta }) => {
           const v = statusFor(done, planned);
           return (
@@ -593,6 +610,13 @@ function AreaConsuntivo({ clients, stats }) {
               {proj && <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-secondary)' }}>{fmtH(proj[c.id] ?? done)}</span>}
               <span style={{ ...numCell, ...topCell, color: extra > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>{extra > 0 ? fmtH(extra) : '—'}</span>
               <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6, color: 'var(--tb-text-muted)' }}>{delta >= 0 ? '+' : ''}{fmtH(delta)}</span>
+              {hasLimit && (
+                <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-muted)' }}>
+                  {c.limitType === 'weekly' && c.limitHours > 0
+                    ? <>{done > c.limitHours && <span style={{ color: COL_OVER }} title="Superato">⚠ </span>}{fmtH(c.limitHours)}</>
+                    : '—'}
+                </span>
+              )}
             </React.Fragment>
           );
         })}
@@ -623,7 +647,7 @@ function DaDecidereInsights({ perAreaWeekly }) {
   return (
     <div>
       <SectionHeader title="Da decidere" subtitle={`media su ${PERSIST_WINDOW} settimane chiuse`}
-        help={`Un'area compare se la MEDIA dello svolto diverge dalla media del pianificato (sotto 0,85× o oltre 1,1×) sulle ultime ${PERSIST_WINDOW} settimane chiuse con un piano — la settimana in corso è esclusa. Le settimane sopra e sotto si compensano: la domanda è se la ricorrenza è tarata male, non se una singola settimana è andata storta. Servono almeno ${MIN_HISTORY} settimane di storia. Le aree con lo scarto proporzionale più grande stanno in cima.`} />
+        help={`Un'area compare se la media dello svolto diverge dalla media del pianificato (sotto 0,85× o oltre 1,1×).\n\nFinestra: ultime ${PERSIST_WINDOW} settimane chiuse con un piano; la settimana in corso è esclusa.\nStoria minima: almeno ${MIN_HISTORY} settimane.\nCompensazione: le settimane sopra e sotto si annullano, perché la domanda è se la ricorrenza è tarata male, non se una singola settimana è andata storta.\nOrdine: in cima le aree con lo scarto proporzionale più grande.`} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
         {items.map((it, i) => (
           <div key={i} style={{
@@ -729,7 +753,7 @@ function ProspettivaLens({ rows }) {
       </div>
 
       <SectionHeader title="Per tetto · consumo e residuo" subtitle="il più vicino al tetto in cima"
-        help={`Una riga per tetto cumulativo, aree e progetti insieme, ordinate per urgenza: prima le fasce più vicine all'esaurimento, e a pari fascia il tetto con la percentuale di consumo più alta.\n\nOgni riga: ore consumate dall'inizio sul tetto, ore residue, ritmo misurato al netto della settimana in corso e — sulle aree, dove esiste — il ritmo del template accanto, per vedere se stai lavorando come avevi pianificato. La barra è normalizzata sul tetto: il bordo destro è il tetto, oltre si tratteggia.\n\nQuando la finestra di misura è incompleta la riga lo dichiara ("ritmo su N settimane"): succede se il tetto è nato di recente o se il lavoro è iniziato dentro le ultime ${RUNWAY_WINDOW} settimane.\n\nI verdetti: entro 2/4/8 settimane o oltre 8 sono la fascia di esaurimento; "Tetto esaurito" è già oltre il tetto; "Fermo" significa nessuna ora nella finestra, quindi nessun esaurimento prevedibile — non un esaurimento lontano.\n\nUn budget di progetto la cui area ha già un limite globale compare qui ma non nei totali in testa, dove sarebbe contato due volte.`} />
+        help={`Una riga per tetto cumulativo, aree e progetti insieme, ordinate per urgenza: prima le fasce più vicine all'esaurimento, e a pari fascia il tetto con la percentuale di consumo più alta.\n\nOgni riga mostra:\nore consumate dall'inizio sul tetto\nore residue\nritmo misurato, al netto della settimana in corso\nritmo del template, sulle aree dove esiste, per vedere se stai lavorando come avevi pianificato\n\nLa barra è normalizzata sul tetto: il bordo destro è il tetto, oltre si tratteggia.\n\nQuando la finestra di misura è incompleta la riga lo dichiara ("ritmo su N settimane"): succede se il tetto è nato di recente o se il lavoro è iniziato dentro le ultime ${RUNWAY_WINDOW} settimane.\n\nI verdetti:\nentro 2/4/8 settimane, oltre 8 = fascia di esaurimento\nTetto esaurito = già oltre il tetto\nFermo = nessuna ora nella finestra, quindi nessun esaurimento prevedibile (non un esaurimento lontano)\n\nUn budget di progetto la cui area ha già un limite globale compare qui ma non nei totali in testa, dove sarebbe contato due volte.`} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.map(r => (
           <Card key={r.key}>
@@ -822,77 +846,44 @@ function AreaSparkCard({ client, planned, weeks }) {
   );
 }
 
-function ProjectCardCockpit({ project, clients, cumulativeDone, periodDone }) {
-  const client = clients.find(c => c.id === project.clientId);
-  if (!client) return null;
+function LimitSection({ title, subtitle, help, cards }) {
+  if (!cards.length) return null;
+  return (
+    <div>
+      <SectionHeader title={title} subtitle={subtitle} help={help} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {cards.map(({ key, ...card }) => <LimitCard key={key} {...card} />)}
+      </div>
+    </div>
+  );
+}
 
-  const hasBudget = project.budgetHours > 0;
-  const hasWeekly = project.weeklyHours > 0;
-
-  // Budget: always cumulative (all-time hours vs total budget)
-  const budgetPct   = hasBudget ? cumulativeDone / project.budgetHours : null;
-  const budgetColor = client.color;
-
-  const weeklyLimit = hasWeekly ? project.weeklyHours : null;
-  const weeklyPct   = weeklyLimit ? periodDone / weeklyLimit : null;
-  const weeklyColor = client.color;
-
-  const labelStyle = { fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 };
-
+// Un tetto, una barra: ore fatte contro il limite. Il sottotitolo c'è solo per i progetti
+// (nome dell'area); per un'area il titolo è già l'area.
+function LimitCard({ title, subtitle, color, limit, done }) {
+  const pct = done / limit;
   return (
     <div style={{
       background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
-      borderRadius: 8, padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 8,
+      borderRadius: 8, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 14,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)' }}>{project.name}</span>
-        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}>· {client.name}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)' }}>{title}</span>
+          {subtitle && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}>· {subtitle}</span>}
+          <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>·</span>
+          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em' }}>{Math.round(pct * 100)}%</span>
+          {pct > 1 && <span style={{ fontSize: 10, color: COL_OVER }} title="Superato">⚠</span>}
+        </div>
+        <Bar value={done} max={Math.max(limit, done)} color={color} />
       </div>
-
-      {hasWeekly && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-              <span style={labelStyle}>Limite settimanale</span>
-              <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>·</span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em' }}>{Math.round(weeklyPct * 100)}%</span>
-              {weeklyPct > 1 && <span style={{ fontSize: 10, color: COL_OVER }} title="Superato">⚠</span>}
-            </div>
-            <Bar value={periodDone} max={Math.max(weeklyLimit, periodDone)} color={weeklyColor} />
-          </div>
-          <div style={{ textAlign: 'right', minWidth: 80, flexShrink: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>
-              {fmtH(periodDone)}
-            </div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 2, textTransform: 'uppercase' }}>
-              / {fmtH(weeklyLimit)}
-            </div>
-          </div>
+      <div style={{ textAlign: 'right', minWidth: 80, flexShrink: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(done)}</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 2, textTransform: 'uppercase' }}>
+          / {fmtH(limit)}
         </div>
-      )}
-
-      {hasBudget && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-              <span style={labelStyle}>Budget totale</span>
-              <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>·</span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em' }}>{Math.round(budgetPct * 100)}%</span>
-              {budgetPct > 1 && <span style={{ fontSize: 10, color: COL_OVER }} title="Superato">⚠</span>}
-            </div>
-            <Bar value={cumulativeDone} max={Math.max(project.budgetHours, cumulativeDone)} color={budgetColor} />
-          </div>
-          <div style={{ textAlign: 'right', minWidth: 80, flexShrink: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>
-              {fmtH(cumulativeDone)}
-            </div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 2, textTransform: 'uppercase' }}>
-              / {fmtH(project.budgetHours)}
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
