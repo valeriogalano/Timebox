@@ -1130,7 +1130,7 @@ function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, proje
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
           <span style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.name}</span>
-          {client.areaStatus !== 'active' && (
+          {client.areaStatus && (
             <span title={statusInfo.title}>
               <AreaStatusGlyph status={client.areaStatus} size={10} color="var(--tb-state-glyph)" />
             </span>

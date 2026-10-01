@@ -111,7 +111,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
           }}>
             {client.name}
           </span>
-          {client.areaStatus && client.areaStatus !== 'active' && (() => {
+          {client.areaStatus && (() => {
             const opt = AREA_STATUS_OPTIONS.find(o => o.key === client.areaStatus);
             return opt && (
               <span title={opt.title}>

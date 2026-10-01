@@ -83,7 +83,7 @@ function PlanningBlock({
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           letterSpacing: '0.01em', flex: 1, minWidth: 0,
         }}>{cl.name}</span>
-        {cl.areaStatus && cl.areaStatus !== 'active' && (
+        {cl.areaStatus && (
           <span title={(AREA_STATUS_OPTIONS.find(o => o.key === cl.areaStatus) ?? AREA_STATUS_OPTIONS[0]).title} style={{ flexShrink: 0, display: 'flex' }}>
             <AreaStatusGlyph status={cl.areaStatus} size={compact ? 8 : 9} color="var(--tb-state-glyph)" />
           </span>
