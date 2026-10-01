@@ -12,6 +12,7 @@ const projects = [
   { id: 'p1', clientId: 'c1', name: 'Progetto uno', weeklyHours: 5 },
   { id: 'p2', clientId: 'c2', name: 'Progetto due', budgetHours: 40 },
   { id: 'p3', clientId: 'c3', name: 'Archiviato', budgetHours: 10, archived: true },
+  { id: 'p4', clientId: 'c2', name: 'Chiuso', archived: true },
 ];
 
 function renderPanoramica() {
@@ -29,7 +30,7 @@ describe('Panoramica / Settimana: limiti e budget', () => {
         { id: 'e1', projectId: 'p1', date: today, hours: 12, slot: 'am' },
         { id: 'e2', projectId: 'p2', date: today, hours: 3, slot: 'am' },
       ]),
-      getProjectTotals: () => Promise.resolve({ p1: 12, p2: 30 }),
+      getProjectTotals: () => Promise.resolve({ p1: 12, p2: 30, p4: 20 }),
       getWeekOverridesRange: () => Promise.resolve([]),
     };
   });
@@ -49,6 +50,8 @@ describe('Panoramica / Settimana: limiti e budget', () => {
     expect(within(total).getByText('Globale')).toBeInTheDocument();
     expect(within(total).getByText('Progetto due')).toBeInTheDocument();
     expect(within(total).queryByText('Progetto uno')).not.toBeInTheDocument();
+    // il tetto globale d'area consuma anche le ore dei progetti archiviati: 30h + 20h
+    expect(within(total).getByText('50h')).toBeInTheDocument();
     // un progetto archiviato è storia: il suo budget non è più una decisione
     expect(queryByText('Archiviato')).not.toBeInTheDocument();
   });

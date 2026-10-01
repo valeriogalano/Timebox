@@ -370,7 +370,9 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
   // - limiti della settimana: si azzerano ogni settimana, il fatto è quello del periodo;
   // - budget totali: cumulati da inizio progetto, indipendenti dal periodo.
   // Le aree vengono prima dei loro progetti.
-  const areaProjectIds = c => activeProjects.filter(p => p.clientId === c.id).map(p => p.id);
+  // Il consumato di un limite globale d'area comprende anche i progetti archiviati (come in
+  // "In prospettiva"): le loro ore sono state spese sullo stesso tetto.
+  const areaProjectIds = c => projects.filter(p => p.clientId === c.id).map(p => p.id);
   const limitCards = (areaType, projectHours, areaDone, projectDone) => [
     ...clients
       .filter(c => c.limitType === areaType && c.limitHours > 0)
