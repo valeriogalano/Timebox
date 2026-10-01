@@ -410,9 +410,9 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
         </div>
         <div className="tb-seg">
           {[
-            { key: 'settimana', label: 'Settimana', help: 'Consuntivo della settimana: carico vs capacità e stato, fatturabile a consumo, per area (pianificato/tracciato/extra/Δ) e budget progetti. Sulla settimana in corso il carico è fino a oggi con proiezione fine settimana (a piano e a ritmo); sulle settimane chiuse è il consuntivo completo e serve la chiusura settimanale.' },
-            { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane: aggregato pianificato/svolto/capacità, mini-trend per area e le divergenze persistenti da decidere. Serve a scoprire la deriva del ritmo.' },
-            { key: 'prospettiva', label: 'In prospettiva', help: `Quanto manca a esaurire i tetti cumulativi: budget totale dei progetti e limite globale delle aree, proiettati sul ritmo misurato nelle ultime ${RUNWAY_WINDOW} settimane chiuse. I tetti settimanali non stanno qui: si azzerano ogni settimana, il loro margine si legge in Settimana.` },
+            { key: 'settimana', label: 'Settimana', help: 'Consuntivo della settimana selezionata.\n\nCarico: ore tracciate contro la capacità, con lo stato.\nFatturabile a consumo: ricavo delle ore fatturabili.\nPer area: pianificato, tracciato, extra e Δ.\nLimiti e budget: i tetti di aree e progetti.\n\nSulla settimana in corso il carico è fino a oggi, con proiezione a fine settimana (a piano e a ritmo). Sulle settimane chiuse è il consuntivo completo e serve la chiusura settimanale.' },
+            { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane, per scoprire la deriva del ritmo.\n\nAggregato: pianificato, svolto e capacità settimana per settimana.\nPer area: il mini-trend di ogni area.\nDa decidere: le divergenze persistenti fra piano e svolto.' },
+            { key: 'prospettiva', label: 'In prospettiva', help: `Quanto manca a esaurire i tetti cumulativi, proiettato sul ritmo misurato nelle ultime ${RUNWAY_WINDOW} settimane chiuse.\n\nBudget totale dei progetti.\nLimite globale delle aree.\n\nI tetti settimanali non stanno qui: si azzerano ogni settimana, il loro margine si legge in Settimana.` },
           ].map((o, idx) => (
             <span
               key={o.key}
@@ -447,7 +447,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
           <Card padding={0}>
             <div style={{ padding: '14px 18px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-                <CardLabel inline help={'Ogni coppia di barre è una settimana (ultime 8): totale pianificato e totale svolto su tutte le aree. La linea tratteggiata è la capacità della settimana corrente.'}>Aggregato settimanale</CardLabel>
+                <CardLabel inline help={'Ogni coppia di barre è una settimana (ultime 8).\n\nBarre: totale pianificato e totale svolto su tutte le aree.\nLinea tratteggiata: capacità della settimana corrente.'}>Aggregato settimanale</CardLabel>
                 <Legend />
               </div>
             </div>
@@ -459,7 +459,7 @@ export default function Panoramica({ clients, projects, recurring, screen, initi
           {/* Per-area: small-multiples, posizione vs linea-piano = segnale */}
           <div>
             <SectionHeader title="Per area" subtitle={`${SMALL_MULT_WEEKS} settimane · piano = ritmo template`}
-              help={`Mini-trend per area sulle ultime ${SMALL_MULT_WEEKS} settimane. Le barre sono le ore svolte (la più chiara è la settimana corrente); la linea tratteggiata è il piano = ritmo del template. Le settimane oltre-piano sono tratteggiate.`} />
+              help={`Mini-trend per area sulle ultime ${SMALL_MULT_WEEKS} settimane.\n\nBarre: ore svolte; la più chiara è la settimana corrente.\nLinea tratteggiata: il piano, cioè il ritmo del template.\nBarre tratteggiate: settimane oltre piano.`} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
               {perAreaWeekly.map(({ client, planned, weeks }) => (
                 <AreaSparkCard key={client.id} client={client} planned={planned} weeks={weeks} />
@@ -488,7 +488,7 @@ function RetroSummary({ stats, status, deltaH }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
       {/* Carico + Stato fusi, modellati sullo specchietto capacità della Settimana */}
       <Card>
-        <CardLabel help={'Ore svolte (tracciate) sulla capacità della settimana.\n\n% = svolto ÷ capacità. Δ = svolto − capacità. Stato: sotto-carico sotto 0,85×, in linea fino a 1,1×, sovraccarico oltre.\n\nSulla settimana in corso il valore è il consuntivo fino a oggi; sotto, la proiezione fine settimana: "a piano" = consuntivo + piano dei giorni restanti; "a ritmo" = consuntivo / giorni trascorsi × 7.'}>Carico della settimana</CardLabel>
+        <CardLabel help={'Ore svolte (tracciate) sulla capacità della settimana.\n\n% = svolto ÷ capacità\nΔ = svolto − capacità\nStato: sotto-carico sotto 0,85×, in linea fino a 1,1×, sovraccarico oltre\n\nSulla settimana in corso il valore è il consuntivo fino a oggi. Sotto, la proiezione fine settimana:\na piano = consuntivo + piano dei giorni restanti\na ritmo = consuntivo / giorni trascorsi × 7'}>Carico della settimana</CardLabel>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
             <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
@@ -582,7 +582,7 @@ function AreaConsuntivo({ clients, stats }) {
   return (
     <div>
       <SectionHeader title="Per area · consuntivo" subtitle="pianificato · tracciato · extra"
-        help={'Per ogni area, nella settimana selezionata: Piano = ore pianificate, Fatto = ore tracciate, Extra = ore fatte oltre il piano (max(0, fatto − piano)), Δ = fatto − piano. La colonna Stato è il verdetto: sotto mezz\'ora (o 10% del piano) di scarto si resta "in linea"; oltre, un glifo ▴/▾, e due glifi quando lo scarto supera 2h (o il 30% del piano).\n\nSulla settimana in corso compare anche Previsto = consuntivo fino a oggi + ore pianificate dei giorni restanti (proiezione "a piano").'} />
+        help={'Per ogni area, nella settimana selezionata.\n\nPiano = ore pianificate\nFatto = ore tracciate\nExtra = ore fatte oltre il piano, max(0, fatto − piano)\nΔ = fatto − piano\nLimite = tetto settimanale dell\'area, con ⚠ se superato (compare solo se qualche area ne ha uno)\n\nIl glifo a sinistra è il verdetto: sotto mezz\'ora (o 10% del piano) di scarto si resta "in linea"; oltre, un glifo ▴/▾, e due glifi quando lo scarto supera 2h (o il 30% del piano).\n\nSulla settimana in corso compare anche Previsto = consuntivo fino a oggi + ore pianificate dei giorni restanti (proiezione "a piano").'} />
       <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: '2px 12px', alignItems: 'center' }}>
         <span />
         <span />
@@ -645,7 +645,7 @@ function DaDecidereInsights({ perAreaWeekly }) {
   return (
     <div>
       <SectionHeader title="Da decidere" subtitle={`media su ${PERSIST_WINDOW} settimane chiuse`}
-        help={`Un'area compare se la MEDIA dello svolto diverge dalla media del pianificato (sotto 0,85× o oltre 1,1×) sulle ultime ${PERSIST_WINDOW} settimane chiuse con un piano — la settimana in corso è esclusa. Le settimane sopra e sotto si compensano: la domanda è se la ricorrenza è tarata male, non se una singola settimana è andata storta. Servono almeno ${MIN_HISTORY} settimane di storia. Le aree con lo scarto proporzionale più grande stanno in cima.`} />
+        help={`Un'area compare se la media dello svolto diverge dalla media del pianificato (sotto 0,85× o oltre 1,1×).\n\nFinestra: ultime ${PERSIST_WINDOW} settimane chiuse con un piano; la settimana in corso è esclusa.\nStoria minima: almeno ${MIN_HISTORY} settimane.\nCompensazione: le settimane sopra e sotto si annullano, perché la domanda è se la ricorrenza è tarata male, non se una singola settimana è andata storta.\nOrdine: in cima le aree con lo scarto proporzionale più grande.`} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
         {items.map((it, i) => (
           <div key={i} style={{
@@ -751,7 +751,7 @@ function ProspettivaLens({ rows }) {
       </div>
 
       <SectionHeader title="Per tetto · consumo e residuo" subtitle="il più vicino al tetto in cima"
-        help={`Una riga per tetto cumulativo, aree e progetti insieme, ordinate per urgenza: prima le fasce più vicine all'esaurimento, e a pari fascia il tetto con la percentuale di consumo più alta.\n\nOgni riga: ore consumate dall'inizio sul tetto, ore residue, ritmo misurato al netto della settimana in corso e — sulle aree, dove esiste — il ritmo del template accanto, per vedere se stai lavorando come avevi pianificato. La barra è normalizzata sul tetto: il bordo destro è il tetto, oltre si tratteggia.\n\nQuando la finestra di misura è incompleta la riga lo dichiara ("ritmo su N settimane"): succede se il tetto è nato di recente o se il lavoro è iniziato dentro le ultime ${RUNWAY_WINDOW} settimane.\n\nI verdetti: entro 2/4/8 settimane o oltre 8 sono la fascia di esaurimento; "Tetto esaurito" è già oltre il tetto; "Fermo" significa nessuna ora nella finestra, quindi nessun esaurimento prevedibile — non un esaurimento lontano.\n\nUn budget di progetto la cui area ha già un limite globale compare qui ma non nei totali in testa, dove sarebbe contato due volte.`} />
+        help={`Una riga per tetto cumulativo, aree e progetti insieme, ordinate per urgenza: prima le fasce più vicine all'esaurimento, e a pari fascia il tetto con la percentuale di consumo più alta.\n\nOgni riga mostra:\nore consumate dall'inizio sul tetto\nore residue\nritmo misurato, al netto della settimana in corso\nritmo del template, sulle aree dove esiste, per vedere se stai lavorando come avevi pianificato\n\nLa barra è normalizzata sul tetto: il bordo destro è il tetto, oltre si tratteggia.\n\nQuando la finestra di misura è incompleta la riga lo dichiara ("ritmo su N settimane"): succede se il tetto è nato di recente o se il lavoro è iniziato dentro le ultime ${RUNWAY_WINDOW} settimane.\n\nI verdetti:\nentro 2/4/8 settimane, oltre 8 = fascia di esaurimento\nTetto esaurito = già oltre il tetto\nFermo = nessuna ora nella finestra, quindi nessun esaurimento prevedibile (non un esaurimento lontano)\n\nUn budget di progetto la cui area ha già un limite globale compare qui ma non nei totali in testa, dove sarebbe contato due volte.`} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.map(r => (
           <Card key={r.key}>
