@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.14] - 2026-10-01
+
 ### Added
 - Settimana, Ricorrenza: accanto ai glifi delle aree al minimo e chiuse compare anche quello dell'area attiva, così ogni area mostra il suo stato.
 - Andamento · Settimana: i limiti di ore delle aree compaiono insieme a quelli dei progetti, e il consuntivo per area ha una colonna "Limite" per le aree con un tetto settimanale, con un avviso quando è superato.
