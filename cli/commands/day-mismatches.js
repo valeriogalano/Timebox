@@ -108,7 +108,7 @@ function getDayMismatchesData(date) {
         trackedHours: trackedByAreaSlot.get(key) || 0,
       });
     }
-    remainingByAreaSlot.set(key, roundHours(availableBeforeTask - hours));
+    remainingByAreaSlot.set(key, roundHours(Math.max(0, availableBeforeTask - hours)));
   }
 
   const blocksWithoutReadyTasks = [];
