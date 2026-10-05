@@ -237,6 +237,19 @@ describe('HTTP server', () => {
     assert.equal(body.mismatches.estimatedBeyondResidualCapacity.overflowHours, 1);
   });
 
+  it('GET /day-mismatches → overflow of a block is not carried over to the next task', async () => {
+    setTodoistCache('2020-01-01', [
+      { id: 'ov1', projectId: 'p4', content: 'First over', hours: 4, slot: 'am' },
+      { id: 'ov2', projectId: 'p4', content: 'Second over', hours: 4, slot: 'am' },
+    ], '2026-06-16T10:00:00.000Z');
+
+    const { body } = await get(port, '/day-mismatches?date=2020-01-01');
+    const [first, second] = body.mismatches.tasksOverBlockCapacity;
+    assert.equal(first.overflowHours, 0.5);
+    assert.equal(second.availableBeforeTask, 0);
+    assert.equal(second.overflowHours, 4);
+  });
+
   it('GET /day-mismatches with an explicit unmatched task (projectId null, matchStatus unmatched) → surfaced as unmapped, not crashing, not counted as a block', async () => {
     // Shape emitted by main.js's todoist:sync handler for a Todoist task whose
     // project has no Timebox counterpart: pushed into the cache instead of
