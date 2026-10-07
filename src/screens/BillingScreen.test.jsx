@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 import BillingScreen from './BillingScreen.jsx';
 
 const clients = [
@@ -38,6 +38,24 @@ describe('Rendiconto: solo le aree a ore', () => {
     expect(summary).toHaveTextContent('A corpo 7h');
     // l'area senza compenso non compare da nessuna parte
     expect(queryByText('Senza compenso')).not.toBeInTheDocument();
+  });
+
+  test('segnare una registrazione come fatturata la sposta tra i riquadri', async () => {
+    const saved = [];
+    window.api.saveEntry = e => { saved.push(e); return Promise.resolve(); };
+    const { findByTitle, getByText } = render(
+      <BillingScreen clients={clients} projects={projects} screen="billing" />
+    );
+
+    // 2h fatturabili a 50 €/h, ancora da fatturare
+    const card = label => getByText(label).closest('div').parentElement;
+    fireEvent.click(await findByTitle('Segna come fatturata'));
+    await findByTitle('Segna come non fatturata');
+
+    expect(saved).toEqual([expect.objectContaining({ id: 'e1', billed: true })]);
+    expect(card('Fatturate')).toHaveTextContent('2h');
+    expect(card('Fatturate')).toHaveTextContent('€100');
+    expect(card('Da fatturare')).toHaveTextContent('0h');
   });
 
   test('senza registrazioni a ore nel periodo i tre riquadri a zero non compaiono', async () => {
