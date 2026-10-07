@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { areaPlanFitInsights, capRunway, distributionLabel, statusFor, PERSIST_WINDOW, MIN_HISTORY, TOLERANCE_LABEL } from '../progress-insights.js';
+import { actionLabel, areaPlanFitInsights, capRunway, distributionLabel, statusFor, PERSIST_WINDOW, MIN_HISTORY, TOLERANCE_LABEL } from '../progress-insights.js';
 
 const area = (name, weeks) => ({ client: { id: name, name, color: '#000' }, weeks });
 // helper: settimana chiusa con done/planned
@@ -16,7 +16,7 @@ describe('areaPlanFitInsights', () => {
     assert.equal(items[0].avgDone, 6);
     assert.equal(items[0].avgPlanned, 10);
     assert.equal(items[0].of, PERSIST_WINDOW);
-    assert.equal(items[0].to, 'Aree');
+    assert.equal(items[0].to, 'Ricorrenza');
   });
 
   test('settimane sopra e sotto si compensano: la ricorrenza e\' tarata bene', () => {
@@ -51,10 +51,11 @@ describe('areaPlanFitInsights', () => {
     assert.equal(items[0].weeks.length, PERSIST_WINDOW);
   });
 
-  test('oltre piano in media → Settimana', () => {
+  test('oltre piano in media: si corregge comunque in Ricorrenza', () => {
     const items = areaPlanFitInsights([area('A', rep(PERSIST_WINDOW, wk(20, 10)))]);
     assert.equal(items[0].kind, 'over');
-    assert.equal(items[0].to, 'Settimana');
+    assert.equal(items[0].to, 'Ricorrenza');
+    assert.equal(items[0].label, 'Molto oltre il piano');
   });
 
   test('molte settimane poco sotto non battono poche settimane molto sopra', () => {
@@ -192,8 +193,10 @@ describe('piani piccoli', () => {
 
 describe('distributionLabel', () => {
   test('conteggio e picco, con il segno sullo scarto in eccesso', () => {
-    assert.equal(distributionLabel({ weeksOff: 5, kind: 'over', peakDelta: 21.25 }), '5 settimane sopra · picco +21h\u00a015m');
-    assert.equal(distributionLabel({ weeksOff: 1, kind: 'under', peakDelta: -9 }), '1 settimana sotto · picco -9h');
+    assert.equal(distributionLabel({ weeksOff: 5, of: 7, kind: 'over', peakDelta: 21.25, peakWeek: '2026-09-21' }),
+      '5 settimane su 7 sopra · la più carica +21h\u00a015m (21/09)');
+    assert.equal(distributionLabel({ weeksOff: 1, of: 8, kind: 'under', peakDelta: -9, peakWeek: '2026-01-05' }),
+      '1 settimana su 8 sotto · la peggiore -9h (05/01)');
   });
 
   test('nessuna settimana fuori da sola: niente conteggio a zero', () => {
@@ -206,4 +209,39 @@ describe('distributionLabel', () => {
 
 test('la tolleranza nei tooltip segue le costanti del calcolo', () => {
   assert.equal(TOLERANCE_LABEL, '±10% o ±30 minuti, quale dei due è più largo');
+});
+
+describe('card Da decidere: verdetto e azione', () => {
+  const withTemplate = (template, w) => ({ ...area('A', rep(PERSIST_WINDOW, w)), template });
+
+  test('il verdetto è scritto, con "Molto" solo oltre la soglia marcata', () => {
+    assert.equal(areaPlanFitInsights([area('A', rep(PERSIST_WINDOW, wk(8, 10)))])[0].label, 'Sotto il piano');
+    assert.equal(areaPlanFitInsights([area('A', rep(PERSIST_WINDOW, wk(4, 10)))])[0].label, 'Molto sotto il piano');
+    assert.equal(areaPlanFitInsights([area('A', rep(PERSIST_WINDOW, wk(12, 10)))])[0].label, 'Oltre il piano');
+  });
+
+  test('il valore suggerito è la media svolta, al quarto d\'ora', () => {
+    // 4h27m di media → 4h30m
+    const [item] = areaPlanFitInsights([area('A', rep(PERSIST_WINDOW, wk(4.45, 12.5)))]);
+    assert.equal(item.suggested, 4.5);
+    assert.equal(item.template, null);
+    assert.equal(actionLabel(item), 'Porta la ricorrenza a ~4h\u00a030m');
+  });
+
+  test('con la ricorrenza di oggi l\'azione dice da quanto a quanto', () => {
+    const [item] = areaPlanFitInsights([withTemplate(16, wk(4.45, 12.5))]);
+    assert.equal(item.template, 16);
+    assert.equal(actionLabel(item), 'Porta la ricorrenza da 16h a ~4h\u00a030m');
+  });
+
+  test('a zero ore svolte non si suggerisce di portare la ricorrenza a 0h', () => {
+    const [item] = areaPlanFitInsights([withTemplate(4, wk(0, 4))]);
+    assert.equal(item.suggested, 0);
+    assert.equal(actionLabel(item), 'Nessuna ora svolta: valuta di togliere i blocchi dalla ricorrenza');
+  });
+
+  test('se la ricorrenza è già al valore suggerito non c\'è niente da modificare', () => {
+    const [item] = areaPlanFitInsights([withTemplate(4.5, wk(4.45, 12.5))]);
+    assert.equal(actionLabel(item), 'Ricorrenza già a 4h\u00a030m: nessuna modifica');
+  });
 });
