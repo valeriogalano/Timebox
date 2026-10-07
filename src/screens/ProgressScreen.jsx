@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
 import { areaMix } from '../area-colors';
 import { sumByProject, usageMaps, usageOf, kindNote, loadProjectTotals } from '../cap-usage';
-import { areaPlanFitInsights, capRunway, distributionLabel, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_WINDOW, TOLERANCE_LABEL } from '../progress-insights';
+import { actionLabel, areaPlanFitInsights, capRunway, distributionLabel, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_WINDOW, TOLERANCE_LABEL } from '../progress-insights';
 import OverCapacityBar from '../components/OverCapacityBar';
 import Glyph from '../components/Glyph';
 
@@ -290,7 +290,9 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
         const weekPlanned = plannedByClientForWeek(startStr)[c.id] ?? 0;
         return { week: startStr, done, planned: weekPlanned, isCurrent: startStr === currentWeekKey };
       });
-      return { client: c, planned, weeks };
+      // ore a settimana della ricorrenza di oggi, senza override: è ciò che si modifica in Ricorrenza
+      const template = recurring.filter(r => r.clientId === c.id && r.day < PLANNING_DAYS).reduce((sum, r) => sum + r.hours, 0);
+      return { client: c, planned, template, weeks };
     });
   }, [clients, recurring, entries, overridesByWeek, periodOffset, projectClientMap, currentWeekKey, plannedByClientEffective]);
 
@@ -646,44 +648,57 @@ function DaDecidereInsights({ perAreaWeekly }) {
   return (
     <div>
       <SectionHeader title="Da decidere" subtitle={`media sulle settimane chiuse · fino a ${PERSIST_WINDOW}`}
-        help={`Un'area compare se la media dello svolto esce dalla tolleranza sul pianificato (${TOLERANCE_LABEL}).\n\nFinestra: le settimane chiuse con un piano tra le ${PERSIST_WINDOW} mostrate sopra. La settimana in corso è esclusa, quindi guardando quella corrente sono al massimo ${PERSIST_WINDOW - 1}; ogni card dice su quante è calcolata.\nStoria minima: almeno ${MIN_HISTORY} settimane.\nCompensazione: le settimane sopra e sotto si annullano, perché la domanda è se la ricorrenza è tarata male, non se una singola settimana è andata storta.\nOrdine: in cima le aree con lo scarto proporzionale più grande.`} />
+        help={`Un'area compare se la media dello svolto esce dalla tolleranza sul pianificato (${TOLERANCE_LABEL}).\n\nFinestra: le settimane chiuse con un piano tra le ${PERSIST_WINDOW} mostrate sopra. La settimana in corso è esclusa, quindi guardando quella corrente sono al massimo ${PERSIST_WINDOW - 1}; ogni card dice su quante è calcolata.\nStoria minima: almeno ${MIN_HISTORY} settimane.\nCompensazione: le settimane sopra e sotto si annullano, perché la domanda è se la ricorrenza è tarata male, non se una singola settimana è andata storta.\nOrdine: in cima le aree con lo scarto proporzionale più grande.\nBarrette: una per settimana chiusa, svolto sul piano di quella settimana; piene quelle fuori soglia.\nAzione: il valore proposto è la media svolta, arrotondata al quarto d'ora, da confrontare con la ricorrenza di oggi.`} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
         {items.map((it, i) => (
           <div key={i} style={{
             background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
             borderLeft: `3px solid ${it.color}`, borderRadius: 8, padding: '12px 14px',
           }}>
-            {/* Stessa griglia di AreaSparkCard: nome a sinistra, verdetto a destra. */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {it.area}
-              </span>
-              {/* Il bordo è il colore dell'area, non lo stato: under/over lo porta il glifo. */}
-              <Glyph glyph={it.kind === 'under' ? '▾' : '▴'} size={12} className="tb-glyph"
-                title={it.kind === 'under' ? 'Sotto il piano' : 'Oltre il piano'} />
+            {/* Nome e, sotto, il verdetto scritto: il triangolo da solo si leggeva come
+                "espandi". Su due righe perché affiancati, in una card stretta, il verdetto
+                troncava il nome dell'area. Il bordo resta il colore dell'area, non lo stato. */}
+            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {it.area}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--tb-text-secondary)', marginTop: 2, marginBottom: 8 }}>
+              {it.label}
             </div>
 
-            {/* Niente split valore/stato come in AreaSparkCard: lì i due angoli incorniciano il
-                grafico, qui non c'è. Una frase sola. Le due medie a confronto, non lo scarto:
-                avgDone è già il numero da scrivere nella ricorrenza. `of` = settimane chiuse
-                con piano realmente in archivio, non sempre PERSIST_WINDOW. */}
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
-              {/* nowrap: il numero non deve restare orfano a capo dalla sua unità */}
-              <span style={{ color: it.color, fontWeight: 800, whiteSpace: 'nowrap' }}>{fmtH(it.avgDone)}/sett</span>
-              {' '}contro <span style={{ fontWeight: 800, color: 'var(--tb-text-primary)', whiteSpace: 'nowrap' }}>{fmtH(it.avgPlanned)} pianificate</span>
-              {' '}su {it.of} sett
+            {/* Le due medie a confronto, non lo scarto. Il numero è neutro: nel colore
+                dell'area un rosso sembrava un allarme e un verde un via libera. `of` =
+                settimane chiuse con piano realmente in archivio, non sempre PERSIST_WINDOW. */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>{fmtH(it.avgDone)}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)', flex: 1, whiteSpace: 'nowrap' }}>di {fmtH(it.avgPlanned)}/sett</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-secondary)' }}>{Math.round((it.avgDone / it.avgPlanned) * 100)}%</span>
             </div>
+            <OverCapacityBar value={it.avgDone} cap={it.avgPlanned} color={it.color} height={6} overTitle="Oltre il piano" style={{ marginTop: 6 }} />
 
             {/* Distribuzione: la media non distingue un ritmo da un episodio, e le due cose
-                portano a decisioni opposte. Il dettaglio settimana per settimana sta nel
-                tooltip (stesso `title` nativo di HelpDot) invece che in un blocco espandibile:
-                è una lettura di verifica, non un secondo livello di navigazione. */}
-            <div title={weeklyBreakdownTitle(it)} style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)', marginTop: 3, cursor: 'help', borderBottom: '1px dotted var(--tb-border-mid)', display: 'inline-block' }}>
-              {distributionLabel(it)}
+                portano a decisioni opposte. Una barretta per settimana (svolto sul piano di
+                quella settimana), piene quelle che il verdetto conta fuori piano; il
+                dettaglio con i numeri resta nel `title`. */}
+            <div title={weeklyBreakdownTitle(it)} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+              <span aria-hidden="true" style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 16, flexShrink: 0 }}>
+                {it.weeks.map((w, wi) => {
+                  const off = statusFor(w.done, w.planned).kind === it.kind;
+                  return (
+                    <span key={wi} style={{
+                      width: 4, height: Math.max(2, Math.min(1, w.done / w.planned) * 16), borderRadius: 1,
+                      background: off ? it.color : areaMix(it.color, 45),
+                    }} />
+                  );
+                })}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>{distributionLabel(it)}</span>
             </div>
 
-            <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginTop: 6 }}>
-              {it.kind === 'under' ? `Rivedi il ritmo in ${it.to}` : `Ribilancia in ${it.to}`}
+            {/* L'azione è il motivo della sezione: in evidenza, con il valore già pronto.
+                Nomina la ricorrenza, che è anche la voce di menu dove si agisce (`it.to`).
+                Non è un link: la navigazione resta alla barra laterale. */}
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)', marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--tb-border-soft)' }}>
+              {actionLabel(it)}
             </div>
           </div>
         ))}

@@ -45,11 +45,12 @@ export function statusFor(done, planned) {
     : { kind: 'under', level, label: level === 2 ? 'Molto sottocarico' : 'Sottocarico', glyph: '▾'.repeat(level), color: 'var(--tb-text-muted)' };
 }
 
-// perAreaWeekly: [{ client, weeks: [{ done, planned, isCurrent }] }],
+// perAreaWeekly: [{ client, template, weeks: [{ done, planned, isCurrent }] }],
+// `template` = ore a settimana della ricorrenza di oggi (facoltativo),
 // weeks in ordine cronologico (la corrente è l'ultima).
 export function areaPlanFitInsights(perAreaWeekly, window = PERSIST_WINDOW, minHistory = MIN_HISTORY) {
   const items = [];
-  for (const { client, weeks } of perAreaWeekly) {
+  for (const { client, template, weeks } of perAreaWeekly) {
     // Le settimane senza piano non sono "sotto piano": l'area era chiusa o non
     // pianificata, includerle nella media abbasserebbe il ritmo di riferimento.
     const closed = weeks.filter(w => !w.isCurrent).slice(-window).filter(w => w.planned > 0);
@@ -67,6 +68,7 @@ export function areaPlanFitInsights(perAreaWeekly, window = PERSIST_WINDOW, minH
     const peak = off.reduce((a, w) => Math.abs(w.done - w.planned) > Math.abs(a.done - a.planned) ? w : a, off[0]);
     items.push({
       color: client.color, area: client.name, kind, level,
+      label: `${level === 2 ? 'Molto ' : ''}${kind === 'under' ? 'sotto' : 'oltre'} il piano`.replace(/^./, c => c.toUpperCase()),
       weeksOff: off.length,
       peakDelta: peak ? (peak.done || 0) - peak.planned : 0,
       peakWeek: peak?.week ?? null,
@@ -76,24 +78,47 @@ export function areaPlanFitInsights(perAreaWeekly, window = PERSIST_WINDOW, minH
       avgDone: done / closed.length,
       avgPlanned: planned / closed.length,
       of: closed.length,
+      // Arrotondata al quarto d'ora: è un valore da scrivere in un blocco, non una misura.
+      suggested: Math.round((done / closed.length) * 4) / 4,
+      // La ricorrenza di oggi può essere diversa dal piano medio delle settimane chiuse
+      // (override, template cambiato nel frattempo): è lei che si va a modificare.
+      template: template ?? null,
       severity: Math.abs(done - planned) / planned,
-      to: kind === 'under' ? 'Aree' : 'Settimana',
+      // Sotto o sopra, la taratura si corregge nel template.
+      to: 'Ricorrenza',
     });
   }
   // Scarto proporzionale più grande = piano più fuori taratura: in cima.
   return items.sort((a, b) => b.severity - a.severity);
 }
 
+// Ore con spazi non separabili: nelle card strette il numero non va a capo staccato
+// dalla sua unità ("~18h" su una riga e "15m" sulla successiva).
+const hNb = h => fmtH(h).replace(/ /g, '\u00a0');
+
 // Riga di distribuzione della card. Lo scarto può stare dentro la tolleranza di ogni
 // singola settimana e sommarsi lo stesso: in quel caso non c'è né conteggio né picco da
 // mostrare, e "0 settimane sotto · picco 0h" contraddiceva il verdetto della card.
-export function distributionLabel({ weeksOff, kind, peakDelta }) {
+export function distributionLabel({ weeksOff, of, kind, peakDelta, peakWeek }) {
   if (!weeksOff) return 'nessuna settimana fuori soglia da sola';
-  const weeks = weeksOff === 1 ? '1 settimana' : `${weeksOff} settimane`;
-  // Il picco è uno scarto: il segno lo distingue da un totale. Spazi non separabili,
-  // così il numero non va a capo staccato dalla sua unità.
-  const peak = `${peakDelta > 0 ? '+' : ''}${fmtH(peakDelta)}`.replace(/ /g, '\u00a0');
-  return `${weeks} ${kind === 'under' ? 'sotto' : 'sopra'} · picco ${peak}`;
+  const weeks = `${weeksOff} ${weeksOff === 1 ? 'settimana' : 'settimane'}${of ? ` su ${of}` : ''}`;
+  // Lo scarto porta il segno, che lo distingue da un totale, e la data: senza, un -21h
+  // su una media pianificata di 12h sembra impossibile.
+  const delta = `${peakDelta > 0 ? '+' : ''}${hNb(peakDelta)}`;
+  const when = peakWeek ? ` (${peakWeek.slice(8, 10)}/${peakWeek.slice(5, 7)})` : '';
+  return kind === 'under'
+    ? `${weeks} sotto · la peggiore ${delta}${when}`
+    : `${weeks} sopra · la più carica ${delta}${when}`;
+}
+
+// Cosa fare, con il numero già pronto. Se la ricorrenza di oggi è già al valore
+// suggerito lo scarto viene da settimane passate e non c'è niente da modificare.
+export function actionLabel({ suggested, template }) {
+  // "Porta la ricorrenza a ~0h" non è un'istruzione: a zero ore la scelta è togliere i blocchi.
+  if (!(suggested > 0)) return 'Nessuna ora svolta: valuta di togliere i blocchi dalla ricorrenza';
+  if (template == null) return `Porta la ricorrenza a ~${hNb(suggested)}`;
+  if (Math.abs(template - suggested) < 0.25) return `Ricorrenza già a ${hNb(template)}: nessuna modifica`;
+  return `Porta la ricorrenza da ${hNb(template)} a ~${hNb(suggested)}`;
 }
 
 // Lente "In prospettiva": quanto manca a esaurire i tetti CUMULATIVI (budget totale

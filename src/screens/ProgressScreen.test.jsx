@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { render, within, fireEvent } from '@testing-library/react';
 import ProgressScreen from './ProgressScreen.jsx';
-import { getToday, fmt } from '../utils';
+import { getToday, fmt, getMondayOfWeek, addDays } from '../utils';
 
 const clients = [
   { id: 'c1', name: 'Settimanale', color: '#4073ff', billing: 'none', limitType: 'weekly', limitHours: 10 },
@@ -102,5 +102,72 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     await findByText('Limite');
     // 12h su un limite di 10h: ⚠ nella colonna e nella card dell'area
     expect(getAllByTitle('Superato').length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('ProgressScreen / Trend: Da decidere', () => {
+  // 4h a settimana per l'area c3, mai svolte: ogni settimana chiusa è sotto il piano
+  const recurring = [{ id: 'r1', clientId: 'c3', day: 0, slot: 'am', hours: 4, position: 0 }];
+
+  beforeEach(() => {
+    window.api = {
+      getEntries: () => Promise.resolve([]),
+      getProjectTotals: () => Promise.resolve({}),
+      getProjectBillableTotals: () => Promise.resolve({}),
+      getWeekOverridesRange: () => Promise.resolve([]),
+    };
+  });
+
+  test('la card dice il verdetto a parole, le due medie e cosa fare', async () => {
+    const { findByText, getByText } = render(
+      <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen="progress"
+        weekOffset={0} setWeekOffset={() => {}} />
+    );
+    fireEvent.click(await findByText('Trend'));
+    const card = (await findByText('Molto sotto il piano')).parentElement;
+
+    expect(getByText('media sulle settimane chiuse · fino a 8')).toBeInTheDocument();
+    expect(within(card).getByText('Libera')).toBeInTheDocument();
+    expect(within(card).getByText('di 4h/sett')).toBeInTheDocument();
+    expect(within(card).getByText('0%')).toBeInTheDocument();
+    expect(within(card).getByText(/^7 settimane su 7 sotto · la peggiore -4h/)).toBeInTheDocument();
+    expect(within(card).getByText('Nessuna ora svolta: valuta di togliere i blocchi dalla ricorrenza')).toBeInTheDocument();
+  });
+  test('oltre il piano: barra piena, percentuale sopra 100 e ricorrenza da alzare', async () => {
+    // 8h ogni lunedì delle sette settimane chiuse, su 4h di ricorrenza
+    const monday = getMondayOfWeek(getToday());
+    const past = Array.from({ length: 7 }, (_, k) => ({
+      id: `e${k}`, projectId: 'p3', date: fmt(addDays(monday, -7 * (k + 1))), hours: 8, slot: 'am',
+    }));
+    window.api.getEntries = () => Promise.resolve(past);
+
+    const { findByText } = render(
+      <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen="progress"
+        weekOffset={0} setWeekOffset={() => {}} />
+    );
+    fireEvent.click(await findByText('Trend'));
+    const card = (await findByText('Molto oltre il piano')).parentElement;
+
+    expect(within(card).getByText('8h')).toBeInTheDocument();
+    expect(within(card).getByText('200%')).toBeInTheDocument();
+    expect(within(card).getByTitle('Oltre il piano')).toBeInTheDocument();
+    expect(within(card).getByText(/^7 settimane su 7 sopra · la più carica \+4h/)).toBeInTheDocument();
+    expect(within(card).getByText('Porta la ricorrenza da 4h a ~8h')).toBeInTheDocument();
+  });
+
+  test('un\'area in linea con il piano non compare', async () => {
+    const monday = getMondayOfWeek(getToday());
+    const past = Array.from({ length: 7 }, (_, k) => ({
+      id: `e${k}`, projectId: 'p3', date: fmt(addDays(monday, -7 * (k + 1))), hours: 4, slot: 'am',
+    }));
+    window.api.getEntries = () => Promise.resolve(past);
+
+    const { findByText, queryByText } = render(
+      <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen="progress"
+        weekOffset={0} setWeekOffset={() => {}} />
+    );
+    fireEvent.click(await findByText('Trend'));
+    await findByText('Per area');
+    expect(queryByText('Da decidere')).not.toBeInTheDocument();
   });
 });
