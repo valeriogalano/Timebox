@@ -79,9 +79,9 @@ describe('MCP server', () => {
     const res = await rpc(mcp, msg('tools/list', {}));
     const { tools } = res.result;
     assert.ok(Array.isArray(tools));
-    assert.equal(tools.length, 26);
+    assert.equal(tools.length, 27);
     const names = tools.map(t => t.name);
-    for (const n of ['today', 'day_summary', 'day_free_capacity', 'day_ready_blocks', 'todoist_imported_tasks', 'day_mismatches', 'week', 'projects', 'areas', 'status', 'log_hours',
+    for (const n of ['today', 'day_summary', 'day_free_capacity', 'day_ready_blocks', 'todoist_imported_tasks', 'day_mismatches', 'week', 'projects', 'entries', 'areas', 'status', 'log_hours',
       'find_area', 'find_project', 'rename_area', 'update_area', 'rename_project', 'update_project',
       'move_project', 'create_project', 'delete_project', 'merge_project_entries',
       'get_recurring', 'set_recurring_slot', 'get_week_overrides', 'set_week_override', 'clear_week_override']) {
@@ -201,6 +201,17 @@ describe('MCP server', () => {
     const text = res.result.content[0].text;
     assert.ok(text.includes('Week'), 'contains Week header');
     assert.ok(text.includes('Total:'), 'contains total');
+  });
+
+  it('tools/call entries → single entries in a range with totals', async () => {
+    const res = await rpc(mcp, msg('tools/call', { name: 'entries', arguments: { from: '2000-01-01' } }));
+    const text = res.result.content[0].text;
+    assert.match(text, /^Entries from 2000-01-01 to \d{4}-\d{2}-\d{2}:/);
+    assert.match(text, /\d{4}-\d{2}-\d{2} (AM|PM|SERA)  .+ \[.+\]: [\d.]+h/);
+    assert.ok(text.includes('By area:') && text.includes('By project:') && text.includes('Total:'));
+
+    const empty = await rpc(mcp, msg('tools/call', { name: 'entries', arguments: { from: '1999-01-01', to: '1999-01-02' } }));
+    assert.equal(empty.result.content[0].text, 'No entries from 1999-01-01 to 1999-01-02.');
   });
 
   it('tools/call projects → lists projects with area', async () => {

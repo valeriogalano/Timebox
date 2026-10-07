@@ -151,6 +151,20 @@ const TOOLS = [
     },
   },
   {
+    name: 'entries',
+    description: 'List the single logged entries (the Registro screen) in a date range, with optional area and project filters, plus worked and billable totals by area and by project. Use it to review several weeks in one call.',
+    inputSchema: {
+      type: 'object',
+      required: ['from'],
+      properties: {
+        from: { type: 'string', description: 'First date, YYYY-MM-DD' },
+        to: { type: 'string', description: 'Last date, YYYY-MM-DD (default: today)' },
+        area: { type: 'string', description: 'Filter by area name (partial, case-insensitive)' },
+        project: { type: 'string', description: 'Filter by project name (partial, case-insensitive)' },
+      },
+    },
+  },
+  {
     name: 'areas',
     description: 'List Timebox areas with their color, billing type and hourly rate.',
     inputSchema: { type: 'object', properties: {} },
@@ -667,6 +681,25 @@ async function callTool(name, args) {
       if (p.description) line += `\n  ${p.description}`;
       return line;
     }).join('\n');
+  }
+
+  if (name === 'entries') {
+    const params = new URLSearchParams();
+    for (const key of ['from', 'to', 'area', 'project']) if (args[key]) params.set(key, args[key]);
+    const d = await httpRequest(`/entries?${params}`);
+    if (!d.entries.length) return `No entries from ${d.from} to ${d.to}.`;
+    return [
+      `Entries from ${d.from} to ${d.to}:`,
+      ...d.entries.map(e => `${e.date} ${e.slot.toUpperCase()}  ${e.project} [${e.area}]: ${fmtBillable(e.hours, e.billableHours)}`),
+      '',
+      'By area:',
+      ...d.byArea.map(a => `  ${a.area}: ${fmtBillable(a.hours, a.billableHours)}`),
+      '',
+      'By project:',
+      ...d.byProject.map(p => `  ${p.project} [${p.area}]: ${fmtBillable(p.hours, p.billableHours)}`),
+      '',
+      `Total: ${d.total}h`,
+    ].join('\n');
   }
 
   if (name === 'clients' || name === 'areas') {

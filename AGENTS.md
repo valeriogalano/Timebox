@@ -133,6 +133,7 @@ TimeBox/
       today.js
       week.js
       projects.js
+      entries.js
       clients.js
       status.js
       log.js
@@ -218,6 +219,7 @@ In development, wrappers point at repository files. In packaged builds, they poi
 | `GET` | `/area-statuses?week=` | Weekly area status rows for a Monday `weekKey`. |
 | `POST` | `/area-statuses` | Save `{ weekKey, areaId, status }`; every status is stored explicitly. Areas without a row fall back to `clients.defaultStatus`. |
 | `GET` | `/projects?area=&client=&search=&all=` | `getProjectsData(...)`. |
+| `GET` | `/entries?from=&to=&area=&project=` | `getEntriesData(...)`: single entries in a date range plus totals by area and project. `from` is required, `to` defaults to today; a malformed date is a 400. |
 | `GET` | `/clients?search=` | `getClientsData(...)`. |
 | `GET` | `/areas?search=` | Alias for clients/areas. |
 | `GET` | `/status` | `getStatusData(today)`. |
@@ -233,7 +235,7 @@ In development, wrappers point at repository files. In packaged builds, they poi
 
 `cli/mcp-server.js` implements MCP spec `2024-11-05` with JSON-RPC over stdio.
 
-Tools: `today`, `week`, `projects`, `areas`, `status`, `log_hours`, `find_area`, `find_project`, `rename_area`, `update_area`, `rename_project`, `update_project`, `move_project`, `create_project`, `delete_project`, `merge_project_entries`.
+Tools: `today`, `week`, `projects`, `entries`, `areas`, `status`, `log_hours`, `find_area`, `find_project`, `rename_area`, `update_area`, `rename_project`, `update_project`, `move_project`, `create_project`, `delete_project`, `merge_project_entries`.
 
 Codex manual configuration:
 
