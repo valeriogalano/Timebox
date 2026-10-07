@@ -91,11 +91,9 @@ This keeps the app's existing Area → Project → `budgetHours` hierarchy as th
 
 ## Main Screens
 
-### Oggi
+The sections below follow the sidebar order and use the menu labels, which are in Italian.
 
-The Oggi screen surfaces daily operational diagnostics from the same logic used by the MCP tools: free capacity after tracked work and Todoist estimates, planned blocks still missing ready Todoist work, and sync mismatches.
-
-### Weekly Timesheet
+### Settimana (week)
 
 The primary screen combines planning and tracking:
 
@@ -111,21 +109,33 @@ The primary screen combines planning and tracking:
 - A "reset to template" action that deletes the current week's overrides.
 - Todoist overlays for today and future days only.
 
-### Dashboard
+### Giorno (day)
 
-The dashboard summarizes weekly workload, billable value, area status, and project budget usage. It compares planned capacity against logged work and highlights overload or underload.
+The Giorno screen surfaces daily operational diagnostics from the same logic used by the MCP tools: free capacity after tracked work and Todoist estimates, planned blocks still missing ready Todoist work, and sync mismatches. It opens on today and can move to other days.
 
-### Billing
+### Andamento (progress)
 
-The billing screen is a supporting workflow for billable areas, not the center of the product. It reviews billable entries by month, quarter, or custom range, groups entries by area and project, distinguishes billed from unbilled work, supports single-row and bulk billed toggles, and respects the `billableHours` override when present.
+The Andamento screen compares planned capacity against logged work through three lenses:
 
-### Entries
+- **Settimana:** the selected week's workload against capacity, billable value, per-area planned/tracked/extra hours, weekly limits, and total budgets. On the current week it also projects the load to the end of the week.
+- **Trend:** the last 8 weeks of planned, logged, and capacity hours, in aggregate and per area, with the persistent gaps between plan and logged work.
+- **In prospettiva:** how long the cumulative caps (project total budgets and global area limits) will last at the pace measured over the last closed weeks.
 
-The entries screen is a tabular log of tracked work. It supports date, area, and project filters; inline editing; billed-state changes; deletion; and live totals for the active filter.
+### Rendiconto (billing)
 
-### Areas
+The Rendiconto screen is a supporting workflow for billable areas, not the center of the product. It reviews billable entries by month, quarter, or custom range, groups entries by area and project, distinguishes billed from unbilled work, supports single-row and bulk billed toggles, and respects the `billableHours` override when present.
 
-The areas screen manages areas and their projects:
+### Registro (entries)
+
+The Registro screen is a tabular log of tracked work. It supports date, area, and project filters; inline editing; billed-state changes; deletion; and live totals for the active filter.
+
+### Import Todoist
+
+The Import Todoist screen shows cached Todoist tasks grouped by date, including matched Timebox project, slot, estimated hours, completion state, and the latest sync timestamp.
+
+### Aree (areas)
+
+The Aree screen manages areas and their projects:
 
 - Area name, color, billing type, hourly rate, and hour limits.
 - Project name, description, total budget, weekly limit, ordering, and archive state.
@@ -133,17 +143,13 @@ The areas screen manages areas and their projects:
 - Moving projects between areas.
 - Project archive/restore without deleting historical entries.
 
-### Recurring
+### Ricorrenza (recurring)
 
-The recurring screen edits the weekly template. Changes automatically freeze previous weeks that do not yet have overrides, preserving historical planning state.
+The Ricorrenza screen edits the weekly template. Changes automatically freeze previous weeks that do not yet have overrides, preserving historical planning state.
 
-### Todoist Log
+### Impostazioni (settings)
 
-The Todoist log shows cached Todoist tasks grouped by date, including matched Timebox project, slot, estimated hours, completion state, and the latest sync timestamp.
-
-### Settings
-
-Settings cover:
+Impostazioni covers:
 
 - Appearance: light, dark, or system theme.
 - Todoist: API token storage, debug logging, and project import.
@@ -166,7 +172,7 @@ Timebox reads open Todoist tasks through the Todoist REST API v1.
 6. Results are cached in `todoist_cache`, one row per date.
 7. Matched tasks appear as blue overlays on planned blocks; leftover task time appears in Extra.
 
-Todoist tasks are shown only for today and future days in the weekly view. Past cached data remains available in the Todoist log.
+Todoist tasks are shown only for today and future days in the weekly view. Past cached data remains available in the Import Todoist screen.
 
 ### Product decision: no explicit Todoist-to-project mapping
 
@@ -181,7 +187,7 @@ That design is not implemented for now. The current name-based matching is delib
 - It preserves the current local-first sync model without storing additional Todoist relationship metadata.
 - It keeps planning visible in the weekly board instead of turning Todoist sync into a separate configuration system.
 
-The decision can be revisited only if real usage shows repeated sync friction, such as frequent ambiguous project names, renamed Todoist projects breaking planning, or multiple Todoist projects needing to feed one Timebox project. Until then, the supported workflow is: keep Todoist and Timebox project names aligned when automatic matching is desired, and inspect mismatches with the Oggi diagnostics or MCP daily tools.
+The decision can be revisited only if real usage shows repeated sync friction, such as frequent ambiguous project names, renamed Todoist projects breaking planning, or multiple Todoist projects needing to feed one Timebox project. Until then, the supported workflow is: keep Todoist and Timebox project names aligned when automatic matching is desired, and inspect mismatches with the Giorno diagnostics or MCP daily tools.
 
 ---
 
@@ -224,7 +230,7 @@ While the app is open, a local API is available at `http://127.0.0.1:37373`.
 |---|---|---|
 | `GET` | `/ping` | Health check. |
 | `GET` | `/today?date=YYYY-MM-DD` | Logged hours for one day. |
-| `GET` | `/day/insights?date=YYYY-MM-DD` | Aggregated daily diagnostics for the Oggi screen. |
+| `GET` | `/day/insights?date=YYYY-MM-DD` | Aggregated daily diagnostics for the Giorno screen. |
 | `GET` | `/week?offset=N` | Weekly summary; `0` is current week, `-1` is last week. |
 | `GET` | `/area-statuses?week=YYYY-MM-DD` | Weekly area statuses for a Monday week key. |
 | `POST` | `/area-statuses` | Save an area status: `{ weekKey, areaId, status }`. Every status is stored explicitly; areas with no row for the week fall back to `clients.defaultStatus`. |
