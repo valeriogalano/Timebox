@@ -39,4 +39,17 @@ describe('Rendiconto: solo le aree a ore', () => {
     // l'area senza compenso non compare da nessuna parte
     expect(queryByText('Senza compenso')).not.toBeInTheDocument();
   });
+
+  test('senza registrazioni a ore nel periodo i tre riquadri a zero non compaiono', async () => {
+    window.api.getEntries = () => Promise.resolve([
+      { id: 'e2', projectId: 'p2', date: '2026-10-01', hours: 7, slot: 'am', billed: false },
+    ]);
+    const { findByText, getByText, queryByText } = render(
+      <BillingScreen clients={clients} projects={projects} screen="billing" />
+    );
+
+    expect(await findByText(/^Nessuna registrazione a ore per /)).toBeInTheDocument();
+    expect(queryByText('Fatturabili totali')).not.toBeInTheDocument();
+    expect(getByText('Aree a corpo · ore lavorate nel periodo').parentElement).toHaveTextContent('A corpo 7h');
+  });
 });
