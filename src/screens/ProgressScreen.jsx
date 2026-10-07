@@ -424,7 +424,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...(idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : {}) }}
             >
               {o.label}
-              <HelpDot text={o.help} />
+              <HelpDot text={o.help} color="currentColor" />
             </span>
           ))}
         </div>
@@ -1052,10 +1052,11 @@ function Legend() {
 // inline: titolo e sottotitolo affiancati con gap (per le righe con selettore a destra),
 // invece che agli estremi via space-between (che si attacca se il contenitore lo restringe).
 // Pallino "?" con tooltip (title). stopPropagation così non attiva eventuali click del contenitore.
-function HelpDot({ text }) {
+// `color`: dentro una scheda il punto segue il testo della scheda, che da attiva ha il fondo invertito.
+function HelpDot({ text, color = 'var(--tb-text-muted)' }) {
   return (
     <span title={text} onClick={e => e.stopPropagation()}
-      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 9, cursor: 'help', letterSpacing: 0, flexShrink: 0 }}
+      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color, fontSize: 9, cursor: 'help', letterSpacing: 0, flexShrink: 0 }}
     >?</span>
   );
 }
