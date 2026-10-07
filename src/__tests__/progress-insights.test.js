@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { areaPlanFitInsights, capRunway, statusFor, PERSIST_WINDOW, MIN_HISTORY } from '../panoramica-insights.js';
+import { areaPlanFitInsights, capRunway, statusFor, PERSIST_WINDOW, MIN_HISTORY } from '../progress-insights.js';
 
 const area = (name, weeks) => ({ client: { id: name, name, color: '#000' }, weeks });
 // helper: settimana chiusa con done/planned

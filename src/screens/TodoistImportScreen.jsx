@@ -31,7 +31,7 @@ function displayTitle(row) {
   return row.titleSnapshot || row.todoistTaskId || '(senza titolo)';
 }
 
-export default function TodoistLog({ clients, projects }) {
+export default function TodoistImportScreen({ clients, projects }) {
   const [rows, setRows] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState(null);

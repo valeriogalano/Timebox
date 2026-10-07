@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
 import { areaMix } from '../area-colors';
-import { areaPlanFitInsights, capRunway, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_WINDOW } from '../panoramica-insights';
+import { areaPlanFitInsights, capRunway, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_WINDOW } from '../progress-insights';
 import OverCapacityBar from '../components/OverCapacityBar';
 import Glyph from '../components/Glyph';
 
@@ -85,7 +85,7 @@ function countWeeksInMonth(monthIdx, year) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function Panoramica({ clients, projects, recurring, screen, initialLens, onLensConsumed, weekOffset, setWeekOffset }) {
+export default function ProgressScreen({ clients, projects, recurring, screen, initialLens, onLensConsumed, weekOffset, setWeekOffset }) {
   // Settimana condivisa con la vista Settimana (stato sollevato in App), così la
   // selezione si mantiene passando da una schermata all'altra.
   const periodOffset = weekOffset;
@@ -628,7 +628,7 @@ function AreaConsuntivo({ clients, stats }) {
 // Lente "Trend" → "Da decidere": la domanda è "la ricorrenza di quest'area è tarata
 // male?". Media dello svolto contro media del pianificato sulle settimane chiuse — una
 // sopra e una sotto si compensano, perché la ricorrenza è una media per costruzione.
-// Logica pura in ../panoramica-insights. `to` è la vista dove si agisce, resa come
+// Logica pura in ../progress-insights. `to` è la vista dove si agisce, resa come
 // suggerimento testuale: non è un link, la navigazione resta al tab bar.
 // Tooltip di verifica: svolto contro pianificato settimana per settimana, così un -9h di
 // media si riconosce a colpo d'occhio come otto settimane fiacche o una sola saltata.
@@ -699,7 +699,7 @@ function DaDecidereInsights({ perAreaWeekly }) {
 // limite x N dà sempre lo stesso rapporto, qualunque N) e il template sovrastima il
 // ritmo reale. Qui il ritmo è misurato sulle settimane chiuse, e l'esito è una FASCIA
 // (entro 2/4/8 settimane), non un numero: il ritmo misurato non è preciso al punto di
-// distinguere 3 settimane da 4. Logica pura in ../panoramica-insights.
+// distinguere 3 settimane da 4. Logica pura in ../progress-insights.
 function ProspettivaLens({ rows }) {
   // I totali sommano solo i tetti NON annidati: il budget di un progetto la cui area ha
   // già un limite globale è compreso in quel limite, e contarli entrambi raddoppierebbe

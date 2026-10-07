@@ -1,5 +1,5 @@
 // Shared per-day planning computation used by both WeeklyView (7 days) and
-// TodayView (single day). Keeps the intricate block-fill / Todoist-coverage /
+// DayScreen (single day). Keeps the intricate block-fill / Todoist-coverage /
 // orphan logic in one place so the two screens can't drift apart.
 
 import { effBillable, SLOTS, normalizeSlot } from './utils.js';
