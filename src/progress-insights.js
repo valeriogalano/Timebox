@@ -1,3 +1,5 @@
+import { fmtH } from './utils.js';
+
 // "Da decidere" (lente "Nel tempo"): la decisione che questa card alimenta è una sola —
 // "la RICORRENZA di quest'area è tarata male?". È strutturale, non riguarda la prossima
 // settimana (quella si legge in Settimana, e infatti la corrente è esclusa dal calcolo).
@@ -20,6 +22,9 @@ export const TOL_HOURS = 0.5;     // mezz'ora: rumore di tracciamento, non un se
 export const TOL_PCT = 0.10;
 export const STRONG_HOURS = 2;    // oltre: scarto marcato → glifo doppio
 export const STRONG_PCT = 0.30;
+// La tolleranza scritta per i tooltip, derivata dalle costanti: scritta a mano era
+// rimasta a "0,85×" mentre il calcolo usava il 10%.
+export const TOLERANCE_LABEL = `±${Math.round(TOL_PCT * 100)}% o ±${TOL_HOURS * 60} minuti, quale dei due è più largo`;
 
 // Piano a zero con ore fatte è sovraccarico, non "nessun verdetto": è lavoro
 // interamente fuori piano, il caso che il verdetto deve gridare più forte.
@@ -28,7 +33,10 @@ export function statusFor(done, planned) {
   if (!(planned > 0) && !(done > 0)) return { kind: 'none', level: 0, label: '—', glyph: '·', color: 'var(--tb-text-muted)' };
   const delta = (done || 0) - planned;
   const tol = Math.max(TOL_HOURS, planned * TOL_PCT);
-  if (Math.abs(delta) <= tol) {
+  // Zero ore su un piano è il piano saltato per intero, non rumore di tracciamento: senza
+  // questa condizione un piano da mezz'ora restava "in linea" anche a 0h svolte, perché
+  // lo scarto coincide con la tolleranza.
+  if (Math.abs(delta) <= tol && (done > 0 || !(planned > 0))) {
     return { kind: 'on', level: 0, label: 'In linea', glyph: '▪', color: 'var(--tb-text-primary)' };
   }
   const level = Math.abs(delta) > Math.max(STRONG_HOURS, planned * STRONG_PCT) ? 2 : 1;
@@ -74,6 +82,18 @@ export function areaPlanFitInsights(perAreaWeekly, window = PERSIST_WINDOW, minH
   }
   // Scarto proporzionale più grande = piano più fuori taratura: in cima.
   return items.sort((a, b) => b.severity - a.severity);
+}
+
+// Riga di distribuzione della card. Lo scarto può stare dentro la tolleranza di ogni
+// singola settimana e sommarsi lo stesso: in quel caso non c'è né conteggio né picco da
+// mostrare, e "0 settimane sotto · picco 0h" contraddiceva il verdetto della card.
+export function distributionLabel({ weeksOff, kind, peakDelta }) {
+  if (!weeksOff) return 'nessuna settimana fuori soglia da sola';
+  const weeks = weeksOff === 1 ? '1 settimana' : `${weeksOff} settimane`;
+  // Il picco è uno scarto: il segno lo distingue da un totale. Spazi non separabili,
+  // così il numero non va a capo staccato dalla sua unità.
+  const peak = `${peakDelta > 0 ? '+' : ''}${fmtH(peakDelta)}`.replace(/ /g, '\u00a0');
+  return `${weeks} ${kind === 'under' ? 'sotto' : 'sopra'} · picco ${peak}`;
 }
 
 // Lente "In prospettiva": quanto manca a esaurire i tetti CUMULATIVI (budget totale

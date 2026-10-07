@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
 import { areaMix } from '../area-colors';
 import { sumByProject, usageMaps, usageOf, kindNote, loadProjectTotals } from '../cap-usage';
-import { areaPlanFitInsights, capRunway, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_WINDOW } from '../progress-insights';
+import { areaPlanFitInsights, capRunway, distributionLabel, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_WINDOW, TOLERANCE_LABEL } from '../progress-insights';
 import OverCapacityBar from '../components/OverCapacityBar';
 import Glyph from '../components/Glyph';
 
@@ -489,7 +489,7 @@ function RetroSummary({ stats, status, deltaH }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
       {/* Carico + Stato fusi, modellati sullo specchietto capacità della Settimana */}
       <Card>
-        <CardLabel help={'Ore svolte (tracciate) sulla capacità della settimana.\n\n% = svolto ÷ capacità\nΔ = svolto − capacità\nStato: sotto-carico sotto 0,85×, in linea fino a 1,1×, sovraccarico oltre\n\nSulla settimana in corso il valore è il consuntivo fino a oggi. Sotto, la proiezione fine settimana:\na piano = consuntivo + piano dei giorni restanti\na ritmo = consuntivo / giorni trascorsi × 7'}>Carico della settimana</CardLabel>
+        <CardLabel help={`Ore svolte (tracciate) sulla capacità della settimana.\n\n% = svolto ÷ capacità\nΔ = svolto − capacità\nStato: in linea entro ${TOLERANCE_LABEL}; fuori da lì è sotto-carico o sovraccarico\n\nSulla settimana in corso il valore è il consuntivo fino a oggi. Sotto, la proiezione fine settimana:\na piano = consuntivo + piano dei giorni restanti\na ritmo = consuntivo / giorni trascorsi × 7`}>Carico della settimana</CardLabel>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
             <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
@@ -645,8 +645,8 @@ function DaDecidereInsights({ perAreaWeekly }) {
   if (!items.length) return null;
   return (
     <div>
-      <SectionHeader title="Da decidere" subtitle={`media su ${PERSIST_WINDOW} settimane chiuse`}
-        help={`Un'area compare se la media dello svolto diverge dalla media del pianificato (sotto 0,85× o oltre 1,1×).\n\nFinestra: ultime ${PERSIST_WINDOW} settimane chiuse con un piano; la settimana in corso è esclusa.\nStoria minima: almeno ${MIN_HISTORY} settimane.\nCompensazione: le settimane sopra e sotto si annullano, perché la domanda è se la ricorrenza è tarata male, non se una singola settimana è andata storta.\nOrdine: in cima le aree con lo scarto proporzionale più grande.`} />
+      <SectionHeader title="Da decidere" subtitle={`media sulle settimane chiuse · fino a ${PERSIST_WINDOW}`}
+        help={`Un'area compare se la media dello svolto esce dalla tolleranza sul pianificato (${TOLERANCE_LABEL}).\n\nFinestra: le settimane chiuse con un piano tra le ${PERSIST_WINDOW} mostrate sopra. La settimana in corso è esclusa, quindi guardando quella corrente sono al massimo ${PERSIST_WINDOW - 1}; ogni card dice su quante è calcolata.\nStoria minima: almeno ${MIN_HISTORY} settimane.\nCompensazione: le settimane sopra e sotto si annullano, perché la domanda è se la ricorrenza è tarata male, non se una singola settimana è andata storta.\nOrdine: in cima le aree con lo scarto proporzionale più grande.`} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
         {items.map((it, i) => (
           <div key={i} style={{
@@ -679,8 +679,7 @@ function DaDecidereInsights({ perAreaWeekly }) {
                 tooltip (stesso `title` nativo di HelpDot) invece che in un blocco espandibile:
                 è una lettura di verifica, non un secondo livello di navigazione. */}
             <div title={weeklyBreakdownTitle(it)} style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)', marginTop: 3, cursor: 'help', borderBottom: '1px dotted var(--tb-border-mid)', display: 'inline-block' }}>
-              {it.weeksOff === 1 ? '1 settimana' : `${it.weeksOff} settimane`} {it.kind === 'under' ? 'sotto' : 'sopra'}
-              {' · picco '}<span style={{ whiteSpace: 'nowrap' }}>{fmtH(it.peakDelta)}</span>
+              {distributionLabel(it)}
             </div>
 
             <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginTop: 6 }}>
