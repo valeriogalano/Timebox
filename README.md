@@ -6,7 +6,7 @@
 
 Timebox is a local-first desktop app for personal capacity planning. It is macOS-first in daily use, with packaging scripts and platform-aware local tooling for Windows and Linux where Electron supports the workflow. It combines a weekly timeblocking board, per-project time tracking, optional billable-hour review for client work, budget and capacity alerts, Todoist task sync, a local HTTP API, a standalone CLI, and an MCP server for coding agents.
 
-**Stack:** Electron 31 · React 18 · Vite 5 · better-sqlite3 12
+**Stack:** Electron 31 · React 18 · Vite 8 · better-sqlite3 12
 
 ---
 

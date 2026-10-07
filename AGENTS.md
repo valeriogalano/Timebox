@@ -6,7 +6,7 @@ The product framing is capacity-first. Billing is a supporting workflow for bill
 
 This is also a vibe coding project: development is iterative and AI-assisted. Keep changes grounded in the existing code, verify behavior, and avoid broad rewrites unless the task explicitly calls for them.
 
-Stack: **Electron 31 + React 18 + Vite 5 + better-sqlite3 12**.
+Stack: **Electron 31 + React 18 + Vite 8 + better-sqlite3 12**.
 
 ---
 
@@ -42,7 +42,10 @@ npm run rebuild                 # back to the Electron ABI
 ```
 
 As of October 2026 the Node half is at about 95% of lines and the UI half at about
-44% of statements. The UI half is still low, but it is measured, so a pull request
+32% of statements, 33% of branches and 30% of functions. Those UI figures are the
+ones Vitest 5 reports: it maps V8 coverage through the AST, and on the same tests
+Vitest 2 reported 44%, 74% and 41%. Numbers taken before the move to Vitest 5 are
+not comparable with the ones after it. The UI half is still low, but it is measured, so a pull request
 that lowers it is visible. Compare statements, branches and functions, not only one
 of them: when a screen gets its first test the file enters the denominator, and the
 branch and function percentages of the whole UI half can drop even though nothing
@@ -113,7 +116,7 @@ To develop without publishing new app versions:
 TimeBox/
   main.js           Electron main process: BrowserWindow, IPC, DB, HTTP server, updates
   preload.js        contextBridge exposing window.api to the renderer
-  vite.config.js    base './', output dist/
+  vite.config.mjs   base './', output dist/
   index.html        HTML entry, Open Sans font, browser-only window.api mock
   lib/
     todoist-order.js  Todoist task ordering helpers
@@ -496,4 +499,4 @@ Do this only for the logic the change actually touches. A feature is not a licen
 - The standalone CLI and MCP server require the app to be open.
 - The developer CLI in `cli/index.js` uses `better-sqlite3` directly and can hit ABI mismatch after `npm run rebuild`.
 - `crypto.randomUUID()` is available in Electron and modern Node; do not add `uuid`.
-- Vite's CJS deprecation warning is harmless for this project.
+- The Vite config is `vite.config.mjs`, not `.js`: `package.json` has no `"type": "module"` because the main process is CommonJS, and Vite 8 warns when an ESM config is loaded as CommonJS.
