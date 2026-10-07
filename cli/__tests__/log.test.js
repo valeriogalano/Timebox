@@ -142,6 +142,19 @@ describe('logHours', () => {
     assert.equal(result.billableHours, null);
   });
 
+  test('billable hours and billed state already saved outside hourly areas are kept, not erased', () => {
+    const { getClients, getProjects } = require('../../db/queries');
+    const area = getClients().find(c => c.billing === 'fixed');
+    const project = getProjects().find(p => p.clientId === area.id && !p.archived);
+    saveEntry({ id: 'hidden-billing', projectId: project.id, date: '2020-07-07', hours: 5, billableHours: 3, slot: 'am', billed: true });
+
+    const result = logHours({ projectName: project.name, hoursStr: '4', slot: 'am', date: '2020-07-07', add: false });
+    assert.equal(result.hours, 4);
+    assert.equal(result.billableHours, 3);
+    const stored = getEntries('2020-07-07', '2020-07-07').find(e => e.id === 'hidden-billing');
+    assert.equal(stored.billed, true);
+  });
+
   test('updates only the selected slot when another slot exists', () => {
     saveEntry({ id: 'slot-am', projectId: 'p1', date: '2020-07-05', hours: 1, billableHours: null, slot: 'am', billed: true });
 

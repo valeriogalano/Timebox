@@ -76,6 +76,17 @@ export function parseHHMM(str, threshold = getMinutesThreshold()) {
 // fatturare. Gemello CommonJS: isHourly in lib/domain.js.
 export const isHourly = client => client?.billing === 'hourly';
 
+// Campi di fatturazione di una registrazione al salvataggio. Nelle aree a ore valgono quelli
+// appena modificati (`edited`); altrove restano quelli già salvati (`saved`): lì sono
+// nascosti, mai cancellati, così tornano com'erano se l'area ridiventa a ore e una
+// registrazione già fatturata non ricompare tra quelle da fatturare.
+export function billingOnSave(saved, edited, hourly) {
+  if (!hourly) return { billableHours: saved?.billableHours ?? null, billed: !!saved?.billed };
+  const b = edited.billableHours;
+  const diverges = b != null && !isNaN(b) && b >= 0 && Math.abs(b - edited.hours) > 0.001;
+  return { billableHours: diverges ? b : null, billed: !!edited.billed };
+}
+
 export function effBillable(entry) {
   if (!entry) return 0;
   return entry.billableHours == null ? entry.hours : entry.billableHours;

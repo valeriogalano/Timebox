@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   getMondayOfWeek, addDays, fmt, fmtH, toHHMM, parseHHMM,
-  effBillable, normalizeSlot, slotForDate, budgetAlertLevel,
+  effBillable, billingOnSave, isHourly, normalizeSlot, slotForDate, budgetAlertLevel,
 } from '../utils.js';
 import {
   DEFAULT_MINUTES_THRESHOLD, normalizeMinutesThreshold,
@@ -164,5 +164,30 @@ describe('budgetAlertLevel', () => {
     assert.equal(budgetAlertLevel(null), 0);
     assert.equal(budgetAlertLevel(undefined), 0);
     assert.equal(budgetAlertLevel(0), 0);
+  });
+});
+
+describe('billingOnSave', () => {
+  const saved = { hours: 5, billableHours: 3, billed: true };
+
+  test('fuori dalle aree a ore conserva i valori salvati, qualunque cosa arrivi dalla modifica', () => {
+    assert.deepEqual(
+      billingOnSave(saved, { hours: 4, billableHours: NaN, billed: false }, false),
+      { billableHours: 3, billed: true },
+    );
+    assert.deepEqual(billingOnSave({ hours: 2 }, { hours: 2, billed: true }, false), { billableHours: null, billed: false });
+  });
+
+  test('nelle aree a ore valgono i valori modificati, e le fatturabili uguali alle lavorate diventano null', () => {
+    assert.deepEqual(billingOnSave(saved, { hours: 4, billableHours: 2, billed: false }, true), { billableHours: 2, billed: false });
+    assert.deepEqual(billingOnSave(saved, { hours: 4, billableHours: 4, billed: true }, true), { billableHours: null, billed: true });
+    assert.deepEqual(billingOnSave(saved, { hours: 4, billableHours: NaN, billed: true }, true), { billableHours: null, billed: true });
+  });
+
+  test('isHourly riconosce solo il compenso a ore', () => {
+    assert.equal(isHourly({ billing: 'hourly' }), true);
+    assert.equal(isHourly({ billing: 'fixed' }), false);
+    assert.equal(isHourly({ billing: 'none' }), false);
+    assert.equal(isHourly(undefined), false);
   });
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getToday, fmt, fmtH, parseHHMM, toHHMM, effBillable, isHourly } from '../utils';
+import { getToday, fmt, fmtH, parseHHMM, toHHMM, effBillable, isHourly, billingOnSave } from '../utils';
 
 function defaultFrom() {
   const d = new Date(getToday().getFullYear(), getToday().getMonth(), 1);
@@ -54,21 +54,16 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
       const p = projects.find(p2 => p2.id === editState.projectId);
       return p && c.id === p.clientId;
     });
-    const isBillableClient = isHourly(entryClient);
-    let billableValue = null;
-    if (isBillableClient) {
-      const parsedB = parseHHMM(editState.billable);
-      if (!isNaN(parsedB) && parsedB >= 0 && Math.abs(parsedB - parsed) > 0.001) {
-        billableValue = parsedB;
-      }
-    }
     const updated = {
       ...entry,
       date: editState.date,
       hours: parsed,
-      billableHours: billableValue,
       projectId: editState.projectId,
-      billed: isBillableClient ? editState.billed : false,
+      ...billingOnSave(
+        entry,
+        { hours: parsed, billableHours: parseHHMM(editState.billable), billed: editState.billed },
+        isHourly(entryClient),
+      ),
     };
     await window.api.saveEntry(updated);
     setEditingId(null);

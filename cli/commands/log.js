@@ -70,12 +70,12 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
     return { action: 'noop', client: client.name, area: area.name, project: project.name, date };
   }
 
+  // Fuori dalle aree a ore le ore fatturabili non si impostano, ma quelle già salvate
+  // restano: sono nascoste, mai cancellate (vedi billingOnSave in src/utils.js).
   let billableHours = existing?.billableHours ?? null;
   if (isBillable && billableHoursStr != null) {
     const parsedB = parseHours(billableHoursStr);
     billableHours = Math.abs(parsedB - newHours) < 0.001 ? null : parsedB;
-  } else if (!isBillable) {
-    billableHours = null;
   }
 
   const nextEntry = {
