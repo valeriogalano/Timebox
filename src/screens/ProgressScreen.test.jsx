@@ -19,7 +19,7 @@ const projects = [
 
 function renderPanoramica() {
   return render(
-    <ProgressScreen clients={clients} projects={projects} recurring={[]} screen="panoramica"
+    <ProgressScreen clients={clients} projects={projects} recurring={[]} screen="progress"
       weekOffset={0} setWeekOffset={() => {}} />
   );
 }

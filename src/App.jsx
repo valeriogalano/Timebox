@@ -17,12 +17,12 @@ import { MINUTES_THRESHOLD_SETTING_KEY, DEFAULT_MINUTES_THRESHOLD, setMinutesThr
 
 const NAV_ITEMS = [
   { id: 'weekly',     label: 'Settimana',      icon: WeekIcon      },
-  { id: 'today',      label: 'Giorno',         icon: TodayIcon     },
-  { id: 'panoramica', label: 'Andamento',       icon: ChartIcon     },
+  { id: 'day',        label: 'Giorno',         icon: TodayIcon     },
+  { id: 'progress',   label: 'Andamento',      icon: ChartIcon     },
   { id: 'billing',    label: 'Rendiconto',      icon: BillingIcon   },
   { id: 'entries',    label: 'Registro',        icon: ListIcon      },
-  { id: 'todoist-log', label: 'Import Todoist', icon: TodoistIcon   },
-  { id: 'clients',    label: 'Aree',            icon: ClientsIcon   },
+  { id: 'todoist-import', label: 'Import Todoist', icon: TodoistIcon   },
+  { id: 'areas',      label: 'Aree',            icon: ClientsIcon   },
   { id: 'recurring',  label: 'Ricorrenza',      icon: RepeatIcon    },
   { id: 'settings',   label: 'Impostazioni',    icon: SettingsIcon  },
 ];
@@ -183,7 +183,7 @@ export default function App() {
         if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
           const delta = e.key === 'ArrowRight' ? 1 : -1;
           if (screen === 'weekly') { e.preventDefault(); setWeekOffset(o => o + delta); }
-          else if (screen === 'today') { e.preventDefault(); setDayOffset(o => o + delta); }
+          else if (screen === 'day') { e.preventDefault(); setDayOffset(o => o + delta); }
           return;
         }
       }
@@ -449,7 +449,7 @@ export default function App() {
 
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
-          {screen === 'today' && (
+          {screen === 'day' && (
             <DayScreen
               externalRefreshTick={weekRefreshTick}
               clients={clients} projects={projects} recurring={recurring}
@@ -468,9 +468,9 @@ export default function App() {
               autoFocusProject={autoFocusProject}
               slotCapacity={slotCapacity}
               onAutoFocusConsumed={() => setAutoFocusProject(null)}
-              onNavigateToAndamento={() => { setAndamentoLens('settimana'); setScreen('panoramica'); }} />
+              onNavigateToAndamento={() => { setAndamentoLens('settimana'); setScreen('progress'); }} />
           )}
-          {screen === 'panoramica' && (
+          {screen === 'progress' && (
             <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen={screen}
               weekOffset={weekOffset} setWeekOffset={setWeekOffset}
               initialLens={andamentoLens} onLensConsumed={() => setAndamentoLens(null)} />
@@ -478,7 +478,7 @@ export default function App() {
           {screen === 'billing' && (
             <BillingScreen clients={clients} projects={projects} screen={screen} />
           )}
-          {screen === 'clients' && (
+          {screen === 'areas' && (
             <AreasScreen
               clients={clients} projects={projects}
               setClients={setClients} setProjects={setProjects} />
@@ -491,7 +491,7 @@ export default function App() {
           {screen === 'entries' && (
             <EntriesScreen clients={clients} projects={projects} onEntryChange={refreshSidebar} />
           )}
-          {screen === 'todoist-log' && <TodoistImportScreen clients={clients} projects={projects} />}
+          {screen === 'todoist-import' && <TodoistImportScreen clients={clients} projects={projects} />}
           {screen === 'settings' && (
             <SettingsScreen
               theme={theme}
