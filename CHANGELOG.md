@@ -10,12 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Limiti e budget delle aree a ore: si misurano sia sulle ore lavorate sia sulle ore fatturabili. Quando i due conteggi divergono, le card di Andamento li mostrano entrambi con la loro etichetta ("fatt." e "lavorate"); barra, percentuale e avvisi seguono il conteggio messo peggio e dicono quale. Vale anche per i banner e i contatori di Settimana, le tacche sui blocchi in Settimana e Giorno, Andamento · In prospettiva e gli avvisi di `status` in CLI e MCP. Nelle aree a corpo o senza compenso non cambia nulla: contano le ore lavorate.
 - Andamento · Settimana: le card di "Limiti della settimana" e "Budget totali" mostrano in evidenza le ore che mancano al tetto, o di quanto è stato superato. Le ore fatte sul limite restano sotto, e la barra è più corta.
+- Rendiconto: mostra solo le aree con compenso a ore, le uniche in cui le ore si fatturano. Le aree a corpo non hanno più una sezione con registrazioni da segnare: compaiono in fondo, su una riga, con le ore lavorate nel periodo.
 
 ### Fixed
 - Oggi · Mismatch dopo sync: lo sforo "Oltre blocco" di un task non include più quello dei task precedenti dello stesso blocco. Un task da mezz'ora poteva risultare oltre di più di un'ora, e le ore "disponibili" apparivano negative.
-
-### Changed
-- Rendiconto: mostra solo le aree con compenso a ore, le uniche in cui le ore si fatturano. Le aree a corpo non hanno più una sezione con registrazioni da segnare: compaiono in fondo, su una riga, con le ore lavorate nel periodo.
 
 ## [0.9.14] - 2026-10-01
 

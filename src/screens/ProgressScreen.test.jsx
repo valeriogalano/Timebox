@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { render, within } from '@testing-library/react';
+import { render, within, fireEvent } from '@testing-library/react';
 import ProgressScreen from './ProgressScreen.jsx';
 import { getToday, fmt } from '../utils';
 
@@ -81,6 +81,19 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     expect(card).toHaveTextContent('26h fatt.·31h lavorate / 40h');
     // la percentuale segue il conteggio messo peggio: 31h su 40h
     expect(card).toHaveTextContent('78%');
+  });
+
+  test('In prospettiva legge un\'area a ore sul conteggio messo peggio e lo dichiara', async () => {
+    const { findByText, getByText } = renderPanoramica();
+
+    await findByText('Limiti della settimana');
+    fireEvent.click(getByText('In prospettiva'));
+    // Pacchetto: 31h lavorate contro 26h fatturabili, quindi il consumato è in ore lavorate
+    const row = (await findByText('Pacchetto')).closest('div').parentElement;
+    expect(row).toHaveTextContent('consumato 31h lavorate su 40h');
+    expect(row).toHaveTextContent('restano 9h');
+    // Progetto due è in un'area a corpo: nessuna etichetta
+    expect(getByText('Progetto due').closest('div').parentElement).toHaveTextContent('consumato 30h su 40h');
   });
 
   test('la colonna Limite compare nel consuntivo per area e segnala il superamento', async () => {

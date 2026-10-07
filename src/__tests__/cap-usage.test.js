@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { capUsage, sumByProject, usageMaps, usageOf, fmtUsage, kindNote } from '../cap-usage.js';
+import { capUsage, sumByProject, usageMaps, usageOf, fmtUsage, kindNote, loadProjectTotals } from '../cap-usage.js';
 
 describe('capUsage', () => {
   test('fuori dalle aree a ore il fatturabile non conta: vale il lavorato, senza etichetta', () => {
@@ -56,5 +56,16 @@ describe('etichette', () => {
     assert.equal(kindNote(capUsage(30, 30, true)), '');
     assert.equal(kindNote(capUsage(20, 24, true)), ' (ore fatturabili)');
     assert.equal(kindNote(capUsage(30, 26, true)), ' (ore lavorate)');
+  });
+});
+
+describe('loadProjectTotals', () => {
+  test('carica insieme i totali in ore lavorate e in ore fatturabili', async (t) => {
+    globalThis.window = { api: {
+      getProjectTotals: async () => ({ p1: 7 }),
+      getProjectBillableTotals: async () => ({ p1: 5 }),
+    } };
+    t.after(() => { delete globalThis.window; });
+    assert.deepEqual(await loadProjectTotals(), { worked: { p1: 7 }, billable: { p1: 5 } });
   });
 });
