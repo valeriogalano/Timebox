@@ -92,6 +92,37 @@ describe('getStatusData', () => {
     assert.ok(alert.label.includes('sett.'));
   });
 
+  test('in an hourly area the alert follows the worse of worked and billable hours and names it', () => {
+    createTestDb();
+    const area = getClients().find(c => c.billing === 'hourly');
+    assert.ok(area, 'Need an hourly area for this test');
+    const project = getProjects().find(p => p.clientId === area.id && !p.archived);
+    saveProject({ ...project, weeklyHours: 10, budgetHours: null });
+    // 7h worked but 9h billable: only the billable count reaches 80% of the limit
+    logHours({ projectName: project.name, hoursStr: '7', billableHoursStr: '9', slot: 'am', date: '2020-09-15', add: false });
+
+    const alert = getStatusData('2020-09-15').alerts
+      .find(a => a.kind === 'project-weekly' && a.project === project.name);
+    assert.ok(alert, 'Expected a weekly project alert from the billable count');
+    assert.equal(alert.logged, 7);
+    assert.equal(alert.billable, 9);
+    assert.equal(alert.count, 'fatt.');
+    assert.equal(alert.pct, 0.9);
+    assert.ok(alert.label.includes('9h fatt. / 10h'));
+  });
+
+  test('outside hourly areas billable hours never raise an alert', () => {
+    createTestDb();
+    const area = getClients().find(c => c.billing === 'fixed');
+    assert.ok(area, 'Need a fixed-fee area for this test');
+    const project = getProjects().find(p => p.clientId === area.id && !p.archived);
+    saveProject({ ...project, weeklyHours: 10, budgetHours: null });
+    logHours({ projectName: project.name, hoursStr: '7', billableHoursStr: '9', slot: 'am', date: '2020-09-15', add: false });
+
+    assert.equal(getStatusData('2020-09-15').alerts
+      .some(a => a.kind === 'project-weekly' && a.project === project.name), false);
+  });
+
   test('no alert when the area has no limit configured', () => {
     createTestDb();
     const area = getClients().find(c => c.limitType === 'weekly' && c.limitHours > 0);

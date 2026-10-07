@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM, parseHHMM, effBillable, SLOTS, budgetAlertLevel } from '../utils';
+import { sumByProject, usageMaps, usageOf, fmtUsage, loadProjectTotals } from '../cap-usage';
 import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
 import TimeCell from '../components/TimeCell';
@@ -196,7 +197,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   // Reload entries when an external DB change is pushed from main process
   useEffect(() => {
     if (!externalRefreshTick) return;
-    window.api.getProjectTotals().then(setProjectTotals);
+    loadProjectTotals().then(setProjectTotals);
     const sunday = addDays(monday, 6);
     window.api.getEntries(fmt(monday), fmt(sunday)).then(setWeekEntries);
     window.api.getWeekAreaStatuses(weekKey).then(rows => {
@@ -209,7 +210,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
 
   // Load entries, overrides, and project totals when week changes
   useEffect(() => {
-    window.api.getProjectTotals().then(setProjectTotals);
+    loadProjectTotals().then(setProjectTotals);
     const sunday = addDays(monday, 6);
     window.api.getEntries(fmt(monday), fmt(sunday)).then(setWeekEntries);
     window.api.getWeekOverrides(weekKey).then(rows => {
@@ -350,7 +351,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       setWeekEntries(prev => prev.filter(e => !(e.projectId === projectId && e.date === dateStr && e.slot === resolvedSlot)));
       if (matches.length > 0) {
         for (const match of matches) await window.api.deleteEntry(match.id);
-        window.api.getProjectTotals().then(setProjectTotals);
+        loadProjectTotals().then(setProjectTotals);
       }
     } else {
       const entry = existing
@@ -365,7 +366,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
         if (match.id === entry.id) continue;
         await window.api.deleteEntry(match.id);
       }
-      window.api.getProjectTotals().then(setProjectTotals);
+      loadProjectTotals().then(setProjectTotals);
     }
     onEntryChange?.();
   }
@@ -580,36 +581,29 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
       })).filter(c => c.projects.length > 0)
     : clientsWithProjects;
 
+  // Uso dei tetti, della settimana e da sempre, su ore lavorate e ore fatturabili: gli avvisi
+  // seguono il conteggio messo peggio e dicono quale (vedi ../cap-usage).
+  const weekUsage = usageMaps(sumByProject(displayWeekEntries), projects, clients);
+  const totalUsage = usageMaps(projectTotals, projects, clients);
+
   // Projects exceeding weekly limit this week
   const weeklyOverProjects = projects.filter(p =>
-    p.weeklyHours > 0 && (weekProjectHours[p.id] ?? 0) > p.weeklyHours
+    p.weeklyHours > 0 && usageOf(weekUsage.project, p.id).worst > p.weeklyHours
   );
 
   // Projects exceeding total budget
   const budgetOverProjects = projects.filter(p =>
-    p.budgetHours > 0 && (projectTotals[p.id] ?? 0) > p.budgetHours
+    p.budgetHours > 0 && usageOf(totalUsage.project, p.id).worst > p.budgetHours
   );
-
-  // Hours done this week per client
-  const weekClientHours = displayWeekEntries.reduce((acc, e) => {
-    const proj = projects.find(p => p.id === e.projectId);
-    if (proj) acc[proj.clientId] = (acc[proj.clientId] ?? 0) + e.hours;
-    return acc;
-  }, {});
 
   // Clients exceeding weekly area limit
   const weeklyOverClients = clients.filter(c =>
-    c.limitType === 'weekly' && c.limitHours > 0 && (weekClientHours[c.id] ?? 0) > c.limitHours
+    c.limitType === 'weekly' && c.limitHours > 0 && usageOf(weekUsage.area, c.id).worst > c.limitHours
   );
 
   // Clients exceeding global area limit (all-time)
-  const clientTotals = Object.entries(projectTotals).reduce((acc, [projectId, h]) => {
-    const proj = projects.find(p => p.id === projectId);
-    if (proj) acc[proj.clientId] = (acc[proj.clientId] ?? 0) + h;
-    return acc;
-  }, {});
   const globalOverClients = clients.filter(c =>
-    c.limitType === 'global' && c.limitHours > 0 && (clientTotals[c.id] ?? 0) > c.limitHours
+    c.limitType === 'global' && c.limitHours > 0 && usageOf(totalUsage.area, c.id).worst > c.limitHours
   );
 
   return (
@@ -626,8 +620,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           <span style={{ fontSize: 12, color: 'var(--tb-text-primary)', flex: 1 }}>
             <strong>Limite settimanale superato:</strong>{' '}
             {weeklyOverProjects.map(p => {
-              const h = weekProjectHours[p.id] ?? 0;
-              return `${p.name} (${fmtH(h)} / ${fmtH(p.weeklyHours)})`;
+              return `${p.name} (${fmtUsage(usageOf(weekUsage.project, p.id))} / ${fmtH(p.weeklyHours)})`;
             }).join(' · ')}
           </span>
           <button onClick={() => setAlertDismissed(true)}
@@ -650,8 +643,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           <span style={{ fontSize: 12, color: 'var(--tb-text-primary)', flex: 1 }}>
             <strong>Budget totale superato:</strong>{' '}
             {budgetOverProjects.map(p => {
-              const h = projectTotals[p.id] ?? 0;
-              return `${p.name} (${fmtH(h)} / ${fmtH(p.budgetHours)})`;
+              return `${p.name} (${fmtUsage(usageOf(totalUsage.project, p.id))} / ${fmtH(p.budgetHours)})`;
             }).join(' · ')}
           </span>
         </div>
@@ -667,7 +659,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           <span className="tb-hatch" style={{ width: 12, height: 12, borderRadius: 3, flexShrink: 0 }} title="Oltre soglia" />
           <span style={{ fontSize: 12, color: 'var(--tb-text-primary)', flex: 1 }}>
             <strong>Limite settimanale area superato:</strong>{' '}
-            {weeklyOverClients.map(c => `${c.name} (${fmtH(weekClientHours[c.id] ?? 0)} / ${fmtH(c.limitHours)})`).join(' · ')}
+            {weeklyOverClients.map(c => `${c.name} (${fmtUsage(usageOf(weekUsage.area, c.id))} / ${fmtH(c.limitHours)})`).join(' · ')}
           </span>
         </div>
       )}
@@ -682,7 +674,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           <BudgetMeter level={3} />
           <span style={{ fontSize: 12, color: 'var(--tb-text-primary)', flex: 1 }}>
             <strong>Limite totale area superato:</strong>{' '}
-            {globalOverClients.map(c => `${c.name} (${fmtH(clientTotals[c.id] ?? 0)} / ${fmtH(c.limitHours)})`).join(' · ')}
+            {globalOverClients.map(c => `${c.name} (${fmtUsage(usageOf(totalUsage.area, c.id))} / ${fmtH(c.limitHours)})`).join(' · ')}
           </span>
         </div>
       )}
@@ -819,7 +811,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                         }}>
                         <PlanningCell slot={slot} dayIndex={i} blocks={d.slotBlocks[slot]}
                           compact={planningCompact}
-                          clients={clientsWithStatus} projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
+                          clients={clientsWithStatus} projects={projects} totalUsage={totalUsage.project} weekUsage={weekUsage.project}
                           blockFill={d.blockFill}
                           todoistByClient={d.todoistByCS[slot]} todoistTasksByClient={d.todoistTasksByCS[slot]} hasTodoistSync={!!d.lastSync}
                           isToday={d.isToday} isFuture={d.isFuture} isWeekend={false} editable
@@ -952,8 +944,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               const rowHasValueInMode = viewMode === 'billable' ? clientBillable && weekTotal > 0 : weekTotal > 0;
               const topBorder = pi === 0 ? '2px solid var(--tb-border)' : 'none';
 
-              const weeklyPct = project.weeklyHours > 0 ? weekTotal / project.weeklyHours : null;
-              const budgetPct = project.budgetHours > 0 ? (projectTotals[project.id] ?? 0) / project.budgetHours : null;
+              const weeklyPct = project.weeklyHours > 0 ? usageOf(weekUsage.project, project.id).worst / project.weeklyHours : null;
+              const budgetPct = project.budgetHours > 0 ? usageOf(totalUsage.project, project.id).worst / project.budgetHours : null;
               const alertLevel = Math.max(budgetAlertLevel(weeklyPct), budgetAlertLevel(budgetPct));
 
               const rowActive = editingProject === project.id;
@@ -962,7 +954,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   <ProjectLabel
                     project={project} client={client} alertLevel={alertLevel}
                     rowActive={rowActive} topBorder={topBorder}
-                    projectTotals={projectTotals} weekProjectHours={weekProjectHours}
+                    totalUsage={usageOf(totalUsage.project, project.id)} weekUsage={usageOf(weekUsage.project, project.id)}
                   />
                   {days.map((d, i) => {
                     const entry = displayWeekEntries.find(e => e.projectId === project.id && e.date === d.dateStr);
@@ -1085,7 +1077,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
             const sunday = addDays(monday, 6);
             const [entries, totals] = await Promise.all([
               window.api.getEntries(fmt(monday), fmt(sunday)),
-              window.api.getProjectTotals(),
+              loadProjectTotals(),
             ]);
             setWeekEntries(entries);
             setProjectTotals(totals);
@@ -1098,11 +1090,9 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   );
 }
 
-function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, projectTotals, weekProjectHours }) {
+function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, totalUsage, weekUsage }) {
   const [tooltipPos, setTooltipPos] = useState(null);
   const labelRef = useRef();
-  const weekH = weekProjectHours[project.id] ?? 0;
-  const totalH = projectTotals[project.id] ?? 0;
   const statusInfo = AREA_STATUS_OPTIONS.find(option => option.key === client.areaStatus) ?? AREA_STATUS_OPTIONS[0];
 
   function handleMouseEnter() {
@@ -1166,8 +1156,8 @@ function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, proje
                 <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                   <span>Budget totale</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>
-                    <BudgetMeter level={budgetAlertLevel(totalH / project.budgetHours)} />
-                    {fmtH(totalH)} / {fmtH(project.budgetHours)}
+                    <BudgetMeter level={budgetAlertLevel(totalUsage.worst / project.budgetHours)} />
+                    {fmtUsage(totalUsage)} / {fmtH(project.budgetHours)}
                   </span>
                 </div>
               )}
@@ -1175,8 +1165,8 @@ function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, proje
                 <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                   <span>Limite sett.</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>
-                    <BudgetMeter level={budgetAlertLevel(weekH / project.weeklyHours)} />
-                    {fmtH(weekH)} / {fmtH(project.weeklyHours)}
+                    <BudgetMeter level={budgetAlertLevel(weekUsage.worst / project.weeklyHours)} />
+                    {fmtUsage(weekUsage)} / {fmtH(project.weeklyHours)}
                   </span>
                 </div>
               )}

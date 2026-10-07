@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toHHMM, parseHHMM, budgetAlertLevel as meterLevel } from '../utils';
 import { areaTints } from '../area-colors';
+import { usageOf, kindNote } from '../cap-usage';
 import TodoistTaskTooltip from './TodoistTaskTooltip';
 import AreaStatusGlyph from './AreaStatusGlyph';
 import { AREA_STATUS_OPTIONS } from '../screens/WeeklyView';
@@ -33,7 +34,7 @@ function PlanningBlock({
   isFuture, isToday, editable, isDragging,
   editing, editDraft, setEditDraft, editRef, commitEdit, onStartEdit, onCancelEdit,
   onRemove, onDragStart, onDragEnd,
-  projects, projectTotals, weekProjectHours,
+  projects, totalUsage, weekUsage,
   compact,
 }) {
   const [hover, setHover] = useState(false);
@@ -42,19 +43,16 @@ function PlanningBlock({
 
   const clientProjects = (projects || []).filter(p => p.clientId === block.clientId && !p.archived);
 
-  const projectBudgetLevel = clientProjects.reduce((maxLevel, p) => {
-    if (!p.budgetHours) return maxLevel;
-    const pct = ((projectTotals || {})[p.id] ?? 0) / p.budgetHours;
-    return Math.max(maxLevel, meterLevel(pct));
-  }, 0);
-
-  const projectWeeklyLevel = clientProjects.reduce((maxLevel, p) => {
-    if (!p.weeklyHours) return maxLevel;
-    const pct = ((weekProjectHours || {})[p.id] ?? 0) / p.weeklyHours;
-    return Math.max(maxLevel, meterLevel(pct));
-  }, 0);
-
-  const budgetAlertLevel_combined = Math.max(projectBudgetLevel, projectWeeklyLevel);
+  // Il progetto messo peggio dell'area, sul conteggio messo peggio (lavorate o fatturabili):
+  // `usage` è quello del progetto che ha fatto scattare il livello, per dirlo nel titolo.
+  const worstCap = (cap, usageMap, best) => clientProjects.reduce((acc, p) => {
+    if (!p[cap]) return acc;
+    const usage = usageOf(usageMap, p.id);
+    const level = meterLevel(usage.worst / p[cap]);
+    return level > acc.level ? { level, usage } : acc;
+  }, best);
+  const meter = worstCap('weeklyHours', weekUsage, worstCap('budgetHours', totalUsage, { level: 0, usage: usageOf() }));
+  const budgetAlertLevel_combined = meter.level;
   const partial = !complete && logged > 0;
 
   const tints = areaTints(cl.color);
@@ -141,7 +139,7 @@ function PlanningBlock({
           <span
             className="tb-meter"
             data-level={budgetAlertLevel_combined}
-            title={budgetAlertLevel_combined === 3 ? 'Limite superato' : budgetAlertLevel_combined === 2 ? 'Limite all\'80%+' : 'Limite al 50%+'}
+            title={(budgetAlertLevel_combined === 3 ? 'Limite superato' : budgetAlertLevel_combined === 2 ? 'Limite all\'80%+' : 'Limite al 50%+') + kindNote(meter.usage)}
             style={{ flexShrink: 0 }}
           >
             <i /><i /><i />
@@ -210,7 +208,7 @@ function PlanningBlock({
 }
 
 export default function PlanningCell({
-  slot, dayIndex, blocks, clients, projects, projectTotals, weekProjectHours, blockFill,
+  slot, dayIndex, blocks, clients, projects, totalUsage, weekUsage, blockFill,
   todoistByClient, todoistTasksByClient, hasTodoistSync,
   compact,
   isToday, isFuture, isWeekend, editable,
@@ -372,7 +370,7 @@ export default function PlanningCell({
                 onDragStart && onDragStart(block.id, block.clientId, block.hours);
               }}
               onDragEnd={onDragEnd}
-              projects={projects} projectTotals={projectTotals} weekProjectHours={weekProjectHours}
+              projects={projects} totalUsage={totalUsage} weekUsage={weekUsage}
             />
           </div>
         </React.Fragment>

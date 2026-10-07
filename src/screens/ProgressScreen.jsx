@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
 import { areaMix } from '../area-colors';
+import { sumByProject, usageMaps, usageOf, kindNote, loadProjectTotals } from '../cap-usage';
 import { areaPlanFitInsights, capRunway, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_WINDOW } from '../progress-insights';
 import OverCapacityBar from '../components/OverCapacityBar';
 import Glyph from '../components/Glyph';
@@ -111,7 +112,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
   useEffect(() => {
     if (screen !== 'progress') return;
     window.api.getEntries(fetchRange.from, fetchRange.to).then(setEntries);
-    window.api.getProjectTotals().then(setProjectTotals);
+    loadProjectTotals().then(setProjectTotals);
     // week_overrides storicizza il pianificato effettivo delle settimane passate
     // (freezeWeeksBeforeRecurringChange lo scrive ad ogni modifica del template
     // ricorrente): usarlo al posto del template corrente rende "Nel tempo" accurato
@@ -198,11 +199,8 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     const projectionEur     = billable.reduce((s, c) => s + Math.max(billableByClient[c.id] ?? 0, plannedByClient[c.id] ?? 0) * c.rate, 0);
     const billableDoneHours = billable.reduce((s, c) => s + (billableByClient[c.id] ?? 0), 0);
 
-    const actualByProject = {};
-    projects.forEach(p => { actualByProject[p.id] = 0; });
-    consuntivoEntries.forEach(e => {
-      if (e.projectId in actualByProject) actualByProject[e.projectId] += e.hours;
-    });
+    // Uso dei tetti settimanali, su ore lavorate e ore fatturabili (vedi ../cap-usage).
+    const weekUsage = usageMaps(sumByProject(consuntivoEntries), projects, clients);
 
     // Proiezione fine settimana, solo sulla settimana in corso non ancora conclusa.
     // - a piano: consuntivo + ore pianificate (override o template) dei giorni da
@@ -238,7 +236,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     }
 
     return {
-      actualByClient, plannedByClient, actualByProject, numWeeks: 1,
+      actualByClient, plannedByClient, weekUsage, numWeeks: 1,
       capacity, totalDone, billedDoneEur, projectionEur, billableDoneHours,
       projTemplateHours, projRhythmHours, daysElapsed, projByClient,
     };
@@ -296,19 +294,21 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     });
   }, [clients, recurring, entries, overridesByWeek, periodOffset, projectClientMap, currentWeekKey, plannedByClientEffective]);
 
+  const totalUsage = useMemo(() => usageMaps(projectTotals, projects, clients), [projectTotals, projects, clients]);
+
   // Ritmo MISURATO: media delle ore tracciate sulle ultime RUNWAY_WINDOW settimane
   // CHIUSE (la corrente è in corso e leggerebbe sempre basso). Una settimana vuota conta
   // come zero solo se il soggetto era già attivo prima della finestra: per un progetto
   // appena nato le settimane precedenti alla prima entry sono "non ancora nato", non
   // "fermo", e includerle dimezzerebbe il ritmo.
-  function measuredRhythm(matches) {
+  function measuredRhythm(matches, hoursOf = e => e.hours) {
     const weeks = Array.from({ length: RUNWAY_WINDOW }, (_, i) => {
       const monday   = addDays(getMondayOfWeek(getToday()), (i - RUNWAY_WINDOW + periodOffset) * 7);
       const startStr = fmt(monday);
       const endStr   = fmt(addDays(monday, 6));
       const done = entries
         .filter(e => e.date >= startStr && e.date <= endStr && matches(e))
-        .reduce((s, e) => s + e.hours, 0);
+        .reduce((s, e) => s + hoursOf(e), 0);
       return { startStr, done };
     });
     const hadHistoryBefore = entries.some(e => e.date < weeks[0].startStr && matches(e));
@@ -322,26 +322,30 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
   // budget totale di progetto). I tetti settimanali non compaiono — si azzerano ogni
   // settimana, quindi non li si raggiunge mai: il loro numero utile è il margine della
   // settimana corrente, che si legge in Settimana.
+  // Nelle aree a ore il tetto si legge sul conteggio messo peggio (lavorate o fatturabili):
+  // consumato e ritmo sono nello stesso conteggio, e la riga dice quale (`count`).
   const capRows = useMemo(() => {
     const rows = [];
+    const rhythmIn = (u, matches) => measuredRhythm(matches, u.kind === 'fatt.' ? effBillable : undefined);
     clients.forEach(c => {
       if (c.limitType !== 'global' || !(c.limitHours > 0)) return;
       const ids = new Set(projects.filter(p => p.clientId === c.id).map(p => p.id));
-      const consumed = [...ids].reduce((s, id) => s + (projectTotals[id] ?? 0), 0);
-      const { rhythm, weeksCounted } = measuredRhythm(e => ids.has(e.projectId));
+      const usage = usageOf(totalUsage.area, c.id);
+      const { rhythm, weeksCounted } = rhythmIn(usage, e => ids.has(e.projectId));
       rows.push({
-        key: `area-${c.id}`, kind: 'Area', name: c.name, color: c.color,
+        key: `area-${c.id}`, kind: 'Area', name: c.name, color: c.color, count: usage.kind,
         template: clientWeeklyCapacity(c.id, recurring),
         rate: isBillableClient(c) ? c.rate : 0, weeksCounted,
-        ...capRunway({ cap: c.limitHours, consumed, rhythm }),
+        ...capRunway({ cap: c.limitHours, consumed: usage.worst, rhythm }),
       });
     });
     projects.forEach(p => {
       if (!(p.budgetHours > 0) || p.archived) return;   // budget di un progetto chiuso = storia
       const area = clients.find(c => c.id === p.clientId);
-      const { rhythm, weeksCounted } = measuredRhythm(e => e.projectId === p.id);
+      const usage = usageOf(totalUsage.project, p.id);
+      const { rhythm, weeksCounted } = rhythmIn(usage, e => e.projectId === p.id);
       rows.push({
-        key: `proj-${p.id}`, kind: 'Progetto', name: p.name, subtitle: area?.name,
+        key: `proj-${p.id}`, kind: 'Progetto', name: p.name, subtitle: area?.name, count: usage.kind,
         color: area?.color ?? 'var(--tb-text-muted)',
         template: null,   // `recurring` mappa le aree, non i progetti: nessun ritmo template
         rate: area && isBillableClient(area) ? area.rate : 0, weeksCounted,
@@ -349,13 +353,13 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
         // la riga si mostra comunque, ma nei totali va contata una volta sola o le ore
         // (e il valore) risulterebbero raddoppiate.
         insideCappedArea: !!(area && area.limitType === 'global' && area.limitHours > 0),
-        ...capRunway({ cap: p.budgetHours, consumed: projectTotals[p.id] ?? 0, rhythm }),
+        ...capRunway({ cap: p.budgetHours, consumed: usage.worst, rhythm }),
       });
     });
     // Il più vicino al tetto in cima: è la riga su cui si decide.
     const order = { esaurito: 0, entro2: 1, entro4: 2, entro8: 3, oltre8: 4, nessuno: 5 };
     return rows.sort((a, b) => (order[a.band] - order[b.band]) || (b.ratio - a.ratio));
-  }, [clients, projects, recurring, projectTotals, entries, periodOffset]);
+  }, [clients, projects, recurring, totalUsage, entries, periodOffset]);
 
   const status  = statusFor(stats.totalDone, stats.capacity);
   const deltaH  = stats.totalDone - stats.capacity;
@@ -372,25 +376,20 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
   // Le aree vengono prima dei loro progetti.
   // Il consumato di un limite globale d'area comprende anche i progetti archiviati (come in
   // "In prospettiva"): le loro ore sono state spese sullo stesso tetto.
-  const areaProjectIds = c => projects.filter(p => p.clientId === c.id).map(p => p.id);
-  const limitCards = (areaType, projectHours, areaDone, projectDone) => [
+  const limitCards = (areaType, projectHours, usage) => [
     ...clients
       .filter(c => c.limitType === areaType && c.limitHours > 0)
-      .map(c => ({ key: `area-${c.id}`, title: c.name, color: c.color, limit: c.limitHours, done: areaDone(c) })),
+      .map(c => ({ key: `area-${c.id}`, title: c.name, color: c.color, limit: c.limitHours, usage: usageOf(usage.area, c.id) })),
     ...activeProjects
       .filter(p => p[projectHours] > 0)
       .map(p => {
         const c = clients.find(x => x.id === p.clientId);
-        return c && { key: `proj-${p.id}`, title: p.name, subtitle: c.name, color: c.color, limit: p[projectHours], done: projectDone(p) };
+        return c && { key: `proj-${p.id}`, title: p.name, subtitle: c.name, color: c.color, limit: p[projectHours], usage: usageOf(usage.project, p.id) };
       })
       .filter(Boolean),
   ];
-  const weeklyLimits = limitCards('weekly', 'weeklyHours',
-    c => stats.actualByClient[c.id] ?? 0,
-    p => stats.actualByProject[p.id] ?? 0);
-  const totalBudgets = limitCards('global', 'budgetHours',
-    c => areaProjectIds(c).reduce((sum, id) => sum + (projectTotals[id] ?? 0), 0),
-    p => projectTotals[p.id] ?? 0);
+  const weeklyLimits = limitCards('weekly', 'weeklyHours', stats.weekUsage);
+  const totalBudgets = limitCards('global', 'budgetHours', totalUsage);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 24 }}>
@@ -570,7 +569,7 @@ function AreaConsuntivo({ clients, stats }) {
     .map(c => {
       const planned = stats.plannedByClient[c.id] ?? 0;
       const done = stats.actualByClient[c.id] ?? 0;
-      return { c, planned, done, extra: Math.max(0, done - planned), delta: done - planned };
+      return { c, planned, done, extra: Math.max(0, done - planned), delta: done - planned, limitUsage: usageOf(stats.weekUsage.area, c.id) };
     })
     .filter(r => r.planned > 0 || r.done > 0);
   if (!rows.length) return null;
@@ -594,7 +593,7 @@ function AreaConsuntivo({ clients, stats }) {
         <span style={headCell}>Extra</span>
         <span style={headCell}>Δ</span>
         {hasLimit && <span style={headCell}>Limite</span>}
-        {rows.map(({ c, planned, done, extra, delta }) => {
+        {rows.map(({ c, planned, done, extra, delta, limitUsage }) => {
           const v = statusFor(done, planned);
           return (
             <React.Fragment key={c.id}>
@@ -613,7 +612,7 @@ function AreaConsuntivo({ clients, stats }) {
               {hasLimit && (
                 <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-muted)' }}>
                   {c.limitType === 'weekly' && c.limitHours > 0
-                    ? <>{done > c.limitHours && <span style={{ color: COL_OVER }} title="Superato">⚠ </span>}{fmtH(c.limitHours)}</>
+                    ? <>{limitUsage.worst > c.limitHours && <span style={{ color: COL_OVER }} title={`Superato${kindNote(limitUsage)}`}>⚠ </span>}{fmtH(c.limitHours)}</>
                     : '—'}
                 </span>
               )}
@@ -768,7 +767,7 @@ function ProspettivaLens({ rows }) {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8, fontSize: 12, color: 'var(--tb-text-muted)', flexWrap: 'wrap' }}>
-              <span>consumato <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(r.consumed)}</strong> su {fmtH(r.cap)}</span>
+              <span>consumato <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(r.consumed)}</strong>{r.count ? ` ${r.count}` : ''} su {fmtH(r.cap)}</span>
               <span>· {r.remaining > 0 ? 'restano' : 'oltre di'} <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(Math.abs(r.remaining))}</strong></span>
               <span>· ritmo <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(r.rhythm)}</strong>/sett</span>
               {r.template > 0 && <span>· template {fmtH(r.template)}/sett</span>}
@@ -858,10 +857,19 @@ function LimitSection({ title, subtitle, help, cards }) {
   );
 }
 
-// Un tetto, una barra: ore fatte contro il limite. Il sottotitolo c'è solo per i progetti
-// (nome dell'area); per un'area il titolo è già l'area.
-function LimitCard({ title, subtitle, color, limit, done }) {
-  const pct = done / limit;
+// Un tetto, una barra. Il numero in evidenza è il residuo (limite − ore), perché è quello su
+// cui si decide; ore/limite resta sotto come contesto. Nelle aree a ore il tetto si misura su
+// ore lavorate e ore fatturabili: quando divergono la card le mostra entrambe, etichettate, e
+// barra, percentuale e ⚠ seguono il conteggio messo peggio. Il sottotitolo c'è solo per i
+// progetti (nome dell'area); per un'area il titolo è già l'area.
+function LimitCard({ title, subtitle, color, limit, usage }) {
+  const pct = usage.worst / limit;
+  // Un solo conteggio senza etichetta quando coincidono; altrimenti prima le fatturabili.
+  const counts = usage.kind
+    ? [{ label: 'fatt.', hours: usage.billable }, { label: 'lavorate', hours: usage.worked }]
+    : [{ label: null, hours: usage.worked }];
+  const sep = <span style={{ margin: '0 6px', color: 'var(--tb-text-faint)', fontWeight: 400 }}>·</span>;
+  const small = { fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' };
   return (
     <div style={{
       background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
@@ -874,14 +882,31 @@ function LimitCard({ title, subtitle, color, limit, done }) {
           {subtitle && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}>· {subtitle}</span>}
           <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>·</span>
           <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em' }}>{Math.round(pct * 100)}%</span>
-          {pct > 1 && <span style={{ fontSize: 10, color: COL_OVER }} title="Superato">⚠</span>}
+          {pct > 1 && <span style={{ fontSize: 10, color: COL_OVER }} title={`Superato${kindNote(usage)}`}>⚠</span>}
         </div>
-        <Bar value={done} max={Math.max(limit, done)} color={color} />
+        <div style={{ maxWidth: '55%' }}>
+          <Bar value={usage.worst} max={Math.max(limit, usage.worst)} color={color} />
+        </div>
       </div>
       <div style={{ textAlign: 'right', minWidth: 80, flexShrink: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(done)}</div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 2, textTransform: 'uppercase' }}>
-          / {fmtH(limit)}
+        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>
+          {counts.map(({ label, hours }, i) => (
+            <React.Fragment key={label ?? 'ore'}>
+              {i > 0 && sep}
+              <span style={{ ...small, marginRight: 5 }}>{limit - hours >= 0 ? 'mancano' : 'oltre di'}</span>
+              <strong style={{ fontWeight: 800 }}>{fmtH(Math.abs(limit - hours))}</strong>
+              {label && <span style={{ ...small, marginLeft: 4 }}>{label}</span>}
+            </React.Fragment>
+          ))}
+        </div>
+        <div style={{ ...small, letterSpacing: '0.04em', marginTop: 3 }}>
+          {counts.map(({ label, hours }, i) => (
+            <React.Fragment key={label ?? 'ore'}>
+              {i > 0 && sep}
+              <span>{fmtH(hours)}</span>{label && ` ${label}`}
+            </React.Fragment>
+          ))}
+          {' '}/ {fmtH(limit)}
         </div>
       </div>
     </div>

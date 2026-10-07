@@ -287,6 +287,14 @@ There is one entry per `projectId + date + slot`; the database enforces this wit
 
 `entries.billed` is stored as `INTEGER` 0/1 and normalized to boolean in queries. `entries.billableHours` can override billable time for billing/reporting while leaving actual tracked hours unchanged.
 
+### Limits Count Both Worked and Billable Hours
+
+Every cap (area limit, project budget, project weekly limit) is measured on two counts: worked hours (`entries.hours`) and billable hours (`billableHours`, falling back to worked). They can only differ in areas with `billing === 'hourly'`; elsewhere billable hours are ignored. `capUsage` returns both counts plus `worst` (the higher one) and `kind` (`'lavorate'`, `'fatt.'`, or `null` when they coincide). Thresholds, bars and alerts always use `worst`, and any number shown while the counts differ carries its label — a bare number means worked hours.
+
+The logic lives in `src/cap-usage.js` for the renderer and in `capUsage` in `lib/domain.js` for the CLI; the two copies must stay in step. All-time totals come from `getProjectTotals` (worked) and `getProjectBillableTotals` (billable), loaded together by `loadProjectTotals()`. Do not compare a cap against `e.hours` or `projectTotals` directly: go through `usageMaps`. An area's usage is computed by summing each count over its projects first and picking the worse afterwards, not by summing the projects' worst values.
+
+In UI text, tracked hours are "ore lavorate" (never "ore reali") and billable hours are "ore fatturabili", abbreviated "fatt.".
+
 ### Reset to Template
 
 `resetWeekToTemplate()` removes current-week overrides locally and calls `deleteWeekOverride` for every weekday AM/PM slot.

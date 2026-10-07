@@ -660,6 +660,7 @@ async function callTool(name, args) {
     if (!d.length) return 'No projects found.';
     return d.map(p => {
       let line = `${p.project} [${p.area || p.client}] — logged: ${p.logged || 0}h`;
+      if (p.billable != null && Math.abs(p.billable - (p.logged || 0)) > 0.001) line += `, billable: ${p.billable}h`;
       if (p.budgetHours) line += `, budget: ${p.budgetHours}h`;
       if (p.weeklyHours) line += `, weekly limit: ${p.weeklyHours}h`;
       if (p.archived) line += ' (archived)';

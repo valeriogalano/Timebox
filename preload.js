@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('api', {
 
   getEntries:         (from, to)   => ipcRenderer.invoke('db:getEntries', from, to),
   getProjectTotals:   ()           => ipcRenderer.invoke('db:getProjectTotals'),
+  getProjectBillableTotals: ()     => ipcRenderer.invoke('db:getProjectBillableTotals'),
   saveEntry:          (e)          => ipcRenderer.invoke('db:saveEntry', e),
   deleteEntry:        (id)         => ipcRenderer.invoke('db:deleteEntry', id),
 

@@ -254,6 +254,14 @@ function getProjectTotals() {
   ).all().reduce((acc, row) => { acc[row.projectId] = row.totalHours; return acc; }, {});
 }
 
+// Come getProjectTotals, ma in ore fatturabili: dove non c'è un override vale il lavorato.
+// Serve ai tetti delle aree a ore, che si misurano su entrambi i conteggi.
+function getProjectBillableTotals() {
+  return db.prepare(
+    'SELECT projectId, SUM(COALESCE(billableHours, hours)) as totalHours FROM entries GROUP BY projectId'
+  ).all().reduce((acc, row) => { acc[row.projectId] = row.totalHours; return acc; }, {});
+}
+
 function getEntries(dateFrom, dateTo) {
   return db.prepare(
     'SELECT * FROM entries WHERE date BETWEEN ? AND ? ORDER BY date'
@@ -795,7 +803,7 @@ module.exports = {
   getClients, saveClient, deleteClient,
   getProjects, saveProject, deleteProject, hasProjectEntries, mergeProjectEntries,
   getRecurring, saveRecurring, deleteRecurring, deleteRecurringByClient,
-  getEntries, getProjectTotals, saveEntry, deleteEntry,
+  getEntries, getProjectTotals, getProjectBillableTotals, saveEntry, deleteEntry,
   getTodoistImportIds, getTodoistImports, saveTodoistImport, updateTodoistImport, deleteTodoistImport, importCompletedTodoistTasks,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange, toMonday,
   getWeekAreaStatuses, getWeekAreaStatusMap, saveWeekAreaStatus,
