@@ -1,7 +1,7 @@
 'use strict';
 
 const { getEntries, getProjects, getClients } = require('../../db/queries');
-const { effBillable } = require('../format');
+const { effBillable, isHourly } = require('../format');
 const { SLOTS, normalizeSlot } = require('../../lib/domain');
 
 function getTodayData(date) {
@@ -16,7 +16,7 @@ function getTodayData(date) {
     const project = projectMap[e.projectId];
     const client = project ? clientMap[project.clientId] : null;
     const slot = normalizeSlot(e.slot);
-    const isBillable = client && client.billing !== 'none';
+    const isBillable = isHourly(client);
     slots[slot].push({
       hours: e.hours,
       billableHours: e.billableHours ?? null,

@@ -1,7 +1,7 @@
 'use strict';
 
 const { getEntries, getProjects, getClients, getWeekAreaStatusMap } = require('../../db/queries');
-const { getMondayOfWeek, addDays, fmt, effBillable } = require('../format');
+const { getMondayOfWeek, addDays, fmt, effBillable, isHourly } = require('../format');
 
 function getWeekData(today, offset = 0) {
   const monday = getMondayOfWeek(today);
@@ -31,7 +31,7 @@ function getWeekData(today, offset = 0) {
       .map(e => {
         const project = projectMap[e.projectId];
         const client = project ? clientMap[project.clientId] : null;
-        const isBillable = client && client.billing !== 'none';
+        const isBillable = isHourly(client);
         return {
           hours: e.hours,
           billableHours: e.billableHours ?? null,

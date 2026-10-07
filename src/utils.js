@@ -71,6 +71,11 @@ export function parseHHMM(str, threshold = getMinutesThreshold()) {
   return numeric > threshold && !String(str || '').includes(':') ? numeric / 60 : numeric;
 }
 
+// Solo le aree con compenso a ore fatturano ore: badge €, ore fatturabili e stato
+// "fatturato" hanno senso soltanto lì. Un'area a corpo ha un compenso ma non ore da
+// fatturare. Gemello CommonJS: isHourly in lib/domain.js.
+export const isHourly = client => client?.billing === 'hourly';
+
 export function effBillable(entry) {
   if (!entry) return 0;
   return entry.billableHours == null ? entry.hours : entry.billableHours;

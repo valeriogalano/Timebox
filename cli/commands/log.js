@@ -3,7 +3,7 @@
 const { randomUUID } = require('crypto');
 const { getProjects, getClients, getEntries, saveEntry, deleteEntry } = require('../../db/queries');
 const { currentSlot } = require('../../lib/time-slots');
-const { parseHours } = require('../format');
+const { parseHours, isHourly } = require('../format');
 
 function findProject(name) {
   const projects = getProjects();
@@ -53,7 +53,7 @@ function mergeEntries(entries) {
 function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) {
   const { project, client, area } = findProject(projectName);
   const parsed = parseHours(hoursStr);
-  const isBillable = client.billing !== 'none';
+  const isBillable = isHourly(client);
   const resolvedSlot = slot || currentSlot();
 
   const entries = getEntries(date, date).filter(e => (

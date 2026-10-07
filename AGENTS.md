@@ -434,6 +434,7 @@ Update handling is split by platform in `main.js` (`app.whenReady`):
 
 - `clients.billable`, `projects.archived`, and `entries.billed` are SQLite integers, not booleans. Normalize in `queries.js`.
 - `billableHours` is optional. `null` means billable time equals tracked time for billable areas.
+- Only areas with `billing === 'hourly'` bill hours. The € badge, the billable-hours override and the billed state apply there only; a `fixed` area has a fee but no hours to invoice. Use `isHourly(client)` (`src/utils.js`, twin in `lib/domain.js`) instead of testing `billing !== 'none'`.
 - The standalone CLI and MCP server require the app to be open.
 - The developer CLI in `cli/index.js` uses `better-sqlite3` directly and can hit ABI mismatch after `npm run rebuild`.
 - `crypto.randomUUID()` is available in Electron and modern Node; do not add `uuid`.

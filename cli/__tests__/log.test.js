@@ -128,6 +128,20 @@ describe('logHours', () => {
     assert.equal(result.billableHours, null);
   });
 
+  test('billable hours are ignored outside hourly areas', () => {
+    const { getClients, getProjects } = require('../../db/queries');
+    const area = getClients().find(c => c.billing === 'fixed');
+    assert.ok(area, 'Need a fixed-fee area for this test');
+    const project = getProjects().find(p => p.clientId === area.id && !p.archived);
+
+    const result = logHours({
+      projectName: project.name, hoursStr: '3', billableHoursStr: '2',
+      slot: 'am', date: '2020-07-06', add: false,
+    });
+    // a fixed-fee area has a fee but no hours to invoice: the override is dropped
+    assert.equal(result.billableHours, null);
+  });
+
   test('updates only the selected slot when another slot exists', () => {
     saveEntry({ id: 'slot-am', projectId: 'p1', date: '2020-07-05', hours: 1, billableHours: null, slot: 'am', billed: true });
 

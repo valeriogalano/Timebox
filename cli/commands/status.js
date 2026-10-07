@@ -1,7 +1,7 @@
 'use strict';
 
 const { getEntries, getProjects, getClients, getProjectTotals, getProjectBillableTotals } = require('../../db/queries');
-const { getMondayOfWeek, addDays, fmt, effBillable, capUsage, fmtH } = require('../format');
+const { getMondayOfWeek, addDays, fmt, effBillable, isHourly, capUsage, fmtH } = require('../format');
 
 const ALERT_THRESHOLD = 0.8;
 
@@ -17,7 +17,7 @@ function billableSum(entries, projectMap, clientMap) {
   return entries.reduce((s, e) => {
     const p = projectMap[e.projectId];
     const c = p ? clientMap[p.clientId] : null;
-    if (!c || c.billing === 'none') return s;
+    if (!isHourly(c)) return s;
     return s + effBillable(e);
   }, 0);
 }
@@ -50,11 +50,10 @@ function getStatusData(today) {
 
   // Ogni tetto si misura su ore lavorate e ore fatturabili; nelle aree a ore possono
   // divergere, e l'alert segue il conteggio messo peggio dicendo quale è.
-  const isHourly = clientId => clientMap[clientId]?.billing === 'hourly';
-  const projectUsage = (worked, billable, p) => capUsage(worked[p.id] || 0, billable[p.id] ?? worked[p.id] ?? 0, isHourly(p.clientId));
+  const projectUsage = (worked, billable, p) => capUsage(worked[p.id] || 0, billable[p.id] ?? worked[p.id] ?? 0, isHourly(clientMap[p.clientId]));
   const areaUsage = (worked, billable, c) => {
     const w = sumByArea(worked, projectMap)[c.id] || 0;
-    return capUsage(w, sumByArea(billable, projectMap)[c.id] ?? w, isHourly(c.id));
+    return capUsage(w, sumByArea(billable, projectMap)[c.id] ?? w, isHourly(c));
   };
 
   // Un alert per ogni tetto configurato che è all'80% o oltre: budget di progetto,

@@ -101,7 +101,7 @@ The primary screen combines planning and tracking:
 - Planned area blocks that fill as hours are logged.
 - Extra blocks for work logged against areas not planned that day.
 - Inline `hh:mm` editing for project entries.
-- A green `€` billed badge and hover toggle for billable entries.
+- A green `€` billed badge and hover toggle for entries in hourly areas, the only ones whose hours are invoiced.
 - Weekly navigation, current-day highlighting, and keyboard shortcuts.
 - A per-area weekly status selector for active, minimal, or closed areas.
 - Budget and capacity alert banners.
@@ -238,7 +238,7 @@ While the app is open, a local API is available at `http://127.0.0.1:37373`.
 | `GET` | `/clients?search=` | Area/client list. |
 | `GET` | `/areas?search=` | Alias for `/clients`. |
 | `GET` | `/status` | Today, week, and alerts (project budget, project weekly limit, area limit). |
-| `POST` | `/log` | Log hours: `{ project, hours, slot, date, add, billableHours }`. |
+| `POST` | `/log` | Log hours: `{ project, hours, slot, date, add, billableHours }`. `billableHours` is kept only for projects in hourly areas. |
 | `POST` | `/projects` | Create a project in an area. |
 | `PATCH` | `/projects/:id` | Update project name, area, description, budget, or weekly limit. |
 | `DELETE` | `/projects/:id` | Delete a project with no entries. |
