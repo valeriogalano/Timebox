@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { areaPlanFitInsights, capRunway, statusFor, PERSIST_WINDOW, MIN_HISTORY } from '../progress-insights.js';
+import { areaPlanFitInsights, capRunway, distributionLabel, statusFor, PERSIST_WINDOW, MIN_HISTORY, TOLERANCE_LABEL } from '../progress-insights.js';
 
 const area = (name, weeks) => ({ client: { id: name, name, color: '#000' }, weeks });
 // helper: settimana chiusa con done/planned
@@ -170,4 +170,40 @@ describe('statusFor', () => {
     assert.equal(statusFor(1, 0).glyph, '▴');       // 1h: fuori piano ma non marcato
     assert.equal(statusFor(0.25, 0).kind, 'on');    // 15m: rumore di tracciamento
   });
+});
+
+describe('piani piccoli', () => {
+  test('zero ore su un piano non sono mai in linea, anche dentro la tolleranza', () => {
+    assert.equal(statusFor(0, 0.5).kind, 'under');   // -30m = tolleranza, ma il piano e' saltato
+    assert.equal(statusFor(0, 0.5).glyph, '▾');
+    assert.equal(statusFor(0.25, 0.75).kind, 'on');  // qualcosa di fatto: resta rumore
+  });
+
+  test('un piano da mezz\'ora saltato ogni settimana conta le settimane sotto', () => {
+    // Il caso reale: sei settimane a 0h su 30m e una in linea. Prima la card diceva
+    // "sotto il piano" con "0 settimane sotto · picco 0h".
+    const weeks = [...rep(6, wk(0, 0.5)), wk(2, 2.5)];
+    const [item] = areaPlanFitInsights([area('A', weeks)]);
+    assert.equal(item.kind, 'under');
+    assert.equal(item.weeksOff, 6);
+    assert.equal(item.peakDelta, -0.5);
+  });
+});
+
+describe('distributionLabel', () => {
+  test('conteggio e picco, con il segno sullo scarto in eccesso', () => {
+    assert.equal(distributionLabel({ weeksOff: 5, kind: 'over', peakDelta: 21.25 }), '5 settimane sopra · picco +21h\u00a015m');
+    assert.equal(distributionLabel({ weeksOff: 1, kind: 'under', peakDelta: -9 }), '1 settimana sotto · picco -9h');
+  });
+
+  test('nessuna settimana fuori da sola: niente conteggio a zero', () => {
+    // 2h pianificate e 1h36 svolte: ogni settimana e' dentro i 30m, la somma no
+    const [item] = areaPlanFitInsights([area('A', rep(PERSIST_WINDOW, wk(1.6, 2)))]);
+    assert.equal(item.weeksOff, 0);
+    assert.equal(distributionLabel(item), 'nessuna settimana fuori soglia da sola');
+  });
+});
+
+test('la tolleranza nei tooltip segue le costanti del calcolo', () => {
+  assert.equal(TOLERANCE_LABEL, '±10% o ±30 minuti, quale dei due è più largo');
 });

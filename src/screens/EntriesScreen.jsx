@@ -125,7 +125,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
         </select>
 
         <span style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginLeft: 4 }}>
-          {filtered.length} entr{filtered.length === 1 ? 'y' : 'ies'} · {fmtH(filtered.reduce((s, e) => s + e.hours, 0))}
+          {filtered.length} registrazion{filtered.length === 1 ? 'e' : 'i'} · {fmtH(filtered.reduce((s, e) => s + e.hours, 0))}
           {(() => {
             const totBill = filtered.reduce((s, e) => {
               const cli = clientOf(e);
@@ -142,7 +142,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
       {/* Table */}
       {sorted.length === 0 ? (
         <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--tb-text-muted)', fontSize: 13 }}>
-          Nessuna entry nel periodo selezionato.
+          Nessuna registrazione nel periodo selezionato.
         </div>
       ) : (
         <div style={{ border: '1px solid var(--tb-border)', borderRadius: 8, overflow: 'hidden' }}>
@@ -262,7 +262,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
                           : entry.billed
                             ? <span className="tb-glyph" style={{ fontSize: 11 }}>✓</span>
                             : <span style={{ color: 'var(--tb-text-muted)', fontSize: 11 }}>○</span>
-                        : <span style={{ color: 'var(--tb-text-muted)', fontSize: 11 }}>n/a</span>
+                        : <span style={{ color: 'var(--tb-text-muted)', fontSize: 11 }}>—</span>
                       }
                     </td>
 

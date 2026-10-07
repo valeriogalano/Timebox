@@ -725,6 +725,9 @@ function InsightRow({ title, value, meta, color }) {
 const metaLine = (...parts) => parts.filter(Boolean).join(' · ');
 const slotLabel = item => item.slot?.toUpperCase?.() || '';
 
+// Righe mostrate per gruppo di mismatch; le altre si dichiarano in coda.
+const MISMATCH_VISIBLE = 4;
+
 function MismatchGroup({ label, count = 0, items = [], itemLabel, itemMeta, itemValue }) {
   if (!count) return null;
   return (
@@ -732,7 +735,7 @@ function MismatchGroup({ label, count = 0, items = [], itemLabel, itemMeta, item
       <div style={{ fontSize: 10, fontWeight: 850, color: 'var(--tb-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
         {label} · {count}
       </div>
-      {items.slice(0, 4).map((item, index) => (
+      {items.slice(0, MISMATCH_VISIBLE).map((item, index) => (
         <InsightRow
           key={`${label}-${index}`}
           title={<MarkdownText text={itemLabel(item)} />}
@@ -741,6 +744,12 @@ function MismatchGroup({ label, count = 0, items = [], itemLabel, itemMeta, item
           color="var(--tb-text-primary)"
         />
       ))}
+      {/* L'intestazione conta tutti gli elementi: quelli non mostrati vanno dichiarati. */}
+      {items.length > MISMATCH_VISIBLE && (
+        <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
+          e {items.length - MISMATCH_VISIBLE === 1 ? 'un altro' : `altri ${items.length - MISMATCH_VISIBLE}`}
+        </div>
+      )}
     </div>
   );
 }

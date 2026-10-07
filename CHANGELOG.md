@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Settimana, Giorno, Registro: il badge €, le ore fatturabili e lo stato "fatturato" compaiono solo nelle aree con compenso a ore. Nelle aree a corpo non c'è niente da fatturare a ore, e quei controlli erano rumore. Anche CLI e MCP contano come fatturabili solo le ore delle aree a ore, e `log_hours` ignora le ore fatturabili altrove. I valori già salvati su un'area a corpo o senza compenso restano nel database, nascosti: modificare la registrazione non li cancella più, quindi tornano com'erano se l'area ridiventa a ore.
 - Giorno: le tacche di limite sui blocchi considerano anche il limite settimanale dei progetti, come in Settimana. Prima guardavano solo il budget totale.
+- Andamento: zero ore su un piano non risultano più "in linea". Un piano da mezz'ora saltato rientrava sempre nella tolleranza di 30 minuti, e in "Da decidere" l'area compariva sotto il piano con "0 settimane sotto · picco 0h".
+- Andamento · Trend · Da decidere: quando nessuna settimana è fuori soglia da sola la card lo dice, senza un conteggio a zero. Il picco in eccesso porta il segno +. Il sottotitolo non promette più 8 settimane chiuse: guardando la settimana in corso sono al massimo 7, e ogni card dice su quante è calcolata.
+- Andamento: i tooltip di "Carico della settimana" e "Da decidere" riportano la tolleranza usata davvero dal calcolo (±10% o ±30 minuti), non più "sotto 0,85×".
+- Giorno · Mismatch dopo sync: un gruppo con più di quattro task dichiara quanti non sono mostrati. Prima l'intestazione ne contava cinque e le righe erano quattro.
+- Registro: "entries" e "n/a" sono in italiano.
 - Oggi · Mismatch dopo sync: lo sforo "Oltre blocco" di un task non include più quello dei task precedenti dello stesso blocco. Un task da mezz'ora poteva risultare oltre di più di un'ora, e le ore "disponibili" apparivano negative.
 
 ## [0.9.14] - 2026-10-01
