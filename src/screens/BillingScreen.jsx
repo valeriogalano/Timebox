@@ -315,7 +315,7 @@ export default function BillingScreen({ clients, projects, screen }) {
       {fixedTotals.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 14, fontSize: 11, color: 'var(--tb-text-secondary)', padding: '0 4px' }}>
           <span style={{ fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase', fontSize: 10 }}>
-            Aree a corpo · ore reali nel periodo
+            Aree a corpo · ore lavorate nel periodo
           </span>
           {fixedTotals.map(t => (
             <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>

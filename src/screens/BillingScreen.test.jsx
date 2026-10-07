@@ -24,7 +24,7 @@ describe('Rendiconto: solo le aree a ore', () => {
     };
   });
 
-  test('le aree a corpo escono dal dettaglio e restano come riga di riepilogo in ore reali', async () => {
+  test('le aree a corpo escono dal dettaglio e restano come riga di riepilogo in ore lavorate', async () => {
     const { findByText, getByText, queryByText } = render(
       <BillingScreen clients={clients} projects={projects} screen="billing" />
     );
@@ -33,8 +33,8 @@ describe('Rendiconto: solo le aree a ore', () => {
     await findByText('Progetto a ore');
     // l'area a corpo non ha sezione: niente elenco dei suoi progetti
     expect(queryByText('Progetto a corpo')).not.toBeInTheDocument();
-    // ma compare in fondo, con le ore reali (7h) e non le fatturabili (5h)
-    const summary = getByText('Aree a corpo · ore reali nel periodo').parentElement;
+    // ma compare in fondo, con le ore lavorate (7h) e non le fatturabili (5h)
+    const summary = getByText('Aree a corpo · ore lavorate nel periodo').parentElement;
     expect(summary).toHaveTextContent('A corpo 7h');
     // l'area senza compenso non compare da nessuna parte
     expect(queryByText('Senza compenso')).not.toBeInTheDocument();
