@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Oggi · Mismatch dopo sync: lo sforo "Oltre blocco" di un task non include più quello dei task precedenti dello stesso blocco. Un task da mezz'ora poteva risultare oltre di più di un'ora, e le ore "disponibili" apparivano negative.
 
+### Changed
+- Rendiconto: mostra solo le aree con compenso a ore, le uniche in cui le ore si fatturano. Le aree a corpo non hanno più una sezione con registrazioni da segnare: compaiono in fondo, su una riga, con le ore reali lavorate nel periodo.
+
 ## [0.9.14] - 2026-10-01
 
 ### Added

@@ -76,7 +76,13 @@ export default function BillingScreen({ clients, projects, screen }) {
     }));
   }
 
-  const billableClients = clients.filter(c => c.billing !== 'none');
+  // Solo le aree a ore: sono le uniche in cui le ore si fatturano. Le aree a corpo non hanno
+  // ore "da fatturare", quindi qui compaiono soltanto come riga di riepilogo in fondo.
+  const billableClients = clients.filter(c => c.billing === 'hourly');
+  const fixedTotals = clients.filter(c => c.billing === 'fixed').map(c => {
+    const pids = new Set(projects.filter(p => p.clientId === c.id).map(p => p.id));
+    return { id: c.id, name: c.name, color: c.color, hours: entries.filter(e => pids.has(e.projectId)).reduce((s, e) => s + e.hours, 0) };
+  }).filter(t => t.hours > 0);
   const billablePids = new Set(projects.filter(p => billableClients.some(c => c.id === p.clientId)).map(p => p.id));
   const billableEntries = entries.filter(e => billablePids.has(e.projectId));
   const grandTotalH = billableEntries.reduce((s, e) => s + effBillable(e), 0);
@@ -302,7 +308,21 @@ export default function BillingScreen({ clients, projects, screen }) {
 
       {billableEntries.length === 0 && (
         <div style={{ textAlign: 'center', color: 'var(--tb-text-faint)', fontSize: 13, padding: 40 }}>
-          Nessuna registrazione per {periodLabel}
+          Nessuna registrazione a ore per {periodLabel}
+        </div>
+      )}
+
+      {fixedTotals.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 14, fontSize: 11, color: 'var(--tb-text-secondary)', padding: '0 4px' }}>
+          <span style={{ fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase', fontSize: 10 }}>
+            Aree a corpo · ore reali nel periodo
+          </span>
+          {fixedTotals.map(t => (
+            <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: t.color }} />
+              {t.name} <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(t.hours)}</strong>
+            </span>
+          ))}
         </div>
       )}
     </div>
