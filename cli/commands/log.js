@@ -3,7 +3,7 @@
 const { randomUUID } = require('crypto');
 const { getProjects, getClients, getEntries, saveEntry, deleteEntry } = require('../../db/queries');
 const { currentSlot } = require('../../lib/time-slots');
-const { parseHours } = require('../format');
+const { parseHours, isHourly } = require('../format');
 
 function findProject(name) {
   const projects = getProjects();
@@ -53,7 +53,7 @@ function mergeEntries(entries) {
 function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) {
   const { project, client, area } = findProject(projectName);
   const parsed = parseHours(hoursStr);
-  const isBillable = client.billing !== 'none';
+  const isBillable = isHourly(client);
   const resolvedSlot = slot || currentSlot();
 
   const entries = getEntries(date, date).filter(e => (
@@ -70,12 +70,12 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
     return { action: 'noop', client: client.name, area: area.name, project: project.name, date };
   }
 
+  // Fuori dalle aree a ore le ore fatturabili non si impostano, ma quelle già salvate
+  // restano: sono nascoste, mai cancellate (vedi billingOnSave in src/utils.js).
   let billableHours = existing?.billableHours ?? null;
   if (isBillable && billableHoursStr != null) {
     const parsedB = parseHours(billableHoursStr);
     billableHours = Math.abs(parsedB - newHours) < 0.001 ? null : parsedB;
-  } else if (!isBillable) {
-    billableHours = null;
   }
 
   const nextEntry = {

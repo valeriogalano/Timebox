@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getToday, fmt, fmtH, parseHHMM, toHHMM, effBillable } from '../utils';
+import { getToday, fmt, fmtH, parseHHMM, toHHMM, effBillable, isHourly, billingOnSave } from '../utils';
 
 function defaultFrom() {
   const d = new Date(getToday().getFullYear(), getToday().getMonth(), 1);
@@ -54,21 +54,16 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
       const p = projects.find(p2 => p2.id === editState.projectId);
       return p && c.id === p.clientId;
     });
-    const isBillableClient = entryClient?.billing !== 'none';
-    let billableValue = null;
-    if (isBillableClient) {
-      const parsedB = parseHHMM(editState.billable);
-      if (!isNaN(parsedB) && parsedB >= 0 && Math.abs(parsedB - parsed) > 0.001) {
-        billableValue = parsedB;
-      }
-    }
     const updated = {
       ...entry,
       date: editState.date,
       hours: parsed,
-      billableHours: billableValue,
       projectId: editState.projectId,
-      billed: isBillableClient ? editState.billed : false,
+      ...billingOnSave(
+        entry,
+        { hours: parsed, billableHours: parseHHMM(editState.billable), billed: editState.billed },
+        isHourly(entryClient),
+      ),
     };
     await window.api.saveEntry(updated);
     setEditingId(null);
@@ -134,7 +129,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
           {(() => {
             const totBill = filtered.reduce((s, e) => {
               const cli = clientOf(e);
-              if (!cli || cli.billing === 'none') return s;
+              if (!isHourly(cli)) return s;
               return s + effBillable(e);
             }, 0);
             const totTracked = filtered.reduce((s, e) => s + e.hours, 0);
@@ -236,7 +231,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
 
                     {/* Billable hours */}
                     <td style={{ ...tdStyle, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                      {client?.billing === 'none' ? (
+                      {!isHourly(client) ? (
                         <span style={{ color: 'var(--tb-text-faint)' }}>—</span>
                       ) : isEditing ? (
                         <input value={editState.billable}
@@ -260,7 +255,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
 
                     {/* Billed */}
                     <td style={{ ...tdStyle, textAlign: 'center' }}>
-                      {client?.billing !== 'none'
+                      {isHourly(client)
                         ? isEditing
                           ? <input type="checkbox" checked={editState.billed}
                               onChange={e => setEditState(s => ({ ...s, billed: e.target.checked }))} />

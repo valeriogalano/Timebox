@@ -3,7 +3,7 @@
 // lavorato. L'avviso segue il conteggio messo peggio (`worst`); `kind` dice quale dei due
 // è ('lavorate' | 'fatt.'), ed è null quando coincidono e non c'è niente da distinguere.
 // Gemello CommonJS per la CLI: capUsage in lib/domain.js.
-import { effBillable, fmtH } from './utils.js';
+import { effBillable, fmtH, isHourly } from './utils.js';
 
 export function capUsage(worked = 0, billable = worked, hourly = false) {
   const b = hourly ? billable : worked;
@@ -25,7 +25,7 @@ export function sumByProject(entries) {
 // suoi progetti (archiviati compresi: le ore sono state spese sullo stesso tetto) e solo
 // dopo sceglie il peggiore: sommare i peggiori dei singoli progetti la sovrastimerebbe.
 export function usageMaps({ worked = {}, billable = {} } = {}, projects, clients) {
-  const hourly = Object.fromEntries(clients.map(c => [c.id, c.billing === 'hourly']));
+  const hourly = Object.fromEntries(clients.map(c => [c.id, isHourly(c)]));
   const project = {}, sums = {};
   for (const p of projects) {
     const w = worked[p.id] ?? 0, b = billable[p.id] ?? w;

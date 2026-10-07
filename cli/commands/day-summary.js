@@ -8,7 +8,7 @@ const {
   getWeekOverrides,
   getWeekAreaStatusMap,
 } = require('../../db/queries');
-const { fmt, getMondayOfWeek, effBillable } = require('../format');
+const { fmt, getMondayOfWeek, effBillable, isHourly } = require('../format');
 const { SLOTS, normalizeSlot } = require('../../lib/domain');
 
 function getEffectiveBlocks(recurring, overrideMap, weekKey, dayIndex, slot) {
@@ -47,7 +47,7 @@ function mapBlock(block, clientMap, areaStatusMap) {
 function mapEntry(entry, projectMap, clientMap, areaStatusMap) {
   const project = projectMap[entry.projectId];
   const client = project ? clientMap[project.clientId] : null;
-  const isBillable = client && client.billing !== 'none';
+  const isBillable = isHourly(client);
   return {
     id: entry.id,
     projectId: entry.projectId,

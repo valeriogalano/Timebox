@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM, parseHHMM, effBillable, SLOTS, budgetAlertLevel } from '../utils';
+import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM, parseHHMM, effBillable, isHourly, SLOTS, budgetAlertLevel } from '../utils';
 import { sumByProject, usageMaps, usageOf, fmtUsage, loadProjectTotals } from '../cap-usage';
 import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
@@ -393,7 +393,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   async function toggleBilled(projectId, dateStr, slot) {
     const project = projects.find(p => p.id === projectId);
     const client = project ? clients.find(c => c.id === project.clientId) : null;
-    if (!client || client.billing === 'none') return;
+    if (!isHourly(client)) return;
     const matches = weekEntries.filter(e => (
       e.projectId === projectId && e.date === dateStr && e.slot === slot
     ));
@@ -424,13 +424,13 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const dayBillable = dayEntries.reduce((s, e) => {
       const proj = projects.find(p => p.id === e.projectId);
       const cli = proj ? clients.find(c => c.id === proj.clientId) : null;
-      if (!cli || cli.billing === 'none') return s;
+      if (!isHourly(cli)) return s;
       return s + effBillable(e);
     }, 0);
     const dayDivergent = dayEntries.some(e => {
       const proj = projects.find(p => p.id === e.projectId);
       const cli = proj ? clients.find(c => c.id === proj.clientId) : null;
-      if (!cli || cli.billing === 'none') return false;
+      if (!isHourly(cli)) return false;
       return e.billableHours !== null && e.billableHours !== undefined && Math.abs(e.billableHours - e.hours) > 0.001;
     });
     const lastSync = todoistSync[dateStr] ?? null;
@@ -932,7 +932,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           {projectsInView.map(client =>
             client.projects.map((project, pi) => {
               const projectEntries = displayWeekEntries.filter(e => e.projectId === project.id);
-              const clientBillable = client.billing !== 'none';
+              const clientBillable = isHourly(client);
               const weekTotalTracked  = projectEntries.reduce((s, e) => s + e.hours, 0);
               const weekTotalBillable = clientBillable
                 ? projectEntries.reduce((s, e) => s + effBillable(e), 0)
@@ -967,7 +967,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                           hours={entry?.hours ?? 0}
                           billableHours={entry?.billableHours ?? null}
                           billed={entry?.billed ?? false}
-                          isBillable={client.billing !== 'none'}
+                          isBillable={isHourly(client)}
                           isFuture={d.isFuture} isToday={d.isToday}
                           clientColor={client.color}
                           colIndex={i}

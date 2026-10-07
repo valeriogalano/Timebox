@@ -405,6 +405,17 @@ Update handling is split by platform in `main.js` (`app.whenReady`):
 
 ## Adding Features
 
+### Extract the Logic Before Changing a Screen
+
+The screens are large and barely covered by tests (`WeeklyView.jsx` is over 1500 lines), and the same rule has ended up copied across several of them more than once. There is no plan to refactor the whole app. Instead, every change that touches a rule inside a screen moves that rule out first:
+
+1. Put the logic in a plain module under `src/` with no React and no `window.api` (see `src/cap-usage.js`, `src/progress-insights.js`, `src/dayPlanning.js`), and cover it with a `node --test` suite in `src/__tests__/`.
+2. Before writing it, grep for the same condition or calculation elsewhere: other screens, `cli/commands/`, `lib/domain.js`. If it is repeated, every copy moves to the shared module in the same change, not only the one the task names.
+3. The screen keeps only loading, state and rendering, and calls the module.
+4. When the CLI needs the same rule, its CommonJS twin goes in `lib/domain.js`, with a comment in each copy pointing at the other.
+
+Do this only for the logic the change actually touches. A feature is not a licence to restructure the rest of the file.
+
 ### New Field on an Existing Entity
 
 1. Add the column in `db/schema.js` with an `ALTER TABLE` migration and update `CREATE TABLE` for empty DBs.
@@ -434,6 +445,7 @@ Update handling is split by platform in `main.js` (`app.whenReady`):
 
 - `clients.billable`, `projects.archived`, and `entries.billed` are SQLite integers, not booleans. Normalize in `queries.js`.
 - `billableHours` is optional. `null` means billable time equals tracked time for billable areas.
+- Only areas with `billing === 'hourly'` bill hours. The € badge, the billable-hours override and the billed state apply there only; a `fixed` area has a fee but no hours to invoice. Use `isHourly(client)` (`src/utils.js`, twin in `lib/domain.js`) instead of testing `billing !== 'none'`. Outside hourly areas those fields are hidden, never erased: saving an entry keeps the stored `billableHours` and `billed` (`billingOnSave` in `src/utils.js`), so they come back intact if the area becomes hourly again and an already-billed entry does not reappear as unbilled.
 - The standalone CLI and MCP server require the app to be open.
 - The developer CLI in `cli/index.js` uses `better-sqlite3` directly and can hit ABI mismatch after `npm run rebuild`.
 - `crypto.randomUUID()` is available in Electron and modern Node; do not add `uuid`.

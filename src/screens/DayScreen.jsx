@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { fmt, fmtH, getToday, addDays, getMondayOfWeek, SLOTS, currentSlot, effBillable, MONTHS_IT } from '../utils';
+import { fmt, fmtH, getToday, addDays, getMondayOfWeek, SLOTS, currentSlot, effBillable, isHourly, MONTHS_IT } from '../utils';
 import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks, resolveEntrySlot } from '../dayPlanning';
-import { usageMaps, loadProjectTotals } from '../cap-usage';
+import { sumByProject, usageMaps, loadProjectTotals } from '../cap-usage';
 import PlanningCell from '../components/PlanningCell';
 import TimeCell from '../components/TimeCell';
 import SlotCapacityBar from '../components/SlotCapacityBar';
@@ -50,6 +50,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
   const [todoistTasks, setTodoistTasks] = useState([]);
   const [syncedAt, setSyncedAt] = useState(null);
   const [projectTotals, setProjectTotals] = useState({});
+  const [weekEntries, setWeekEntries] = useState([]);
   const [dragging, setDragging] = useState(null);
   const [todoistImportDialog, setTodoistImportDialog] = useState(null);
   const [weekAreaStatuses, setWeekAreaStatuses] = useState({});
@@ -58,13 +59,15 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
     setLoading(true);
     setError(null);
     try {
-      const [insights, entries, overrides, todoistRows, totals, areaStatusRows] = await Promise.all([
+      const [insights, entries, overrides, todoistRows, totals, areaStatusRows, weekRows] = await Promise.all([
         window.api.getDayInsights(today),
         window.api.getEntries(today, today),
         window.api.getWeekOverrides(weekKey),
         window.api.getTodoistCache([today]),
         loadProjectTotals(),
         window.api.getWeekAreaStatuses(weekKey),
+        // tutta la settimana: serve al limite settimanale dei progetti, come in Settimana
+        window.api.getEntries(weekKey, fmt(addDays(getMondayOfWeek(selectedDate), 6))),
       ]);
       setData(insights);
       setRawEntries(entries);
@@ -78,6 +81,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
       setTodoistTasks(todayRow?.tasks ?? []);
       setSyncedAt(todayRow?.syncedAt ?? null);
       setProjectTotals(totals);
+      setWeekEntries(weekRows);
       setWeekAreaStatuses(Object.fromEntries(areaStatusRows.map(row => [row.areaId, row.status])));
     } catch (err) {
       setError(err.message || 'Errore caricamento');
@@ -253,6 +257,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
         <DayPlanningPanel
           loading={loading}
           clients={clientsWithStatus} projects={projects} totalUsage={usageMaps(projectTotals, projects, clients).project}
+          weekUsage={usageMaps(sumByProject(weekEntries), projects, clients).project}
           planning={planning} slotPlannedTotals={slotPlannedTotals}
           slotCapacity={slotCapacity} hasTodoistSync={!!syncedAt}
           isToday={isToday} isFuture={isFuture} isWeekend={dayIndex >= 5}
@@ -352,7 +357,7 @@ const SLOT_META = {
 };
 
 function DayPlanningPanel({
-  loading, clients, projects, totalUsage, planning, slotPlannedTotals,
+  loading, clients, projects, totalUsage, weekUsage, planning, slotPlannedTotals,
   slotCapacity, hasTodoistSync, isToday, isFuture, isWeekend,
   addBlockToSlot, updateBlockInSlot, removeBlockFromSlot, setSlotOverride,
   dragging, setDragging, handleDrop,
@@ -401,7 +406,7 @@ function DayPlanningPanel({
                     ) : (
                       <PlanningCell
                         slot={slot.key} dayIndex={0} blocks={slot.blocks}
-                        clients={clients} projects={projects} totalUsage={totalUsage} weekUsage={{}}
+                        clients={clients} projects={projects} totalUsage={totalUsage} weekUsage={weekUsage}
                         blockFill={planning.blockFill}
                         todoistByClient={planning.todoistByCS[slot.key]} todoistTasksByClient={planning.todoistTasksByCS[slot.key]}
                         hasTodoistSync={hasTodoistSync}
@@ -493,7 +498,7 @@ function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFutur
       || a.project.name.localeCompare(b.project.name, 'it'));
 
   const totalTracked = rows.reduce((s, r) => s + r.entry.hours, 0);
-  const totalBillable = rows.reduce((s, r) => r.client.billing !== 'none' ? s + effBillable(r.entry) : s, 0);
+  const totalBillable = rows.reduce((s, r) => isHourly(r.client) ? s + effBillable(r.entry) : s, 0);
   const total = viewMode === 'billable' ? totalBillable : totalTracked;
 
   return (
@@ -531,7 +536,7 @@ function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFutur
                 hours={entry.hours}
                 billableHours={entry.billableHours ?? null}
                 billed={entry.billed ?? false}
-                isBillable={client.billing !== 'none'}
+                isBillable={isHourly(client)}
                 isFuture={isFuture} isToday={isToday}
                 clientColor={client.color}
                 colIndex={0}

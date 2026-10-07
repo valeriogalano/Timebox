@@ -3,7 +3,7 @@
 const {
   DAYS, MONTHS,
   fmtH, parseHours, fmt, getToday, getMondayOfWeek, addDays,
-  effBillable, capUsage, isDivergent, fmtHoursWithBillable,
+  isHourly, effBillable, capUsage, isDivergent, fmtHoursWithBillable,
 } = require('../lib/domain');
 
 // Returns e.g. "Fri 17 May 2026"
@@ -43,5 +43,5 @@ module.exports = {
   DAYS, MONTHS,
   fmtH, parseHours, fmt, getToday, getMondayOfWeek, addDays,
   fmtDay, fmtDayShort, fmtWeekRange, pad, padLeft,
-  effBillable, capUsage, isDivergent, fmtHoursWithBillable,
+  isHourly, effBillable, capUsage, isDivergent, fmtHoursWithBillable,
 };
