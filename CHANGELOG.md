@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rendiconto: mostra solo le aree con compenso a ore, le uniche in cui le ore si fatturano. Le aree a corpo non hanno più una sezione con registrazioni da segnare: compaiono in fondo, su una riga, con le ore lavorate nel periodo.
 
 ### Fixed
+- Tutte le schermate: i testi grigi (etichette, valori secondari, voci di menu non attive, descrizioni) sono più scuri nel tema chiaro e più chiari in quello scuro, e ora rispettano il contrasto minimo di leggibilità (4,5:1) sui fondi dell'app. Nel tema chiaro tre testi su quattro erano sotto quella soglia.
+- Andamento: il "?" dentro la scheda attiva segue il colore del testo della scheda. Nel tema scuro era quasi invisibile.
 - Settimana, Giorno, Registro: il badge €, le ore fatturabili e lo stato "fatturato" compaiono solo nelle aree con compenso a ore. Nelle aree a corpo non c'è niente da fatturare a ore, e quei controlli erano rumore. Anche CLI e MCP contano come fatturabili solo le ore delle aree a ore, e `log_hours` ignora le ore fatturabili altrove. I valori già salvati su un'area a corpo o senza compenso restano nel database, nascosti: modificare la registrazione non li cancella più, quindi tornano com'erano se l'area ridiventa a ore.
 - Giorno: le tacche di limite sui blocchi considerano anche il limite settimanale dei progetti, come in Settimana. Prima guardavano solo il budget totale.
 - Oggi · Mismatch dopo sync: lo sforo "Oltre blocco" di un task non include più quello dei task precedenti dello stesso blocco. Un task da mezz'ora poteva risultare oltre di più di un'ora, e le ore "disponibili" apparivano negative.
