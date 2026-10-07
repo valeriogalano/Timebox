@@ -101,7 +101,6 @@ TimeBox/
       DayScreen.jsx
       WeeklyView.jsx
       ProgressScreen.jsx
-      Dashboard.jsx
       BillingScreen.jsx
       EntriesScreen.jsx
       AreasScreen.jsx
@@ -247,7 +246,7 @@ A `timebox.db` sitting in the repository root is **not** the app's database — 
 - Saves edits optimistically through `window.api`.
 - Loads and saves per-week area status as sparse rows; missing row means `active`.
 
-### Dashboard, Billing, Entries, TodoistImportScreen
+### ProgressScreen, BillingScreen, EntriesScreen, TodoistImportScreen
 
 - These screens load their own entry/cache ranges when opened.
 - Billing respects `billableHours` when present and `billed` state on entries.
