@@ -98,15 +98,14 @@ TimeBox/
     App.jsx         App shell, navigation, global state, sidebar
     utils.js        Renderer formatting and date utilities
     screens/
-      TodayView.jsx
+      DayScreen.jsx
       WeeklyView.jsx
-      Panoramica.jsx
-      Dashboard.jsx
+      ProgressScreen.jsx
       BillingScreen.jsx
       EntriesScreen.jsx
-      ClientsScreen.jsx
+      AreasScreen.jsx
       RecurringScreen.jsx
-      TodoistLog.jsx
+      TodoistImportScreen.jsx
       SettingsScreen.jsx
     components/
       PlanningCell.jsx
@@ -167,7 +166,7 @@ In development, wrappers point at repository files. In packaged builds, they poi
 |---|---|---|
 | `GET` | `/ping` | Health check. |
 | `GET` | `/today?date=` | `getTodayData(date)`. |
-| `GET` | `/day/insights?date=` | Aggregated daily diagnostics for `TodayView`. |
+| `GET` | `/day/insights?date=` | Aggregated daily diagnostics for `DayScreen`. |
 | `GET` | `/week?offset=` | `getWeekData(today, offset)`. |
 | `GET` | `/area-statuses?week=` | Weekly area status rows for a Monday `weekKey`. |
 | `POST` | `/area-statuses` | Save `{ weekKey, areaId, status }`; every status is stored explicitly. Areas without a row fall back to `clients.defaultStatus`. |
@@ -233,7 +232,7 @@ A `timebox.db` sitting in the repository root is **not** the app's database — 
 - Loads `clients`, `projects`, and `recurring` on mount.
 - Holds navigation state: `screen`, `weekOffset`, and theme.
 - Refreshes shared data on `db:changed` events.
-- Renders `TodayView`, `WeeklyView`, `Panoramica`, `BillingScreen`, `ClientsScreen`, `RecurringScreen`, `EntriesScreen`, `TodoistLog`, and `SettingsScreen`.
+- Renders `DayScreen`, `WeeklyView`, `ProgressScreen`, `BillingScreen`, `AreasScreen`, `RecurringScreen`, `EntriesScreen`, `TodoistImportScreen`, and `SettingsScreen`.
 
 ### WeeklyView.jsx
 
@@ -247,11 +246,11 @@ A `timebox.db` sitting in the repository root is **not** the app's database — 
 - Saves edits optimistically through `window.api`.
 - Loads and saves per-week area status as sparse rows; missing row means `active`.
 
-### Dashboard, Billing, Entries, TodoistLog
+### ProgressScreen, BillingScreen, EntriesScreen, TodoistImportScreen
 
 - These screens load their own entry/cache ranges when opened.
 - Billing respects `billableHours` when present and `billed` state on entries.
-- TodoistLog shows all cached rows grouped by date with the latest sync timestamp.
+- TodoistImportScreen shows all cached rows grouped by date with the latest sync timestamp.
 
 ---
 
@@ -361,7 +360,7 @@ Dependency-free inline Markdown renderer used for Todoist task text. Supports bo
 6. Task durations are converted to hours and assigned to AM/PM slots.
 7. Results are sorted with `lib/todoist-order.js`, saved in `todoist_cache`, and returned as `{ byDate }`.
 
-The weekly view syncs only today and future dates. Past cached tasks are still visible in TodoistLog.
+The weekly view syncs only today and future dates. Past cached tasks are still visible in TodoistImportScreen.
 
 ### Missing-from-Todoist Warning
 

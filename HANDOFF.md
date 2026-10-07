@@ -72,7 +72,7 @@ File principali:
 - `main.js`
 - `preload.js`
 - `src/App.jsx`
-- `src/screens/TodayView.jsx`
+- `src/screens/DayScreen.jsx`
 - `index.html`
 - `cli/__tests__/http-server.test.js`
 - `README.md`

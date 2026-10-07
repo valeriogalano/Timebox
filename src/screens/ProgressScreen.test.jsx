@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { render, within } from '@testing-library/react';
-import Panoramica from './Panoramica.jsx';
+import ProgressScreen from './ProgressScreen.jsx';
 import { getToday, fmt } from '../utils';
 
 const clients = [
@@ -17,12 +17,12 @@ const projects = [
 
 function renderPanoramica() {
   return render(
-    <Panoramica clients={clients} projects={projects} recurring={[]} screen="panoramica"
+    <ProgressScreen clients={clients} projects={projects} recurring={[]} screen="progress"
       weekOffset={0} setWeekOffset={() => {}} />
   );
 }
 
-describe('Panoramica / Settimana: limiti e budget', () => {
+describe('ProgressScreen / Settimana: limiti e budget', () => {
   beforeEach(() => {
     const today = fmt(getToday());
     window.api = {

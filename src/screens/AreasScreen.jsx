@@ -124,7 +124,7 @@ function SectionLabel({ children }) {
   );
 }
 
-export default function ClientsScreen({ clients, projects, setClients, setProjects }) {
+export default function AreasScreen({ clients, projects, setClients, setProjects }) {
   const [selectedId, setSelectedId] = useState(clients[0]?.id);
   const sel = clients.find(c => c.id === selectedId);
   const selProjects = projects
