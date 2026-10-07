@@ -109,7 +109,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
   }, [periodOffset]);
 
   useEffect(() => {
-    if (screen !== 'panoramica') return;
+    if (screen !== 'progress') return;
     window.api.getEntries(fetchRange.from, fetchRange.to).then(setEntries);
     window.api.getProjectTotals().then(setProjectTotals);
     // week_overrides storicizza il pianificato effettivo delle settimane passate
