@@ -209,8 +209,8 @@ export default function TodoistImportScreen({ clients, projects }) {
                           style={{ ...inputStyle, textAlign: 'center', fontWeight: 800 }}
                         />
                         <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
-                          <button onClick={saveDraft} disabled={busyId === row.todoistTaskId} title="Salva" style={iconButtonStyle}>✓</button>
-                          <button onClick={() => { setEditingId(null); setDraft(null); }} title="Annulla" style={iconButtonStyle}>×</button>
+                          <button onClick={saveDraft} disabled={busyId === row.todoistTaskId} title="Salva" aria-label="Salva" style={iconButtonStyle}>✓</button>
+                          <button onClick={() => { setEditingId(null); setDraft(null); }} title="Annulla" aria-label="Annulla" style={iconButtonStyle}>×</button>
                         </div>
                         <div style={{ gridColumn: '1 / -1' }}>
                           <textarea
@@ -258,8 +258,8 @@ export default function TodoistImportScreen({ clients, projects }) {
                           {toHHMM(row.hours)}
                         </span>
                         <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
-                          <button onClick={() => startEdit(row)} title="Modifica import" style={iconButtonStyle}>✎</button>
-                          <button onClick={() => deleteRow(row)} disabled={busyId === row.todoistTaskId} title="Elimina import" style={iconButtonStyle}>−</button>
+                          <button onClick={() => startEdit(row)} title="Modifica import" aria-label="Modifica import" style={iconButtonStyle}>✎</button>
+                          <button onClick={() => deleteRow(row)} disabled={busyId === row.todoistTaskId} title="Elimina import" aria-label="Elimina import" style={iconButtonStyle}>−</button>
                         </div>
                       </>
                     )}

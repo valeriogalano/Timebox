@@ -129,7 +129,7 @@ function PlanningBlock({
           fontSize: compact ? 9 : 10, fontWeight: 700, color: cl.color,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           letterSpacing: '0.01em', flex: 1, minWidth: 0,
-        }}>{cl.name}</span>
+        }} title={cl.name}>{cl.name}</span>
         {cl.areaStatus && (
           <span title={(AREA_STATUS_OPTIONS.find(o => o.key === cl.areaStatus) ?? AREA_STATUS_OPTIONS[0]).title} style={{ flexShrink: 0, display: 'flex' }}>
             <AreaStatusGlyph status={cl.areaStatus} size={compact ? 8 : 9} color="var(--tb-state-glyph)" />

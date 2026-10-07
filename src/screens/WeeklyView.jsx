@@ -1301,7 +1301,7 @@ function TemplateDivergenceBadge({ summary, open, onToggle }) {
       }}
     >
       <span className="tb-delta">Δ</span>
-      <span>template {deltaLabel} · {summary.divergentSlots}/{summary.totalSlots}</span>
+      <span>template {deltaLabel} · {summary.divergentSlots} slot su {summary.totalSlots} modificati</span>
       <Glyph glyph={open ? '▾' : '▸'} size={8} style={{ opacity: 0.8 }} />
     </button>
   );

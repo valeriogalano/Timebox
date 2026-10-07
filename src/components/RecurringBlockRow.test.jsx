@@ -7,7 +7,7 @@ import { setMinutesThreshold, DEFAULT_MINUTES_THRESHOLD } from '../hours-thresho
 const block  = { id: 'b1', clientId: 'c1', hours: 2 };
 const client = { id: 'c1', name: 'INVALSI', color: '#3B82F6' };
 
-// Il campo ore del blocco si apre cliccando l'etichetta "2h".
+// Il campo ore del blocco si apre cliccando l'etichetta "2:00".
 function editHours(container, value) {
   fireEvent.click(container.querySelector('span[style*="cursor: text"]'));
   const input = container.querySelector('input');
@@ -53,5 +53,24 @@ describe('RecurringBlockRow — il campo ore rispetta la soglia ore/minuti', () 
     );
     editHours(container, 'pippo');
     expect(onUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('RecurringBlockRow — formato delle ore', () => {
+  it('mostra le ore come in Settimana, non in decimali', () => {
+    const { container, getByText } = render(
+      <RecurringBlockRow block={{ ...block, hours: 1.5 }} client={client} onUpdate={() => {}} onRemove={() => {}} />
+    );
+    expect(getByText('1:30')).toBeInTheDocument();
+    // e il campo si apre sullo stesso formato
+    fireEvent.click(container.querySelector('span[style*="cursor: text"]'));
+    expect(container.querySelector('input').value).toBe('1:30');
+  });
+
+  it('il nome dell\'area, se troncato, si legge per intero nel title', () => {
+    const { getByTitle } = render(
+      <RecurringBlockRow block={block} client={client} onUpdate={() => {}} onRemove={() => {}} />
+    );
+    expect(getByTitle('INVALSI')).toHaveTextContent('INVALSI');
   });
 });

@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getToday, fmt, fmtH, parseHHMM, toHHMM, effBillable, isHourly, billingOnSave } from '../utils';
 
+// "mer 7 ott 2026", come nel resto dell'app. L'anno resta: il Registro copre intervalli lunghi.
+const dateLabel = dateStr => new Date(`${dateStr}T00:00:00`)
+  .toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+
 function defaultFrom() {
   const d = new Date(getToday().getFullYear(), getToday().getMonth(), 1);
   return fmt(d);
@@ -174,7 +178,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
                         ? <input type="date" value={editState.date}
                             onChange={e => setEditState(s => ({ ...s, date: e.target.value }))}
                             style={{ ...inputStyle, width: 130 }} />
-                        : <span style={{ fontVariantNumeric: 'tabular-nums' }}>{entry.date}</span>
+                        : <span style={{ fontVariantNumeric: 'tabular-nums' }}>{dateLabel(entry.date)}</span>
                       }
                     </td>
 
@@ -271,7 +275,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
                       {isConfirm ? (
                         <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           <span style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>Eliminare?</span>
-                          <ActionBtn danger onClick={() => handleDelete(entry.id)}>Sì</ActionBtn>
+                          <ActionBtn danger warn onClick={() => handleDelete(entry.id)}>Sì</ActionBtn>
                           <ActionBtn onClick={() => setConfirmDelete(null)}>No</ActionBtn>
                         </span>
                       ) : isEditing ? (
@@ -338,7 +342,8 @@ function WarningIcon() {
   );
 }
 
-function ActionBtn({ onClick, children, primary, danger }) {
+// `warn` mette l'icona di avviso: solo sulla conferma, non su ogni riga dell'elenco.
+function ActionBtn({ onClick, children, primary, danger, warn }) {
   const [hover, setHover] = useState(false);
   const filled = primary || (danger && hover);
   return (
@@ -354,7 +359,7 @@ function ActionBtn({ onClick, children, primary, danger }) {
         cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
         transition: 'all 0.1s',
       }}>
-      {danger && <WarningIcon />}
+      {warn && <WarningIcon />}
       {children}
     </button>
   );

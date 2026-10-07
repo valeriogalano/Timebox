@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Ricorrenza: le ore dei blocchi sono scritte come in Settimana ("1:30"), non più in decimali ("1.5h"), e il campo si apre sullo stesso formato. Il testo in testa alla pagina spiega la schermata senza la nota di sviluppo sul "nuovo sistema di segnali".
+- Registro: le date sono scritte "mer 7 ott 2026" come nel resto dell'app. L'icona di avviso compare solo sulla conferma di eliminazione, non su ogni riga.
+- Settimana: il badge delle divergenze dal template dice "2 slot su 21 modificati" al posto di "2/21". Il nome dell'area di un blocco stretto si legge per intero passandoci sopra, anche in Ricorrenza.
+- Import Todoist e Aree: i pulsanti a icona e i campi "h" e "h/s" dei progetti hanno un'etichetta per gli screen reader.
 - Andamento · Trend · Da decidere: card ridisegnata. Il verdetto è scritto ("Sotto il piano", "Molto oltre il piano") al posto del triangolo, la media svolta è in evidenza con una barra sul pianificato e la percentuale, e una barretta per settimana mostra la distribuzione senza passare dal tooltip. La settimana peggiore porta la data. In fondo c'è cosa fare, con il valore già pronto: "Porta la ricorrenza da 16h a ~4h 30m". Vale anche per le aree oltre il piano, che prima rimandavano a Settimana.
 - Limiti e budget delle aree a ore: si misurano sia sulle ore lavorate sia sulle ore fatturabili. Quando i due conteggi divergono, le card di Andamento li mostrano entrambi con la loro etichetta ("fatt." e "lavorate"); barra, percentuale e avvisi seguono il conteggio messo peggio e dicono quale. Vale anche per i banner e i contatori di Settimana, le tacche sui blocchi in Settimana e Giorno, Andamento · In prospettiva e gli avvisi di `status` in CLI e MCP. Nelle aree a corpo o senza compenso non cambia nulla: contano le ore lavorate.
 - Andamento · Settimana: le card di "Limiti della settimana" e "Budget totali" mostrano in evidenza le ore che mancano al tetto, o di quanto è stato superato. Le ore fatte sul limite restano sotto, e la barra è più corta.
