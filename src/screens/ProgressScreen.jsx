@@ -858,10 +858,12 @@ function LimitSection({ title, subtitle, help, cards }) {
   );
 }
 
-// Un tetto, una barra: ore fatte contro il limite. Il sottotitolo c'è solo per i progetti
-// (nome dell'area); per un'area il titolo è già l'area.
+// Un tetto, una barra: ore fatte contro il limite. Il numero in evidenza è il residuo
+// (limite − fatte), perché è quello su cui si decide; fatte/limite resta sotto come contesto.
+// Il sottotitolo c'è solo per i progetti (nome dell'area); per un'area il titolo è già l'area.
 function LimitCard({ title, subtitle, color, limit, done }) {
   const pct = done / limit;
+  const remaining = limit - done;
   return (
     <div style={{
       background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
@@ -876,12 +878,19 @@ function LimitCard({ title, subtitle, color, limit, done }) {
           <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em' }}>{Math.round(pct * 100)}%</span>
           {pct > 1 && <span style={{ fontSize: 10, color: COL_OVER }} title="Superato">⚠</span>}
         </div>
-        <Bar value={done} max={Math.max(limit, done)} color={color} />
+        <div style={{ maxWidth: '55%' }}>
+          <Bar value={done} max={Math.max(limit, done)} color={color} />
+        </div>
       </div>
       <div style={{ textAlign: 'right', minWidth: 80, flexShrink: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(done)}</div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 2, textTransform: 'uppercase' }}>
-          / {fmtH(limit)}
+        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', marginRight: 5 }}>
+            {remaining >= 0 ? 'mancano' : 'oltre di'}
+          </span>
+          <strong style={{ fontWeight: 800 }}>{fmtH(Math.abs(remaining))}</strong>
+        </div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', marginTop: 3 }}>
+          <span>{fmtH(done)}</span> / {fmtH(limit)}
         </div>
       </div>
     </div>

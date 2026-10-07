@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Andamento · Settimana: le card di "Limiti della settimana" e "Budget totali" mostrano in evidenza le ore che mancano al tetto, o di quanto è stato superato. Le ore fatte sul limite restano sotto, e la barra è più corta.
+
 ### Fixed
 - Oggi · Mismatch dopo sync: lo sforo "Oltre blocco" di un task non include più quello dei task precedenti dello stesso blocco. Un task da mezz'ora poteva risultare oltre di più di un'ora, e le ore "disponibili" apparivano negative.
 
