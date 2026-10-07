@@ -32,12 +32,59 @@ Coverage is measured in two halves, because the two suites run on different
 runners. `c8` covers the Node side (`cli/`, `db/`, `lib/` and the logic modules
 under `src/`) via the `node --test` suites. `npm run coverage:components` covers
 `src/components/` and `src/screens/` via Vitest, and writes to
-`coverage/components/`. The UI half sits around 10% today: it is low, but it is
-measured, so a pull request that lowers it is visible.
+`coverage/components/`. There is no script for the Node half; run it directly:
+
+```bash
+npm rebuild better-sqlite3      # the cli suites need the Node ABI
+npx c8 --reporter=text-summary node --test cli/__tests__/*.test.js src/__tests__/*.test.js
+npm run coverage:components     # does not need better-sqlite3
+npm run rebuild                 # back to the Electron ABI
+```
+
+As of October 2026 the Node half is at about 95% of lines and the UI half at about
+44% of statements. The UI half is still low, but it is measured, so a pull request
+that lowers it is visible. Compare statements, branches and functions, not only one
+of them: when a screen gets its first test the file enters the denominator, and the
+branch and function percentages of the whole UI half can drop even though nothing
+that was covered stopped being covered. Add tests until all three are at or above
+the base branch.
+
+Never delete anything under `node_modules` to "clean" a failed native build:
+`npm rebuild` only rebuilds what is installed, so a removed `better-sqlite3` needs
+`npm install --ignore-scripts` again.
 
 Why `--ignore-scripts`: Node 25 is too recent for current `better-sqlite3` prebuilds. `npm run rebuild` uses `electron-rebuild` to download Electron 31 headers and compile the native module correctly. Do not remove this step.
 
 After `npm test`, run `npm run rebuild` again before launching Electron, because the test script rebuilds `better-sqlite3` for Node.js.
+
+---
+
+## Checking the UI Without Electron
+
+The renderer can be checked in a plain browser, which is the way to verify a UI change
+when Electron cannot be launched (an agent session, CI, a machine without a display).
+
+- **Demo data.** Run `npx vite` and open `http://localhost:5173/`. Without the preload,
+  `index.html` installs the mock `window.api`, with in-memory writes and no network.
+  `?theme=light` or `?theme=dark` forces the theme.
+- **Real data, read-only.** Copy the database file and its `-wal` to a temporary
+  directory (the real path is in `config.json`, see *SQLite Schema*), dump the tables to
+  JSON with `sqlite3 -json`, leaving `todoist_token_enc` out of `settings`, and put a
+  small proxy in front of Vite that adds a `<script>` just before `</body>`. That script
+  replaces the read methods of the mock (`getClients`, `getProjects`, `getRecurring`,
+  `getEntries`, `getProjectTotals`, `getProjectBillableTotals`, `getSetting`,
+  `getWeekAreaStatuses`, `getWeekOverrides`, `getWeekOverridesRange`, `getTodoistCache`,
+  `getAllTodoistCache`, `getTodoistImports`) with ones that answer from the dump. A
+  classic script placed there runs before the module entry, so the app only ever sees
+  the patched API. Writes still go to the mock and never reach the database. Delete the
+  copy and the dump when done.
+- **Giorno diagnostics.** `getDayInsights` is computed in the main process. With the
+  installed app open, the proxy can forward it to `GET /day/insights?date=` on
+  `127.0.0.1:37373`; otherwise the panels show the mock's demo data.
+
+Two limits. This checks the renderer, not the IPC layer, the preload or packaging. And
+the installed app can be an older release than `main`: a bug seen there may already be
+fixed, so check `CHANGELOG.md` under *Unreleased* before chasing it.
 
 ---
 
