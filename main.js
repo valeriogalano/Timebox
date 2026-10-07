@@ -385,6 +385,7 @@ function setupIpc() {
 
   ipcMain.handle('db:getEntries',          (_, from, to)   => q.getEntries(from, to));
   ipcMain.handle('db:getProjectTotals',    ()              => q.getProjectTotals());
+  ipcMain.handle('db:getProjectBillableTotals', ()         => q.getProjectBillableTotals());
   ipcMain.handle('db:saveEntry',           (_, e)          => q.saveEntry(e));
   ipcMain.handle('db:deleteEntry',         (_, id)         => q.deleteEntry(id));
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fmt, fmtH, getToday, addDays, getMondayOfWeek, SLOTS, currentSlot, effBillable, MONTHS_IT } from '../utils';
 import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks, resolveEntrySlot } from '../dayPlanning';
+import { usageMaps, loadProjectTotals } from '../cap-usage';
 import PlanningCell from '../components/PlanningCell';
 import TimeCell from '../components/TimeCell';
 import SlotCapacityBar from '../components/SlotCapacityBar';
@@ -62,7 +63,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
         window.api.getEntries(today, today),
         window.api.getWeekOverrides(weekKey),
         window.api.getTodoistCache([today]),
-        window.api.getProjectTotals(),
+        loadProjectTotals(),
         window.api.getWeekAreaStatuses(weekKey),
       ]);
       setData(insights);
@@ -165,7 +166,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
       for (const e of existingList) { if (e.id !== entry.id) await window.api.deleteEntry(e.id); }
     }
     await load();
-    window.api.getProjectTotals().then(setProjectTotals);
+    loadProjectTotals().then(setProjectTotals);
     onEntryChange?.();
   }
 
@@ -251,7 +252,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <DayPlanningPanel
           loading={loading}
-          clients={clientsWithStatus} projects={projects} projectTotals={projectTotals}
+          clients={clientsWithStatus} projects={projects} totalUsage={usageMaps(projectTotals, projects, clients).project}
           planning={planning} slotPlannedTotals={slotPlannedTotals}
           slotCapacity={slotCapacity} hasTodoistSync={!!syncedAt}
           isToday={isToday} isFuture={isFuture} isWeekend={dayIndex >= 5}
@@ -334,7 +335,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
               slot: item.slot,
             })));
             await load();
-            window.api.getProjectTotals().then(setProjectTotals);
+            loadProjectTotals().then(setProjectTotals);
             onEntryChange?.();
             setTodoistImportDialog(null);
           }}
@@ -351,7 +352,7 @@ const SLOT_META = {
 };
 
 function DayPlanningPanel({
-  loading, clients, projects, projectTotals, planning, slotPlannedTotals,
+  loading, clients, projects, totalUsage, planning, slotPlannedTotals,
   slotCapacity, hasTodoistSync, isToday, isFuture, isWeekend,
   addBlockToSlot, updateBlockInSlot, removeBlockFromSlot, setSlotOverride,
   dragging, setDragging, handleDrop,
@@ -400,7 +401,7 @@ function DayPlanningPanel({
                     ) : (
                       <PlanningCell
                         slot={slot.key} dayIndex={0} blocks={slot.blocks}
-                        clients={clients} projects={projects} projectTotals={projectTotals} weekProjectHours={{}}
+                        clients={clients} projects={projects} totalUsage={totalUsage} weekUsage={{}}
                         blockFill={planning.blockFill}
                         todoistByClient={planning.todoistByCS[slot.key]} todoistTasksByClient={planning.todoistTasksByCS[slot.key]}
                         hasTodoistSync={hasTodoistSync}

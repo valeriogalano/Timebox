@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Limiti e budget delle aree a ore: si misurano sia sulle ore lavorate sia sulle ore fatturabili. Quando i due conteggi divergono, le card di Andamento li mostrano entrambi con la loro etichetta ("fatt." e "lavorate"); barra, percentuale e avvisi seguono il conteggio messo peggio e dicono quale. Vale anche per i banner e i contatori di Settimana, le tacche sui blocchi in Settimana e Giorno, Andamento · In prospettiva e gli avvisi di `status` in CLI e MCP. Nelle aree a corpo o senza compenso non cambia nulla: contano le ore lavorate.
 - Andamento · Settimana: le card di "Limiti della settimana" e "Budget totali" mostrano in evidenza le ore che mancano al tetto, o di quanto è stato superato. Le ore fatte sul limite restano sotto, e la barra è più corta.
 
 ### Fixed

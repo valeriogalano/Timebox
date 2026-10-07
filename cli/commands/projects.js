@@ -1,11 +1,12 @@
 'use strict';
 
-const { getProjects, getClients, getProjectTotals } = require('../../db/queries');
+const { getProjects, getClients, getProjectTotals, getProjectBillableTotals } = require('../../db/queries');
 
 function getProjectsData({ clientFilter, areaFilter, includeArchived, nameSearch } = {}) {
   const projects = getProjects();
   const clients = getClients();
   const totals = getProjectTotals();
+  const billableTotals = getProjectBillableTotals();
   const clientMap = Object.fromEntries(clients.map(c => [c.id, c]));
 
   let filtered = includeArchived ? projects : projects.filter(p => !p.archived);
@@ -33,6 +34,8 @@ function getProjectsData({ clientFilter, areaFilter, includeArchived, nameSearch
     budgetHours: p.budgetHours,
     weeklyHours: p.weeklyHours,
     logged: totals[p.id] || 0,
+    // Ore fatturabili: solo nelle aree a ore, dove possono divergere dalle lavorate.
+    billable: clientMap[p.clientId]?.billing === 'hourly' ? (billableTotals[p.id] ?? totals[p.id] ?? 0) : null,
     archived: p.archived,
   }));
 }

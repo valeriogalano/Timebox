@@ -7,12 +7,14 @@ const clients = [
   { id: 'c1', name: 'Settimanale', color: '#4073ff', billing: 'none', limitType: 'weekly', limitHours: 10 },
   { id: 'c2', name: 'Globale', color: '#299438', billing: 'none', limitType: 'global', limitHours: 100 },
   { id: 'c3', name: 'Libera', color: '#db4035', billing: 'none', limitType: 'none' },
+  { id: 'c4', name: 'A ore', color: '#eb96eb', billing: 'hourly', rate: 50, limitType: 'none' },
 ];
 const projects = [
   { id: 'p1', clientId: 'c1', name: 'Progetto uno', weeklyHours: 5 },
   { id: 'p2', clientId: 'c2', name: 'Progetto due', budgetHours: 40 },
   { id: 'p3', clientId: 'c3', name: 'Archiviato', budgetHours: 10, archived: true },
   { id: 'p4', clientId: 'c2', name: 'Chiuso', archived: true },
+  { id: 'p5', clientId: 'c4', name: 'Pacchetto', budgetHours: 40 },
 ];
 
 function renderPanoramica() {
@@ -30,7 +32,8 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
         { id: 'e1', projectId: 'p1', date: today, hours: 12, slot: 'am' },
         { id: 'e2', projectId: 'p2', date: today, hours: 3, slot: 'am' },
       ]),
-      getProjectTotals: () => Promise.resolve({ p1: 12, p2: 30, p4: 20 }),
+      getProjectTotals: () => Promise.resolve({ p1: 12, p2: 30, p4: 20, p5: 31 }),
+      getProjectBillableTotals: () => Promise.resolve({ p1: 12, p2: 30, p4: 20, p5: 26 }),
       getWeekOverridesRange: () => Promise.resolve([]),
     };
   });
@@ -67,6 +70,17 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     expect(within(total).getByText('10h').previousSibling).toHaveTextContent('mancano');
     // Progetto uno: 12h su 5h settimanali
     expect(within(weekly).getByText('7h').previousSibling).toHaveTextContent('oltre di');
+  });
+
+  test('in un\'area a ore la card mostra ore fatturabili e ore lavorate quando divergono', async () => {
+    const { findByText } = renderPanoramica();
+
+    // Pacchetto: 40h di budget, 31h lavorate di cui 26h fatturabili
+    const card = (await findByText('Pacchetto')).closest('div').parentElement.parentElement;
+    expect(card).toHaveTextContent('mancano14hfatt.·mancano9hlavorate');
+    expect(card).toHaveTextContent('26h fatt.·31h lavorate / 40h');
+    // la percentuale segue il conteggio messo peggio: 31h su 40h
+    expect(card).toHaveTextContent('78%');
   });
 
   test('la colonna Limite compare nel consuntivo per area e segnala il superamento', async () => {

@@ -147,3 +147,15 @@ describe('entry slot invariant migration', () => {
     }
   });
 });
+
+describe('project totals: worked and billable', () => {
+  test('billable totals use the override where present and the worked hours elsewhere', () => {
+    createTestDb();
+    const q = require('../../db/queries');
+    const before = { worked: q.getProjectTotals().p1 ?? 0, billable: q.getProjectBillableTotals().p1 ?? 0 };
+    q.saveEntry({ id: 'cap-1', projectId: 'p1', date: '2019-01-07', hours: 5, billableHours: 3, slot: 'am', billed: false });
+    q.saveEntry({ id: 'cap-2', projectId: 'p1', date: '2019-01-08', hours: 2, billableHours: null, slot: 'am', billed: false });
+    assert.equal(q.getProjectTotals().p1 - before.worked, 7);
+    assert.equal(q.getProjectBillableTotals().p1 - before.billable, 5);
+  });
+});
