@@ -6,7 +6,7 @@
 
 Timebox is a local-first desktop app for personal capacity planning. It is macOS-first in daily use, with packaging scripts and platform-aware local tooling for Windows and Linux where Electron supports the workflow. It combines a weekly timeblocking board, per-project time tracking, optional billable-hour review for client work, budget and capacity alerts, Todoist task sync, a local HTTP API, a standalone CLI, and an MCP server for coding agents.
 
-**Stack:** Electron 31 · React 18 · Vite 8 · better-sqlite3 12
+**Stack:** Electron 44 · React 18 · Vite 8 · better-sqlite3 13
 
 ---
 
@@ -31,7 +31,7 @@ Timebox is a local-first desktop app for personal capacity planning. It is macOS
 **Requirements:** Node.js 20+ and npm 10+.
 
 ```bash
-# First install. Node 25 has no better-sqlite3 prebuilds.
+# First install.
 npm install --ignore-scripts
 npm run rebuild
 
@@ -42,7 +42,7 @@ npm start
 npm run build
 ```
 
-`npm run rebuild` compiles `better-sqlite3` against Electron 31 headers. Do not skip it after installing dependencies if you want the Electron app to open correctly.
+`npm run rebuild` compiles `better-sqlite3` against Electron 44 headers. Do not skip it after installing dependencies if you want the Electron app to open correctly.
 
 The app database is created automatically in a `Timebox` folder inside the user's Documents directory, so that it sits where personal backups already reach:
 
