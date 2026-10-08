@@ -83,6 +83,18 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     expect(card).toHaveTextContent('78%');
   });
 
+  test('le lenti sono pulsanti, con l\'aiuto raggiungibile a parte', async () => {
+    const { findByRole, getByRole, findByText } = renderPanoramica();
+
+    const trend = await findByRole('button', { name: 'Trend' });
+    expect(getByRole('button', { name: 'Settimana' })).toHaveAttribute('aria-pressed', 'true');
+    expect(getByRole('button', { name: /^Aiuto: Le ultime 8 settimane/ })).toBeInTheDocument();
+
+    fireEvent.click(trend);
+    expect(trend).toHaveAttribute('aria-pressed', 'true');
+    expect(await findByText('Per area')).toBeInTheDocument();
+  });
+
   test('In prospettiva legge un\'area a ore sul conteggio messo peggio e lo dichiara', async () => {
     const { findByText, getByText } = renderPanoramica();
 

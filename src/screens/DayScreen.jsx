@@ -9,6 +9,7 @@ import { dayCapacityHours } from '../slot-capacity';
 import ExtraCell from '../components/ExtraCell';
 import MarkdownText from '../components/MarkdownText';
 import Glyph from '../components/Glyph';
+import HelpDot from '../components/HelpDot';
 import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
 import { withAreaStatus } from './WeeklyView';
 
@@ -674,15 +675,6 @@ function TodayGauge({ planned, traced, capacity }) {
         <span style={{ color: 'var(--tb-text-secondary)' }}>restano <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(Math.max(0, planned - traced))}</strong> a piano</span>
       </div>
     </div>
-  );
-}
-
-export function HelpDot({ text }) {
-  return (
-    <span
-      title={text}
-      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 9, cursor: 'help', letterSpacing: 0, flexShrink: 0 }}
-    >?</span>
   );
 }
 

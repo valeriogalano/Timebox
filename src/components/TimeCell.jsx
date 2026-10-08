@@ -28,6 +28,7 @@ export default function TimeCell({
   const [draft, setDraft] = useState('');
   const [hover, setHover] = useState(false);
   const inputRef = useRef();
+  const cellRef = useRef();
 
   useEffect(() => {
     if (editing && inputRef.current) inputRef.current.select();
@@ -76,7 +77,8 @@ export default function TimeCell({
       if (cellIdx >= 0 && cellIdx < colCells.length - 1) focusCell(colCells[cellIdx + 1]);
       return;
     }
-    if (e.key === 'Escape') { setEditing(false); onEditEnd?.(); }
+    // Annullando, il focus torna alla cella: senza, Tab ripartirebbe dall'inizio della pagina.
+    if (e.key === 'Escape') { setEditing(false); onEditEnd?.(); cellRef.current?.focus(); }
     if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();
       commit();
@@ -126,7 +128,16 @@ export default function TimeCell({
 
   return (
     <div
+      ref={cellRef}
       data-timecell
+      // In modifica il controllo è il campo: la cella esce dal giro di Tab e non è più un pulsante.
+      role={editing ? undefined : 'button'}
+      tabIndex={lockedInBillable || editing ? -1 : 0}
+      aria-label={editing ? undefined : `Ore: ${hasEntry ? toHHMM(displayValue) : 'nessuna'}. Invio per modificare`}
+      onKeyDown={e => {
+        // Solo sulla cella: i tasti premuti nel campo arrivano qui per bubbling.
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); startEdit(); }
+      }}
       data-col={colIndex}
       data-project={projectId}
       data-today={isToday ? 'true' : undefined}

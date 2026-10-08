@@ -384,6 +384,12 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
                 onDrop={e => draggingProjectId ? handleAreaDropProject(e, c.id) : undefined}
                 onDragEnd={handleAreaDragEnd}
                 onClick={() => setSelectedId(c.id)}
+                role="button"
+                tabIndex={0}
+                aria-pressed={selectedId === c.id}
+                onKeyDown={e => {
+                  if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setSelectedId(c.id); }
+                }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 6,
                   background: projectDragOverAreaId === c.id ? c.color + '22' : selectedId === c.id ? 'var(--tb-panel-bg)' : 'transparent',
