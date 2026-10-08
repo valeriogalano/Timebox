@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   getMondayOfWeek, addDays, fmt, fmtH, parseHHMM,
-  effBillable, billingOnSave, isHourly, normalizeSlot, slotForDate, budgetAlertLevel,
+  effBillable, billingOnSave, isHourly, normalizeSlot, slotForDate, budgetAlertLevel, getToday, currentSlot, SLOTS,
 } from '../utils.js';
 import {
   DEFAULT_MINUTES_THRESHOLD, normalizeMinutesThreshold,
@@ -195,5 +195,19 @@ describe('billingOnSave', () => {
     assert.equal(isHourly({ billing: 'fixed' }), false);
     assert.equal(isHourly({ billing: 'none' }), false);
     assert.equal(isHourly(undefined), false);
+  });
+});
+
+describe('getToday e currentSlot', () => {
+  test('getToday è oggi a mezzanotte, e ogni chiamata restituisce una data nuova', () => {
+    const a = getToday();
+    assert.deepEqual([a.getHours(), a.getMinutes(), a.getSeconds(), a.getMilliseconds()], [0, 0, 0, 0]);
+    assert.equal(a.toDateString(), new Date().toDateString());
+    assert.notEqual(getToday(), a);
+  });
+
+  test('currentSlot è la fascia dell\'ora corrente', () => {
+    assert.ok(SLOTS.includes(currentSlot()));
+    assert.equal(currentSlot(), slotForDate(new Date()));
   });
 });
