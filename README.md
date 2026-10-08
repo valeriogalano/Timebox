@@ -28,12 +28,11 @@ Timebox is a local-first desktop app for personal capacity planning. It is macOS
 
 ## Install and Run
 
-**Requirements:** Node.js 20+ and npm 10+.
+**Requirements:** Node.js 22.12+ and npm 10+.
 
 ```bash
 # First install.
-npm install --ignore-scripts
-npm run rebuild
+npm install
 
 # Development
 npm start
@@ -42,7 +41,7 @@ npm start
 npm run build
 ```
 
-`npm run rebuild` compiles `better-sqlite3` against Electron 44 headers. Do not skip it after installing dependencies if you want the Electron app to open correctly.
+There is nothing to compile: `better-sqlite3` ships prebuilt binaries that load in both Node and Electron.
 
 The app database is created automatically in a `Timebox` folder inside the user's Documents directory, so that it sits where personal backups already reach:
 
@@ -440,11 +439,9 @@ Local commits do not build or publish anything. The CI workflow runs on pull req
 - `window.api` exists only in Electron and is exposed by `preload.js`.
 - `index.html` includes a browser-only mock `window.api` for quick Vite previews and browser-based tests. Do not remove it.
 - `cli/index.js` is the developer CLI that accesses SQLite directly through `better-sqlite3`.
-- `cli/standalone.js` and `cli/mcp-server.js` avoid the Node/Electron ABI problem by using only built-in Node modules and the HTTP bridge.
-- `npm test` rebuilds `better-sqlite3` for Node.js before running `node --test cli/__tests__/*.test.js`.
-- After running tests, run `npm run rebuild` again before opening the Electron app if the native module was rebuilt for Node.
+- `cli/standalone.js` and `cli/mcp-server.js` use only built-in Node modules and the HTTP bridge, so they run as single files outside the app.
+- `npm test` runs the `node --test` suites and then the component tests with Vitest. No rebuild is needed before or after.
 
 ```bash
 npm test
-npm run rebuild
 ```
