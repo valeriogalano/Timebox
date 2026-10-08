@@ -14,13 +14,10 @@
     "timebox": "./cli/index.js"
   },
   "scripts": {
-    "predev": "electron-rebuild -f -w better-sqlite3",
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && ELECTRON_START_URL=http://localhost:5173 electron .\"",
     "build": "vite build",
     "start": "npm run dev",
-    "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "postinstall": "electron-rebuild -f -w better-sqlite3",
-    "test": "npm rebuild better-sqlite3 && node --test cli/__tests__/*.test.js src/__tests__/*.test.js && vitest run",
+    "test": "node --test cli/__tests__/*.test.js src/__tests__/*.test.js && vitest run",
     "test:renderer": "node --test src/__tests__/*.test.js",
     "test:components": "vitest run",
     "coverage:components": "vitest run --coverage",
@@ -37,7 +34,6 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@electron/rebuild": "^4.2.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^6.1.2",

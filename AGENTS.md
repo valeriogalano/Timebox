@@ -13,9 +13,8 @@ Stack: **Electron 44 + React 18 + Vite 8 + better-sqlite3 13**.
 ## Install and Run
 
 ```bash
-# First install.
-npm install --ignore-scripts
-npm run rebuild          # compile better-sqlite3 for Electron 44 headers
+# First install. Nothing to compile: see the note on better-sqlite3 below.
+npm install
 
 # Development
 npm start                # Vite dev server on 5173 + Electron
@@ -24,7 +23,7 @@ npm start                # Vite dev server on 5173 + Electron
 npm run build            # Vite -> renderer-dist/, then Electron loads renderer-dist/index.html
 
 # Tests
-npm test                 # rebuilds better-sqlite3 for Node, then runs node --test
+npm test                 # node --test, then Vitest
 npm run coverage:components   # copertura dei componenti React (Vitest + v8)
 ```
 
@@ -35,10 +34,8 @@ under `src/`) via the `node --test` suites. `npm run coverage:components` covers
 `coverage/components/`. There is no script for the Node half; run it directly:
 
 ```bash
-npm rebuild better-sqlite3      # the cli suites need the Node ABI
 npx c8 --reporter=text-summary node --test cli/__tests__/*.test.js src/__tests__/*.test.js
-npm run coverage:components     # does not need better-sqlite3
-npm run rebuild                 # back to the Electron ABI
+npm run coverage:components
 ```
 
 As of October 2026 the Node half is at about 95% of lines and the UI half at about
@@ -53,13 +50,9 @@ branch and function percentages of the whole UI half can drop even though nothin
 that was covered stopped being covered. Add tests until all three are at or above
 the base branch.
 
-Never delete anything under `node_modules` to "clean" a failed native build:
-`npm rebuild` only rebuilds what is installed, so a removed `better-sqlite3` needs
-`npm install --ignore-scripts` again.
+There is no native build step. `better-sqlite3` 13 is an N-API addon that ships prebuilt binaries inside its package (`prebuilds/<platform>-<arch>.node`), and one binary loads in both Node and Electron: the tests, `npm start` and the packaged app all use the prebuilt one. Until version 12 each runtime needed its own ABI, which is why this project had `npm run rebuild`, a `postinstall` hook and a rebuild inside `npm test`; they were removed in October 2026. If an old checkout left a `node_modules/better-sqlite3/build` folder behind, it is ignored: `prebuilds/` is looked up first. `npm install --ignore-scripts` also works and is what CI uses; the only install script in the tree belongs to a dependency of electron-builder.
 
-`better-sqlite3` 13 is an N-API addon, so a binary is no longer tied to one runtime's ABI: the build made by `npm run rebuild` for Electron also loads in plain Node, and the test suites pass on it. Prebuilt binaries ship inside the package under `prebuilds/`. The steps above are the same as with version 12, where they were required because each runtime needed its own ABI. They still work, compiling the addon from source into `build/Release`, which is loaded in preference to `prebuilds/`, and CI runs them. Electron 44 needs at least `better-sqlite3` 13: version 12 does not compile against its headers.
-
-After `npm test`, run `npm run rebuild` again before launching Electron, because the test script rebuilds `better-sqlite3` for Node.js.
+Electron 44 needs at least `better-sqlite3` 13: version 12 does not compile against its headers.
 
 ---
 
@@ -98,7 +91,7 @@ Local commits do not start builds. Commit freely on feature branches while devel
 
 GitHub Actions are configured separately from this file:
 
-- `.github/workflows/ci.yml` runs on pull requests and on pushes to `main`. It installs dependencies, rebuilds native modules, runs tests, rebuilds again for Electron, and runs the renderer build.
+- `.github/workflows/ci.yml` runs on pull requests and on pushes to `main`. It installs dependencies, runs the tests and runs the renderer build.
 - `.github/workflows/package-check.yml` runs on pull requests that touch `package.json`, the lockfile or `build/`. It packages the app on macOS, Windows and Linux without publishing. `build/after-pack.js` fails the build unless the package contains exactly one `better-sqlite3` binary, the one for that platform (`build.files` in `package.json` filters the others out).
 - `.github/workflows/release.yml` runs only when a tag matching `v*` is pushed. It builds and publishes release artifacts for macOS, Windows, and Linux.
 
@@ -203,7 +196,7 @@ curl / scripts     ─┘
 
 The HTTP server runs inside Electron on `127.0.0.1:37373`. It starts in `app.whenReady()` after IPC setup.
 
-`cli/standalone.js` and `cli/mcp-server.js` are self-contained scripts using only Node built-ins. They never load `better-sqlite3`, which avoids Node/Electron native ABI mismatch.
+`cli/standalone.js` and `cli/mcp-server.js` are self-contained scripts using only Node built-ins. They never load `better-sqlite3`: they are copied out of the app as single files and must run with whatever Node the user has.
 
 ### Installable Tools
 
@@ -527,6 +520,6 @@ Do this only for the logic the change actually touches. A feature is not a licen
 - `billableHours` is optional. `null` means billable time equals tracked time for billable areas.
 - Only areas with `billing === 'hourly'` bill hours. The € badge, the billable-hours override and the billed state apply there only; a `fixed` area has a fee but no hours to invoice. Use `isHourly(client)` (`src/utils.js`, twin in `lib/domain.js`) instead of testing `billing !== 'none'`. Outside hourly areas those fields are hidden, never erased: saving an entry keeps the stored `billableHours` and `billed` (`billingOnSave` in `src/utils.js`), so they come back intact if the area becomes hourly again and an already-billed entry does not reappear as unbilled.
 - The standalone CLI and MCP server require the app to be open.
-- The developer CLI in `cli/index.js` uses `better-sqlite3` directly. With version 12 it could hit an ABI mismatch after `npm run rebuild`; the N-API build of version 13 loads in both runtimes.
+- The developer CLI in `cli/index.js` uses `better-sqlite3` directly, on the same prebuilt binary as the app.
 - `crypto.randomUUID()` is available in Electron and modern Node; do not add `uuid`.
 - The Vite config is `vite.config.mjs`, not `.js`: `package.json` has no `"type": "module"` because the main process is CommonJS, and Vite 8 warns when an ESM config is loaded as CommonJS.
