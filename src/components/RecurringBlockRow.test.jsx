@@ -55,3 +55,22 @@ describe('RecurringBlockRow — il campo ore rispetta la soglia ore/minuti', () 
     expect(onUpdate).not.toHaveBeenCalled();
   });
 });
+
+describe('RecurringBlockRow — formato delle ore', () => {
+  it('mostra le ore nel formato unico, non in decimali', () => {
+    const { container, getByText } = render(
+      <RecurringBlockRow block={{ ...block, hours: 1.5 }} client={client} onUpdate={() => {}} onRemove={() => {}} />
+    );
+    expect(getByText('1h 30m')).toBeInTheDocument();
+    // e il campo si apre sullo stesso formato
+    fireEvent.click(container.querySelector('span[style*="cursor: text"]'));
+    expect(container.querySelector('input').value).toBe('1h 30m');
+  });
+
+  it('il nome dell\'area, se troncato, si legge per intero nel title', () => {
+    const { getByTitle } = render(
+      <RecurringBlockRow block={block} client={client} onUpdate={() => {}} onRemove={() => {}} />
+    );
+    expect(getByTitle('INVALSI')).toHaveTextContent('INVALSI');
+  });
+});

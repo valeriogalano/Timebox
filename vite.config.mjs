@@ -10,12 +10,7 @@ export default defineConfig({
   // strictPort: fail loudly if 5173 is taken (stale dev process) instead of
   // silently moving to 5174 while wait-on/Electron still target 5173.
   server: { port: 5173, strictPort: true },
-  build: {
-    outDir: 'renderer-dist',
-    commonjsOptions: {
-      include: [/node_modules/, /lib\/domain\.js/],
-    },
-  },
+  build: { outDir: 'renderer-dist' },
   define: { __APP_VERSION__: JSON.stringify(version) },
   // Component tests (Vitest + jsdom). Kept to *.test.jsx so the stdlib
   // `node --test` suites under src/__tests__/*.test.js stay separate.

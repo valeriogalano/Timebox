@@ -12,6 +12,7 @@ const { getImportedTodoistTasksData } = require('./commands/todoist-imported');
 const { getDayMismatchesData } = require('./commands/day-mismatches');
 const { getDayInsightsData } = require('./commands/day-insights');
 const { getProjectsData } = require('./commands/projects');
+const { getEntriesData } = require('./commands/entries');
 const { getClientsData }  = require('./commands/clients');
 const { getStatusData }   = require('./commands/status');
 const { logHours }        = require('./commands/log');
@@ -114,6 +115,19 @@ function createHttpServer() {
         const includeArchived = q.get('all') === '1';
         const nameSearch = q.get('search') || undefined;
         return json(res, 200, getProjectsData({ clientFilter, areaFilter, includeArchived, nameSearch }));
+      }
+
+      if (req.method === 'GET' && p === '/entries') {
+        const isDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
+        const from = q.get('from');
+        const to = q.get('to') || fmt(getToday());
+        if (!isDate(from) || !isDate(to)) return json(res, 400, { error: 'from (required) and to must be YYYY-MM-DD dates' });
+        if (from > to) return json(res, 400, { error: 'from must not be after to' });
+        return json(res, 200, getEntriesData({
+          from, to,
+          areaFilter: q.get('area') || undefined,
+          projectFilter: q.get('project') || undefined,
+        }));
       }
 
       if (req.method === 'GET' && (p === '/clients' || p === '/areas')) {

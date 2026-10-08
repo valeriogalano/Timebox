@@ -59,19 +59,36 @@
   background: var(--tb-main-bg);
   overflow: hidden;
 }
+/* I segmenti sono <button>, raggiungibili con Tab. Dove il segmento contiene anche
+   un aiuto resta uno <span> con dentro il pulsante dell'etichetta (.tb-seg-label). */
+.tb-seg > button,
 .tb-seg > span {
   padding: 5px 12px;
+  font: inherit;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+  border: 0;
   border-left: 1px solid var(--tb-border-mid);
   color: var(--tb-tab-idle-text);
   background: transparent;
 }
+.tb-seg > button:first-child,
 .tb-seg > span:first-child { border-left: 0; }
+.tb-seg > button[data-on="true"],
 .tb-seg > span[data-on="true"] {
   background: var(--tb-tab-active-bg);
   color: var(--tb-tab-active-text);
+}
+/* L'anello di focus starebbe sotto il bordo arrotondato del contenitore. */
+.tb-seg > button:focus-visible { outline-offset: -2px; }
+.tb-seg-label {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 
 /* Tick limite/target (grigio medio che tiene in entrambi i temi) */

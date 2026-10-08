@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { toHHMM, parseHHMM, fmtH } from '../utils';
+import { parseHHMM, fmtH } from '../utils';
 import MarkdownText from './MarkdownText';
 
 export function TodoistControlBar({ children }) {
@@ -75,7 +75,7 @@ export function TodoistImportButton({ dates, projects, onOpen }) {
       onOpen({
         tasks: result.tasks.map(task => ({
           ...task,
-          draft: task.hours ? toHHMM(task.hours) : '',
+          draft: task.hours ? fmtH(task.hours) : '',
         })),
       });
     } catch (err) {
@@ -116,7 +116,7 @@ function TodoistImportTimeInput({ value, onChange, focused, onNavigate }) {
 
   function normalize() {
     const hours = parseHHMM(value);
-    onChange(hours > 0 ? toHHMM(hours) : '');
+    onChange(hours > 0 ? fmtH(hours) : '');
   }
 
   function handleKeyDown(event) {
@@ -124,7 +124,7 @@ function TodoistImportTimeInput({ value, onChange, focused, onNavigate }) {
       event.preventDefault();
       const current = parseHHMM(value);
       const next = Math.max(0, current + (event.key === 'ArrowUp' ? 0.25 : -0.25));
-      onChange(next > 0 ? toHHMM(next) : '');
+      onChange(next > 0 ? fmtH(next) : '');
       return;
     }
     if (event.key === 'Tab') {
@@ -146,7 +146,7 @@ function TodoistImportTimeInput({ value, onChange, focused, onNavigate }) {
       onChange={event => onChange(event.target.value)}
       onBlur={normalize}
       onKeyDown={handleKeyDown}
-      placeholder="hh:mm"
+      placeholder="1h 30m"
       aria-label="Tempo da importare"
       style={{
         width: 58, height: 28, flexShrink: 0,

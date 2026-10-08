@@ -134,12 +134,36 @@ export const RUNWAY_WINDOW = 4;   // settimane chiuse su cui si misura il ritmo
 // Fasce, non settimane esatte: il ritmo misurato ha un'incertezza più larga della
 // distanza fra "3" e "4 settimane", quindi un numero preciso comunicherebbe una
 // precisione che il dato non ha. 8 è il fondo scala, allineato alla finestra di Trend.
+// La fascia più stretta è una settimana: sotto, il residuo è meno del ritmo di una
+// settimana, e "entro 2 settimane" lo farebbe sembrare più lontano di quanto è.
 const BANDS = [
+  { max: 1,        band: 'entro1',  label: 'Esaurito entro una settimana', glyph: '▴▴' },
   { max: 2,        band: 'entro2',  label: 'Esaurito entro 2 settimane', glyph: '▴▴' },
   { max: 4,        band: 'entro4',  label: 'Esaurito entro 4 settimane', glyph: '▴'  },
   { max: 8,        band: 'entro8',  label: 'Esaurito entro 8 settimane', glyph: '▪'  },
   { max: Infinity, band: 'oltre8',  label: 'Oltre 8 settimane',          glyph: '▪'  },
 ];
+
+// Ordine di urgenza delle fasce: il tetto più vicino all'esaurimento per primo.
+export const RUNWAY_ORDER = ['esaurito', 'entro1', 'entro2', 'entro4', 'entro8', 'oltre8', 'nessuno'];
+
+// Riepilogo in testa alla lente: conta i tetti per fascia, con le stesse parole
+// delle card. Un solo conteggio "entro 4 settimane" metteva insieme fasce diverse
+// e contraddiceva la card di un tetto che si esaurisce prima.
+const SUMMARY_BANDS = [
+  ['esaurito', n => (n === 1 ? 'già esaurito' : 'già esauriti')],
+  ['entro1', () => 'entro una settimana'],
+  ['entro2', () => 'entro 2 settimane'],
+  ['entro4', () => 'entro 4 settimane'],
+];
+
+export function runwaySummary(rows) {
+  const parts = SUMMARY_BANDS
+    .map(([band, text]) => [rows.filter(r => r.band === band).length, text])
+    .filter(([n]) => n > 0)
+    .map(([n, text]) => `${n} ${text(n)}`);
+  return parts.length ? parts.join(' · ') : 'nessuno entro 4 settimane';
+}
 
 export function capRunway({ cap, consumed = 0, rhythm = 0 }) {
   if (!(cap > 0)) {

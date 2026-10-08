@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useState } from 'react';
-import { toHHMM } from '../utils';
+import { fmtH } from '../utils';
 import MarkdownText from './MarkdownText';
 import TodoistLabels from './TodoistLabels';
 
@@ -60,7 +60,7 @@ export default function TodoistTaskTooltip({ anchorRef, tasks, color }) {
             wordBreak: 'break-word',
           }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ fontSize: 9, color, fontWeight: 600 }}>{toHHMM(t.hours)}</span>
+            <span style={{ fontSize: 9, color, fontWeight: 600 }}>{fmtH(t.hours)}</span>
             <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>{t.projectName}</span>
           </div>
           <TodoistLabels labels={t.labels} compact />

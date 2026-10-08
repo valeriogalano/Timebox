@@ -384,6 +384,12 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
                 onDrop={e => draggingProjectId ? handleAreaDropProject(e, c.id) : undefined}
                 onDragEnd={handleAreaDragEnd}
                 onClick={() => setSelectedId(c.id)}
+                role="button"
+                tabIndex={0}
+                aria-pressed={selectedId === c.id}
+                onKeyDown={e => {
+                  if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setSelectedId(c.id); }
+                }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 6,
                   background: projectDragOverAreaId === c.id ? c.color + '22' : selectedId === c.id ? 'var(--tb-panel-bg)' : 'transparent',
@@ -640,6 +646,7 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
                           <input
                             type="number"
                             value={p.budgetHours ?? ''}
+                            aria-label="Budget totale del progetto, in ore"
                             placeholder="—"
                             onChange={e => updateProject(p.id, 'budgetHours', e.target.value ? Number(e.target.value) : null)}
                             onMouseDown={e => e.stopPropagation()}
@@ -656,6 +663,7 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
                           <input
                             type="number"
                             value={p.weeklyHours ?? ''}
+                            aria-label="Limite settimanale del progetto, in ore"
                             placeholder="—"
                             onChange={e => updateProject(p.id, 'weeklyHours', e.target.value ? Number(e.target.value) : null)}
                             onMouseDown={e => e.stopPropagation()}
@@ -667,6 +675,7 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
                         <button
                           onClick={e => { e.stopPropagation(); setMovingProjectId(movingProjectId === p.id ? null : p.id); }}
                           title="Sposta in un'altra area"
+                          aria-label="Sposta in un'altra area"
                           style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
                             background: movingProjectId === p.id ? 'var(--tb-border-mid)' : 'transparent',
                             color: movingProjectId === p.id ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)',
@@ -693,6 +702,7 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
                         )}
                         <button onClick={() => updateProject(p.id, 'archived', !p.archived)}
                           title={p.archived ? "Ripristina progetto" : "Archivia progetto"}
+                          aria-label={p.archived ? "Ripristina progetto" : "Archivia progetto"}
                           style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
                             background: p.archived ? 'var(--tb-border-mid)' : 'transparent',
                             color: p.archived ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)',
@@ -701,6 +711,7 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
                         </button>
                         <button onClick={() => deleteProject(p.id)}
                           title="Elimina progetto"
+                          aria-label="Elimina progetto"
                           style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid var(--tb-border-mid)',
                             background: 'transparent', color: 'var(--tb-text-secondary)',
                             cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s', flexShrink: 0 }}

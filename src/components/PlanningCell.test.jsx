@@ -70,8 +70,8 @@ describe('PlanningCell: blocchi', () => {
       />
     );
     // parziale: 1:00 tracciata su 2:00 pianificate; completo: 1:00 su 1:00
-    expect(getAllByText('1:00').length).toBeGreaterThanOrEqual(2);
-    expect(getByText('2:00')).toBeInTheDocument();
+    expect(getAllByText('1h').length).toBeGreaterThanOrEqual(2);
+    expect(getByText('2h')).toBeInTheDocument();
     expect(getByTitle('Slot oltre capacità')).toBeInTheDocument();
     expect(getByText('Seconda')).toBeInTheDocument();
   });
@@ -83,16 +83,16 @@ describe('PlanningCell: blocchi', () => {
         onUpdateBlock={(id, h) => updates.push([id, h])} />
     );
     fireEvent.click(getByTitle('Modifica durata pianificata'));
-    fireEvent.change(getByDisplayValue('2:00'), { target: { value: '3:30' } });
+    fireEvent.change(getByDisplayValue('2h'), { target: { value: '3:30' } });
     fireEvent.keyDown(getByDisplayValue('3:30'), { key: 'Enter' });
     expect(updates).toEqual([['b1', 3.5]]);
 
     fireEvent.click(getByTitle('Modifica durata pianificata'));
-    fireEvent.keyDown(getByDisplayValue('2:00'), { key: 'Escape' });
-    expect(queryByDisplayValue('2:00')).not.toBeInTheDocument();
+    fireEvent.keyDown(getByDisplayValue('2h'), { key: 'Escape' });
+    expect(queryByDisplayValue('2h')).not.toBeInTheDocument();
 
     fireEvent.click(getByTitle('Modifica durata pianificata'));
-    fireEvent.change(getByDisplayValue('2:00'), { target: { value: '0' } });
+    fireEvent.change(getByDisplayValue('2h'), { target: { value: '0' } });
     fireEvent.blur(getByDisplayValue('0'));
     expect(updates).toHaveLength(1);
   });

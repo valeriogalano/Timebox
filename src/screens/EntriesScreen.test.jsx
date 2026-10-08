@@ -38,6 +38,18 @@ describe('EntriesScreen', () => {
     expect(queryByText('n/a')).not.toBeInTheDocument();
   });
 
+  test('la data è scritta per esteso e l\'avviso compare solo sulla conferma di eliminazione', async () => {
+    window.api.getEntries = vi.fn(() => Promise.resolve([{ ...entries[0], date: '2026-10-07' }]));
+    const { findByText, getByText, queryByText } = renderScreen();
+
+    const row = rowOf(await findByText('mer 7 ott 2026'));
+    expect(queryByText('2026-10-07')).not.toBeInTheDocument();
+    expect(row.querySelector('svg')).toBeNull();
+
+    fireEvent.click(within(row).getByText('Elimina'));
+    expect(getByText('Sì').querySelector('svg')).not.toBeNull();
+  });
+
   test('una sola registrazione va al singolare, nessuna mostra il messaggio vuoto', async () => {
     window.api.getEntries = vi.fn(() => Promise.resolve([entries[0]]));
     const one = renderScreen();

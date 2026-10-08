@@ -6,7 +6,7 @@ The product framing is capacity-first. Billing is a supporting workflow for bill
 
 This is also a vibe coding project: development is iterative and AI-assisted. Keep changes grounded in the existing code, verify behavior, and avoid broad rewrites unless the task explicitly calls for them.
 
-Stack: **Electron 31 + React 18 + Vite 5 + better-sqlite3 12**.
+Stack: **Electron 31 + React 18 + Vite 8 + better-sqlite3 12**.
 
 ---
 
@@ -42,7 +42,11 @@ npm run rebuild                 # back to the Electron ABI
 ```
 
 As of October 2026 the Node half is at about 95% of lines and the UI half at about
-44% of statements. The UI half is still low, but it is measured, so a pull request
+35% of statements, 38% of branches and 33% of functions. Those UI figures are the
+ones Vitest 5 reports: it maps V8 coverage through the AST. When the move was made,
+the same code and tests read 44%, 74% and 41% under Vitest 2 and 32%, 33% and 30%
+under Vitest 5, so numbers taken before the move are not comparable with the ones
+after it. The UI half is still low, but it is measured, so a pull request
 that lowers it is visible. Compare statements, branches and functions, not only one
 of them: when a screen gets its first test the file enters the denominator, and the
 branch and function percentages of the whole UI half can drop even though nothing
@@ -113,7 +117,7 @@ To develop without publishing new app versions:
 TimeBox/
   main.js           Electron main process: BrowserWindow, IPC, DB, HTTP server, updates
   preload.js        contextBridge exposing window.api to the renderer
-  vite.config.js    base './', output dist/
+  vite.config.mjs   base './', output dist/
   index.html        HTML entry, Open Sans font, browser-only window.api mock
   lib/
     todoist-order.js  Todoist task ordering helpers
@@ -136,6 +140,7 @@ TimeBox/
       today.js
       week.js
       projects.js
+      entries.js
       clients.js
       status.js
       log.js
@@ -222,6 +227,7 @@ In development, wrappers point at repository files. In packaged builds, they poi
 | `GET` | `/area-statuses?week=` | Weekly area status rows for a Monday `weekKey`. |
 | `POST` | `/area-statuses` | Save `{ weekKey, areaId, status }`; every status is stored explicitly. Areas without a row fall back to `clients.defaultStatus`. |
 | `GET` | `/projects?area=&client=&search=&all=` | `getProjectsData(...)`. |
+| `GET` | `/entries?from=&to=&area=&project=` | `getEntriesData(...)`: single entries in a date range plus totals by area and project. `from` is required, `to` defaults to today; a malformed date is a 400. |
 | `GET` | `/clients?search=` | `getClientsData(...)`. |
 | `GET` | `/areas?search=` | Alias for clients/areas. |
 | `GET` | `/status` | `getStatusData(today)`. |
@@ -252,7 +258,7 @@ A second listener, off by default, macOS only. It exists so hours can be logged 
 
 `cli/mcp-server.js` implements MCP spec `2024-11-05` with JSON-RPC over stdio.
 
-Tools: `today`, `week`, `projects`, `areas`, `status`, `log_hours`, `find_area`, `find_project`, `rename_area`, `update_area`, `rename_project`, `update_project`, `move_project`, `create_project`, `delete_project`, `merge_project_entries`.
+Tools: `today`, `week`, `projects`, `entries`, `areas`, `status`, `log_hours`, `find_area`, `find_project`, `rename_area`, `update_area`, `rename_project`, `update_project`, `move_project`, `create_project`, `delete_project`, `merge_project_entries`.
 
 Codex manual configuration:
 
@@ -331,6 +337,12 @@ A `timebox.db` sitting in the repository root is **not** the app's database — 
 
 Editing the weekly view must not mutate the `recurring` table.
 
+### Slots Belong to the Plan, Not to Tracked Hours
+
+AM, PM and Sera are a property of planned blocks. A tracked entry still stores a `slot` (the unique index is `projectId + date + slot`), but it is picked automatically by `resolveEntrySlot`, cannot be chosen in the UI and says nothing about when the work happened. Never show it and never compare planned against tracked through it.
+
+Tracked hours meet slots in one place only: `fillPlannedBlocks` (`src/dayPlanning.js`, twin in `lib/domain.js`) spreads an area's hours for the day over its blocks in slot order. Per-slot tracked figures (`slotLogged` in `computeDayPlanning`, `slots[slot].trackedByArea` and `trackedHours` in `getDaySummaryData`) come from that fill; hours beyond the plan are extra and belong to no slot.
+
 ### Empty Week Overrides
 
 When the last block is removed from a slot, the code deletes the `week_overrides` row instead of saving an empty array. Missing row means "use the recurring template".
@@ -386,9 +398,8 @@ Recurring template edits call `freezeWeeksBeforeRecurringChange` first. Past wee
 
 | Function | Behavior |
 |---|---|
-| `fmtH(h)` | `2.5 -> "2h 30m"`, `3 -> "3h"`, `0 -> "0h"`, negative values keep a leading `-`. |
-| `toHHMM(h)` | `2.5 -> "2:30"`, `0 -> ""`. |
-| `parseHHMM(str, threshold?)` | Accepts `2:30`, `2.5`, `2,5`, and empty string. A bare number greater than the threshold is read as minutes (`90` -> `1.5`); the threshold defaults to the configured one (`src/hours-threshold.js`, setting `hoursMinutesThreshold`, default 9) and is passed explicitly in tests. A value containing `:` is always explicit and never converted. |
+| `fmtH(h)` | `2.5 -> "2h 30m"`, `3 -> "3h"`, `0 -> "0h"`, negative values keep a leading `-`. The only format hours are written in, on every screen and in the value a field opens on. |
+| `parseHHMM(str, threshold?)` | Reads what a hours field can contain: the display format (`1h 30m`, `2h`, `45m`) and the typing shortcuts `2:30`, `2.5`, `2,5`; empty string is 0. A bare number greater than the threshold is read as minutes (`90` -> `1.5`); the threshold defaults to the configured one (`src/hours-threshold.js`, setting `hoursMinutesThreshold`, default 9) and is passed explicitly in tests. A value containing `:`, `h` or `m` is explicit and never converted. |
 | `getMondayOfWeek(date)` | Monday for the containing ISO-style week. |
 | `addDays(date, n)` | Returns a new date. |
 | `fmt(date)` | Returns `YYYY-MM-DD`. |
@@ -406,7 +417,7 @@ Todoist tasks are allocated sequentially across blocks for the same area. A task
 
 ### TimeCell
 
-Inline `hh:mm` editor:
+Inline hours editor (shows and opens on `fmtH`, accepts what `parseHHMM` reads):
 
 - click starts editing;
 - `Tab`/`Enter` commits;
@@ -515,4 +526,4 @@ Do this only for the logic the change actually touches. A feature is not a licen
 - The standalone CLI and MCP server require the app to be open.
 - The developer CLI in `cli/index.js` uses `better-sqlite3` directly and can hit ABI mismatch after `npm run rebuild`.
 - `crypto.randomUUID()` is available in Electron and modern Node; do not add `uuid`.
-- Vite's CJS deprecation warning is harmless for this project.
+- The Vite config is `vite.config.mjs`, not `.js`: `package.json` has no `"type": "module"` because the main process is CommonJS, and Vite 8 warns when an ESM config is loaded as CommonJS.

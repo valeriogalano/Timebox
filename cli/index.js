@@ -14,8 +14,6 @@ const {
   fmtDay, fmtDayShort, fmtWeekRange, pad,
 } = require('./format');
 
-const { SLOTS } = require('../lib/domain');
-
 const pkg = require('../package.json');
 
 function run(fn) {
@@ -79,21 +77,11 @@ program
       }
       const dateObj = new Date(date + 'T00:00:00');
       console.log(`Today — ${fmtDay(dateObj)}\n`);
-      for (const slot of SLOTS) {
-        const entries = data.slots[slot];
-        const total = data.slotTotals[slot];
-        console.log(`  ${slot.toUpperCase()}`);
-        if (entries.length === 0) {
-          console.log(`    —`);
-        } else {
-          for (const e of entries) {
-            console.log(`    ${pad((e.area || e.client) + ' › ' + e.project, 38)} ${fmtH(e.hours)}`);
-          }
-          console.log(`    Total: ${fmtH(total)}`);
-        }
-        console.log();
+      if (data.entries.length === 0) console.log('    —');
+      for (const e of data.entries) {
+        console.log(`    ${pad((e.area || e.client) + ' › ' + e.project, 38)} ${fmtH(e.hours)}`);
       }
-      console.log(`  TOTAL: ${fmtH(data.total)}`);
+      console.log(`\n  TOTAL: ${fmtH(data.total)}`);
     });
   });
 
