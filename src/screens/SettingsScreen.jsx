@@ -520,6 +520,8 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
         />
       </Section>
 
+      <MobileSection />
+
       <Section title="Aggiornamenti">
         <UpdateSection
           status={updateStatus}
@@ -529,6 +531,84 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
         />
       </Section>
     </div>
+  );
+}
+
+// Pagina per registrare le ore dall'iPhone, servita dal Mac sulla rete di casa.
+// Lo stato arriva tutto dal processo principale (lib/mobile-access.js): qui si mostra
+// e si chiedono le quattro azioni. Dove non è supportata (non macOS) non compare.
+export function MobileSection() {
+  const [status, setStatus] = useState(null);
+  const [link, setLink] = useState(null);
+  const [error, setError] = useState('');
+
+  const load = () => window.api.getMobileStatus?.().then(setStatus);
+  useEffect(() => { load(); }, []);
+
+  async function act(action) {
+    setError('');
+    setLink(null);
+    const result = await action();
+    if (result?.error) setError(result.error);
+    await load();
+  }
+
+  if (!status?.supported) return null;
+
+  const open = status.listening.length > 0;
+  const network = !status.trustedMac
+    ? 'Nessuna rete dichiarata di casa: la pagina resta chiusa.'
+    : status.onHomeNetwork
+      ? `Router ${status.trustedMac} · sei su questa rete.`
+      : `Router ${status.trustedMac} · ora sei su un'altra rete: la pagina è chiusa.`;
+
+  return (
+    <Section title="iPhone">
+      <Row
+        label="Ore dall'iPhone"
+        description={open
+          ? `Pagina aperta su ${status.listening.join(', ')}, porta ${status.port}. Funziona con il Mac acceso e Timebox aperto.`
+          : status.enabled
+            ? 'Attiva, ma chiusa: si apre solo sulla rete di casa.'
+            : 'Una pagina per registrare e correggere le ore lavorate dall\'iPhone, raggiungibile solo sulla rete di casa.'}
+        buttonLabel={status.enabled ? 'Disattiva' : 'Attiva'}
+        danger={status.enabled}
+        onClick={() => act(() => window.api.setMobileEnabled(!status.enabled))}
+      />
+      <Row
+        label="Rete di casa"
+        description={`${network} Si riconosce dal router, non dal nome del Wi-Fi.`}
+        buttonLabel={status.trustedMac && status.onHomeNetwork ? 'Dimentica' : 'Usa la rete attuale'}
+        danger={status.trustedMac && status.onHomeNetwork}
+        disabled={!status.currentMac}
+        onClick={() => act(() => (status.trustedMac && status.onHomeNetwork
+          ? window.api.forgetMobileNetwork()
+          : window.api.trustMobileNetwork()))}
+      />
+      {status.enabled && (
+        <Row
+          label="Link per l'iPhone"
+          description="Si apre una volta in Safari e si aggiunge alla schermata Home. Contiene il token: chi lo ha può modificare le ore."
+          buttonLabel={link ? 'Nascondi' : 'Mostra link'}
+          onClick={async () => setLink(link ? null : (await window.api.getMobileLink()) || 'Link non disponibile: la pagina è chiusa.')}
+        />
+      )}
+      {link && (
+        <InfoRow label="Link" description="Il traffico sulla rete di casa non è cifrato." code={link} />
+      )}
+      {status.hasToken && (
+        <Row
+          label="Token"
+          description="Rigenerandolo il link vecchio smette di funzionare subito."
+          buttonLabel="Rigenera"
+          danger
+          onClick={() => act(() => window.api.regenerateMobileToken())}
+        />
+      )}
+      {error && (
+        <div style={{ padding: '10px 20px', fontSize: 11, color: 'var(--tb-text-primary)', fontWeight: 600 }}>{error}</div>
+      )}
+    </Section>
   );
 }
 

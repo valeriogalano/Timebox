@@ -233,6 +233,7 @@
       let entries = [...ENTRIES];
       const weekAreaStatuses = {};
       const settings = { slotCapacityHours: '4' };
+      const mobileMock = { enabled: false, hasToken: false, trustedMac: null };
       let todoistImports = [
         { todoistTaskId:'ti1', projectId:'p1', titleSnapshot:'Revisione mockup homepage',   date:pd(0), slot:'am', hours:2,   note:'Feedback cliente incluso', importedAt:new Date(Date.now()-6*864e5).toISOString() },
         { todoistTaskId:'ti2', projectId:'p3', titleSnapshot:'Articolo newsletter maggio',   date:pd(0), slot:'pm', hours:2.5, note:'', importedAt:new Date(Date.now()-6*864e5).toISOString() },
@@ -443,6 +444,13 @@
         installMcpDesktop: async () => ({ ok: true }),
         checkMcpClaudeCodeInstalled: async () => false,
         installMcpClaudeCode: async () => ({ ok: true }),
+        // Pagina mobile: nel browser non c'è nessun listener, solo lo stato per la sezione.
+        getMobileStatus: async () => ({ supported: true, ...mobileMock, listening: mobileMock.enabled && mobileMock.trustedMac ? ['192.168.1.20'] : [], onHomeNetwork: !!mobileMock.trustedMac, currentMac: 'aa:bb:cc:dd:ee:ff', port: 37374 }),
+        setMobileEnabled: async (v) => { mobileMock.enabled = v; mobileMock.hasToken = mobileMock.hasToken || v; return { ok: true }; },
+        trustMobileNetwork: async () => { mobileMock.trustedMac = 'aa:bb:cc:dd:ee:ff'; return { ok: true }; },
+        forgetMobileNetwork: async () => { mobileMock.trustedMac = null; return { ok: true }; },
+        regenerateMobileToken: async () => ({ ok: true }),
+        getMobileLink: async () => (mobileMock.enabled && mobileMock.trustedMac ? 'http://mac.local:37374/#token-di-esempio' : null),
         getUpdateStatus: async () => ({ status: 'skipped', info: { reason: 'browser-mock' } }),
         checkForUpdates: async () => ({ ok: true, skipped: true, reason: 'browser-mock', state: { status: 'skipped', info: { reason: 'browser-mock' } } }),
         installUpdate: async () => ({ ok: false, error: 'browser-mock' }),

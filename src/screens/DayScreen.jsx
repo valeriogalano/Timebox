@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fmt, fmtH, getToday, addDays, getMondayOfWeek, SLOTS, currentSlot, effBillable, isHourly, MONTHS_IT } from '../utils';
-import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks, resolveEntrySlot } from '../dayPlanning';
+import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks, resolveEntrySlot, planDayEntrySave } from '../dayPlanning';
 import { sumByProject, usageMaps, loadProjectTotals } from '../cap-usage';
 import PlanningCell from '../components/PlanningCell';
 import TimeCell from '../components/TimeCell';
@@ -160,15 +160,11 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
     const billableHours = typeof payload === 'object'
       ? (payload.billableHours ?? null)
       : (existing?.billableHours ?? null);
-    if (hours <= 0) {
-      for (const e of existingList) await window.api.deleteEntry(e.id);
-    } else {
-      const entry = existing
-        ? { ...existing, slot: resolvedSlot, hours, billableHours }
-        : { id: crypto.randomUUID(), projectId, date: today, hours, billableHours, slot: resolvedSlot, billed: false };
-      await window.api.saveEntry(entry);
-      for (const e of existingList) { if (e.id !== entry.id) await window.api.deleteEntry(e.id); }
-    }
+    const { save, deleteIds } = planDayEntrySave({
+      existingList, projectId, date: today, hours, billableHours, slot: resolvedSlot, newId: crypto.randomUUID(),
+    });
+    if (save) await window.api.saveEntry(save);
+    for (const id of deleteIds) await window.api.deleteEntry(id);
     await load();
     loadProjectTotals().then(setProjectTotals);
     onEntryChange?.();

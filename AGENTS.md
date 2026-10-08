@@ -118,6 +118,9 @@ TimeBox/
   lib/
     todoist-order.js  Todoist task ordering helpers
     updater.js        electron-updater integration
+    home-network.js   Recognises the home network by the router's MAC address (macOS)
+    mobile-server.js  LAN listener for the mobile page: static files and two token-protected routes
+    mobile-access.js  Opens and closes that listener: enabled + token + home network
   db/
     schema.js       initDb(dbPath): tables, indexes, migrations, seed data
     queries.js      synchronous better-sqlite3 query layer; init(db) must run first
@@ -138,6 +141,7 @@ TimeBox/
       log.js
     __tests__/
       *.test.js     node:test coverage for commands, HTTP, MCP, and Todoist ordering
+  mobile/           The mobile page served by lib/mobile-server.js (plain HTML/CSS/JS, no build step)
   public/
     fonts/          OpenSans-Variable.woff2
   src/
@@ -228,6 +232,21 @@ In development, wrappers point at repository files. In packaged builds, they poi
 | `POST` | `/projects/merge` | Merge entries from one project into another, then delete the source (`deleteSource: false` keeps it). |
 | `PATCH` | `/areas/:id` | Rename an area and/or change its color. `color` accepts a Todoist palette key (e.g. `lavender`) or a hex from that palette (case-insensitive); anything else is a 400. |
 | `PATCH` | `/clients/:id` | Rename an area through legacy naming. |
+
+### Mobile Page (Home Network Only)
+
+```text
+iPhone (Safari / Home screen) ── HTTP <LAN address>:37374 ── lib/mobile-server.js ── cli/commands/mobile.js ── db/queries.js
+```
+
+A second listener, off by default, macOS only. It exists so hours can be logged from a phone at home; analysis and planning stay on the Mac. It is deliberately not the loopback API on another address: that one has no authentication and exposes deletes and merges, so it stays on `127.0.0.1`.
+
+- `lib/mobile-server.js` serves the files under `mobile/` and two routes, both behind a bearer token: `GET /api/day?date=` and `PUT /api/hours` (`{ projectId, date, clock: "H:MM" }`). Do not add routes here without a reason that belongs to the phone; anything added is reachable from the network.
+- `lib/mobile-access.js` decides when it is open: enabled in Settings, a token exists, a home network is declared, and `lib/home-network.js` sees that router's MAC right now. It rechecks every 30 seconds and closes on any doubt. It binds to the addresses in the router's subnet only, never `0.0.0.0`.
+- The page works by project id. It changes worked hours only: `saveMobileHours` keeps the stored `billableHours` and `billed`, and writes through `planDayEntrySave`, the same rule `DayScreen` uses.
+- `mobile/` is plain files with no bundler, under a CSP that forbids inline script and style. Colours are set through the CSSOM (`el.style`), text through `textContent`.
+- Settings keys: `mobile_enabled`, `mobile_trusted_mac`, `mobile_token_enc` (encrypted with `safeStorage`, like the Todoist token).
+- The accepted risks (plain HTTP on the home network, MAC spoofing) are written in `SECURITY.md`. Read it before changing any of this.
 
 ### MCP Server
 
