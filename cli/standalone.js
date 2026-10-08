@@ -3,7 +3,6 @@
 
 const http = require('node:http');
 
-const SLOTS = ['am', 'pm', 'sera'];
 const PORT = parseInt(process.env.TIMEBOX_PORT || '37373', 10);
 const BASE = `http://127.0.0.1:${PORT}`;
 
@@ -117,12 +116,8 @@ async function cmdToday(flags) {
   if (flags.json) { console.log(JSON.stringify(d)); return; }
 
   console.log(`\nDate: ${d.date}`);
-  for (const slot of SLOTS) {
-    const entries = d.slots[slot];
-    if (!entries.length) continue;
-    console.log(`\n  ${slot.toUpperCase()}`);
-    for (const e of entries) console.log(`    ${col(e.project, 30)} ${fmtHB(e.hours, e.isBillable ? e.billableHours : null)}`);
-  }
+  console.log('');
+  for (const e of d.entries) console.log(`    ${col(e.project, 30)} ${fmtHB(e.hours, e.isBillable ? e.billableHours : null)}`);
   const total = d.total || 0;
   const totalBill = d.totalBillable != null && Math.abs(d.totalBillable - total) > 0.001 ? d.totalBillable : null;
   console.log(`\n  Total: ${fmtHB(total, totalBill)}\n`);
@@ -139,8 +134,6 @@ async function cmdWeek(flags) {
     const totBill = day.totalBillable != null && Math.abs(day.totalBillable - tot) > 0.001 ? day.totalBillable : null;
     return {
       Day: day.label || day.day,
-      AM: fmtH(day.amTotal || 0),
-      PM: fmtH(day.pmTotal || 0),
       Total: fmtHB(tot, totBill),
     };
   });
@@ -168,6 +161,21 @@ async function cmdProjects(flags) {
   }));
   printTable(rows);
   console.log('');
+}
+
+async function cmdEntries(flags) {
+  const params = new URLSearchParams();
+  for (const key of ['from', 'to', 'area', 'project']) if (typeof flags[key] === 'string') params.set(key, flags[key]);
+  const d = await request(`/entries?${params}`);
+  if (flags.json) { console.log(JSON.stringify(d)); return; }
+
+  printTable(d.entries.map(e => ({
+    Date: e.date,
+    Project: e.project,
+    Area: e.area,
+    Hours: fmtHB(e.hours, e.billableHours),
+  })));
+  console.log(`\n  Total: ${fmtH(d.total)}\n`);
 }
 
 async function cmdClients(flags) {
@@ -230,6 +238,7 @@ Commands:
   today             Hours logged today
   week              Weekly summary
   projects          List projects
+  entries           Logged entries in a date range
   areas             List areas
   status            Quick overview: today, week, alerts
   log <proj> <hrs>  Log hours on a project
@@ -246,6 +255,12 @@ Options (week):
 Options (projects):
   --area <name>     Filter by area
   --all             Include archived projects
+
+Options (entries):
+  --from YYYY-MM-DD First date (required)
+  --to YYYY-MM-DD   Last date (default: today)
+  --area <name>     Filter by area
+  --project <name>  Filter by project
 
 Global:
   --json            Output raw JSON
@@ -270,6 +285,7 @@ async function main() {
     if (cmd === 'today')    { await cmdToday(flags); return; }
     if (cmd === 'week')     { await cmdWeek(flags); return; }
     if (cmd === 'projects') { await cmdProjects(flags); return; }
+    if (cmd === 'entries')  { await cmdEntries(flags); return; }
     if (cmd === 'areas' || cmd === 'clients')  { await cmdClients(flags); return; }
     if (cmd === 'status')   { await cmdStatus(flags); return; }
     if (cmd === 'log')      { await cmdLog(positional, flags); return; }

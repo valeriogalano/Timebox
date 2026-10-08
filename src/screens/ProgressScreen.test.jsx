@@ -83,6 +83,18 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     expect(card).toHaveTextContent('78%');
   });
 
+  test('le lenti sono pulsanti, con l\'aiuto raggiungibile a parte', async () => {
+    const { findByRole, getByRole, findByText } = renderPanoramica();
+
+    const trend = await findByRole('button', { name: 'Trend' });
+    expect(getByRole('button', { name: 'Settimana' })).toHaveAttribute('aria-pressed', 'true');
+    expect(getByRole('button', { name: /^Aiuto: Le ultime 8 settimane/ })).toBeInTheDocument();
+
+    fireEvent.click(trend);
+    expect(trend).toHaveAttribute('aria-pressed', 'true');
+    expect(await findByText('Per area')).toBeInTheDocument();
+  });
+
   test('In prospettiva legge un\'area a ore sul conteggio messo peggio e lo dichiara', async () => {
     const { findByText, getByText } = renderPanoramica();
 
@@ -94,6 +106,29 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     expect(row).toHaveTextContent('restano 9h');
     // Progetto due è in un'area a corpo: nessuna etichetta
     expect(getByText('Progetto due').closest('div').parentElement).toHaveTextContent('consumato 30h su 40h');
+  });
+
+  test('In prospettiva: il riepilogo conta i tetti per fascia, con le parole delle card', async () => {
+    // Progetto due oltre il budget: 45h su 40h. Gli altri tetti sono fermi o lontani.
+    window.api.getProjectTotals = () => Promise.resolve({ p2: 45 });
+    window.api.getProjectBillableTotals = () => Promise.resolve({ p2: 45 });
+    window.api.getEntries = () => Promise.resolve([]);
+    const { findByText, getByText } = renderPanoramica();
+
+    await findByText('Limiti della settimana');
+    fireEvent.click(getByText('In prospettiva'));
+    expect(await findByText('1 già esaurito')).toBeInTheDocument();
+    expect(getByText('Progetto due').closest('div').parentElement).toHaveTextContent('Tetto esaurito');
+  });
+
+  test('In prospettiva senza tetti cumulativi lo dice', async () => {
+    const { findByText, getByText } = render(
+      <ProgressScreen clients={[clients[2]]} projects={[]} recurring={[]} screen="progress"
+        weekOffset={0} setWeekOffset={() => {}} />
+    );
+
+    fireEvent.click(await findByText('In prospettiva'));
+    expect(getByText('Nessun tetto cumulativo')).toBeInTheDocument();
   });
 
   test('la colonna Limite compare nel consuntivo per area e segnala il superamento', async () => {

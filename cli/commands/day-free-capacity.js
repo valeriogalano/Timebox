@@ -41,10 +41,10 @@ function getDayFreeCapacityData(date) {
       plannedByAreaSlot.set(key, existing);
     }
 
-    for (const entry of summary.slots[slot].trackedEntries) {
-      if (!entry.clientId) continue;
-      const key = areaKey(slot, entry.clientId);
-      trackedByAreaSlot.set(key, roundHours((trackedByAreaSlot.get(key) || 0) + entry.hours));
+    // Ore già distribuite sui blocchi della giornata da getDaySummaryData: non la
+    // fascia delle singole entry.
+    for (const [areaId, hours] of Object.entries(summary.slots[slot].trackedByArea)) {
+      trackedByAreaSlot.set(areaKey(slot, areaId), roundHours(hours));
     }
   }
 
