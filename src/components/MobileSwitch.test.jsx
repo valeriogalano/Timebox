@@ -38,6 +38,7 @@ describe('MobileSwitch', () => {
     mockMobileApi({ enabled: true, hasToken: true, online: false });
     const { findByRole } = render(<MobileSwitch />);
     const sw = await findByRole('switch', { checked: true });
+    expect(sw).toHaveTextContent('iPhone acceso · senza rete');
     expect(sw.title).toMatch(/il Mac non è su una rete locale/);
   });
 

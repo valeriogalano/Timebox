@@ -8,6 +8,8 @@ export const MOBILE_CHANGED = 'timebox:mobile-changed';
 // La pagina è raggiungibile da qualunque rete a cui il Mac è collegato finché è
 // attiva: per questo lo stato deve vedersi a colpo d'occhio, da ogni schermata.
 // Acceso è pieno, spento è a contorno: si distingue per forma, non per colore.
+// Lo stato sta scritto nell'etichetta: nella barra in alto, che su macOS è anche la
+// barra del titolo, il `title` nativo non compare al passaggio del mouse.
 export default function MobileSwitch() {
   const [status, setStatus] = useState(null);
 
@@ -49,7 +51,7 @@ export default function MobileSwitch() {
         width: 7, height: 7, borderRadius: '50%',
         background: on && open ? 'currentColor' : 'transparent', border: '1.5px solid currentColor',
       }} />
-      iPhone {on ? 'acceso' : 'spento'}
+      iPhone {!on ? 'spento' : open ? 'acceso' : 'acceso · senza rete'}
     </button>
   );
 }
