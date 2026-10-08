@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- MCP, CLI e API HTTP: le singole registrazioni del Registro si leggono in un intervallo di date, con filtro per area e per progetto e i totali per area e per progetto (tool MCP `entries`, `timebox entries --from`, `GET /entries`). Prima il dettaglio più fine era un giorno alla volta.
+
 ### Changed
 - Andamento · Trend · Da decidere: card ridisegnata. Il verdetto è scritto ("Sotto il piano", "Molto oltre il piano") al posto del triangolo, la media svolta è in evidenza con una barra sul pianificato e la percentuale, e una barretta per settimana mostra la distribuzione senza passare dal tooltip. La settimana peggiore porta la data. In fondo c'è cosa fare, con il valore già pronto: "Porta la ricorrenza da 16h a ~4h 30m". Vale anche per le aree oltre il piano, che prima rimandavano a Settimana.
 - Limiti e budget delle aree a ore: si misurano sia sulle ore lavorate sia sulle ore fatturabili. Quando i due conteggi divergono, le card di Andamento li mostrano entrambi con la loro etichetta ("fatt." e "lavorate"); barra, percentuale e avvisi seguono il conteggio messo peggio e dicono quale. Vale anche per i banner e i contatori di Settimana, le tacche sui blocchi in Settimana e Giorno, Andamento · In prospettiva e gli avvisi di `status` in CLI e MCP. Nelle aree a corpo o senza compenso non cambia nulla: contano le ore lavorate.
