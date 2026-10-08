@@ -92,6 +92,7 @@ Local commits do not start builds. Commit freely on feature branches while devel
 GitHub Actions are configured separately from this file:
 
 - `.github/workflows/ci.yml` runs on pull requests and on pushes to `main`. It installs dependencies, runs the tests and runs the renderer build.
+- `.github/workflows/package-check.yml` runs on pull requests that touch `package.json`, the lockfile or `build/`. It packages the app on macOS, Windows and Linux without publishing. `build/after-pack.js` fails the build unless the package contains exactly one `better-sqlite3` binary, the one for that platform (`build.files` in `package.json` filters the others out).
 - `.github/workflows/release.yml` runs only when a tag matching `v*` is pushed. It builds and publishes release artifacts for macOS, Windows, and Linux.
 
 To develop without publishing new app versions:

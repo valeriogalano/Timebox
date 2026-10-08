@@ -68,7 +68,10 @@
       "mobile/**/*",
       "build/**/*",
       "renderer-dist/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/better-sqlite3/{deps,src,build,binding.gyp}",
+      "!node_modules/better-sqlite3/prebuilds/*",
+      "node_modules/better-sqlite3/prebuilds/${platform}-${arch}.node"
     ],
     "publish": [
       {
