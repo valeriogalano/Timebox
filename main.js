@@ -528,16 +528,14 @@ function setupIpc() {
     return { ok: true };
   });
 
-  // Pagina mobile sulla rete di casa (lib/mobile-access.js). Il riconoscimento della
-  // rete passa da `route` e `arp`: esiste solo su macOS.
+  // Pagina mobile sulla rete locale (lib/mobile-access.js). Gli indirizzi su cui
+  // ascoltare si ricavano da `route`: per ora solo su macOS.
   ipcMain.handle('mobile:getStatus', async () => {
     if (process.platform !== 'darwin' || !_mobileAccess) return { supported: false };
     await _mobileAccess.refresh();
     return { supported: true, ..._mobileAccess.status() };
   });
   ipcMain.handle('mobile:setEnabled', (_, value) => _mobileAccess.setEnabled(!!value));
-  ipcMain.handle('mobile:trustCurrentNetwork', () => _mobileAccess.trustCurrentNetwork());
-  ipcMain.handle('mobile:forgetNetwork', () => _mobileAccess.forgetNetwork());
   ipcMain.handle('mobile:regenerateToken', () => _mobileAccess.regenerateToken());
   ipcMain.handle('mobile:getLink', () => _mobileAccess.link());
 
@@ -852,8 +850,8 @@ app.whenReady().then(() => {
   _httpServer.listen(HTTP_PORT, '127.0.0.1', () => logger.info('HTTP server started', { port: HTTP_PORT }));
   _httpServer.on('error', err => logger.warn('HTTP server error', { message: err.message }));
 
-  // Secondo listener, separato: l'unico che esce dal loopback. Si apre solo sulla
-  // rete dichiarata di casa e solo se attivato nelle Impostazioni.
+  // Secondo listener, separato: l'unico che esce dal loopback. È aperto solo se
+  // attivato dall'interruttore nella barra in alto, su qualunque rete locale.
   if (process.platform === 'darwin') {
     _mobileAccess = createMobileAccess({
       settings: { get: key => q.getSetting(key), set: (key, value) => q.setSetting(key, value) },

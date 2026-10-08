@@ -5,8 +5,8 @@ const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const { createMobileAccess, PORT } = require('../../lib/mobile-access');
 
-const HOME = { mac: '38:16:5a:aa:a9:38', addresses: ['192.168.1.225', '192.168.1.226'] };
-const CAFE = { mac: 'de:ad:be:ef:00:01', addresses: ['10.0.0.7'] };
+const HOME = { gateway: '192.168.1.1', addresses: ['192.168.1.225', '192.168.1.226'] };
+const CAFE = { gateway: '10.0.0.1', addresses: ['10.0.0.7'] };
 
 // Impostazioni, cifratura, rete e server finti: il test osserva solo cosa viene
 // aperto e chiuso, e su quali indirizzi.
@@ -33,95 +33,71 @@ function setup({ network = HOME, secure = true, hostname = 'mac.local' } = {}) {
   return { access, store, opened, closed, env };
 }
 
-describe('accesso dalla rete di casa', () => {
+describe('accesso alla pagina mobile', () => {
   let t;
   beforeEach(() => { t = setup(); });
 
-  test('di default è chiuso: niente token, niente rete, niente porta', async () => {
+  test('di default è spento: niente token, niente porta', async () => {
     await t.access.refresh();
     assert.deepEqual(t.opened, []);
-    assert.deepEqual(t.access.status(), {
-      enabled: false, hasToken: false, trustedMac: null, currentMac: HOME.mac, onHomeNetwork: false, listening: [], port: PORT,
-    });
+    assert.deepEqual(t.access.status(), { enabled: false, hasToken: false, listening: [], port: PORT });
     assert.equal(t.access.link(), null);
   });
 
-  test('attivato ma senza rete dichiarata resta chiuso', async () => {
+  test('acceso: crea il token e si lega ai soli indirizzi della rete locale', async () => {
     assert.deepEqual(await t.access.setEnabled(true), { ok: true });
-    assert.deepEqual(t.opened, []);
-    assert.ok(t.access.status().hasToken, 'attivando si crea il token');
-  });
-
-  test('attivato sulla rete di casa: si lega ai soli indirizzi della LAN', async () => {
-    await t.access.setEnabled(true);
-    assert.deepEqual(await t.access.trustCurrentNetwork(), { ok: true });
+    assert.ok(t.access.status().hasToken);
     assert.deepEqual(t.opened, HOME.addresses.map(a => `${a}:${PORT}`));
     assert.ok(!t.opened.some(a => a.startsWith('0.0.0.0')));
     assert.deepEqual(t.access.status().listening, HOME.addresses);
-    assert.ok(t.access.status().onHomeNetwork);
     // un secondo controllo non riapre ciò che è già aperto
     await t.access.refresh();
     assert.equal(t.opened.length, 2);
   });
 
-  test('su un\'altra rete si chiude da solo', async () => {
+  test('resta acceso su qualunque rete: segue gli indirizzi, non sceglie la rete', async () => {
     await t.access.setEnabled(true);
-    await t.access.trustCurrentNetwork();
     t.env.network = CAFE;
     await t.access.refresh();
-    assert.equal(t.closed.length, 2);
-    assert.deepEqual(t.access.status().listening, []);
-    assert.equal(t.access.status().onHomeNetwork, false);
-    // e si riapre tornando a casa
-    t.env.network = HOME;
-    await t.access.refresh();
-    assert.equal(t.opened.length, 4);
+    assert.equal(t.closed.length, 2, 'chiude gli indirizzi della rete lasciata');
+    assert.deepEqual(t.access.status().listening, CAFE.addresses);
   });
 
-  test('nel dubbio resta chiuso: rete non riconosciuta o riconoscimento che fallisce', async () => {
+  test('senza una rete locale non ascolta, e riprende quando torna', async () => {
     await t.access.setEnabled(true);
-    await t.access.trustCurrentNetwork();
-    for (const unknown of [null, 'throw']) {
-      t.env.network = unknown;
+    for (const none of [null, 'throw']) {
+      t.env.network = none;
       await t.access.refresh();
-      assert.deepEqual(t.access.status().listening, [], String(unknown));
-      assert.equal(t.access.status().currentMac, null);
+      assert.deepEqual(t.access.status().listening, [], String(none));
+      assert.ok(t.access.status().enabled, 'resta acceso: manca solo la rete');
       t.env.network = HOME;
       await t.access.refresh();
+      assert.equal(t.access.status().listening.length, 2);
     }
   });
 
   test('se cambia l\'indirizzo del computer chiude il vecchio e apre il nuovo', async () => {
     await t.access.setEnabled(true);
-    await t.access.trustCurrentNetwork();
-    t.env.network = { mac: HOME.mac, addresses: ['192.168.1.226', '192.168.1.50'] };
+    t.env.network = { gateway: HOME.gateway, addresses: ['192.168.1.226', '192.168.1.50'] };
     await t.access.refresh();
     assert.deepEqual(t.access.status().listening.sort(), ['192.168.1.226', '192.168.1.50'].sort());
     assert.equal(t.closed.length, 1);
   });
 
-  test('disattivato o dimenticata la rete, chiude', async () => {
+  test('spento, chiude tutto e ci resta', async () => {
     await t.access.setEnabled(true);
-    await t.access.trustCurrentNetwork();
     await t.access.setEnabled(false);
     assert.deepEqual(t.access.status().listening, []);
-    await t.access.setEnabled(true);
-    assert.equal(t.access.status().listening.length, 2);
-    await t.access.forgetNetwork();
-    assert.deepEqual(t.access.status().listening, []);
-    assert.equal(t.access.status().trustedMac, null);
+    assert.equal(t.closed.length, 2);
+    await t.access.refresh();
+    assert.equal(t.opened.length, 2, 'un controllo successivo non riapre');
   });
 
-  test('non si può dichiarare di casa una rete che non si riconosce', async () => {
-    t.env.network = null;
-    assert.match((await t.access.trustCurrentNetwork()).error, /router/);
-    assert.equal(t.access.status().trustedMac, null);
-  });
-
-  test('senza archiviazione sicura non si attiva e non si crea il token', async () => {
+  test('senza archiviazione sicura non si accende e non si crea il token', async () => {
     const s = setup({ secure: false });
     assert.match((await s.access.setEnabled(true)).error, /Archiviazione sicura/);
     assert.equal(s.access.status().enabled, false);
+    assert.deepEqual(s.opened, []);
     assert.match(s.access.regenerateToken().error, /Archiviazione sicura/);
     assert.equal(s.access.getToken(), null);
   });
@@ -133,7 +109,7 @@ describe('accesso dalla rete di casa', () => {
     assert.equal(t.store.mobile_token_enc, `enc:${first}`);
     assert.deepEqual(t.access.regenerateToken(), { ok: true });
     assert.notEqual(t.access.getToken(), first);
-    // riattivare non lo rigenera
+    // spegnere e riaccendere non lo rigenera
     const second = t.access.getToken();
     await t.access.setEnabled(false);
     await t.access.setEnabled(true);
@@ -142,26 +118,22 @@ describe('accesso dalla rete di casa', () => {
 
   test('il link usa il nome .local, o l\'indirizzo se il nome non lo è', async () => {
     await t.access.setEnabled(true);
-    await t.access.trustCurrentNetwork();
     assert.equal(t.access.link(), `http://mac.local:${PORT}/#${t.access.getToken()}`);
 
     const s = setup({ hostname: 'macbook' });
     await s.access.setEnabled(true);
-    await s.access.trustCurrentNetwork();
     assert.equal(s.access.link(), `http://192.168.1.225:${PORT}/#${s.access.getToken()}`);
   });
 
   test('una porta che non si apre non resta segnata come in ascolto', async () => {
     t.env.failListen = true;
     await t.access.setEnabled(true);
-    await t.access.trustCurrentNetwork();
     await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(t.access.status().listening, []);
   });
 
   test('start controlla subito e stop chiude tutto', async () => {
     await t.access.setEnabled(true);
-    await t.access.trustCurrentNetwork();
     t.access.start();
     await t.access.refresh();
     assert.equal(t.access.status().listening.length, 2);

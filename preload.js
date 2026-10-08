@@ -71,8 +71,6 @@ contextBridge.exposeInMainWorld('api', {
 
   getMobileStatus:        ()  => ipcRenderer.invoke('mobile:getStatus'),
   setMobileEnabled:       (v) => ipcRenderer.invoke('mobile:setEnabled', v),
-  trustMobileNetwork:     ()  => ipcRenderer.invoke('mobile:trustCurrentNetwork'),
-  forgetMobileNetwork:    ()  => ipcRenderer.invoke('mobile:forgetNetwork'),
   regenerateMobileToken:  ()  => ipcRenderer.invoke('mobile:regenerateToken'),
   getMobileLink:          ()  => ipcRenderer.invoke('mobile:getLink'),
 

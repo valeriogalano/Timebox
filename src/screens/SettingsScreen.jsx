@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { normalizeSlotCapacity, dayCapacityHours } from '../slot-capacity';
 import { DEFAULT_MINUTES_THRESHOLD, normalizeMinutesThreshold } from '../hours-threshold';
 import { SLOTS, SLOT_LABELS, fmtH } from '../utils';
+import { MOBILE_CHANGED } from '../components/MobileSwitch';
 
 const toDraft = capacity => Object.fromEntries(
   Object.entries(normalizeSlotCapacity(capacity)).map(([slot, hours]) => [slot, String(hours)])
@@ -534,16 +535,21 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
   );
 }
 
-// Pagina per registrare le ore dall'iPhone, servita dal Mac sulla rete di casa.
-// Lo stato arriva tutto dal processo principale (lib/mobile-access.js): qui si mostra
-// e si chiedono le quattro azioni. Dove non è supportata (non macOS) non compare.
+// Pagina per registrare le ore dall'iPhone, servita dal Mac sulla rete locale.
+// Lo stato arriva dal processo principale (lib/mobile-access.js). L'accensione sta
+// anche nella barra in alto (MobileSwitch): le due si tengono allineate con un evento.
+// Dove non è supportata (non macOS) la sezione non compare.
 export function MobileSection() {
   const [status, setStatus] = useState(null);
   const [link, setLink] = useState(null);
   const [error, setError] = useState('');
 
   const load = () => window.api.getMobileStatus?.().then(setStatus);
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    window.addEventListener(MOBILE_CHANGED, load);
+    return () => window.removeEventListener(MOBILE_CHANGED, load);
+  }, []);
 
   async function act(action) {
     setError('');
@@ -551,50 +557,35 @@ export function MobileSection() {
     const result = await action();
     if (result?.error) setError(result.error);
     await load();
+    window.dispatchEvent(new Event(MOBILE_CHANGED));
   }
 
   if (!status?.supported) return null;
 
   const open = status.listening.length > 0;
-  const network = !status.trustedMac
-    ? 'Nessuna rete dichiarata di casa: la pagina resta chiusa.'
-    : status.onHomeNetwork
-      ? `Router ${status.trustedMac} · sei su questa rete.`
-      : `Router ${status.trustedMac} · ora sei su un'altra rete: la pagina è chiusa.`;
 
   return (
     <Section title="iPhone">
       <Row
         label="Ore dall'iPhone"
         description={open
-          ? `Pagina aperta su ${status.listening.join(', ')}, porta ${status.port}. Funziona con il Mac acceso e Timebox aperto.`
+          ? `Pagina accesa su ${status.listening.join(', ')}, porta ${status.port}. È raggiungibile da qualunque rete a cui il Mac è collegato: fuori casa va spenta.`
           : status.enabled
-            ? 'Attiva, ma chiusa: si apre solo sulla rete di casa.'
-            : 'Una pagina per registrare e correggere le ore lavorate dall\'iPhone, raggiungibile solo sulla rete di casa.'}
-        buttonLabel={status.enabled ? 'Disattiva' : 'Attiva'}
-        danger={status.enabled}
+            ? 'Accesa, ma il Mac non è su una rete locale.'
+            : 'Una pagina per registrare e correggere le ore lavorate dall\'iPhone, con il Mac acceso e Timebox aperto. Si accende e si spegne anche dalla barra in alto.'}
+        buttonLabel={status.enabled ? 'Spegni' : 'Accendi'}
         onClick={() => act(() => window.api.setMobileEnabled(!status.enabled))}
-      />
-      <Row
-        label="Rete di casa"
-        description={`${network} Si riconosce dal router, non dal nome del Wi-Fi.`}
-        buttonLabel={status.trustedMac && status.onHomeNetwork ? 'Dimentica' : 'Usa la rete attuale'}
-        danger={status.trustedMac && status.onHomeNetwork}
-        disabled={!status.currentMac}
-        onClick={() => act(() => (status.trustedMac && status.onHomeNetwork
-          ? window.api.forgetMobileNetwork()
-          : window.api.trustMobileNetwork()))}
       />
       {status.enabled && (
         <Row
           label="Link per l'iPhone"
           description="Si apre una volta in Safari e si aggiunge alla schermata Home. Contiene il token: chi lo ha può modificare le ore."
           buttonLabel={link ? 'Nascondi' : 'Mostra link'}
-          onClick={async () => setLink(link ? null : (await window.api.getMobileLink()) || 'Link non disponibile: la pagina è chiusa.')}
+          onClick={async () => setLink(link ? null : (await window.api.getMobileLink()) || 'Link non disponibile: il Mac non è su una rete locale.')}
         />
       )}
       {link && (
-        <InfoRow label="Link" description="Il traffico sulla rete di casa non è cifrato." code={link} />
+        <InfoRow label="Link" description="Il traffico non è cifrato: su una rete che non è la tua il token può essere letto." code={link} />
       )}
       {status.hasToken && (
         <Row

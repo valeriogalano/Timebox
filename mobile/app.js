@@ -48,7 +48,7 @@ async function api(path, options = {}) {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     });
   } catch {
-    throw new Error('Il Mac non risponde. Deve essere acceso, con Timebox aperto, sulla rete di casa.');
+    throw new Error('Il Mac non risponde. Deve essere acceso, con Timebox aperto e la pagina accesa, sulla stessa rete dell\'iPhone.');
   }
   if (res.status === 401) throw new Error('Link non valido. Riapri quello mostrato nelle Impostazioni di Timebox.');
   if (!res.ok) throw new Error('Qualcosa non ha funzionato. Riprova.');
