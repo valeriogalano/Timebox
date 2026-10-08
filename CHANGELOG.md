@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Andamento · Trend · Da decidere: quando nessuna settimana è fuori soglia da sola la card lo dice, senza un conteggio a zero. Il picco in eccesso porta il segno +. Il sottotitolo non promette più 8 settimane chiuse: guardando la settimana in corso sono al massimo 7, e ogni card dice su quante è calcolata.
 - Andamento: i tooltip di "Carico della settimana" e "Da decidere" riportano la tolleranza usata davvero dal calcolo (±10% o ±30 minuti), non più "sotto 0,85×".
 - Giorno · Mismatch dopo sync: un gruppo con più di quattro task dichiara quanti non sono mostrati. Prima l'intestazione ne contava cinque e le righe erano quattro.
+- Andamento · In prospettiva: il riepilogo in alto conta i tetti per fascia con le stesse parole delle card ("1 entro 2 settimane"), invece di un unico "da decidere entro 4 settimane" che sembrava contraddire la card. Un tetto il cui residuo è sotto il ritmo di una settimana ha la sua fascia, "Esaurito entro una settimana".
 - Giorno · Blocchi pianificati senza azioni: con più di otto blocchi il pannello dichiara quanti non sono mostrati. Prima sparivano senza avviso, mentre il totale in alto li contava tutti.
 - Registro: "entries" e "n/a" sono in italiano.
 - Oggi · Mismatch dopo sync: lo sforo "Oltre blocco" di un task non include più quello dei task precedenti dello stesso blocco. Un task da mezz'ora poteva risultare oltre di più di un'ora, e le ore "disponibili" apparivano negative.

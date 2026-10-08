@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { actionLabel, areaPlanFitInsights, capRunway, distributionLabel, statusFor, PERSIST_WINDOW, MIN_HISTORY, TOLERANCE_LABEL } from '../progress-insights.js';
+import { actionLabel, areaPlanFitInsights, capRunway, distributionLabel, runwaySummary, statusFor, PERSIST_WINDOW, MIN_HISTORY, TOLERANCE_LABEL } from '../progress-insights.js';
 
 const area = (name, weeks) => ({ client: { id: name, name, color: '#000' }, weeks });
 // helper: settimana chiusa con done/planned
@@ -112,6 +112,14 @@ describe('capRunway', () => {
     assert.equal(capRunway({ cap: 10, consumed: 0, rhythm: 1.25 }).band, 'entro8');  // 8,0
   });
 
+  test('residuo sotto il ritmo di una settimana: fascia a se, non "entro 2 settimane"', () => {
+    // caso visto su Moveo - fuel v2: 1h 45m residue a 3h 56m a settimana
+    const r = capRunway({ cap: 20, consumed: 18.25, rhythm: 3.93 });
+    assert.equal(r.band, 'entro1');
+    assert.equal(r.label, 'Esaurito entro una settimana');
+    assert.equal(capRunway({ cap: 10, consumed: 0, rhythm: 10 }).band, 'entro1');   // 1,0 inclusivo
+  });
+
   test('tetto gia sfondato: esaurito, non un residuo negativo da leggere come quasi', () => {
     const r = capRunway({ cap: 20, consumed: 25, rhythm: 5 });
     assert.equal(r.band, 'esaurito');
@@ -139,6 +147,28 @@ describe('capRunway', () => {
     assert.equal(r.remaining, 24.75);
     assert.ok(r.weeks > 3.8 && r.weeks < 3.9);
     assert.equal(r.band, 'entro4');
+  });
+});
+
+describe('runwaySummary', () => {
+  const rows = (...bands) => bands.map(band => ({ band }));
+
+  test('un solo tetto: il riepilogo dice la stessa fascia della card', () => {
+    assert.equal(runwaySummary(rows('entro1')), '1 entro una settimana');
+    assert.equal(runwaySummary(rows('entro2', 'oltre8')), '1 entro 2 settimane');
+  });
+
+  test('piu fasce: conta per fascia, dalla piu vicina', () => {
+    assert.equal(
+      runwaySummary(rows('entro4', 'esaurito', 'entro4', 'entro2', 'esaurito', 'entro8')),
+      '2 già esauriti · 1 entro 2 settimane · 2 entro 4 settimane',
+    );
+    assert.equal(runwaySummary(rows('esaurito')), '1 già esaurito');
+  });
+
+  test('niente entro 4 settimane: lo dice, fermi e lontani non contano', () => {
+    assert.equal(runwaySummary(rows('entro8', 'oltre8', 'nessuno')), 'nessuno entro 4 settimane');
+    assert.equal(runwaySummary([]), 'nessuno entro 4 settimane');
   });
 });
 
