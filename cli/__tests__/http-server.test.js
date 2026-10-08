@@ -92,21 +92,20 @@ describe('HTTP server', () => {
     assert.equal(body.ok, true);
   });
 
-  it('GET /today → { date, slots, amTotal, pmTotal }', async () => {
+  it('GET /today → { date, entries, total }', async () => {
     const { status, body } = await get(port, '/today');
     assert.equal(status, 200);
     assert.ok(body.date, 'has date');
-    assert.ok(body.slots, 'has slots');
-    assert.ok('am' in body.slots, 'has am slot');
-    assert.ok('pm' in body.slots, 'has pm slot');
+    assert.ok(Array.isArray(body.entries), 'has entries');
+    assert.ok(!('slots' in body), 'tracked hours are not split by slot');
   });
 
   it('GET /today?date=2020-01-01 → total 0 (no entries)', async () => {
     const { status, body } = await get(port, '/today?date=2020-01-01');
     assert.equal(status, 200);
     assert.equal(body.date, '2020-01-01');
-    assert.equal(body.amTotal, 0);
-    assert.equal(body.pmTotal, 0);
+    assert.equal(body.total, 0);
+    assert.deepEqual(body.entries, []);
   });
 
   it('GET /day-summary?date=2020-01-01 → template blocks, zero tracked and positive residual', async () => {
@@ -462,7 +461,7 @@ describe('HTTP server', () => {
     const { status, body } = await get(port, '/today?date=2025-09-11');
     assert.equal(status, 200);
     assert.ok('totalBillable' in body, 'has totalBillable');
-    const entry = body.slots.pm[0];
+    const entry = body.entries[0];
     assert.ok('billableHours' in entry, 'entry has billableHours');
     assert.equal(entry.billableHours, 1);
     assert.equal(body.totalBillable, 1);

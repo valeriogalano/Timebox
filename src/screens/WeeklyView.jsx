@@ -419,7 +419,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const isToday = dateStr === fmt(getToday());
     const isFuture = date > getToday();
     const isWeekend = i >= 5;
-    const rawDayEntries = weekEntries.filter(e => e.date === dateStr);
     const dayEntries = displayWeekEntries.filter(e => e.date === dateStr);
     const dayBillable = dayEntries.reduce((s, e) => {
       const proj = projects.find(p => p.id === e.projectId);
@@ -437,7 +436,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     const planning = computeDayPlanning({
       dayIndex: i, isToday, isFuture,
       recurring, weekOverrides, weekKey,
-      rawDayEntries, dayEntries,
+      dayEntries,
       clients, projects,
       todoistTasks: todoistTasks[dateStr] ?? [],
     });

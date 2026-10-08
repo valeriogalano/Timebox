@@ -360,8 +360,8 @@ These tools are the MCP-oriented daily layer on top of the weekly board and Todo
 
 | Tool | Input | Output |
 |---|---|---|
-| `today` | `{ date? }` | Logged entries for one day, grouped by AM/PM, with total tracked and billable hours. |
-| `day_summary` | `{ date? }` | Planned capacity, tracked hours, residual capacity, per-slot block source (`template` or `override`), and extra work by area. |
+| `today` | `{ date? }` | Logged entries for one day in a single list, with total tracked and billable hours. |
+| `day_summary` | `{ date? }` | Planned capacity, tracked hours, residual capacity, per-slot block source (`template` or `override`) with the hours of each slot's blocks that tracked work covers, the day's tracked entries, and extra work by area. |
 | `day_free_capacity` | `{ date? }` | Split between capacity still reserved to planned areas and capacity that is truly free after tracked work and imported Todoist tasks. |
 | `day_ready_blocks` | `{ date? }` | AM/PM blocks that still lack enough ready Todoist work, grouped by area and then by Timebox project. |
 | `todoist_imported_tasks` | `{ date? }` | Imported tasks with Todoist project, matched Timebox project, area, slot, due date, estimate, and match status. |
@@ -372,6 +372,7 @@ All `date` inputs use `YYYY-MM-DD` and default to today when omitted.
 ### Output semantics
 
 - `day_summary` reports each slot as `AM [template]` or `PM [override]` to show whether the plan came from the recurring template or from a week-specific override.
+- Slots (AM, PM, Sera) belong to the plan only. Tracked hours are not attributed to the slot stored on the entry: an area's hours for the day are spread over its planned blocks in slot order, and what exceeds the plan is extra. `today` and `GET /today` list the day's entries without a slot.
 - `todoist_imported_tasks` and the Todoist-related sections of `day_free_capacity` / `day_mismatches` work from the cached tasks imported into Timebox for that date, not directly from a live Todoist call.
 - `Residual` means planned capacity minus tracked hours for the day.
 - `Available after tracked + tasks` subtracts both tracked work and imported Todoist estimates from planned capacity.

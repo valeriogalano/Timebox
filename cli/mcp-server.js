@@ -70,7 +70,7 @@ function respondError(id, code, message) {
 const TOOLS = [
   {
     name: 'today',
-    description: 'Get hours logged in Timebox for a given day, broken down by AM/PM slot and project.',
+    description: 'Get hours logged in Timebox for a given day, one line per entry with its project and area.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -80,7 +80,7 @@ const TOOLS = [
   },
   {
     name: 'day_summary',
-    description: 'Get the daily Timebox summary for a day: planned blocks from template/override, tracked hours, residual capacity and extra work.',
+    description: 'Get the daily Timebox summary for a day: planned blocks per slot from template/override, how many of their hours the day\'s tracked hours cover, the tracked entries of the day, residual capacity and extra work. Slots apply to the plan only: tracked hours are spread over an area\'s blocks in order, whatever slot the entry carries.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -403,12 +403,7 @@ async function callTool(name, args) {
     const qs = args.date ? `?date=${encodeURIComponent(args.date)}` : '';
     const d = await httpRequest(`/today${qs}`);
     const lines = [`Date: ${d.date}\n`];
-    for (const slot of SLOTS) {
-      const entries = d.slots[slot];
-      if (!entries.length) continue;
-      lines.push(`${slot.toUpperCase()}:`);
-      for (const e of entries) lines.push(`  ${e.project}: ${fmtBillable(e.hours, e.billableHours)}`);
-    }
+    for (const e of d.entries) lines.push(`  ${e.project} [${e.area}]: ${fmtBillable(e.hours, e.isBillable ? e.billableHours : null)}`);
     const total = d.total || 0;
     const totalBillable = d.totalBillable ?? null;
     lines.push(`\nTotal: ${fmtBillable(total, totalBillable !== null && Math.abs(totalBillable - total) > 0.001 ? totalBillable : null)}`);
@@ -429,7 +424,7 @@ async function callTool(name, args) {
 
     for (const slot of SLOTS) {
       const slotData = d.slots[slot];
-      lines.push(`${slot.toUpperCase()} [${slotData.source}]: planned ${slotData.plannedCapacity}h, tracked ${slotData.trackedHours}h`);
+      lines.push(`${slot.toUpperCase()} [${slotData.source}]: planned ${slotData.plannedCapacity}h, covered by tracked hours ${slotData.trackedHours}h`);
       if (slotData.plannedBlocks.length) {
         for (const block of slotData.plannedBlocks) {
           lines.push(`  plan ${block.area}: ${block.hours}h`);
@@ -438,15 +433,19 @@ async function callTool(name, args) {
         lines.push('  plan none');
       }
 
-      if (slotData.trackedEntries.length) {
-        for (const entry of slotData.trackedEntries) {
-          lines.push(`  done ${entry.project} [${entry.area}]: ${fmtBillable(entry.hours, entry.billableHours)}`);
-        }
-      } else {
-        lines.push('  done none');
-      }
       lines.push('');
     }
+
+    // Le registrazioni sono della giornata: la fascia vale solo per il pianificato.
+    lines.push('Tracked entries:');
+    if (d.trackedEntries.length) {
+      for (const entry of d.trackedEntries) {
+        lines.push(`  ${entry.project} [${entry.area}]: ${fmtBillable(entry.hours, entry.billableHours)}`);
+      }
+    } else {
+      lines.push('  none');
+    }
+    lines.push('');
 
     if (d.extra.length) {
       lines.push('Extra by area:');

@@ -207,7 +207,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
   const planning = computeDayPlanning({
     dayIndex, isToday, isFuture,
     recurring, weekOverrides, weekKey,
-    rawDayEntries: rawEntries, dayEntries,
+    dayEntries,
     clients, projects,
     todoistTasks,
   });
