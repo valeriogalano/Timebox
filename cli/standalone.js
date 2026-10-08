@@ -25,8 +25,6 @@ function fmtH(h) {
   return neg ? `-${s.trim()}` : s.trim();
 }
 
-function pad(n, w = 2) { return String(n).padStart(w, '0'); }
-
 function request(path, method = 'GET', body = null) {
   return new Promise((resolve, reject) => {
     const payload = body ? JSON.stringify(body) : null;
@@ -151,10 +149,12 @@ async function cmdProjects(flags) {
   const d = await request(`/projects${qs}`);
   if (flags.json) { console.log(JSON.stringify(d)); return; }
 
+  // I campi sono quelli di GET /projects: `project` e `logged`, con `billable`
+  // valorizzato solo nelle aree a ore.
   const rows = d.map(p => ({
-    Project: p.name,
+    Project: p.project,
     Area: p.area || p.client,
-    Logged: fmtH(p.loggedHours || 0),
+    Logged: fmtHB(p.logged || 0, p.billable),
     Budget: p.budgetHours ? fmtH(p.budgetHours) : '—',
     Weekly: p.weeklyHours ? fmtH(p.weeklyHours) : '—',
     Archived: p.archived ? 'yes' : '',
