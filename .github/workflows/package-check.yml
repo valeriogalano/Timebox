@@ -1,0 +1,51 @@
+name: Package check
+
+# Pacchettizza l'app sui tre sistemi senza pubblicare nulla, quando cambia ciò che
+# decide il contenuto del pacchetto. `build/after-pack.js` fa fallire la build se
+# dentro non c'è esattamente il binario di better-sqlite3 della piattaforma: senza
+# questo controllo un filtro sbagliato si scoprirebbe solo dopo una release.
+
+on:
+  pull_request:
+    paths:
+      - package.json
+      - package-lock.json
+      - build/**
+      - .github/workflows/package-check.yml
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            flag: --mac
+          - os: windows-latest
+            flag: --win
+          - os: ubuntu-latest
+            flag: --linux
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build renderer
+        run: npm run build
+
+      - name: Package without publishing
+        run: npx electron-builder ${{ matrix.flag }} --dir --publish never
