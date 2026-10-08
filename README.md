@@ -100,7 +100,7 @@ The primary screen combines planning and tracking:
 - A weekly grid with AM, PM, and Extra rows.
 - Planned area blocks that fill as hours are logged.
 - Extra blocks for work logged against areas not planned that day.
-- Inline `hh:mm` editing for project entries.
+- Inline hours editing for project entries (`1h 30m`; `1:30` and `90` work as typing shortcuts).
 - A green `€` billed badge and hover toggle for entries in hourly areas, the only ones whose hours are invoiced.
 - Weekly navigation, current-day highlighting, and keyboard shortcuts.
 - A per-area weekly status selector for active, minimal, or closed areas.

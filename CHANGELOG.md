@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MCP, CLI e API HTTP: le singole registrazioni del Registro si leggono in un intervallo di date, con filtro per area e per progetto e i totali per area e per progetto (tool MCP `entries`, `timebox entries --from`, `GET /entries`). Prima il dettaglio più fine era un giorno alla volta.
 
 ### Changed
+- Formato delle ore: uno solo in tutta l'app, "1h 30m". Prima ce n'erano tre: "1:30" nelle griglie di Settimana e Giorno e in Import Todoist, "1.5h" in Ricorrenza, "1h 30m" altrove. Anche i campi si aprono su quel formato. Digitando restano valide le scorciatoie "1:30", "1,5" e "90" (minuti, oltre la soglia configurata).
+- Ricorrenza: il testo in testa alla pagina spiega la schermata senza la nota di sviluppo sul "nuovo sistema di segnali".
+- Registro: le date sono scritte "mer 7 ott 2026" come nel resto dell'app. L'icona di avviso compare solo sulla conferma di eliminazione, non su ogni riga.
+- Settimana: il badge delle divergenze dal template dice "2 slot su 21 modificati" al posto di "2/21". Il nome dell'area di un blocco stretto si legge per intero passandoci sopra, anche in Ricorrenza.
+- Import Todoist e Aree: i pulsanti a icona e i campi "h" e "h/s" dei progetti hanno un'etichetta per gli screen reader.
 - Rendiconto: in un periodo senza registrazioni nelle aree a ore i tre riquadri a "0h" non compaiono. Restano il messaggio e la riga delle aree a corpo.
 - Import Todoist: il titolo della schermata non è più ripetuto sotto la barra in alto.
 - Andamento · Trend · Da decidere: card ridisegnata. Il verdetto è scritto ("Sotto il piano", "Molto oltre il piano") al posto del triangolo, la media svolta è in evidenza con una barra sul pianificato e la percentuale, e una barretta per settimana mostra la distribuzione senza passare dal tooltip. La settimana peggiore porta la data. In fondo c'è cosa fare, con il valore già pronto: "Porta la ricorrenza da 16h a ~4h 30m". Vale anche per le aree oltre il piano, che prima rimandavano a Settimana.

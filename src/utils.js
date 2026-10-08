@@ -43,20 +43,16 @@ export function fmtH(h) {
   return mm === 0 ? `${sign}${hh}h` : `${sign}${hh}h ${mm}m`;
 }
 
-export function toHHMM(hours) {
-  if (!hours || hours === 0) return '';
-  let h = Math.floor(hours);
-  let m = Math.round((hours - h) * 60);
-  if (m === 60) {
-    h += 1;
-    m = 0;
-  }
-  return `${h}:${m.toString().padStart(2, '0')}`;
-}
-
+// Le ore si SCRIVONO in un formato solo, quello di fmtH ("1h 30m"). In un campo si
+// possono digitare anche le scorciatoie "1:30", "1,5" e "90" (minuti, oltre la soglia).
 function parseClockInput(str) {
   if (!str || str.trim() === '') return 0;
   const value = str.trim();
+  // "1h 30m", "2h", "45m": il formato in cui i campi si aprono.
+  const hm = /^(?:(\d+(?:[.,]\d+)?)\s*h)?\s*(?:(\d+)\s*m)?$/i.exec(value);
+  if (hm && (hm[1] || hm[2])) {
+    return parseFloat((hm[1] || '0').replace(',', '.')) + parseInt(hm[2] || '0', 10) / 60;
+  }
   if (value.includes(':')) {
     const [h, m] = value.split(':').map(s => parseInt(s, 10) || 0);
     return h + m / 60;
@@ -68,7 +64,8 @@ function parseClockInput(str) {
 // Passala esplicitamente nei test, così non dipendono dallo stato del modulo.
 export function parseHHMM(str, threshold = getMinutesThreshold()) {
   const numeric = parseClockInput(str);
-  return numeric > threshold && !String(str || '').includes(':') ? numeric / 60 : numeric;
+  // Con i due punti o con le unità il valore è esplicito: la soglia vale solo per i numeri nudi.
+  return numeric > threshold && !/[:hm]/i.test(String(str || '')) ? numeric / 60 : numeric;
 }
 
 // Solo le aree con compenso a ore fatturano ore: badge €, ore fatturabili e stato
