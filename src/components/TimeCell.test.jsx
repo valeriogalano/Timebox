@@ -30,3 +30,38 @@ describe('TimeCell — Enter saves and moves one row down', () => {
     expect(bottomCell.querySelector('input')).not.toBeNull();
   });
 });
+
+describe('TimeCell — da tastiera', () => {
+  it('la cella prende il focus, si apre con Invio e con Esc lo riprende', () => {
+    const { container } = render(<TimeCell hours={1.5} colIndex={0} projectId="a" onSave={() => {}} />);
+    const cell = container.querySelector('[data-timecell]');
+    expect(cell.tabIndex).toBe(0);
+    expect(cell).toHaveAccessibleName('Ore: 1:30. Invio per modificare');
+
+    fireEvent.keyDown(cell, { key: 'Enter' });
+    const input = cell.querySelector('input');
+    expect(input.value).toBe('1:30');
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(cell.querySelector('input')).toBeNull();
+    expect(document.activeElement).toBe(cell);
+  });
+
+  it('si apre anche con la barra spaziatrice', () => {
+    const { container } = render(<TimeCell hours={0} colIndex={0} projectId="a" onSave={() => {}} />);
+    const cell = container.querySelector('[data-timecell]');
+    expect(cell).toHaveAccessibleName('Ore: nessuna. Invio per modificare');
+    fireEvent.keyDown(cell, { key: ' ' });
+    expect(cell.querySelector('input')).not.toBeNull();
+  });
+
+  it('una cella bloccata nella vista fatturabile resta fuori dal giro di Tab', () => {
+    const { container } = render(
+      <TimeCell hours={2} colIndex={0} projectId="a" viewMode="billable" isBillable={false} onSave={() => {}} />
+    );
+    const cell = container.querySelector('[data-timecell]');
+    expect(cell.tabIndex).toBe(-1);
+    fireEvent.keyDown(cell, { key: 'Enter' });
+    expect(cell.querySelector('input')).toBeNull();
+  });
+});

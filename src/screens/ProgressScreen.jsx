@@ -5,6 +5,7 @@ import { sumByProject, usageMaps, usageOf, kindNote, loadProjectTotals } from '.
 import { actionLabel, areaPlanFitInsights, capRunway, distributionLabel, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_WINDOW, TOLERANCE_LABEL } from '../progress-insights';
 import OverCapacityBar from '../components/OverCapacityBar';
 import Glyph from '../components/Glyph';
+import HelpDot from '../components/HelpDot';
 
 // Redesign: nessun colore di stato. L'identità è solo l'area (client.color).
 // over/under/in-line si leggono per posizione/glyph, non per verde/arancio/rosso.
@@ -423,7 +424,8 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
               onClick={() => setTrendLens(o.key)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...(idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : {}) }}
             >
-              {o.label}
+              {/* Il pulsante è la sola etichetta: l'aiuto accanto è un pulsante a sé. */}
+              <button type="button" className="tb-seg-label" aria-pressed={trendLens === o.key}>{o.label}</button>
               <HelpDot text={o.help} color="currentColor" />
             </span>
           ))}
@@ -678,8 +680,8 @@ function DaDecidereInsights({ perAreaWeekly }) {
             {/* Distribuzione: la media non distingue un ritmo da un episodio, e le due cose
                 portano a decisioni opposte. Una barretta per settimana (svolto sul piano di
                 quella settimana), piene quelle che il verdetto conta fuori piano; il
-                dettaglio con i numeri resta nel `title`. */}
-            <div title={weeklyBreakdownTitle(it)} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                dettaglio con i numeri sta nell'aiuto accanto, che si apre anche da tastiera. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
               <span aria-hidden="true" style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 16, flexShrink: 0 }}>
                 {it.weeks.map((w, wi) => {
                   const off = statusFor(w.done, w.planned).kind === it.kind;
@@ -692,6 +694,7 @@ function DaDecidereInsights({ perAreaWeekly }) {
                 })}
               </span>
               <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>{distributionLabel(it)}</span>
+              <HelpDot text={weeklyBreakdownTitle(it)} />
             </div>
 
             {/* L'azione è il motivo della sezione: in evidenza, con il valore già pronto.
@@ -1051,16 +1054,6 @@ function Legend() {
 
 // inline: titolo e sottotitolo affiancati con gap (per le righe con selettore a destra),
 // invece che agli estremi via space-between (che si attacca se il contenitore lo restringe).
-// Pallino "?" con tooltip (title). stopPropagation così non attiva eventuali click del contenitore.
-// `color`: dentro una scheda il punto segue il testo della scheda, che da attiva ha il fondo invertito.
-function HelpDot({ text, color = 'var(--tb-text-muted)' }) {
-  return (
-    <span title={text} onClick={e => e.stopPropagation()}
-      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color, fontSize: 9, cursor: 'help', letterSpacing: 0, flexShrink: 0 }}
-    >?</span>
-  );
-}
-
 function SectionHeader({ title, subtitle, inline, help }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: inline ? 10 : undefined, justifyContent: inline ? 'flex-start' : 'space-between', marginBottom: inline ? 0 : 10 }}>

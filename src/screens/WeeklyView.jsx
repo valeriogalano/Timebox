@@ -1371,15 +1371,17 @@ function ViewModeToggle({ value, onChange }) {
       {opts.map((o, idx) => {
         const active = value === o.key;
         return (
-          <span
+          <button
+            type="button"
             key={o.key}
             data-on={active ? 'true' : 'false'}
+            aria-pressed={active}
             onClick={() => onChange(o.key)}
             title="Alterna tra Ore tracciate e Ore fatturabili · ⌘⇧V"
             style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}
           >
             {o.label}
-          </span>
+          </button>
         );
       })}
     </div>
@@ -1396,15 +1398,17 @@ function ProjectVisibilityToggle({ value, onChange }) {
       {opts.map((o, idx) => {
         const active = value === o.key;
         return (
-          <span
+          <button
+            type="button"
             key={o.key}
             data-on={active ? 'true' : 'false'}
+            aria-pressed={active}
             onClick={() => onChange(o.key)}
             title="Alterna tra Progetti lavorati e Tutti i progetti · ⌘⇧H"
             style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}
           >
             {o.label}
-          </span>
+          </button>
         );
       })}
     </div>
@@ -1422,15 +1426,17 @@ function PlanningModeToggle({ value, onChange }) {
       {opts.map((o, idx) => {
         const active = value === o.key;
         return (
-          <span
+          <button
+            type="button"
             key={o.key}
             data-on={active ? 'true' : 'false'}
+            aria-pressed={active}
             onClick={() => onChange(o.key)}
             title="Seleziona pianificazione Completa, Compatta o Nascosta · ⌘⇧P"
             style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}
           >
             {o.label}
-          </span>
+          </button>
         );
       })}
     </div>
