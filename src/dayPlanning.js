@@ -30,6 +30,7 @@ export function mergeProjectDayEntries(entries) {
   });
 }
 
+// Gemello CommonJS: resolveEntrySlot in lib/domain.js (pagina mobile).
 // Deduce lo slot di una entry quando non è imposto esplicitamente. Priorità:
 // 1) lo slot dell'entry già esistente; 2) la prima fascia (am → pm → sera) in
 // cui l'area ha un blocco pianificato quel giorno; 3) il fallback.
@@ -43,6 +44,20 @@ export function resolveEntrySlot({ existingSlot, clientId, blocksForSlot, fallba
     if (found) return found;
   }
   return fallback;
+}
+
+// Cosa scrivere quando si impostano le ore di un progetto in un giorno. C'è una
+// entry sola per progetto+giorno: quella esistente si aggiorna, le altre sparse su
+// più fasce si cancellano, e a zero ore si cancella tutto. `billableHours` e
+// `slot` li decide chi chiama; `billed` resta quello dell'entry esistente.
+// Gemello CommonJS: planDayEntrySave in lib/domain.js (pagina mobile).
+export function planDayEntrySave({ existingList, projectId, date, hours, billableHours = null, slot, newId }) {
+  if (!(hours > 0)) return { save: null, deleteIds: existingList.map(e => e.id) };
+  const existing = existingList[0];
+  const save = existing
+    ? { ...existing, slot, hours, billableHours }
+    : { id: newId, projectId, date, hours, billableHours, slot, billed: false };
+  return { save, deleteIds: existingList.filter(e => e.id !== save.id).map(e => e.id) };
 }
 
 // Distribuisce le ore registrate di ogni area sui suoi blocchi del giorno, nell'ordine

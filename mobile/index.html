@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Timebox">
+  <meta name="color-scheme" content="light dark">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/app.css">
+  <title>Timebox</title>
+</head>
+<body>
+  <header>
+    <button id="prev" type="button" aria-label="Giorno precedente">‹</button>
+    <div>
+      <h1 id="date"></h1>
+      <p id="totals"></p>
+    </div>
+    <button id="next" type="button" aria-label="Giorno successivo">›</button>
+  </header>
+  <p id="message" role="status" hidden></p>
+  <main id="areas"></main>
+  <footer><button id="today" type="button" hidden>Torna a oggi</button></footer>
+  <script src="/app.js"></script>
+</body>
+</html>

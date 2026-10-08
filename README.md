@@ -222,6 +222,17 @@ The database uses WAL mode and an exclusive lock to reduce conflicts with iCloud
 
 ---
 
+## Hours from the iPhone
+
+On macOS, Timebox can serve a small page for logging and correcting worked hours from a phone, while the Mac is on with the app open. It is off by default.
+
+1. Switch it on with the "iPhone" switch in the top bar, or in **Settings -> iPhone**.
+2. In **Settings -> iPhone** press "Mostra link", open that link once in Safari on the iPhone and add it to the Home screen.
+
+The page shows one day, with the projects grouped by area, and changes worked hours in steps of 15 minutes. Billable hours and everything else stay on the Mac.
+
+While the switch is on, the page is reachable on whatever network the Mac is connected to; Timebox cannot tell home from elsewhere. The switch is in the top bar so its state is always visible: turn it off before taking the Mac to another network. The link contains an access token and the traffic is not encrypted. See `SECURITY.md` for what that means.
+
 ## HTTP API
 
 While the app is open, a local API is available at `http://127.0.0.1:37373`.

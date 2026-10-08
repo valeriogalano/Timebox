@@ -69,6 +69,11 @@ contextBridge.exposeInMainWorld('api', {
   checkForUpdates:        ()  => ipcRenderer.invoke('app:checkForUpdates'),
   installUpdate:          ()  => ipcRenderer.invoke('app:installUpdate'),
 
+  getMobileStatus:        ()  => ipcRenderer.invoke('mobile:getStatus'),
+  setMobileEnabled:       (v) => ipcRenderer.invoke('mobile:setEnabled', v),
+  regenerateMobileToken:  ()  => ipcRenderer.invoke('mobile:regenerateToken'),
+  getMobileLink:          ()  => ipcRenderer.invoke('mobile:getLink'),
+
   onUpdateState: (cb) => {
     const handler = (_, s) => cb(s);
     ipcRenderer.on('auto-update-state', handler);

@@ -10,6 +10,11 @@ const { todoistTaskOrder } = require('./lib/todoist-order');
 const { slotForDueValue } = require('./lib/time-slots');
 const { setupAutoUpdater } = require('./lib/updater');
 const { setupUpdateNotifier } = require('./lib/update-notifier');
+const { createMobileServer } = require('./lib/mobile-server');
+const { createMobileAccess } = require('./lib/mobile-access');
+const { currentNetwork } = require('./lib/home-network');
+const { getMobileDayData, saveMobileHours, isDate } = require('./cli/commands/mobile');
+const { fmt, getToday } = require('./lib/domain');
 
 function getAppIcon() {
   const fileName = isDev ? 'icon-dev.png' : 'icon.png';
@@ -48,6 +53,7 @@ const logger = createLogger();
 let _db = null;
 let _dbPath = null;
 let _httpServer = null;
+let _mobileAccess = null;
 const HTTP_PORT = 37373;
 const CLI_CANDIDATES = {
   codex: [
@@ -522,6 +528,17 @@ function setupIpc() {
     return { ok: true };
   });
 
+  // Pagina mobile sulla rete locale (lib/mobile-access.js). Gli indirizzi su cui
+  // ascoltare si ricavano da `route`: per ora solo su macOS.
+  ipcMain.handle('mobile:getStatus', async () => {
+    if (process.platform !== 'darwin' || !_mobileAccess) return { supported: false };
+    await _mobileAccess.refresh();
+    return { supported: true, ..._mobileAccess.status() };
+  });
+  ipcMain.handle('mobile:setEnabled', (_, value) => _mobileAccess.setEnabled(!!value));
+  ipcMain.handle('mobile:regenerateToken', () => _mobileAccess.regenerateToken());
+  ipcMain.handle('mobile:getLink', () => _mobileAccess.link());
+
   ipcMain.handle('settings:get', (_, key) => q.getSetting(key));
   ipcMain.handle('settings:set', (_, key, value) => {
     q.setSetting(key, value);
@@ -833,6 +850,35 @@ app.whenReady().then(() => {
   _httpServer.listen(HTTP_PORT, '127.0.0.1', () => logger.info('HTTP server started', { port: HTTP_PORT }));
   _httpServer.on('error', err => logger.warn('HTTP server error', { message: err.message }));
 
+  // Secondo listener, separato: l'unico che esce dal loopback. È aperto solo se
+  // attivato dall'interruttore nella barra in alto, su qualunque rete locale.
+  if (process.platform === 'darwin') {
+    _mobileAccess = createMobileAccess({
+      settings: { get: key => q.getSetting(key), set: (key, value) => q.setSetting(key, value) },
+      secret: {
+        available: () => safeStorage.isEncryptionAvailable(),
+        encrypt: text => safeStorage.encryptString(text).toString('base64'),
+        decrypt: enc => safeStorage.decryptString(Buffer.from(enc, 'base64')),
+      },
+      detect: currentNetwork,
+      createServer: () => createMobileServer({
+        getToken: () => _mobileAccess.getToken(),
+        getDay: getMobileDayData,
+        saveHours: saveMobileHours,
+        isDate,
+        today: () => fmt(getToday()),
+        onChange: () => {
+          for (const win of BrowserWindow.getAllWindows()) {
+            if (!win.isDestroyed()) win.webContents.send('db:changed', 'entries');
+          }
+        },
+        pageDir: path.join(__dirname, 'mobile'),
+      }),
+      logger,
+    });
+    _mobileAccess.start();
+  }
+
   if (process.platform === 'darwin') {
     const icon = getAppIcon();
     if (icon) app.dock.setIcon(icon);
@@ -856,6 +902,7 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   if (_httpServer) _httpServer.close();
+  if (_mobileAccess) _mobileAccess.stop();
 });
 
 app.on('window-all-closed', () => {

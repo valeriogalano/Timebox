@@ -1,13 +1,14 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import {
   mergeProjectDayEntries,
   getEffectiveBlocks,
   computeDayPlanning,
   resolveEntrySlot,
+  planDayEntrySave,
   fillPlannedBlocks,
 } from '../dayPlanning.js';
-import { createRequire } from 'node:module';
 
 // Gemelli CommonJS usati dal processo principale: devono dare gli stessi risultati.
 const domain = createRequire(import.meta.url)('../../lib/domain.js');
@@ -189,6 +190,49 @@ describe('resolveEntrySlot', () => {
 
   test('falls back to am by default without clientId or blocks source', () => {
     assert.equal(resolveEntrySlot({}), 'am');
+  });
+});
+
+describe('planDayEntrySave', () => {
+  const base = { projectId: 'p1', date: '2026-10-07', slot: 'pm', newId: 'new' };
+  const am = { id: 'a', projectId: 'p1', date: '2026-10-07', hours: 1, billableHours: 0.5, slot: 'am', billed: true };
+  const pm = { id: 'b', projectId: 'p1', date: '2026-10-07', hours: 2, billableHours: null, slot: 'pm', billed: false };
+
+  // Ogni caso gira sul modulo del renderer e sul gemello di lib/domain.js.
+  for (const [name, plan] of [['renderer', planDayEntrySave], ['lib/domain', domain.planDayEntrySave]]) {
+    test(`${name}: senza entry ne crea una nuova, non fatturata`, () => {
+      assert.deepEqual(plan({ ...base, existingList: [], hours: 1.5 }), {
+        save: { id: 'new', projectId: 'p1', date: '2026-10-07', hours: 1.5, billableHours: null, slot: 'pm', billed: false },
+        deleteIds: [],
+      });
+    });
+
+    test(`${name}: aggiorna l'entry esistente e ne conserva id e fatturato`, () => {
+      const { save, deleteIds } = plan({ ...base, existingList: [am], hours: 3, billableHours: 0.5, slot: 'am' });
+      assert.deepEqual(save, { ...am, hours: 3 });
+      assert.deepEqual(deleteIds, []);
+    });
+
+    test(`${name}: le entry sparse su più fasce si accorpano nella prima`, () => {
+      const { save, deleteIds } = plan({ ...base, existingList: [am, pm], hours: 4, billableHours: 0.5, slot: 'am' });
+      assert.equal(save.id, 'a');
+      assert.deepEqual(deleteIds, ['b']);
+    });
+
+    test(`${name}: a zero ore cancella tutto e non salva niente`, () => {
+      assert.deepEqual(plan({ ...base, existingList: [am, pm], hours: 0 }), { save: null, deleteIds: ['a', 'b'] });
+      assert.deepEqual(plan({ ...base, existingList: [], hours: 0 }), { save: null, deleteIds: [] });
+    });
+  }
+
+  test('il gemello di resolveEntrySlot segue la stessa priorità', () => {
+    const blocksForSlot = slot => ({ sera: [{ clientId: 'c1' }] }[slot] || []);
+    for (const args of [
+      { existingSlot: 'pm', clientId: 'c1', blocksForSlot },
+      { existingSlot: null, clientId: 'c1', blocksForSlot },
+      { existingSlot: null, clientId: 'c2', blocksForSlot, fallback: 'pm' },
+      { existingSlot: null, clientId: 'c2', blocksForSlot },
+    ]) assert.equal(domain.resolveEntrySlot(args), resolveEntrySlot(args));
   });
 });
 

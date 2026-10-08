@@ -1,0 +1,38 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f7f6f2; --panel: #ffffff; --text: #1a1a1a; --muted: #636363; --border: #e0dfd8;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #171717; --panel: #222222; --text: #f2f2f2; --muted: #a3a3a3; --border: #404040; }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: env(safe-area-inset-top) 12px calc(env(safe-area-inset-bottom) + 24px);
+  background: var(--bg); color: var(--text);
+  font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Open Sans", sans-serif;
+}
+header { display: flex; align-items: center; gap: 8px; padding: 14px 0 10px; text-align: center; }
+header > div { flex: 1; }
+h1 { margin: 0; font-size: 18px; font-weight: 800; }
+h1::first-letter { text-transform: uppercase; }
+#totals { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+button {
+  font: inherit; color: var(--text); background: var(--panel);
+  border: 1px solid var(--border); border-radius: 8px;
+  min-width: 44px; min-height: 44px; padding: 0 10px;
+}
+button:active { background: var(--border); }
+#message { margin: 8px 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+section { margin-top: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+h2 { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; font-size: 13px; font-weight: 800; border-bottom: 1px solid var(--border); }
+h2 small { margin-left: auto; font-weight: 600; color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+/* Il nome del progetto ha una riga sua: accanto ai pulsanti si leggevano tre lettere. */
+.row { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--border); }
+.row:first-of-type { border-top: 0; }
+.row .name { flex: 0 0 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 600; }
+.row output { flex: 1; text-align: center; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.row output.zero { color: var(--muted); font-weight: 600; }
+.row.saving output { opacity: 0.5; }
+.row.failed output { text-decoration: underline wavy; }
+footer { margin-top: 18px; text-align: center; }

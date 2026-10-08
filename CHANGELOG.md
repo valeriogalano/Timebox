@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Ore dall'iPhone (solo macOS): una pagina per registrare e correggere le ore lavorate di una giornata, servita dal Mac sulla rete locale. Si accende con l'interruttore "iPhone" nella barra in alto, sempre visibile, o in Impostazioni → iPhone, dove si trova anche il link da aprire sull'iPhone e aggiungere alla Home. Modifica solo le ore lavorate, a passi di 15 minuti; ore fatturabili e stato "fatturato" non si toccano. **Finché è accesa, la pagina è raggiungibile da qualunque rete a cui il Mac è collegato**: va spenta prima di portarlo altrove. Il link contiene un token e il traffico non è cifrato: i dettagli sono in `SECURITY.md`.
 - MCP, CLI e API HTTP: le singole registrazioni del Registro si leggono in un intervallo di date, con filtro per area e per progetto e i totali per area e per progetto (tool MCP `entries`, `timebox entries --from`, `GET /entries`). Prima il dettaglio più fine era un giorno alla volta.
 
 ### Changed

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getToday, fmt, getMondayOfWeek, currentSlot } from './utils';
 import QuickLogModal from './components/QuickLogModal';
 import Glyph from './components/Glyph';
+import MobileSwitch from './components/MobileSwitch';
 import AreaStatusGlyph from './components/AreaStatusGlyph';
 import DayScreen from './screens/DayScreen';
 import WeeklyView, { AreaStatusPanel, withAreaStatus } from './screens/WeeklyView';
@@ -434,6 +435,7 @@ export default function App() {
             </h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <MobileSwitch />
             <div style={{ fontSize: 11, color: 'var(--tb-text-secondary)', fontWeight: 600 }}>
               {topbarDate}
             </div>
