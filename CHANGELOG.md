@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rendiconto: mostra solo le aree con compenso a ore, le uniche in cui le ore si fatturano. Le aree a corpo non hanno più una sezione con registrazioni da segnare: compaiono in fondo, su una riga, con le ore lavorate nel periodo.
 
 ### Fixed
+- CLI: `timebox projects` mostra di nuovo il nome e le ore di ogni progetto. Le due colonne uscivano vuote e a 0h, perché la tabella leggeva campi che l'API non restituisce. Nelle aree a ore riporta anche le fatturabili quando divergono dalle lavorate.
 - Tastiera: in Settimana e in Giorno le celle delle ore si raggiungono con Tab e si aprono con Invio o con la barra spaziatrice; Esc annulla e lascia il focus sulla cella. I selettori di Settimana (Completa/Compatta/Nascosta, Progetti lavorati/Tutti i progetti, Ore tracciate/Ore fatturabili), le tre lenti di Andamento e l'elenco delle aree in Aree sono raggiungibili con Tab e si attivano con Invio. Gli aiuti "?" e il dettaglio settimanale di "Da decidere" si aprono anche col focus, in un riquadro al posto del tooltip nativo che compariva solo col mouse.
 - Tutte le schermate: i testi grigi (etichette, valori secondari, voci di menu non attive, descrizioni) sono più scuri nel tema chiaro e più chiari in quello scuro, e ora rispettano il contrasto minimo di leggibilità (4,5:1) sui fondi dell'app. Nel tema chiaro tre testi su quattro erano sotto quella soglia.
 - Andamento: il "?" dentro la scheda attiva segue il colore del testo della scheda. Nel tema scuro era quasi invisibile.
