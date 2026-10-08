@@ -207,7 +207,7 @@ describe('MCP server', () => {
     const res = await rpc(mcp, msg('tools/call', { name: 'entries', arguments: { from: '2000-01-01' } }));
     const text = res.result.content[0].text;
     assert.match(text, /^Entries from 2000-01-01 to \d{4}-\d{2}-\d{2}:/);
-    assert.match(text, /\d{4}-\d{2}-\d{2} (AM|PM|SERA)  .+ \[.+\]: [\d.]+h/);
+    assert.match(text, /\d{4}-\d{2}-\d{2}  .+ \[.+\]: [\d.]+h/);
     assert.ok(text.includes('By area:') && text.includes('By project:') && text.includes('Total:'));
 
     const empty = await rpc(mcp, msg('tools/call', { name: 'entries', arguments: { from: '1999-01-01', to: '1999-01-02' } }));

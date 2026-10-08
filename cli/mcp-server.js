@@ -690,7 +690,7 @@ async function callTool(name, args) {
     if (!d.entries.length) return `No entries from ${d.from} to ${d.to}.`;
     return [
       `Entries from ${d.from} to ${d.to}:`,
-      ...d.entries.map(e => `${e.date} ${e.slot.toUpperCase()}  ${e.project} [${e.area}]: ${fmtBillable(e.hours, e.billableHours)}`),
+      ...d.entries.map(e => `${e.date}  ${e.project} [${e.area}]: ${fmtBillable(e.hours, e.billableHours)}`),
       '',
       'By area:',
       ...d.byArea.map(a => `  ${a.area}: ${fmtBillable(a.hours, a.billableHours)}`),

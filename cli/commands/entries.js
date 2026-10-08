@@ -1,7 +1,7 @@
 'use strict';
 
 const { getEntries, getProjects, getClients } = require('../../db/queries');
-const { SLOTS, isHourly, effBillable } = require('../../lib/domain');
+const { isHourly, effBillable } = require('../../lib/domain');
 
 // Somma ore lavorate e fatturabili per chiave. Le fatturabili restano null fuori
 // dalle aree a ore, dove non c'è niente da fatturare a ore.
@@ -18,7 +18,8 @@ function totalsBy(rows, keyOf, labelOf) {
 }
 
 // Le singole entry del Registro in un intervallo di date, con filtro per area e
-// progetto (parziale, senza distinguere maiuscole).
+// progetto (parziale, senza distinguere maiuscole). Senza fascia: quella di un'ora
+// registrata non si sceglie e non è un dato da esporre.
 function getEntriesData({ from, to, areaFilter, projectFilter } = {}) {
   const projects = Object.fromEntries(getProjects().map(p => [p.id, p]));
   const clients = Object.fromEntries(getClients().map(c => [c.id, c]));
@@ -33,7 +34,6 @@ function getEntriesData({ from, to, areaFilter, projectFilter } = {}) {
       return {
         id: e.id,
         date: e.date,
-        slot: e.slot,
         project: p?.name || '?',
         projectId: e.projectId,
         area: c?.name || '?',
@@ -44,7 +44,7 @@ function getEntriesData({ from, to, areaFilter, projectFilter } = {}) {
       };
     })
     .filter(e => (!area || e.area.toLowerCase().includes(area)) && (!project || e.project.toLowerCase().includes(project)))
-    .sort((a, b) => a.date.localeCompare(b.date) || SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   return {
     from,

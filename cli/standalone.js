@@ -178,7 +178,6 @@ async function cmdEntries(flags) {
 
   printTable(d.entries.map(e => ({
     Date: e.date,
-    Slot: e.slot.toUpperCase(),
     Project: e.project,
     Area: e.area,
     Hours: fmtHB(e.hours, e.billableHours),

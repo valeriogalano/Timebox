@@ -26,16 +26,19 @@ describe('getEntriesData', () => {
     saveEntry({ id: 'x-flat', projectId: flat.id, date: '2031-03-05', hours: 4, billableHours: 9, slot: 'am', billed: true });
   });
 
-  test('restituisce le entry del solo intervallo, per data e poi per fascia', () => {
+  test('restituisce le entry del solo intervallo, per data e senza fascia', () => {
     const d = getEntriesData({ from: '2031-03-04', to: '2031-03-05' });
-    assert.deepEqual(d.entries.map(e => e.id), ['x-am', 'x-pm', 'x-flat']);
+    assert.deepEqual(d.entries.map(e => e.id).sort(), ['x-am', 'x-flat', 'x-pm']);
+    assert.deepEqual(d.entries.map(e => e.date), ['2031-03-04', '2031-03-04', '2031-03-05']);
+    assert.ok(d.entries.every(e => !('slot' in e)));
     assert.equal(d.total, 7);
     assert.equal(d.entries[0].project, hourly.name);
   });
 
   test('ore fatturabili e fatturato solo nelle aree a ore', () => {
     const d = getEntriesData({ from: '2031-03-04', to: '2031-03-05' });
-    const [am, pm, fixed] = d.entries;
+    const byId = Object.fromEntries(d.entries.map(e => [e.id, e]));
+    const [am, pm, fixed] = [byId['x-am'], byId['x-pm'], byId['x-flat']];
     assert.equal(am.billableHours, 1);       // senza override vale il lavorato
     assert.equal(pm.billableHours, 3);
     assert.equal(pm.billed, true);
@@ -47,8 +50,9 @@ describe('getEntriesData', () => {
     const d = getEntriesData({ from: '2031-03-04', to: '2031-03-05' });
     const byArea = Object.fromEntries(d.byArea.map(a => [a.area, a]));
     assert.deepEqual(d.byArea.map(a => a.hours), [4, 3]);   // dal più grande
-    assert.equal(byArea[d.entries[0].area].billableHours, 4);
-    assert.equal(byArea[d.entries[2].area].billableHours, null);
+    const areaOf = id => d.entries.find(e => e.id === id).area;
+    assert.equal(byArea[areaOf('x-am')].billableHours, 4);
+    assert.equal(byArea[areaOf('x-flat')].billableHours, null);
     assert.equal(d.byProject.length, 2);
     assert.equal(sum(d.byProject, 'hours'), d.total);
   });

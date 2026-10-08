@@ -375,7 +375,7 @@ describe('HTTP server', () => {
     const { status, body } = await get(port, '/entries?from=2000-01-01');
     assert.equal(status, 200);
     assert.ok(body.entries.length > 0, 'has entries');
-    for (const key of ['id', 'date', 'slot', 'project', 'area', 'hours', 'billableHours']) {
+    for (const key of ['id', 'date', 'project', 'area', 'hours', 'billableHours']) {
       assert.ok(key in body.entries[0], `has ${key}`);
     }
     assert.equal(body.total, body.byArea.reduce((s, a) => s + a.hours, 0));
