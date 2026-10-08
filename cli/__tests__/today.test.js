@@ -11,45 +11,36 @@ const TEST_DATE = '2020-07-01';
 describe('getTodayData', () => {
   before(() => createTestDb());
 
-  test('returns empty slots and zero totals for a day with no entries', () => {
+  test('returns no entries and a zero total for a day with nothing logged', () => {
     const data = getTodayData(TEST_DATE);
     assert.equal(data.date, TEST_DATE);
     assert.equal(data.total, 0);
-    assert.equal(data.amTotal, 0);
-    assert.equal(data.pmTotal, 0);
-    assert.equal(data.slots.am.length, 0);
-    assert.equal(data.slots.pm.length, 0);
+    assert.deepEqual(data.entries, []);
   });
 
-  test('returns correct totals and entries after logging hours', () => {
+  test('lists the entries of the day in one list, whatever slot they were logged in', () => {
     logHours({ projectName: 'website', hoursStr: '3', slot: 'am', date: TEST_DATE, add: false });
     logHours({ projectName: 'brand', hoursStr: '2', slot: 'pm', date: TEST_DATE, add: false });
     const data = getTodayData(TEST_DATE);
-    assert.equal(data.amTotal, 3);
-    assert.equal(data.pmTotal, 2);
     assert.equal(data.total, 5);
-    assert.equal(data.slots.am.length, 1);
-    assert.equal(data.slots.pm.length, 1);
-    assert.equal(data.slots.am[0].project, 'Website Redesign');
-    assert.equal(data.slots.pm[0].project, 'Brand Identity');
+    assert.deepEqual(data.entries.map(e => e.project).sort(), ['Brand Identity', 'Website Redesign']);
+    // la fascia non è un dato delle ore registrate: non compare nella risposta
+    assert.ok(!('slots' in data) && !('amTotal' in data));
+    assert.ok(data.entries.every(e => !('slot' in e)));
   });
 
   test('resolves client name for each entry', () => {
-    const data = getTodayData(TEST_DATE);
-    assert.equal(data.slots.am[0].client, 'Acme Corp');
-    assert.equal(data.slots.pm[0].client, 'Studio Nova');
+    const byProject = Object.fromEntries(getTodayData(TEST_DATE).entries.map(e => [e.project, e]));
+    assert.equal(byProject['Website Redesign'].client, 'Acme Corp');
+    assert.equal(byProject['Brand Identity'].client, 'Studio Nova');
   });
 
   test('exposes billableHours and totalBillable in response', () => {
     const data = getTodayData(TEST_DATE);
-    for (const slot of ['am', 'pm']) {
-      for (const e of data.slots[slot]) {
-        assert.ok('billableHours' in e, 'entry should include billableHours');
-        assert.ok('isBillable' in e, 'entry should include isBillable');
-      }
+    for (const e of data.entries) {
+      assert.ok('billableHours' in e, 'entry should include billableHours');
+      assert.ok('isBillable' in e, 'entry should include isBillable');
     }
-    assert.ok('amBillable' in data);
-    assert.ok('pmBillable' in data);
     assert.ok('totalBillable' in data);
   });
 
@@ -59,8 +50,8 @@ describe('getTodayData', () => {
       slot: 'am', date: '2020-07-15', add: false,
     });
     const data = getTodayData('2020-07-15');
-    assert.equal(data.amTotal, 4);
+    assert.equal(data.total, 4);
     assert.equal(data.totalBillable, 3);
-    assert.equal(data.slots.am[0].billableHours, 3);
+    assert.equal(data.entries[0].billableHours, 3);
   });
 });

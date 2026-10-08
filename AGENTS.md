@@ -312,6 +312,12 @@ A `timebox.db` sitting in the repository root is **not** the app's database — 
 
 Editing the weekly view must not mutate the `recurring` table.
 
+### Slots Belong to the Plan, Not to Tracked Hours
+
+AM, PM and Sera are a property of planned blocks. A tracked entry still stores a `slot` (the unique index is `projectId + date + slot`), but it is picked automatically by `resolveEntrySlot`, cannot be chosen in the UI and says nothing about when the work happened. Never show it and never compare planned against tracked through it.
+
+Tracked hours meet slots in one place only: `fillPlannedBlocks` (`src/dayPlanning.js`, twin in `lib/domain.js`) spreads an area's hours for the day over its blocks in slot order. Per-slot tracked figures (`slotLogged` in `computeDayPlanning`, `slots[slot].trackedByArea` and `trackedHours` in `getDaySummaryData`) come from that fill; hours beyond the plan are extra and belong to no slot.
+
 ### Empty Week Overrides
 
 When the last block is removed from a slot, the code deletes the `week_overrides` row instead of saving an empty array. Missing row means "use the recurring template".

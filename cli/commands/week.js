@@ -40,7 +40,6 @@ function getWeekData(today, offset = 0) {
           area: client?.name || '?',
           areaStatus: project ? resolveAreaStatus(project.clientId) : 'active',
           isBillable,
-          slot: e.slot,
         };
       });
     const total = dayEntries.reduce((s, e) => s + e.hours, 0);

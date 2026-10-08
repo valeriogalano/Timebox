@@ -3,7 +3,6 @@
 
 const http = require('node:http');
 
-const SLOTS = ['am', 'pm', 'sera'];
 const PORT = parseInt(process.env.TIMEBOX_PORT || '37373', 10);
 const BASE = `http://127.0.0.1:${PORT}`;
 
@@ -117,12 +116,8 @@ async function cmdToday(flags) {
   if (flags.json) { console.log(JSON.stringify(d)); return; }
 
   console.log(`\nDate: ${d.date}`);
-  for (const slot of SLOTS) {
-    const entries = d.slots[slot];
-    if (!entries.length) continue;
-    console.log(`\n  ${slot.toUpperCase()}`);
-    for (const e of entries) console.log(`    ${col(e.project, 30)} ${fmtHB(e.hours, e.isBillable ? e.billableHours : null)}`);
-  }
+  console.log('');
+  for (const e of d.entries) console.log(`    ${col(e.project, 30)} ${fmtHB(e.hours, e.isBillable ? e.billableHours : null)}`);
   const total = d.total || 0;
   const totalBill = d.totalBillable != null && Math.abs(d.totalBillable - total) > 0.001 ? d.totalBillable : null;
   console.log(`\n  Total: ${fmtHB(total, totalBill)}\n`);
@@ -139,8 +134,6 @@ async function cmdWeek(flags) {
     const totBill = day.totalBillable != null && Math.abs(day.totalBillable - tot) > 0.001 ? day.totalBillable : null;
     return {
       Day: day.label || day.day,
-      AM: fmtH(day.amTotal || 0),
-      PM: fmtH(day.pmTotal || 0),
       Total: fmtHB(tot, totBill),
     };
   });

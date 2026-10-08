@@ -91,10 +91,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
     return true;
   });
 
-  const sorted = [...filtered].sort((a, b) => {
-    if (b.date !== a.date) return b.date.localeCompare(a.date);
-    return (a.slot || '').localeCompare(b.slot || '');
-  });
+  const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
