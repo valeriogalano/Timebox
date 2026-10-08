@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { areaMix } from '../area-colors';
-import { parseHHMM, toHHMM } from '../utils';
+import { fmtH, parseHHMM } from '../utils';
 import { AREA_STATUS_OPTIONS } from '../screens/WeeklyView';
 import AreaStatusGlyph from './AreaStatusGlyph';
 
@@ -32,7 +32,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
 
   function startEdit(e) {
     e.stopPropagation();
-    setDraft(toHHMM(block.hours));
+    setDraft(fmtH(block.hours));
     setEditingH(true);
   }
 
@@ -137,7 +137,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
               fontSize: 9, color: client.color, cursor: 'text',
               borderBottom: `1px dashed ${areaMix(client.color, 27)}`,
             }}>
-              {toHHMM(displayHours)}
+              {fmtH(displayHours)}
             </span>
           )}
         </div>

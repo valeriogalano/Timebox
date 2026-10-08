@@ -367,9 +367,8 @@ Recurring template edits call `freezeWeeksBeforeRecurringChange` first. Past wee
 
 | Function | Behavior |
 |---|---|
-| `fmtH(h)` | `2.5 -> "2h 30m"`, `3 -> "3h"`, `0 -> "0h"`, negative values keep a leading `-`. |
-| `toHHMM(h)` | `2.5 -> "2:30"`, `0 -> ""`. |
-| `parseHHMM(str, threshold?)` | Accepts `2:30`, `2.5`, `2,5`, and empty string. A bare number greater than the threshold is read as minutes (`90` -> `1.5`); the threshold defaults to the configured one (`src/hours-threshold.js`, setting `hoursMinutesThreshold`, default 9) and is passed explicitly in tests. A value containing `:` is always explicit and never converted. |
+| `fmtH(h)` | `2.5 -> "2h 30m"`, `3 -> "3h"`, `0 -> "0h"`, negative values keep a leading `-`. The only format hours are written in, on every screen and in the value a field opens on. |
+| `parseHHMM(str, threshold?)` | Reads what a hours field can contain: the display format (`1h 30m`, `2h`, `45m`) and the typing shortcuts `2:30`, `2.5`, `2,5`; empty string is 0. A bare number greater than the threshold is read as minutes (`90` -> `1.5`); the threshold defaults to the configured one (`src/hours-threshold.js`, setting `hoursMinutesThreshold`, default 9) and is passed explicitly in tests. A value containing `:`, `h` or `m` is explicit and never converted. |
 | `getMondayOfWeek(date)` | Monday for the containing ISO-style week. |
 | `addDays(date, n)` | Returns a new date. |
 | `fmt(date)` | Returns `YYYY-MM-DD`. |
@@ -387,7 +386,7 @@ Todoist tasks are allocated sequentially across blocks for the same area. A task
 
 ### TimeCell
 
-Inline `hh:mm` editor:
+Inline hours editor (shows and opens on `fmtH`, accepts what `parseHHMM` reads):
 
 - click starts editing;
 - `Tab`/`Enter` commits;

@@ -36,11 +36,11 @@ describe('TimeCell — da tastiera', () => {
     const { container } = render(<TimeCell hours={1.5} colIndex={0} projectId="a" onSave={() => {}} />);
     const cell = container.querySelector('[data-timecell]');
     expect(cell.tabIndex).toBe(0);
-    expect(cell).toHaveAccessibleName('Ore: 1:30. Invio per modificare');
+    expect(cell).toHaveAccessibleName('Ore: 1h 30m. Invio per modificare');
 
     fireEvent.keyDown(cell, { key: 'Enter' });
     const input = cell.querySelector('input');
-    expect(input.value).toBe('1:30');
+    expect(input.value).toBe('1h 30m');
 
     fireEvent.keyDown(input, { key: 'Escape' });
     expect(cell.querySelector('input')).toBeNull();

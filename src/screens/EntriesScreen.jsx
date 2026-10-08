@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getToday, fmt, fmtH, parseHHMM, toHHMM, effBillable, isHourly, billingOnSave } from '../utils';
+import { getToday, fmt, fmtH, parseHHMM, effBillable, isHourly, billingOnSave } from '../utils';
 
 // "mer 7 ott 2026", come nel resto dell'app. L'anno resta: il Registro copre intervalli lunghi.
 const dateLabel = dateStr => new Date(`${dateStr}T00:00:00`)
@@ -40,11 +40,11 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
   function startEdit(entry) {
     setEditingId(entry.id);
     const billableStr = entry.billableHours == null
-      ? (toHHMM(entry.hours) || String(entry.hours))
-      : (toHHMM(entry.billableHours) || String(entry.billableHours));
+      ? fmtH(entry.hours)
+      : fmtH(entry.billableHours);
     setEditState({
       date: entry.date,
-      hours: toHHMM(entry.hours) || String(entry.hours),
+      hours: fmtH(entry.hours),
       billable: billableStr,
       projectId: entry.projectId,
       billed: entry.billed,

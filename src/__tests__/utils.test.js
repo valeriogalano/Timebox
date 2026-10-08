@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  getMondayOfWeek, addDays, fmt, fmtH, toHHMM, parseHHMM,
+  getMondayOfWeek, addDays, fmt, fmtH, parseHHMM,
   effBillable, billingOnSave, isHourly, normalizeSlot, slotForDate, budgetAlertLevel,
 } from '../utils.js';
 import {
@@ -41,15 +41,21 @@ describe('fmtH', () => {
   });
 });
 
-describe('toHHMM', () => {
-  test('pads minutes and rolls 60 up', () => {
-    assert.equal(toHHMM(1.5), '1:30');
-    assert.equal(toHHMM(1.999), '2:00');
-    assert.equal(toHHMM(0), '');
-  });
-});
-
 describe('parseHHMM', () => {
+  test('rilegge il formato in cui le ore sono scritte', () => {
+    for (const h of [0.25, 0.5, 1, 1.5, 2.75, 12, 23.5]) assert.equal(parseHHMM(fmtH(h), 9), h);
+    assert.equal(parseHHMM('0h', 9), 0);
+    assert.equal(parseHHMM('45m', 9), 0.75);
+    assert.equal(parseHHMM('1H30M', 9), 1.5);
+    assert.equal(parseHHMM('1,5h', 9), 1.5);
+  });
+
+  test('con le unità il valore è esplicito: la soglia non lo converte in minuti', () => {
+    assert.equal(parseHHMM('12h', 9), 12);
+    assert.equal(parseHHMM('12', 9), 12 / 60);
+    assert.equal(parseHHMM('90m', 9), 1.5);
+  });
+
   test('parses colon clock format as hours', () => {
     assert.equal(parseHHMM('1:30'), 1.5);
   });

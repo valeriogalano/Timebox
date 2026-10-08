@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Ricorrenza: le ore dei blocchi sono scritte come in Settimana ("1:30"), non più in decimali ("1.5h"), e il campo si apre sullo stesso formato. Il testo in testa alla pagina spiega la schermata senza la nota di sviluppo sul "nuovo sistema di segnali".
+- Formato delle ore: uno solo in tutta l'app, "1h 30m". Prima ce n'erano tre: "1:30" nelle griglie di Settimana e Giorno e in Import Todoist, "1.5h" in Ricorrenza, "1h 30m" altrove. Anche i campi si aprono su quel formato. Digitando restano valide le scorciatoie "1:30", "1,5" e "90" (minuti, oltre la soglia configurata).
+- Ricorrenza: il testo in testa alla pagina spiega la schermata senza la nota di sviluppo sul "nuovo sistema di segnali".
 - Registro: le date sono scritte "mer 7 ott 2026" come nel resto dell'app. L'icona di avviso compare solo sulla conferma di eliminazione, non su ogni riga.
 - Settimana: il badge delle divergenze dal template dice "2 slot su 21 modificati" al posto di "2/21". Il nome dell'area di un blocco stretto si legge per intero passandoci sopra, anche in Ricorrenza.
 - Import Todoist e Aree: i pulsanti a icona e i campi "h" e "h/s" dei progetti hanno un'etichetta per gli screen reader.

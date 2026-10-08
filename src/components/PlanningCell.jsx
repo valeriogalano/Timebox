@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { toHHMM, parseHHMM, budgetAlertLevel as meterLevel } from '../utils';
+import { fmtH, parseHHMM, budgetAlertLevel as meterLevel } from '../utils';
 import { areaTints } from '../area-colors';
 import { usageOf, kindNote } from '../cap-usage';
 import TodoistTaskTooltip from './TodoistTaskTooltip';
@@ -87,7 +87,7 @@ function PlanningBlock({
       {logged > 0 && (
         <>
           <span style={{ fontSize: compact ? 10 : 11, fontWeight: 400, color: readoutColor }}>
-            {toHHMM(logged)}
+            {fmtH(logged)}
           </span>
           <span style={{ fontSize: compact ? 8 : 9, color: tints.border, fontWeight: 400 }}>/</span>
         </>
@@ -96,7 +96,7 @@ function PlanningBlock({
         fontSize: logged > 0 ? (compact ? 8 : 9) : (compact ? 10 : 11),
         fontWeight: 400,
         color: logged > 0 ? `color-mix(in srgb, ${cl.color} 75%, transparent)` : cl.color,
-      }}>{toHHMM(block.hours)}</span>
+      }}>{fmtH(block.hours)}</span>
     </div>
   );
 
@@ -361,7 +361,7 @@ export default function PlanningCell({
               compact={compact}
               editing={editId === block.id} editDraft={editDraft}
               setEditDraft={setEditDraft} editRef={editRef} commitEdit={commitEdit}
-              onStartEdit={() => { setEditId(block.id); setEditDraft(toHHMM(block.hours)); }}
+              onStartEdit={() => { setEditId(block.id); setEditDraft(fmtH(block.hours)); }}
               onCancelEdit={() => setEditId(null)}
               onRemove={() => onRemoveBlock(block.id)}
               onDragStart={(e) => {
