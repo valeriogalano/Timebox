@@ -19,7 +19,7 @@ describe('ExtraCell', () => {
       <ExtraCell blocks={[{ clientId: 'c1', hours: 1.5 }, { clientId: 'nope', hours: 2 }]} orphanTodoist={[]} clients={clients} />
     );
     expect(getByText('Acme')).toBeInTheDocument();
-    expect(container).toHaveTextContent('1:30');
+    expect(container).toHaveTextContent('1h 30m');
     expect(queryByText(/^(AM|PM|Sera)$/)).not.toBeInTheDocument();
   });
 
