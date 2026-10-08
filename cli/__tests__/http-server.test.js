@@ -370,6 +370,22 @@ describe('HTTP server', () => {
     assert.ok('area' in p, 'has area');
   });
 
+  it('GET /entries → entries in range with totals', async () => {
+    const { status, body } = await get(port, '/entries?from=2000-01-01');
+    assert.equal(status, 200);
+    assert.ok(body.entries.length > 0, 'has entries');
+    for (const key of ['id', 'date', 'project', 'area', 'hours', 'billableHours']) {
+      assert.ok(key in body.entries[0], `has ${key}`);
+    }
+    assert.equal(body.total, body.byArea.reduce((s, a) => s + a.hours, 0));
+  });
+
+  it('GET /entries without a valid range → 400', async () => {
+    assert.equal((await get(port, '/entries')).status, 400);
+    assert.equal((await get(port, '/entries?from=ieri')).status, 400);
+    assert.equal((await get(port, '/entries?from=2026-02-01&to=2026-01-01')).status, 400);
+  });
+
   it('GET /areas → 4 seed areas', async () => {
     const { status, body } = await get(port, '/areas');
     assert.equal(status, 200);

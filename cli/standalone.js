@@ -163,6 +163,21 @@ async function cmdProjects(flags) {
   console.log('');
 }
 
+async function cmdEntries(flags) {
+  const params = new URLSearchParams();
+  for (const key of ['from', 'to', 'area', 'project']) if (typeof flags[key] === 'string') params.set(key, flags[key]);
+  const d = await request(`/entries?${params}`);
+  if (flags.json) { console.log(JSON.stringify(d)); return; }
+
+  printTable(d.entries.map(e => ({
+    Date: e.date,
+    Project: e.project,
+    Area: e.area,
+    Hours: fmtHB(e.hours, e.billableHours),
+  })));
+  console.log(`\n  Total: ${fmtH(d.total)}\n`);
+}
+
 async function cmdClients(flags) {
   const d = await request('/areas');
   if (flags.json) { console.log(JSON.stringify(d)); return; }
@@ -223,6 +238,7 @@ Commands:
   today             Hours logged today
   week              Weekly summary
   projects          List projects
+  entries           Logged entries in a date range
   areas             List areas
   status            Quick overview: today, week, alerts
   log <proj> <hrs>  Log hours on a project
@@ -239,6 +255,12 @@ Options (week):
 Options (projects):
   --area <name>     Filter by area
   --all             Include archived projects
+
+Options (entries):
+  --from YYYY-MM-DD First date (required)
+  --to YYYY-MM-DD   Last date (default: today)
+  --area <name>     Filter by area
+  --project <name>  Filter by project
 
 Global:
   --json            Output raw JSON
@@ -263,6 +285,7 @@ async function main() {
     if (cmd === 'today')    { await cmdToday(flags); return; }
     if (cmd === 'week')     { await cmdWeek(flags); return; }
     if (cmd === 'projects') { await cmdProjects(flags); return; }
+    if (cmd === 'entries')  { await cmdEntries(flags); return; }
     if (cmd === 'areas' || cmd === 'clients')  { await cmdClients(flags); return; }
     if (cmd === 'status')   { await cmdStatus(flags); return; }
     if (cmd === 'log')      { await cmdLog(positional, flags); return; }

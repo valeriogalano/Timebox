@@ -128,8 +128,8 @@ export default function BillingScreen({ clients, projects, screen }) {
         </div>
       </div>
 
-      {/* KPI cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+      {/* KPI cards: senza registrazioni a ore sarebbero tre zeri, basta il messaggio sotto */}
+      {billableEntries.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
         <Card>
           <CardLabel><span className="tb-glyph">○</span> Da fatturare</CardLabel>
           <div style={{ fontSize: 30, fontWeight: 800, color: grandUnbilledH > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-muted)', letterSpacing: '-0.02em', lineHeight: 1 }}>
@@ -173,7 +173,7 @@ export default function BillingScreen({ clients, projects, screen }) {
             </div>
           )}
         </Card>
-      </div>
+      </div>}
 
       {/* Per-client sections */}
       {billableClients.map(client => {

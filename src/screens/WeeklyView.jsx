@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, toHHMM, parseHHMM, effBillable, isHourly, SLOTS, budgetAlertLevel } from '../utils';
+import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, parseHHMM, effBillable, isHourly, SLOTS, budgetAlertLevel } from '../utils';
 import { sumByProject, usageMaps, usageOf, fmtUsage, loadProjectTotals } from '../cap-usage';
 import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
@@ -873,25 +873,25 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   }}>
                     {hasData && !d.isFuture ? (
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{toHHMM(d.loggedInPlan) || '0:00'}</span>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{fmtH(d.loggedInPlan)}</span>
                         {d.plannedTotal > 0 && (
                           <>
                             <span style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>/</span>
-                            <span style={{ fontSize: 9, color: 'var(--tb-text-muted)', fontWeight: 600 }}>{toHHMM(d.plannedTotal)}</span>
+                            <span style={{ fontSize: 9, color: 'var(--tb-text-muted)', fontWeight: 600 }}>{fmtH(d.plannedTotal)}</span>
                           </>
                         )}
                         {d.bilancioExtra > 0 && (
-                          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-primary)', border: '1px solid var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Ore extra / oltre piano">+{toHHMM(d.bilancioExtra)} extra</span>
+                          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-primary)', border: '1px solid var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Ore extra / oltre piano">+{fmtH(d.bilancioExtra)} extra</span>
                         )}
                         {d.pianificazioneExtra > 0 && (
-                          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', border: '1px dashed var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Pianificazione aggiuntiva">+{toHHMM(d.pianificazioneExtra)} pianif.</span>
+                          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', border: '1px dashed var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Pianificazione aggiuntiva">+{fmtH(d.pianificazioneExtra)} pianif.</span>
                         )}
                       </div>
                     ) : d.isFuture && d.plannedTotal > 0 ? (
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>{toHHMM(d.plannedTotal)}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>{fmtH(d.plannedTotal)}</span>
                         {d.pianificazioneExtra > 0 && (
-                          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', border: '1px dashed var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Pianificazione aggiuntiva">+{toHHMM(d.pianificazioneExtra)} pianif.</span>
+                          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', border: '1px dashed var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Pianificazione aggiuntiva">+{fmtH(d.pianificazioneExtra)} pianif.</span>
                         )}
                       </div>
                     ) : (
@@ -1300,7 +1300,7 @@ function TemplateDivergenceBadge({ summary, open, onToggle }) {
       }}
     >
       <span className="tb-delta">Δ</span>
-      <span>template {deltaLabel} · {summary.divergentSlots}/{summary.totalSlots}</span>
+      <span>template {deltaLabel} · {summary.divergentSlots} slot su {summary.totalSlots} modificati</span>
       <Glyph glyph={open ? '▾' : '▸'} size={8} style={{ opacity: 0.8 }} />
     </button>
   );
@@ -1370,15 +1370,17 @@ function ViewModeToggle({ value, onChange }) {
       {opts.map((o, idx) => {
         const active = value === o.key;
         return (
-          <span
+          <button
+            type="button"
             key={o.key}
             data-on={active ? 'true' : 'false'}
+            aria-pressed={active}
             onClick={() => onChange(o.key)}
             title="Alterna tra Ore tracciate e Ore fatturabili · ⌘⇧V"
             style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}
           >
             {o.label}
-          </span>
+          </button>
         );
       })}
     </div>
@@ -1395,15 +1397,17 @@ function ProjectVisibilityToggle({ value, onChange }) {
       {opts.map((o, idx) => {
         const active = value === o.key;
         return (
-          <span
+          <button
+            type="button"
             key={o.key}
             data-on={active ? 'true' : 'false'}
+            aria-pressed={active}
             onClick={() => onChange(o.key)}
             title="Alterna tra Progetti lavorati e Tutti i progetti · ⌘⇧H"
             style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}
           >
             {o.label}
-          </span>
+          </button>
         );
       })}
     </div>
@@ -1421,15 +1425,17 @@ function PlanningModeToggle({ value, onChange }) {
       {opts.map((o, idx) => {
         const active = value === o.key;
         return (
-          <span
+          <button
+            type="button"
             key={o.key}
             data-on={active ? 'true' : 'false'}
+            aria-pressed={active}
             onClick={() => onChange(o.key)}
             title="Seleziona pianificazione Completa, Compatta o Nascosta · ⌘⇧P"
             style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}
           >
             {o.label}
-          </span>
+          </button>
         );
       })}
     </div>
@@ -1516,8 +1522,8 @@ function WeeklySummaryStrip({ summary, clients, open, onToggle }) {
                   {client.name}
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)', marginTop: 2 }}>
-                  {toHHMM(actual)}
-                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-faint)' }}> / {toHHMM(planned)}</span>
+                  {fmtH(actual)}
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-faint)' }}> / {fmtH(planned)}</span>
                 </div>
                 <OverCapacityBar
                   value={planned > 0 ? actual : (actual > 0 ? 1 : 0)}
@@ -1555,13 +1561,14 @@ function SlotSummary({ summary, clients, compact }) {
             <div style={{ fontSize: compact ? 9 : 10, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
               {data.planned !== undefined ? (
                 <>
-                  <span style={{ color: actual > planned ? 'var(--tb-text-primary)' : 'inherit' }} title={actual > planned ? 'Sopra il piano' : undefined}>{toHHMM(actual) || '0:00'}</span>
+                  <span style={{ color: actual > planned ? 'var(--tb-text-primary)' : 'inherit', whiteSpace: 'nowrap' }} title={actual > planned ? 'Sopra il piano' : undefined}>{fmtH(actual)}</span>
                   {actual > planned && <span className="tb-hatch" style={{ width: 8, height: 8, borderRadius: 2, display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }} title="Oltre piano" />}
                   <span style={{ color: 'var(--tb-text-faint)', fontWeight: 400, margin: '0 1px' }}>/</span>
-                  <span style={{ color: 'var(--tb-text-muted)', fontWeight: 600 }}>{toHHMM(planned)}</span>
+                  {/* nowrap: nella colonna stretta si va a capo alla barra, non dentro "3h 30m" */}
+                  <span style={{ color: 'var(--tb-text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtH(planned)}</span>
                 </>
               ) : (
-                <span style={{ color: 'var(--tb-text-primary)' }}>{toHHMM(actual)}</span>
+                <span style={{ color: 'var(--tb-text-primary)' }}>{fmtH(actual)}</span>
               )}
             </div>
           </div>
