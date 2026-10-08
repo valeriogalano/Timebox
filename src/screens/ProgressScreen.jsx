@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
 import { areaMix } from '../area-colors';
 import { sumByProject, usageMaps, usageOf, kindNote, loadProjectTotals } from '../cap-usage';
-import { actionLabel, areaPlanFitInsights, capRunway, distributionLabel, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_WINDOW, TOLERANCE_LABEL } from '../progress-insights';
+import { actionLabel, areaPlanFitInsights, capRunway, distributionLabel, runwaySummary, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_ORDER, RUNWAY_WINDOW, TOLERANCE_LABEL } from '../progress-insights';
 import OverCapacityBar from '../components/OverCapacityBar';
 import Glyph from '../components/Glyph';
 import HelpDot from '../components/HelpDot';
@@ -360,8 +360,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
       });
     });
     // Il più vicino al tetto in cima: è la riga su cui si decide.
-    const order = { esaurito: 0, entro2: 1, entro4: 2, entro8: 3, oltre8: 4, nessuno: 5 };
-    return rows.sort((a, b) => (order[a.band] - order[b.band]) || (b.ratio - a.ratio));
+    return rows.sort((a, b) => (RUNWAY_ORDER.indexOf(a.band) - RUNWAY_ORDER.indexOf(b.band)) || (b.ratio - a.ratio));
   }, [clients, projects, recurring, totalUsage, entries, periodOffset]);
 
   const status  = statusFor(stats.totalDone, stats.capacity);
@@ -724,7 +723,6 @@ function ProspettivaLens({ rows }) {
   const totalRemaining = topLevel.reduce((s, r) => s + Math.max(0, r.remaining), 0);
   const totalRemainingEur = topLevel.reduce((s, r) => s + Math.max(0, r.remaining) * r.rate, 0);
   const nested = rows.length - topLevel.length;
-  const urgent = rows.filter(r => r.band === 'esaurito' || r.band === 'entro2' || r.band === 'entro4').length;
 
   if (rows.length === 0) {
     return (
@@ -742,7 +740,7 @@ function ProspettivaLens({ rows }) {
   return (
     <>
       <SectionHeader inline title="Tetti cumulativi" subtitle={`ritmo misurato · ultime ${RUNWAY_WINDOW} settimane chiuse`}
-        help={`Per ogni tetto cumulativo: consumato dall'inizio, ore residue e fra quante settimane lo esaurisci al ritmo misurato sulle ultime ${RUNWAY_WINDOW} settimane chiuse (la corrente è in corso e leggerebbe sempre basso).\n\nL'esito è una fascia — entro 2, 4, 8 settimane, oltre — non un numero esatto: il ritmo misurato ha un'incertezza più larga della distanza fra 3 e 4 settimane.\n\nI tetti settimanali non compaiono qui: si azzerano ogni settimana, quindi non li si raggiunge mai. Il loro margine si legge in Settimana.`} />
+        help={`Per ogni tetto cumulativo: consumato dall'inizio, ore residue e fra quante settimane lo esaurisci al ritmo misurato sulle ultime ${RUNWAY_WINDOW} settimane chiuse (la corrente è in corso e leggerebbe sempre basso).\n\nL'esito è una fascia — entro 1, 2, 4, 8 settimane, oltre — non un numero esatto: il ritmo misurato ha un'incertezza più larga della distanza fra 3 e 4 settimane.\n\nI tetti settimanali non compaiono qui: si azzerano ogni settimana, quindi non li si raggiunge mai. Il loro margine si legge in Settimana.`} />
 
       <div style={{ display: 'grid', gridTemplateColumns: totalRemainingEur > 0 ? '1fr 1fr' : '1fr', gap: 14 }}>
         <Card>
@@ -754,7 +752,7 @@ function ProspettivaLens({ rows }) {
             </span>
           </div>
           <div style={{ marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
-            {urgent > 0 ? `${urgent} da decidere entro 4 settimane` : 'nessuno entro 4 settimane'}
+            {runwaySummary(rows)}
           </div>
         </Card>
         {totalRemainingEur > 0 && (
@@ -769,7 +767,7 @@ function ProspettivaLens({ rows }) {
       </div>
 
       <SectionHeader title="Per tetto · consumo e residuo" subtitle="il più vicino al tetto in cima"
-        help={`Una riga per tetto cumulativo, aree e progetti insieme, ordinate per urgenza: prima le fasce più vicine all'esaurimento, e a pari fascia il tetto con la percentuale di consumo più alta.\n\nOgni riga mostra:\nore consumate dall'inizio sul tetto\nore residue\nritmo misurato, al netto della settimana in corso\nritmo del template, sulle aree dove esiste, per vedere se stai lavorando come avevi pianificato\n\nLa barra è normalizzata sul tetto: il bordo destro è il tetto, oltre si tratteggia.\n\nQuando la finestra di misura è incompleta la riga lo dichiara ("ritmo su N settimane"): succede se il tetto è nato di recente o se il lavoro è iniziato dentro le ultime ${RUNWAY_WINDOW} settimane.\n\nI verdetti:\nentro 2/4/8 settimane, oltre 8 = fascia di esaurimento\nTetto esaurito = già oltre il tetto\nFermo = nessuna ora nella finestra, quindi nessun esaurimento prevedibile (non un esaurimento lontano)\n\nUn budget di progetto la cui area ha già un limite globale compare qui ma non nei totali in testa, dove sarebbe contato due volte.`} />
+        help={`Una riga per tetto cumulativo, aree e progetti insieme, ordinate per urgenza: prima le fasce più vicine all'esaurimento, e a pari fascia il tetto con la percentuale di consumo più alta.\n\nOgni riga mostra:\nore consumate dall'inizio sul tetto\nore residue\nritmo misurato, al netto della settimana in corso\nritmo del template, sulle aree dove esiste, per vedere se stai lavorando come avevi pianificato\n\nLa barra è normalizzata sul tetto: il bordo destro è il tetto, oltre si tratteggia.\n\nQuando la finestra di misura è incompleta la riga lo dichiara ("ritmo su N settimane"): succede se il tetto è nato di recente o se il lavoro è iniziato dentro le ultime ${RUNWAY_WINDOW} settimane.\n\nI verdetti:\nentro 1/2/4/8 settimane, oltre 8 = fascia di esaurimento\nTetto esaurito = già oltre il tetto\nFermo = nessuna ora nella finestra, quindi nessun esaurimento prevedibile (non un esaurimento lontano)\n\nUn budget di progetto la cui area ha già un limite globale compare qui ma non nei totali in testa, dove sarebbe contato due volte.`} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.map(r => (
           <Card key={r.key}>
