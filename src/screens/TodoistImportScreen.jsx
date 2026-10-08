@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { toHHMM, parseHHMM, fmtH, SLOTS, SLOT_LABELS, normalizeSlot } from '../utils';
+import { parseHHMM, fmtH, SLOTS, SLOT_LABELS, normalizeSlot } from '../utils';
 import { areaMix } from '../area-colors';
 
 const DAY_LONG = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
@@ -23,7 +23,7 @@ function normalizeDraft(row) {
     ...row,
     slot: normalizeSlot(row.slot),
     note: row.note ?? '',
-    draftHours: toHHMM(row.hours),
+    draftHours: fmtH(row.hours),
   };
 }
 
@@ -127,13 +127,9 @@ export default function TodoistImportScreen({ clients, projects }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.01em' }}>
-          Import Todoist
-        </h2>
-        <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>
-          {rows.length} task · {fmtH(totals.hours)} · {totals.dates} giorni
-        </span>
+      {/* Il titolo della schermata sta già nella barra in alto. */}
+      <div style={{ fontSize: 11, color: 'var(--tb-text-faint)', marginBottom: 20 }}>
+        {rows.length} task · {fmtH(totals.hours)} · {totals.dates} giorni
       </div>
 
       {rows.length === 0 && (
@@ -204,13 +200,13 @@ export default function TodoistImportScreen({ clients, projects }) {
                         <input
                           value={current.draftHours}
                           onChange={event => updateDraft('draftHours', event.target.value)}
-                          onBlur={() => updateDraft('draftHours', toHHMM(parseHHMM(current.draftHours)))}
-                          placeholder="hh:mm"
+                          onBlur={() => updateDraft('draftHours', fmtH(parseHHMM(current.draftHours)))}
+                          placeholder="1h 30m"
                           style={{ ...inputStyle, textAlign: 'center', fontWeight: 800 }}
                         />
                         <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
-                          <button onClick={saveDraft} disabled={busyId === row.todoistTaskId} title="Salva" style={iconButtonStyle}>✓</button>
-                          <button onClick={() => { setEditingId(null); setDraft(null); }} title="Annulla" style={iconButtonStyle}>×</button>
+                          <button onClick={saveDraft} disabled={busyId === row.todoistTaskId} title="Salva" aria-label="Salva" style={iconButtonStyle}>✓</button>
+                          <button onClick={() => { setEditingId(null); setDraft(null); }} title="Annulla" aria-label="Annulla" style={iconButtonStyle}>×</button>
                         </div>
                         <div style={{ gridColumn: '1 / -1' }}>
                           <textarea
@@ -255,11 +251,11 @@ export default function TodoistImportScreen({ clients, projects }) {
                           color: client ? client.color : 'var(--tb-text-secondary)',
                           marginTop: 2,
                         }}>
-                          {toHHMM(row.hours)}
+                          {fmtH(row.hours)}
                         </span>
                         <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
-                          <button onClick={() => startEdit(row)} title="Modifica import" style={iconButtonStyle}>✎</button>
-                          <button onClick={() => deleteRow(row)} disabled={busyId === row.todoistTaskId} title="Elimina import" style={iconButtonStyle}>−</button>
+                          <button onClick={() => startEdit(row)} title="Modifica import" aria-label="Modifica import" style={iconButtonStyle}>✎</button>
+                          <button onClick={() => deleteRow(row)} disabled={busyId === row.todoistTaskId} title="Elimina import" aria-label="Elimina import" style={iconButtonStyle}>−</button>
                         </div>
                       </>
                     )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { toHHMM } from '../utils';
+import { fmtH } from '../utils';
 import { getSlotCapacityLoad, normalizeSlotCapacityHours } from '../slot-capacity';
 
 export default function SlotCapacityBar({
@@ -15,8 +15,8 @@ export default function SlotCapacityBar({
   const empty = load <= 0.001;
   // Redesign: nessun colore di stato. Fill neutro + tratteggio oltre capacità.
   const fillBg = 'var(--tb-bar-tracked)';
-  const label = overflow ? `>${toHHMM(capacity)}` : `${toHHMM(load) || '0:00'} / ${toHHMM(capacity)}`;
-  const title = `Capacità slot: ${toHHMM(load) || '0:00'} su ${toHHMM(capacity)}. Pianificate ${toHHMM(plannedHours) || '0:00'}, tracciate ${toHHMM(loggedHours) || '0:00'}.`;
+  const label = overflow ? `>${fmtH(capacity)}` : `${fmtH(load)} / ${fmtH(capacity)}`;
+  const title = `Capacità slot: ${fmtH(load)} su ${fmtH(capacity)}. Pianificate ${fmtH(plannedHours)}, tracciate ${fmtH(loggedHours)}.`;
 
   return (
     <div title={title} style={{ display: 'flex', alignItems: 'center', gap: compact ? 3 : 4, minHeight: compact ? 10 : 13 }}>

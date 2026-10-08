@@ -2,9 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
 import { areaMix } from '../area-colors';
 import { sumByProject, usageMaps, usageOf, kindNote, loadProjectTotals } from '../cap-usage';
-import { actionLabel, areaPlanFitInsights, capRunway, distributionLabel, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_WINDOW, TOLERANCE_LABEL } from '../progress-insights';
+import { actionLabel, areaPlanFitInsights, capRunway, distributionLabel, runwaySummary, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_ORDER, RUNWAY_WINDOW, TOLERANCE_LABEL } from '../progress-insights';
 import OverCapacityBar from '../components/OverCapacityBar';
 import Glyph from '../components/Glyph';
+import HelpDot from '../components/HelpDot';
 
 // Redesign: nessun colore di stato. L'identità è solo l'area (client.color).
 // over/under/in-line si leggono per posizione/glyph, non per verde/arancio/rosso.
@@ -359,8 +360,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
       });
     });
     // Il più vicino al tetto in cima: è la riga su cui si decide.
-    const order = { esaurito: 0, entro2: 1, entro4: 2, entro8: 3, oltre8: 4, nessuno: 5 };
-    return rows.sort((a, b) => (order[a.band] - order[b.band]) || (b.ratio - a.ratio));
+    return rows.sort((a, b) => (RUNWAY_ORDER.indexOf(a.band) - RUNWAY_ORDER.indexOf(b.band)) || (b.ratio - a.ratio));
   }, [clients, projects, recurring, totalUsage, entries, periodOffset]);
 
   const status  = statusFor(stats.totalDone, stats.capacity);
@@ -423,7 +423,8 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
               onClick={() => setTrendLens(o.key)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...(idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : {}) }}
             >
-              {o.label}
+              {/* Il pulsante è la sola etichetta: l'aiuto accanto è un pulsante a sé. */}
+              <button type="button" className="tb-seg-label" aria-pressed={trendLens === o.key}>{o.label}</button>
               <HelpDot text={o.help} color="currentColor" />
             </span>
           ))}
@@ -678,8 +679,8 @@ function DaDecidereInsights({ perAreaWeekly }) {
             {/* Distribuzione: la media non distingue un ritmo da un episodio, e le due cose
                 portano a decisioni opposte. Una barretta per settimana (svolto sul piano di
                 quella settimana), piene quelle che il verdetto conta fuori piano; il
-                dettaglio con i numeri resta nel `title`. */}
-            <div title={weeklyBreakdownTitle(it)} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                dettaglio con i numeri sta nell'aiuto accanto, che si apre anche da tastiera. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
               <span aria-hidden="true" style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 16, flexShrink: 0 }}>
                 {it.weeks.map((w, wi) => {
                   const off = statusFor(w.done, w.planned).kind === it.kind;
@@ -692,6 +693,7 @@ function DaDecidereInsights({ perAreaWeekly }) {
                 })}
               </span>
               <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>{distributionLabel(it)}</span>
+              <HelpDot text={weeklyBreakdownTitle(it)} />
             </div>
 
             {/* L'azione è il motivo della sezione: in evidenza, con il valore già pronto.
@@ -721,7 +723,6 @@ function ProspettivaLens({ rows }) {
   const totalRemaining = topLevel.reduce((s, r) => s + Math.max(0, r.remaining), 0);
   const totalRemainingEur = topLevel.reduce((s, r) => s + Math.max(0, r.remaining) * r.rate, 0);
   const nested = rows.length - topLevel.length;
-  const urgent = rows.filter(r => r.band === 'esaurito' || r.band === 'entro2' || r.band === 'entro4').length;
 
   if (rows.length === 0) {
     return (
@@ -739,7 +740,7 @@ function ProspettivaLens({ rows }) {
   return (
     <>
       <SectionHeader inline title="Tetti cumulativi" subtitle={`ritmo misurato · ultime ${RUNWAY_WINDOW} settimane chiuse`}
-        help={`Per ogni tetto cumulativo: consumato dall'inizio, ore residue e fra quante settimane lo esaurisci al ritmo misurato sulle ultime ${RUNWAY_WINDOW} settimane chiuse (la corrente è in corso e leggerebbe sempre basso).\n\nL'esito è una fascia — entro 2, 4, 8 settimane, oltre — non un numero esatto: il ritmo misurato ha un'incertezza più larga della distanza fra 3 e 4 settimane.\n\nI tetti settimanali non compaiono qui: si azzerano ogni settimana, quindi non li si raggiunge mai. Il loro margine si legge in Settimana.`} />
+        help={`Per ogni tetto cumulativo: consumato dall'inizio, ore residue e fra quante settimane lo esaurisci al ritmo misurato sulle ultime ${RUNWAY_WINDOW} settimane chiuse (la corrente è in corso e leggerebbe sempre basso).\n\nL'esito è una fascia — entro 1, 2, 4, 8 settimane, oltre — non un numero esatto: il ritmo misurato ha un'incertezza più larga della distanza fra 3 e 4 settimane.\n\nI tetti settimanali non compaiono qui: si azzerano ogni settimana, quindi non li si raggiunge mai. Il loro margine si legge in Settimana.`} />
 
       <div style={{ display: 'grid', gridTemplateColumns: totalRemainingEur > 0 ? '1fr 1fr' : '1fr', gap: 14 }}>
         <Card>
@@ -751,7 +752,7 @@ function ProspettivaLens({ rows }) {
             </span>
           </div>
           <div style={{ marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
-            {urgent > 0 ? `${urgent} da decidere entro 4 settimane` : 'nessuno entro 4 settimane'}
+            {runwaySummary(rows)}
           </div>
         </Card>
         {totalRemainingEur > 0 && (
@@ -766,7 +767,7 @@ function ProspettivaLens({ rows }) {
       </div>
 
       <SectionHeader title="Per tetto · consumo e residuo" subtitle="il più vicino al tetto in cima"
-        help={`Una riga per tetto cumulativo, aree e progetti insieme, ordinate per urgenza: prima le fasce più vicine all'esaurimento, e a pari fascia il tetto con la percentuale di consumo più alta.\n\nOgni riga mostra:\nore consumate dall'inizio sul tetto\nore residue\nritmo misurato, al netto della settimana in corso\nritmo del template, sulle aree dove esiste, per vedere se stai lavorando come avevi pianificato\n\nLa barra è normalizzata sul tetto: il bordo destro è il tetto, oltre si tratteggia.\n\nQuando la finestra di misura è incompleta la riga lo dichiara ("ritmo su N settimane"): succede se il tetto è nato di recente o se il lavoro è iniziato dentro le ultime ${RUNWAY_WINDOW} settimane.\n\nI verdetti:\nentro 2/4/8 settimane, oltre 8 = fascia di esaurimento\nTetto esaurito = già oltre il tetto\nFermo = nessuna ora nella finestra, quindi nessun esaurimento prevedibile (non un esaurimento lontano)\n\nUn budget di progetto la cui area ha già un limite globale compare qui ma non nei totali in testa, dove sarebbe contato due volte.`} />
+        help={`Una riga per tetto cumulativo, aree e progetti insieme, ordinate per urgenza: prima le fasce più vicine all'esaurimento, e a pari fascia il tetto con la percentuale di consumo più alta.\n\nOgni riga mostra:\nore consumate dall'inizio sul tetto\nore residue\nritmo misurato, al netto della settimana in corso\nritmo del template, sulle aree dove esiste, per vedere se stai lavorando come avevi pianificato\n\nLa barra è normalizzata sul tetto: il bordo destro è il tetto, oltre si tratteggia.\n\nQuando la finestra di misura è incompleta la riga lo dichiara ("ritmo su N settimane"): succede se il tetto è nato di recente o se il lavoro è iniziato dentro le ultime ${RUNWAY_WINDOW} settimane.\n\nI verdetti:\nentro 1/2/4/8 settimane, oltre 8 = fascia di esaurimento\nTetto esaurito = già oltre il tetto\nFermo = nessuna ora nella finestra, quindi nessun esaurimento prevedibile (non un esaurimento lontano)\n\nUn budget di progetto la cui area ha già un limite globale compare qui ma non nei totali in testa, dove sarebbe contato due volte.`} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.map(r => (
           <Card key={r.key}>
@@ -1051,16 +1052,6 @@ function Legend() {
 
 // inline: titolo e sottotitolo affiancati con gap (per le righe con selettore a destra),
 // invece che agli estremi via space-between (che si attacca se il contenitore lo restringe).
-// Pallino "?" con tooltip (title). stopPropagation così non attiva eventuali click del contenitore.
-// `color`: dentro una scheda il punto segue il testo della scheda, che da attiva ha il fondo invertito.
-function HelpDot({ text, color = 'var(--tb-text-muted)' }) {
-  return (
-    <span title={text} onClick={e => e.stopPropagation()}
-      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color, fontSize: 9, cursor: 'help', letterSpacing: 0, flexShrink: 0 }}
-    >?</span>
-  );
-}
-
 function SectionHeader({ title, subtitle, inline, help }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: inline ? 10 : undefined, justifyContent: inline ? 'flex-start' : 'space-between', marginBottom: inline ? 0 : 10 }}>

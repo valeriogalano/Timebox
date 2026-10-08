@@ -139,10 +139,9 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
   return (
     <div>
       <p style={{ fontSize: 13, color: 'var(--tb-text-secondary)', marginBottom: 20, maxWidth: 560, lineHeight: 1.6 }}>
-        Il template settimanale con il nuovo sistema di segnali (colore = area;
-        A/M/C con forma; <span className="tb-delta">Δ</span> dove correggi spesso lo
-        stesso slot). Le modifiche qui si applicano a tutte le settimane future; puoi
-        sovrascrivere singole settimane dalla vista <strong>Settimana</strong>.
+        La settimana tipo. Le modifiche qui valgono per tutte le settimane future; una
+        singola settimana si cambia dalla vista <strong>Settimana</strong>. Il
+        simbolo <span className="tb-delta">Δ</span> segna gli slot che lì correggi spesso.
       </p>
 
       {/* Override ripetuti — drill-down (redesign #5a): slot dove lo storicizzato
