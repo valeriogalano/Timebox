@@ -127,13 +127,9 @@ export default function TodoistImportScreen({ clients, projects }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.01em' }}>
-          Import Todoist
-        </h2>
-        <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>
-          {rows.length} task · {fmtH(totals.hours)} · {totals.dates} giorni
-        </span>
+      {/* Il titolo della schermata sta già nella barra in alto. */}
+      <div style={{ fontSize: 11, color: 'var(--tb-text-faint)', marginBottom: 20 }}>
+        {rows.length} task · {fmtH(totals.hours)} · {totals.dates} giorni
       </div>
 
       {rows.length === 0 && (

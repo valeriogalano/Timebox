@@ -235,6 +235,7 @@ While the app is open, a local API is available at `http://127.0.0.1:37373`.
 | `GET` | `/area-statuses?week=YYYY-MM-DD` | Weekly area statuses for a Monday week key. |
 | `POST` | `/area-statuses` | Save an area status: `{ weekKey, areaId, status }`. Every status is stored explicitly; areas with no row for the week fall back to `clients.defaultStatus`. |
 | `GET` | `/projects?area=&client=&search=&all=1` | Project list with budgets and logged totals. |
+| `GET` | `/entries?from=YYYY-MM-DD&to=&area=&project=` | Single logged entries in a date range (`to` defaults to today), with worked and billable totals by area and by project. |
 | `GET` | `/clients?search=` | Area/client list. |
 | `GET` | `/areas?search=` | Alias for `/clients`. |
 | `GET` | `/status` | Today, week, and alerts (project budget, project weekly limit, area limit). |
@@ -276,6 +277,7 @@ Add that directory to `PATH` if your shell cannot find `timebox` after installat
 | `timebox today [--date YYYY-MM-DD]` | Logged hours for a day. |
 | `timebox week [--offset N]` | Weekly summary. |
 | `timebox projects [--area <name>] [--client <name>] [--all]` | Project list. |
+| `timebox entries --from YYYY-MM-DD [--to YYYY-MM-DD] [--area <name>] [--project <name>]` | Logged entries in a date range. |
 | `timebox areas` | Area list. |
 | `timebox clients` | Alias for areas in older workflows. |
 | `timebox status` | Today, week, and alerts. |
@@ -332,6 +334,7 @@ Exposed tools:
 | `day_mismatches` | Operational mismatches between Timebox planning and imported Todoist tasks. |
 | `week` | Weekly summary. |
 | `projects` | List projects. |
+| `entries` | Single logged entries in a date range, filtered by area and project, with totals by area and by project. |
 | `areas` | List areas. |
 | `status` | Quick status and alerts. |
 | `log_hours` | Log hours on a project. |

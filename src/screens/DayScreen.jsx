@@ -284,7 +284,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
             empty={!loading && readyGroups.length === 0 ? 'Coperti' : null}
             meta={!loading ? fmtH(totals.reservedWithoutTasksHours || 0) : null}
           >
-            {loading ? <SkeletonRows /> : readyGroups.slice(0, 8).map((group, index) => (
+            {loading ? <SkeletonRows /> : readyGroups.slice(0, READY_VISIBLE).map((group, index) => (
               <InsightRow
                 key={`${group.slot}-${group.areaId}-${index}`}
                 title={`${group.area} · ${group.slot.toUpperCase()}`}
@@ -293,6 +293,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
                 color="var(--tb-text-primary)"
               />
             ))}
+            {!loading && <HiddenRows count={readyGroups.length - READY_VISIBLE} />}
           </Panel>
 
           <Panel
@@ -717,8 +718,20 @@ function InsightRow({ title, value, meta, color }) {
 const metaLine = (...parts) => parts.filter(Boolean).join(' · ');
 const slotLabel = item => item.slot?.toUpperCase?.() || '';
 
-// Righe mostrate per gruppo di mismatch; le altre si dichiarano in coda.
+// Righe mostrate per gruppo di mismatch e nel pannello dei blocchi senza
+// azioni; le altre si dichiarano in coda.
 const MISMATCH_VISIBLE = 4;
+const READY_VISIBLE = 8;
+
+// L'intestazione conta tutti gli elementi: quelli non mostrati vanno dichiarati.
+function HiddenRows({ count }) {
+  if (count <= 0) return null;
+  return (
+    <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
+      e {count === 1 ? 'un altro' : `altri ${count}`}
+    </div>
+  );
+}
 
 function MismatchGroup({ label, count = 0, items = [], itemLabel, itemMeta, itemValue }) {
   if (!count) return null;
@@ -736,12 +749,7 @@ function MismatchGroup({ label, count = 0, items = [], itemLabel, itemMeta, item
           color="var(--tb-text-primary)"
         />
       ))}
-      {/* L'intestazione conta tutti gli elementi: quelli non mostrati vanno dichiarati. */}
-      {items.length > MISMATCH_VISIBLE && (
-        <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
-          e {items.length - MISMATCH_VISIBLE === 1 ? 'un altro' : `altri ${items.length - MISMATCH_VISIBLE}`}
-        </div>
-      )}
+      <HiddenRows count={items.length - MISMATCH_VISIBLE} />
     </div>
   );
 }
