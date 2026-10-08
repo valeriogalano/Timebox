@@ -30,7 +30,7 @@ Timebox can serve a page for logging hours from a phone. It is off by default an
 
 What limits it:
 
-- **It opens only on the network declared as home.** The network is recognised by the router's MAC address (`route -n get default`, then `arp`), checked at start and every 30 seconds. On any other network, and whenever the router cannot be identified, the listener is closed. The Wi-Fi name is not used: macOS hides it from apps without the location permission.
+- **It opens only on the network declared as home.** The network is recognised by the router's MAC address (`route -n get default`, then `arp`, with one `ping` to the router when its ARP entry has expired), checked at start and every 30 seconds. On any other network, and whenever the router cannot be identified, the listener is closed. The Wi-Fi name is not used: macOS hides it from apps without the location permission.
 - **It binds only to the computer's addresses in the router's subnet**, never to `0.0.0.0`, so VPN interfaces do not expose it.
 - **It serves four static files and two data routes.** `GET /api/day` returns one day's projects and worked hours; `PUT /api/hours` sets the worked hours of one project on one day. Billable hours, the billed flag, projects, areas and everything else in the local API are not reachable from it.
 - **The two data routes require a token** in the `Authorization` header: 32 random bytes, stored encrypted with `safeStorage`, compared in constant time. It can be regenerated in Settings, which invalidates the old link at once. The static files need no token and contain no data.

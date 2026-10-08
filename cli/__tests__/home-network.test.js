@@ -75,6 +75,28 @@ describe('currentNetwork', () => {
     assert.deepEqual(net, { mac: '38:16:5a:aa:a9:38', addresses: ['192.168.1.226', '192.168.1.225'] });
   });
 
+  test('se la voce del router è scaduta dalla tabella ARP, un ping la fa tornare', async () => {
+    const calls = [];
+    let pinged = false;
+    const net = await currentNetwork({
+      platform: 'darwin', interfaces: IFACES,
+      exec: async (file, args) => {
+        calls.push(file);
+        if (file === '/sbin/route') return ROUTE;
+        if (file === '/sbin/ping') { pinged = true; assert.deepEqual(args, ['-c', '1', '-t', '1', '192.168.1.1']); return ''; }
+        return pinged ? ARP : '192.168.1.1 (192.168.1.1) -- no entry\n';
+      },
+    });
+    assert.equal(net.mac, '38:16:5a:aa:a9:38');
+    assert.deepEqual(calls, ['/sbin/route', '/usr/sbin/arp', '/sbin/ping', '/usr/sbin/arp']);
+  });
+
+  test('con la voce presente non serve nessun ping', async () => {
+    const calls = [];
+    await currentNetwork({ platform: 'darwin', interfaces: IFACES, exec: async file => { calls.push(file); return file === '/sbin/route' ? ROUTE : ARP; } });
+    assert.deepEqual(calls, ['/sbin/route', '/usr/sbin/arp']);
+  });
+
   test('nel dubbio non è casa', async () => {
     const ok = { '/sbin/route': ROUTE, '/usr/sbin/arp': ARP };
     assert.equal(await currentNetwork({ platform: 'linux', interfaces: IFACES, exec: exec(ok) }), null);
