@@ -128,8 +128,8 @@ export default function BillingScreen({ clients, projects, screen }) {
         </div>
       </div>
 
-      {/* KPI cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+      {/* KPI cards: senza registrazioni a ore sarebbero tre zeri, basta il messaggio sotto */}
+      {billableEntries.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
         <Card>
           <CardLabel><span className="tb-glyph">○</span> Da fatturare</CardLabel>
           <div style={{ fontSize: 30, fontWeight: 800, color: grandUnbilledH > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-muted)', letterSpacing: '-0.02em', lineHeight: 1 }}>
@@ -173,7 +173,7 @@ export default function BillingScreen({ clients, projects, screen }) {
             </div>
           )}
         </Card>
-      </div>
+      </div>}
 
       {/* Per-client sections */}
       {billableClients.map(client => {
@@ -270,7 +270,7 @@ export default function BillingScreen({ clients, projects, screen }) {
                         opacity: entry.billed ? 1 : 0.75,
                       }}>
                         <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', minWidth: 90 }}>{dateLabel}</span>
-                        <span style={{ fontSize: 10, color: 'var(--tb-text-faint)', flex: 1 }}>{entry.slot?.toUpperCase()}</span>
+                        <span style={{ flex: 1 }} />
                         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-primary)', minWidth: 60, textAlign: 'right', position: 'relative' }}
                           title={diverges ? `Tracciate: ${fmtH(entry.hours)}` : undefined}>
                           {fmtH(eff)}

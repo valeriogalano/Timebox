@@ -9,7 +9,7 @@ const {
   getWeekAreaStatusMap,
 } = require('../../db/queries');
 const { fmt, getMondayOfWeek, effBillable, isHourly } = require('../format');
-const { SLOTS, normalizeSlot } = require('../../lib/domain');
+const { SLOTS, fillPlannedBlocks } = require('../../lib/domain');
 
 function getEffectiveBlocks(recurring, overrideMap, weekKey, dayIndex, slot) {
   const dayOverride = overrideMap[weekKey]?.[dayIndex];
@@ -55,7 +55,6 @@ function mapEntry(entry, projectMap, clientMap, areaStatusMap) {
     clientId: project?.clientId || null,
     area: client?.name || '?',
     areaStatus: project ? resolveAreaStatus(project.clientId, clientMap, areaStatusMap) : 'active',
-    slot: normalizeSlot(entry.slot),
     hours: entry.hours,
     billableHours: entry.billableHours ?? null,
     effectiveBillableHours: isBillable ? effBillable(entry) : 0,
@@ -83,18 +82,14 @@ function getDaySummaryData(date) {
 
   const plannedBlocks = {};
   const sourceBySlot = {};
-  const slotEntries = {};
   for (const slot of SLOTS) {
     plannedBlocks[slot] = getEffectiveBlocks(recurring, overrides, weekKey, dayIndex, slot);
     sourceBySlot[slot] = overrides[weekKey]?.[dayIndex]?.[slot] !== undefined ? 'override' : 'template';
-    slotEntries[slot] = [];
-  }
-  for (const entry of entries) {
-    const mapped = mapEntry(entry, projectMap, clientMap, areaStatusMap);
-    slotEntries[mapped.slot].push(mapped);
   }
   const allBlocks = SLOTS.flatMap(slot => plannedBlocks[slot]);
-  const allEntries = SLOTS.flatMap(slot => slotEntries[slot]);
+  // Le registrazioni stanno sulla giornata, non sulla fascia: quella dell'entry non
+  // si sceglie e non dice quando si è lavorato.
+  const allEntries = entries.map(entry => mapEntry(entry, projectMap, clientMap, areaStatusMap));
 
   const clientPlanned = {};
   for (const block of allBlocks) {
@@ -105,6 +100,19 @@ function getDaySummaryData(date) {
   for (const entry of allEntries) {
     if (!entry.clientId) continue;
     clientLogged[entry.clientId] = (clientLogged[entry.clientId] || 0) + entry.hours;
+  }
+
+  // Ore registrate di ogni fascia, per area: quelle finite nei suoi blocchi quando le
+  // ore dell'area si distribuiscono sul giorno in ordine (mattina, pomeriggio, sera).
+  // Le ore oltre il piano e quelle fuori dalle aree pianificate restano in `extra`.
+  const trackedByArea = Object.fromEntries(SLOTS.map(slot => [slot, {}]));
+  const fill = fillPlannedBlocks(allBlocks, clientLogged);
+  let blockIndex = 0;
+  for (const slot of SLOTS) {
+    for (const block of plannedBlocks[slot]) {
+      const hours = fill[blockIndex++];
+      if (hours > 0) trackedByArea[slot][block.clientId] = (trackedByArea[slot][block.clientId] || 0) + hours;
+    }
   }
 
   const trackedInPlan = Object.entries(clientPlanned).reduce((sum, [clientId, planned]) => {
@@ -138,10 +146,11 @@ function getDaySummaryData(date) {
     slots: Object.fromEntries(SLOTS.map(slot => [slot, {
       source: sourceBySlot[slot],
       plannedBlocks: plannedBlocks[slot].map(block => mapBlock(block, clientMap, areaStatusMap)),
-      trackedEntries: slotEntries[slot],
       plannedCapacity: plannedBlocks[slot].reduce((sum, block) => sum + block.hours, 0),
-      trackedHours: slotEntries[slot].reduce((sum, entry) => sum + entry.hours, 0),
+      trackedByArea: trackedByArea[slot],
+      trackedHours: Object.values(trackedByArea[slot]).reduce((sum, hours) => sum + hours, 0),
     }])),
+    trackedEntries: allEntries,
     plannedCapacity,
     trackedHours,
     trackedBillableHours,

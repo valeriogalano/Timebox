@@ -45,6 +45,20 @@ export function resolveEntrySlot({ existingSlot, clientId, blocksForSlot, fallba
   return fallback;
 }
 
+// Distribuisce le ore registrate di ogni area sui suoi blocchi del giorno, nell'ordine
+// in cui arrivano (mattina, pomeriggio, sera): il primo blocco si riempie, il resto
+// passa al successivo. Restituisce le ore finite in ciascun blocco, nello stesso ordine.
+// È l'unico modo in cui le ore registrate si legano a una fascia: quella dell'entry
+// non conta. Gemello CommonJS: fillPlannedBlocks in lib/domain.js.
+export function fillPlannedBlocks(blocks, loggedByClient) {
+  const remainder = { ...loggedByClient };
+  return blocks.map(block => {
+    const left = remainder[block.clientId] ?? 0;
+    remainder[block.clientId] = Math.max(0, left - block.hours);
+    return Math.min(left, block.hours);
+  });
+}
+
 export function getEffectiveBlocks(recurring, weekOverrides, weekKey, dayIndex, slot) {
   const dayOverride = weekOverrides[weekKey]?.[dayIndex];
   if (dayOverride && dayOverride[slot] !== undefined) return dayOverride[slot];
@@ -71,7 +85,7 @@ function leftoverTasks(tasks, capacity) {
 export function computeDayPlanning({
   dayIndex, isToday, isFuture,
   recurring, weekOverrides, weekKey,
-  rawDayEntries, dayEntries,
+  dayEntries,
   clients, projects,
   todoistTasks = [],
 }) {
@@ -86,13 +100,6 @@ export function computeDayPlanning({
   const visibleBlocks = SLOTS.flatMap(slot => visibleSlotBlocks[slot]);
 
   const dayHours = dayEntries.reduce((s, e) => s + e.hours, 0);
-  const slotLogged = {};
-  for (const slot of SLOTS) {
-    slotLogged[slot] = rawDayEntries
-      .filter(e => normalizeSlot(e.slot) === slot)
-      .reduce((s, e) => s + e.hours, 0);
-  }
-  const { am: amLogged, pm: pmLogged, sera: seraLogged } = slotLogged;
   const plannedTotal = visibleBlocks.reduce((s, b) => s + b.hours, 0);
   const delta = dayHours - plannedTotal;
   const recurringTotal = recurring
@@ -128,17 +135,20 @@ export function computeDayPlanning({
   }
   const extraBlocks = Object.entries(extraByClient).map(([clientId, hours]) => ({ clientId, hours }));
 
-  // Sequential fill: AM blocks first, then PM blocks, per client in order
   const blockFill = {};
-  const clientRemainder = { ...clientLogged };
-  for (const block of visibleBlocks) {
+  const fill = fillPlannedBlocks(visibleBlocks, clientLogged);
+  visibleBlocks.forEach((block, i) => {
     const cid = block.clientId;
-    const hasExtra = (clientLogged[cid] ?? 0) > (clientPlanned[cid] ?? 0);
-    const remaining = clientRemainder[cid] ?? 0;
-    const logged = Math.min(remaining, block.hours);
-    clientRemainder[cid] = Math.max(0, remaining - block.hours);
-    blockFill[block.id] = { logged, hasExtra };
+    blockFill[block.id] = { logged: fill[i], hasExtra: (clientLogged[cid] ?? 0) > (clientPlanned[cid] ?? 0) };
+  });
+  // Ore registrate di ogni fascia: quelle finite nei suoi blocchi, non quelle che
+  // l'entry dichiara. La fascia di un'entry non si sceglie e non dice quando si è
+  // lavorato; le ore oltre il piano non appartengono a nessuna fascia (sono "extra").
+  const slotLogged = {};
+  for (const slot of SLOTS) {
+    slotLogged[slot] = visibleSlotBlocks[slot].reduce((s, b) => s + blockFill[b.id].logged, 0);
   }
+  const { am: amLogged, pm: pmLogged, sera: seraLogged } = slotLogged;
 
   // Todoist coverage per slot per clientId
   const todoistByCS = Object.fromEntries(SLOTS.map(slot => [slot, {}]));

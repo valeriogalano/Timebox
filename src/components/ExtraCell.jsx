@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { toHHMM, SLOT_LABELS, normalizeSlot } from '../utils';
+import { fmtH, SLOT_LABELS, normalizeSlot } from '../utils';
 import { areaMix } from '../area-colors';
 import TodoistTaskTooltip from './TodoistTaskTooltip';
 
@@ -33,7 +33,7 @@ function OrphanBlock({ orphan, cl, isToday, isFuture, compact }) {
         textTransform: 'uppercase', letterSpacing: '0.06em',
       }}>{SLOT_LABELS[normalizeSlot(orphan.slot)]}</span>
       <span style={{ fontSize: compact ? 10 : 11, fontWeight: 800, color: cl.color, flexShrink: 0 }}>
-        {toHHMM(orphan.hours)}
+        {fmtH(orphan.hours)}
       </span>
     </div>
   );
@@ -78,7 +78,7 @@ export default function ExtraCell({ blocks, orphanTodoist, clients, isToday, isF
               {cl.name}
             </span>
             <span style={{ fontSize: compact ? 10 : 11, fontWeight: 800, color: cl.color, flexShrink: 0 }}>
-              {toHHMM(hours)}
+              {fmtH(hours)}
             </span>
           </div>
         );

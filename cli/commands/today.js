@@ -2,45 +2,32 @@
 
 const { getEntries, getProjects, getClients } = require('../../db/queries');
 const { effBillable, isHourly } = require('../format');
-const { SLOTS, normalizeSlot } = require('../../lib/domain');
 
+// Le registrazioni di un giorno, in un elenco solo. Non sono divise per fascia: la
+// fascia di un'ora registrata non si sceglie, quindi non è un dato da mostrare.
 function getTodayData(date) {
-  const entries = getEntries(date, date);
-  const projects = getProjects();
-  const clients = getClients();
-  const projectMap = Object.fromEntries(projects.map(p => [p.id, p]));
-  const clientMap = Object.fromEntries(clients.map(c => [c.id, c]));
+  const projectMap = Object.fromEntries(getProjects().map(p => [p.id, p]));
+  const clientMap = Object.fromEntries(getClients().map(c => [c.id, c]));
 
-  const slots = Object.fromEntries(SLOTS.map(slot => [slot, []]));
-  for (const e of entries) {
+  const entries = getEntries(date, date).map(e => {
     const project = projectMap[e.projectId];
     const client = project ? clientMap[project.clientId] : null;
-    const slot = normalizeSlot(e.slot);
-    const isBillable = isHourly(client);
-    slots[slot].push({
+    return {
       hours: e.hours,
       billableHours: e.billableHours ?? null,
       project: project?.name || e.projectId,
       client: client?.name || '?',
       area: client?.name || '?',
-      isBillable,
+      isBillable: isHourly(client),
       billed: e.billed,
-    });
-  }
-
-  const slotTotals = {};
-  const slotBillable = {};
-  for (const slot of SLOTS) {
-    slotTotals[slot] = slots[slot].reduce((s, e) => s + e.hours, 0);
-    slotBillable[slot] = slots[slot].reduce((s, e) => s + (e.isBillable ? effBillable(e) : 0), 0);
-  }
-  const total = SLOTS.reduce((s, slot) => s + slotTotals[slot], 0);
-  const totalBillable = SLOTS.reduce((s, slot) => s + slotBillable[slot], 0);
+    };
+  });
 
   return {
-    date, slots, slotTotals, slotBillable,
-    amTotal: slotTotals.am, pmTotal: slotTotals.pm, seraTotal: slotTotals.sera, total,
-    amBillable: slotBillable.am, pmBillable: slotBillable.pm, seraBillable: slotBillable.sera, totalBillable,
+    date,
+    entries,
+    total: entries.reduce((s, e) => s + e.hours, 0),
+    totalBillable: entries.reduce((s, e) => s + (e.isBillable ? effBillable(e) : 0), 0),
   };
 }
 

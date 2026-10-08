@@ -6,7 +6,7 @@
 
 Timebox is a local-first desktop app for personal capacity planning. It is macOS-first in daily use, with packaging scripts and platform-aware local tooling for Windows and Linux where Electron supports the workflow. It combines a weekly timeblocking board, per-project time tracking, optional billable-hour review for client work, budget and capacity alerts, Todoist task sync, a local HTTP API, a standalone CLI, and an MCP server for coding agents.
 
-**Stack:** Electron 44 · React 18 · Vite 5 · better-sqlite3 13
+**Stack:** Electron 44 · React 18 · Vite 8 · better-sqlite3 13
 
 ---
 
@@ -100,7 +100,7 @@ The primary screen combines planning and tracking:
 - A weekly grid with AM, PM, and Extra rows.
 - Planned area blocks that fill as hours are logged.
 - Extra blocks for work logged against areas not planned that day.
-- Inline `hh:mm` editing for project entries.
+- Inline hours editing for project entries (`1h 30m`; `1:30` and `90` work as typing shortcuts).
 - A green `€` billed badge and hover toggle for entries in hourly areas, the only ones whose hours are invoiced.
 - Weekly navigation, current-day highlighting, and keyboard shortcuts.
 - A per-area weekly status selector for active, minimal, or closed areas.
@@ -235,6 +235,7 @@ While the app is open, a local API is available at `http://127.0.0.1:37373`.
 | `GET` | `/area-statuses?week=YYYY-MM-DD` | Weekly area statuses for a Monday week key. |
 | `POST` | `/area-statuses` | Save an area status: `{ weekKey, areaId, status }`. Every status is stored explicitly; areas with no row for the week fall back to `clients.defaultStatus`. |
 | `GET` | `/projects?area=&client=&search=&all=1` | Project list with budgets and logged totals. |
+| `GET` | `/entries?from=YYYY-MM-DD&to=&area=&project=` | Single logged entries in a date range (`to` defaults to today), with worked and billable totals by area and by project. |
 | `GET` | `/clients?search=` | Area/client list. |
 | `GET` | `/areas?search=` | Alias for `/clients`. |
 | `GET` | `/status` | Today, week, and alerts (project budget, project weekly limit, area limit). |
@@ -276,6 +277,7 @@ Add that directory to `PATH` if your shell cannot find `timebox` after installat
 | `timebox today [--date YYYY-MM-DD]` | Logged hours for a day. |
 | `timebox week [--offset N]` | Weekly summary. |
 | `timebox projects [--area <name>] [--client <name>] [--all]` | Project list. |
+| `timebox entries --from YYYY-MM-DD [--to YYYY-MM-DD] [--area <name>] [--project <name>]` | Logged entries in a date range. |
 | `timebox areas` | Area list. |
 | `timebox clients` | Alias for areas in older workflows. |
 | `timebox status` | Today, week, and alerts. |
@@ -332,6 +334,7 @@ Exposed tools:
 | `day_mismatches` | Operational mismatches between Timebox planning and imported Todoist tasks. |
 | `week` | Weekly summary. |
 | `projects` | List projects. |
+| `entries` | Single logged entries in a date range, filtered by area and project, with totals by area and by project. |
 | `areas` | List areas. |
 | `status` | Quick status and alerts. |
 | `log_hours` | Log hours on a project. |
@@ -357,8 +360,8 @@ These tools are the MCP-oriented daily layer on top of the weekly board and Todo
 
 | Tool | Input | Output |
 |---|---|---|
-| `today` | `{ date? }` | Logged entries for one day, grouped by AM/PM, with total tracked and billable hours. |
-| `day_summary` | `{ date? }` | Planned capacity, tracked hours, residual capacity, per-slot block source (`template` or `override`), and extra work by area. |
+| `today` | `{ date? }` | Logged entries for one day in a single list, with total tracked and billable hours. |
+| `day_summary` | `{ date? }` | Planned capacity, tracked hours, residual capacity, per-slot block source (`template` or `override`) with the hours of each slot's blocks that tracked work covers, the day's tracked entries, and extra work by area. |
 | `day_free_capacity` | `{ date? }` | Split between capacity still reserved to planned areas and capacity that is truly free after tracked work and imported Todoist tasks. |
 | `day_ready_blocks` | `{ date? }` | AM/PM blocks that still lack enough ready Todoist work, grouped by area and then by Timebox project. |
 | `todoist_imported_tasks` | `{ date? }` | Imported tasks with Todoist project, matched Timebox project, area, slot, due date, estimate, and match status. |
@@ -369,6 +372,7 @@ All `date` inputs use `YYYY-MM-DD` and default to today when omitted.
 ### Output semantics
 
 - `day_summary` reports each slot as `AM [template]` or `PM [override]` to show whether the plan came from the recurring template or from a week-specific override.
+- Slots (AM, PM, Sera) belong to the plan only. Tracked hours are not attributed to the slot stored on the entry: an area's hours for the day are spread over its planned blocks in slot order, and what exceeds the plan is extra. `today` and `GET /today` list the day's entries without a slot.
 - `todoist_imported_tasks` and the Todoist-related sections of `day_free_capacity` / `day_mismatches` work from the cached tasks imported into Timebox for that date, not directly from a live Todoist call.
 - `Residual` means planned capacity minus tracked hours for the day.
 - `Available after tracked + tasks` subtracts both tracked work and imported Todoist estimates from planned capacity.

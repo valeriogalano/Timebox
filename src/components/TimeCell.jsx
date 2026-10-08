@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { toHHMM, parseHHMM } from '../utils';
+import { fmtH, parseHHMM } from '../utils';
 import DivergenceDot from './DivergenceDot';
 
 function focusCell(target) {
@@ -28,6 +28,7 @@ export default function TimeCell({
   const [draft, setDraft] = useState('');
   const [hover, setHover] = useState(false);
   const inputRef = useRef();
+  const cellRef = useRef();
 
   useEffect(() => {
     if (editing && inputRef.current) inputRef.current.select();
@@ -44,7 +45,7 @@ export default function TimeCell({
   function startEdit() {
     if (lockedInBillable) return;
     const base = inBillableView ? (hasEntry ? billable : 0) : hours;
-    setDraft(base > 0 ? toHHMM(base) : '');
+    setDraft(base > 0 ? fmtH(base) : '');
     setEditing(true);
     onEditStart?.();
   }
@@ -76,7 +77,8 @@ export default function TimeCell({
       if (cellIdx >= 0 && cellIdx < colCells.length - 1) focusCell(colCells[cellIdx + 1]);
       return;
     }
-    if (e.key === 'Escape') { setEditing(false); onEditEnd?.(); }
+    // Annullando, il focus torna alla cella: senza, Tab ripartirebbe dall'inizio della pagina.
+    if (e.key === 'Escape') { setEditing(false); onEditEnd?.(); cellRef.current?.focus(); }
     if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();
       commit();
@@ -115,7 +117,7 @@ export default function TimeCell({
       e.preventDefault();
       const current = parseHHMM(draft);
       const next = Math.max(0, current + (e.key === 'ArrowUp' ? 0.25 : -0.25));
-      setDraft(next > 0 ? toHHMM(next) : '');
+      setDraft(next > 0 ? fmtH(next) : '');
     }
   }
 
@@ -126,7 +128,16 @@ export default function TimeCell({
 
   return (
     <div
+      ref={cellRef}
       data-timecell
+      // In modifica il controllo è il campo: la cella esce dal giro di Tab e non è più un pulsante.
+      role={editing ? undefined : 'button'}
+      tabIndex={lockedInBillable || editing ? -1 : 0}
+      aria-label={editing ? undefined : `Ore: ${hasEntry ? fmtH(displayValue) : 'nessuna'}. Invio per modificare`}
+      onKeyDown={e => {
+        // Solo sulla cella: i tasti premuti nel campo arrivano qui per bubbling.
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); startEdit(); }
+      }}
       data-col={colIndex}
       data-project={projectId}
       data-today={isToday ? 'true' : undefined}
@@ -151,7 +162,7 @@ export default function TimeCell({
           onChange={e => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={onKeyDown}
-          placeholder="hh:mm"
+          placeholder="1h 30m"
           style={{
             width: '100%', height: '100%', textAlign: 'center', border: 'none', outline: 'none',
             fontFamily: "'Open Sans', sans-serif", fontSize: 13, fontWeight: 700,
@@ -166,7 +177,7 @@ export default function TimeCell({
             </span>
           ) : (
             <span style={{ fontSize: 13, fontWeight: 800, color: clientColor, letterSpacing: '-0.01em' }}>
-              {toHHMM(displayValue)}
+              {fmtH(displayValue)}
             </span>
           )}
           {isBillable && billed && (
@@ -181,14 +192,14 @@ export default function TimeCell({
           fontSize: 12, color: hover ? 'var(--tb-text-faint)' : 'transparent',
           fontWeight: 600, transition: 'color 0.1s', letterSpacing: '0.02em',
         }}>
-          hh:mm
+          ore
         </span>
       )}
       {!editing && divergent && (
         <DivergenceDot
           tooltip={inBillableView
-            ? `Tracciate: ${toHHMM(hours)}`
-            : `Fatturabili: ${toHHMM(billable)}`}
+            ? `Tracciate: ${fmtH(hours)}`
+            : `Fatturabili: ${fmtH(billable)}`}
         />
       )}
       {!editing && hover && divergent && inBillableView && (
@@ -202,7 +213,7 @@ export default function TimeCell({
             color: 'var(--tb-text-muted)', cursor: 'pointer', fontWeight: 700,
             fontFamily: "'Open Sans', sans-serif", lineHeight: 1.5,
           }}>
-          = {toHHMM(hours)}
+          = {fmtH(hours)}
         </button>
       )}
     </div>
