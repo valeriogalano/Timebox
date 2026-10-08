@@ -6,16 +6,16 @@ The product framing is capacity-first. Billing is a supporting workflow for bill
 
 This is also a vibe coding project: development is iterative and AI-assisted. Keep changes grounded in the existing code, verify behavior, and avoid broad rewrites unless the task explicitly calls for them.
 
-Stack: **Electron 31 + React 18 + Vite 8 + better-sqlite3 12**.
+Stack: **Electron 44 + React 18 + Vite 8 + better-sqlite3 13**.
 
 ---
 
 ## Install and Run
 
 ```bash
-# First install. Node 25 has no better-sqlite3 prebuilds.
+# First install.
 npm install --ignore-scripts
-npm run rebuild          # compile better-sqlite3 for Electron 31 headers
+npm run rebuild          # compile better-sqlite3 for Electron 44 headers
 
 # Development
 npm start                # Vite dev server on 5173 + Electron
@@ -57,7 +57,7 @@ Never delete anything under `node_modules` to "clean" a failed native build:
 `npm rebuild` only rebuilds what is installed, so a removed `better-sqlite3` needs
 `npm install --ignore-scripts` again.
 
-Why `--ignore-scripts`: Node 25 is too recent for current `better-sqlite3` prebuilds. `npm run rebuild` uses `electron-rebuild` to download Electron 31 headers and compile the native module correctly. Do not remove this step.
+`better-sqlite3` 13 is an N-API addon, so a binary is no longer tied to one runtime's ABI: the build made by `npm run rebuild` for Electron also loads in plain Node, and the test suites pass on it. Prebuilt binaries ship inside the package under `prebuilds/`. The steps above are the same as with version 12, where they were required because each runtime needed its own ABI. They still work, compiling the addon from source into `build/Release`, which is loaded in preference to `prebuilds/`, and CI runs them. Electron 44 needs at least `better-sqlite3` 13: version 12 does not compile against its headers.
 
 After `npm test`, run `npm run rebuild` again before launching Electron, because the test script rebuilds `better-sqlite3` for Node.js.
 
@@ -524,6 +524,6 @@ Do this only for the logic the change actually touches. A feature is not a licen
 - `billableHours` is optional. `null` means billable time equals tracked time for billable areas.
 - Only areas with `billing === 'hourly'` bill hours. The € badge, the billable-hours override and the billed state apply there only; a `fixed` area has a fee but no hours to invoice. Use `isHourly(client)` (`src/utils.js`, twin in `lib/domain.js`) instead of testing `billing !== 'none'`. Outside hourly areas those fields are hidden, never erased: saving an entry keeps the stored `billableHours` and `billed` (`billingOnSave` in `src/utils.js`), so they come back intact if the area becomes hourly again and an already-billed entry does not reappear as unbilled.
 - The standalone CLI and MCP server require the app to be open.
-- The developer CLI in `cli/index.js` uses `better-sqlite3` directly and can hit ABI mismatch after `npm run rebuild`.
+- The developer CLI in `cli/index.js` uses `better-sqlite3` directly. With version 12 it could hit an ABI mismatch after `npm run rebuild`; the N-API build of version 13 loads in both runtimes.
 - `crypto.randomUUID()` is available in Electron and modern Node; do not add `uuid`.
 - The Vite config is `vite.config.mjs`, not `.js`: `package.json` has no `"type": "module"` because the main process is CommonJS, and Vite 8 warns when an ESM config is loaded as CommonJS.

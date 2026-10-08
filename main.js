@@ -230,8 +230,9 @@ function attachWindowLogging(win) {
     logger.error('render-process-gone', details);
   });
 
-  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
-    logger.info('renderer-console', { level, message, line, sourceId });
+  // Dalla 35 i dettagli stanno sull'evento; gli argomenti posizionali sono deprecati.
+  win.webContents.on('console-message', ({ level, message, lineNumber, sourceId }) => {
+    logger.info('renderer-console', { level, message, line: lineNumber, sourceId });
   });
 
   win.webContents.on('unresponsive', () => {
