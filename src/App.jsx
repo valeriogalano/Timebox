@@ -337,7 +337,7 @@ export default function App() {
               </div>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-sidebar-text)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>Timebox</div>
-                <div style={{ fontSize: 9, color: ACCENT, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Capacity</div>
+                <div style={{ fontSize: 11, color: ACCENT, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Capacity</div>
               </div>
             </div>
           )}
@@ -594,11 +594,11 @@ function KeyboardHelp({ onClose }) {
             ))}
           </tbody>
         </table>
-        <div style={{ padding: '10px 20px 0', fontSize: 10, color: 'var(--tb-text-muted)' }}>
+        <div style={{ padding: '10px 20px 0', fontSize: 11, color: 'var(--tb-text-muted)' }}>
           Le scorciatoie non sono attive mentre un campo di testo è in focus.
         </div>
         <div style={{
-          padding: '12px 20px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.06em',
+          padding: '12px 20px 8px', fontSize: 11, fontWeight: 800, letterSpacing: '0.06em',
           textTransform: 'uppercase', color: 'var(--tb-text-muted)',
         }}>
           Glifi
@@ -643,12 +643,12 @@ function SidebarFooter({ clients, refreshKey, collapsed, onStatusChange }) {
 
   return (
     <div style={{ padding: '14px 20px', borderTop: '1px solid var(--tb-sidebar-border)' }}>
-      <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
         color: 'var(--tb-sidebar-label)', marginBottom: 8 }}>
-        Stato aree · settimana
+        Aree · settimana
       </div>
       <AreaStatusPanel clients={clientsWithStatus} statuses={statuses} onChange={setAreaStatus} compact />
-      <div style={{ marginTop: 10, fontSize: 9, color: 'var(--tb-sidebar-faint)', letterSpacing: '0.05em' }}>
+      <div style={{ marginTop: 10, fontSize: 11, color: 'var(--tb-sidebar-faint)', letterSpacing: '0.05em' }}>
         v{__APP_VERSION__}
       </div>
     </div>

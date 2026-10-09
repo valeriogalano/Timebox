@@ -46,7 +46,7 @@ export default function SlotCapacityBar({
       )}
       <span style={{
         flexShrink: 0,
-        fontSize: compact ? 7 : 8,
+        fontSize: 11,
         lineHeight: 1,
         fontWeight: 800,
         color: empty ? 'var(--tb-text-faint)' : 'var(--tb-text-primary)',

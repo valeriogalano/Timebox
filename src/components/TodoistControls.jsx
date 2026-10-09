@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { areaText } from '../area-colors';
 import { parseHHMM, fmtH } from '../utils';
 import MarkdownText from './MarkdownText';
 
@@ -10,7 +11,7 @@ export function TodoistControlBar({ children }) {
     }}>
       <span style={{
         display: 'flex', alignItems: 'center', padding: '0 10px',
-        fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
+        fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
         color: 'var(--tb-text-faint)',
       }}>Todoist</span>
       {children}
@@ -35,7 +36,7 @@ export function TodoistSyncButton({ onRefresh, lastSyncLabel, title }) {
       title={title}
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
-        fontSize: 10, fontWeight: 700, padding: '0 10px', height: 28,
+        fontSize: 11, fontWeight: 700, padding: '0 10px', height: 28,
         background: 'transparent', border: 'none', borderLeft: '1px solid var(--tb-border)',
         color: 'var(--tb-text-secondary)',
         cursor: busy ? 'wait' : 'pointer', fontFamily: "'Open Sans', sans-serif",
@@ -92,7 +93,7 @@ export function TodoistImportButton({ dates, projects, onOpen }) {
       title="Importa nel timesheet i task Todoist completati e non ancora importati"
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
-        fontSize: 10, fontWeight: 700, padding: '0 10px', height: 28,
+        fontSize: 11, fontWeight: 700, padding: '0 10px', height: 28,
         background: 'transparent', border: 'none', borderLeft: '1px solid var(--tb-border)',
         color: 'var(--tb-text-secondary)',
         cursor: busy ? 'wait' : 'pointer', fontFamily: "'Open Sans', sans-serif",
@@ -242,7 +243,7 @@ export function TodoistImportDialog({ dialog, clients, projects, onClose, onImpo
         }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)' }}>Importa completati Todoist</div>
-            <div style={{ marginTop: 2, fontSize: 10, color: 'var(--tb-text-muted)' }}>
+            <div style={{ marginTop: 2, fontSize: 11, color: 'var(--tb-text-muted)' }}>
               Le righe senza tempo resteranno disponibili al prossimo import.
             </div>
           </div>
@@ -262,10 +263,10 @@ export function TodoistImportDialog({ dialog, clients, projects, onClose, onImpo
           {groups.map(group => (
             <section key={group.key} style={{ padding: '10px 0', borderBottom: '1px solid var(--tb-border-soft)' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
-                <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-faint)' }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-faint)' }}>
                   {new Date(`${group.date}T00:00:00`).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
                 </span>
-                <span style={{ fontSize: 11, fontWeight: 800, color: group.client?.color ?? 'var(--tb-text-primary)' }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: group.client ? areaText(group.client.color) : 'var(--tb-text-primary)' }}>
                   {group.project?.name ?? 'Progetto non disponibile'}
                 </span>
               </div>
@@ -305,7 +306,7 @@ export function TodoistImportDialog({ dialog, clients, projects, onClose, onImpo
           padding: '12px 16px', borderTop: '1px solid var(--tb-border)',
           background: 'var(--tb-panel-bg-soft)',
         }}>
-          <span style={{ fontSize: 10, color: 'var(--tb-text-muted)' }}>
+          <span style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
             ↑/↓ 15 min · Tab cambia campo · ⌘↵ importa
           </span>
           <button

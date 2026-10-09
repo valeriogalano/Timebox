@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { areaText } from '../area-colors';
 import { fmtH, parseHHMM } from '../utils';
 import DivergenceDot from './DivergenceDot';
 
@@ -166,7 +167,7 @@ export default function TimeCell({
           style={{
             width: '100%', height: '100%', textAlign: 'center', border: 'none', outline: 'none',
             fontFamily: "'Open Sans', sans-serif", fontSize: 13, fontWeight: 700,
-            color: clientColor, background: 'transparent', padding: '0 4px',
+            color: areaText(clientColor), background: 'transparent', padding: '0 4px',
           }}
         />
       ) : lockedInBillable ? null : hasEntry ? (
@@ -176,12 +177,12 @@ export default function TimeCell({
               —
             </span>
           ) : (
-            <span style={{ fontSize: 13, fontWeight: 800, color: clientColor, letterSpacing: '-0.01em' }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: areaText(clientColor), letterSpacing: '-0.01em' }}>
               {fmtH(displayValue)}
             </span>
           )}
           {isBillable && billed && (
-            <span title="Fatturato" style={{ fontSize: 8, fontWeight: 800, color: 'var(--tb-text-secondary)',
+            <span title="Fatturato" style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-secondary)',
               border: '1px solid var(--tb-border-mid)', padding: '0 3px', borderRadius: 2, lineHeight: 1.5 }}>
               €
             </span>
@@ -209,7 +210,7 @@ export default function TimeCell({
           style={{
             position: 'absolute', bottom: 2, left: 2,
             background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border)',
-            fontSize: 9, padding: '0 4px', borderRadius: 3,
+            fontSize: 11, padding: '0 4px', borderRadius: 3,
             color: 'var(--tb-text-muted)', cursor: 'pointer', fontWeight: 700,
             fontFamily: "'Open Sans', sans-serif", lineHeight: 1.5,
           }}>

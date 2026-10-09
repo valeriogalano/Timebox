@@ -14,7 +14,7 @@ export default function TodoistLabels({ labels, compact = false }) {
         <span
           key={label}
           style={{
-            fontSize: compact ? 9 : 10,
+            fontSize: 11,
             fontWeight: 700,
             lineHeight: 1.2,
             color: 'var(--tb-text-secondary)',

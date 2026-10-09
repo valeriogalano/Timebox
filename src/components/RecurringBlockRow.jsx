@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { areaMix } from '../area-colors';
+import { areaMix, areaText } from '../area-colors';
 import { fmtH, parseHHMM } from '../utils';
 import { AREA_STATUS_OPTIONS } from '../screens/WeeklyView';
 import AreaStatusGlyph from './AreaStatusGlyph';
@@ -104,17 +104,21 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
         overflow: 'hidden',
       }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, paddingRight: 4 }}>
+        <span style={{ display: 'flex', alignItems: 'flex-start', gap: 4, flex: 1, minWidth: 0, paddingRight: 4 }}>
           <span style={{
-            fontSize: 10, fontWeight: 700, color: client.color,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            fontSize: 11, fontWeight: 700, color: areaText(client.color), lineHeight: 1.2,
+            overflow: 'hidden',
+            // Da un'ora in su il nome va a capo invece di troncarsi (come in PlanningCell).
+            ...(blockH >= 60
+              ? { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflowWrap: 'break-word' }
+              : { textOverflow: 'ellipsis', whiteSpace: 'nowrap' }),
           }} title={client.name}>
             {client.name}
           </span>
           {client.areaStatus && (() => {
             const opt = AREA_STATUS_OPTIONS.find(o => o.key === client.areaStatus);
             return opt && (
-              <span title={opt.title}>
+              <span title={opt.title} style={{ flexShrink: 0, marginTop: 2 }}>
                 <AreaStatusGlyph status={client.areaStatus} size={9} color="var(--tb-state-glyph)" />
               </span>
             );
@@ -129,12 +133,12 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
               onClick={e => e.stopPropagation()}
               style={{
                 width: 38, padding: '1px 3px', borderRadius: 3, border: `1px solid ${client.color}`,
-                fontSize: 10, fontWeight: 800, color: client.color, textAlign: 'right',
+                fontSize: 11, fontWeight: 800, color: areaText(client.color), textAlign: 'right',
                 fontFamily: "'Open Sans', sans-serif", outline: 'none', background: 'var(--tb-input-bg)',
               }} />
           ) : (
             <span onClick={startEdit} style={{
-              fontSize: 9, color: client.color, cursor: 'text',
+              fontSize: 11, color: areaText(client.color), cursor: 'text',
               borderBottom: `1px dashed ${areaMix(client.color, 27)}`,
             }}>
               {fmtH(displayHours)}

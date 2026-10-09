@@ -76,6 +76,24 @@ describe('PlanningCell: blocchi', () => {
     expect(getByText('Seconda')).toBeInTheDocument();
   });
 
+  test('un blocco basso mostra solo le ore lavorate: il pianificato resta nel titolo', () => {
+    const { getByText, getByTitle, queryByText } = render(
+      <PlanningCell slot="am" dayIndex={0} blocks={[{ id: 'b1', clientId: 'c1', hours: 0.5 }]}
+        clients={clients} projects={projects} blockFill={{ b1: { logged: 0.25, hasExtra: false } }} />
+    );
+    expect(getByText('0h 15m')).toBeInTheDocument();
+    expect(queryByText('0h 30m')).not.toBeInTheDocument();
+    expect(getByTitle('0h 15m lavorate su 0h 30m pianificate')).toBeInTheDocument();
+  });
+
+  test('un blocco basso senza ore mostra il pianificato', () => {
+    const { getByText } = render(
+      <PlanningCell slot="am" dayIndex={0} editable blocks={[{ id: 'b1', clientId: 'c1', hours: 0.5 }]}
+        clients={clients} projects={projects} />
+    );
+    expect(getByText('0h 30m')).toBeInTheDocument();
+  });
+
   test('la durata si modifica in linea: Invio salva, Esc annulla, zero non salva', () => {
     const updates = [];
     const { getByTitle, getByDisplayValue, queryByDisplayValue } = render(

@@ -131,7 +131,7 @@ export default function MultiSlotCell({
             style={{
               width: '100%', padding: '4px 0', borderRadius: 4,
               border: '1px dashed var(--tb-border-mid)', background: 'transparent',
-              color: 'var(--tb-text-faint)', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+              color: 'var(--tb-text-faint)', fontSize: 11, fontWeight: 700, cursor: 'pointer',
               fontFamily: "'Open Sans', sans-serif",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
             }}>

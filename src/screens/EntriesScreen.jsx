@@ -317,7 +317,7 @@ const selectStyle = {
 };
 
 const thStyle = {
-  padding: '8px 12px', textAlign: 'left', fontSize: 10,
+  padding: '8px 12px', textAlign: 'left', fontSize: 11,
   fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
   color: 'var(--tb-text-muted)',
 };

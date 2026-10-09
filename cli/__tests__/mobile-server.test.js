@@ -53,7 +53,7 @@ describe('listener della pagina mobile', () => {
   after(() => new Promise(resolve => server.close(resolve)));
 
   it('serve i file della pagina senza token, con le intestazioni di sicurezza', async () => {
-    for (const [route, type] of [['/', 'text/html'], ['/app.js', 'text/javascript'], ['/app.css', 'text/css'], ['/manifest.webmanifest', 'application/manifest+json']]) {
+    for (const [route, type] of [['/', 'text/html'], ['/app.js', 'text/javascript'], ['/app.css', 'text/css'], ['/manifest.webmanifest', 'application/manifest+json'], ['/apple-touch-icon.png', 'image/png']]) {
       const res = await call(port, 'GET', route, { token: null });
       assert.equal(res.status, 200, route);
       assert.ok(res.headers['content-type'].startsWith(type), route);

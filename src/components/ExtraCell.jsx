@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { fmtH, SLOT_LABELS, normalizeSlot } from '../utils';
-import { areaMix } from '../area-colors';
+import { areaMix, areaText } from '../area-colors';
 import TodoistTaskTooltip from './TodoistTaskTooltip';
 
 function OrphanBlock({ orphan, cl, isToday, isFuture, compact }) {
@@ -25,14 +25,14 @@ function OrphanBlock({ orphan, cl, isToday, isFuture, compact }) {
         <TodoistTaskTooltip anchorRef={blockRef} tasks={orphan.tasks} color={cl.color} />
       )}
       <span style={{
-        fontSize: compact ? 9 : 10, fontWeight: 700, color: cl.color, flex: 1, opacity: 0.85,
+        fontSize: 11, fontWeight: 700, color: areaText(cl.color), flex: 1, opacity: 0.85,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>{cl.name}</span>
       <span style={{
-        fontSize: compact ? 8 : 9, fontWeight: 700, color: cl.color, opacity: 0.7, flexShrink: 0,
+        fontSize: 11, fontWeight: 700, color: areaText(cl.color), opacity: 0.7, flexShrink: 0,
         textTransform: 'uppercase', letterSpacing: '0.06em',
       }}>{SLOT_LABELS[normalizeSlot(orphan.slot)]}</span>
-      <span style={{ fontSize: compact ? 10 : 11, fontWeight: 800, color: cl.color, flexShrink: 0 }}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: areaText(cl.color), flexShrink: 0 }}>
         {fmtH(orphan.hours)}
       </span>
     </div>
@@ -49,7 +49,7 @@ export default function ExtraCell({ blocks, orphanTodoist, clients, isToday, isF
         border: `1px dashed var(--tb-border)`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <span style={{ fontSize: compact ? 9 : 10, color: 'var(--tb-border-mid)' }}>—</span>
+        <span style={{ fontSize: 11, color: 'var(--tb-border-mid)' }}>—</span>
       </div>
     );
   }
@@ -72,12 +72,12 @@ export default function ExtraCell({ blocks, orphanTodoist, clients, isToday, isF
             borderRadius: 4, padding: compact ? '2px 6px' : '3px 7px',
           }}>
             <span style={{
-              fontSize: compact ? 9 : 10, fontWeight: 700, color: cl.color, flex: 1,
+              fontSize: 11, fontWeight: 700, color: areaText(cl.color), flex: 1,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {cl.name}
             </span>
-            <span style={{ fontSize: compact ? 10 : 11, fontWeight: 800, color: cl.color, flexShrink: 0 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: areaText(cl.color), flexShrink: 0 }}>
               {fmtH(hours)}
             </span>
           </div>

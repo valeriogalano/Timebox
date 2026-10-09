@@ -581,12 +581,20 @@ function AreaConsuntivo({ clients, stats }) {
   const hasLimit = rows.some(r => r.c.limitType === 'weekly' && r.c.limitHours > 0);
   const COLS = `40px minmax(0,1fr)${' 64px'.repeat(4 + (proj ? 1 : 0) + (hasLimit ? 1 : 0))}`;
   const numCell = { fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', textAlign: 'right' };
-  const headCell = { fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' };
+  const headCell = { fontSize: 11, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' };
   const topCell = { borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 };
   return (
     <div>
       <SectionHeader title="Per area · consuntivo" subtitle="pianificato · tracciato · extra"
         help={'Per ogni area, nella settimana selezionata.\n\nPiano = ore pianificate\nFatto = ore tracciate\nExtra = ore fatte oltre il piano, max(0, fatto − piano)\nΔ = fatto − piano\nLimite = tetto settimanale dell\'area, con ⚠ se superato (compare solo se qualche area ne ha uno)\n\nIl glifo a sinistra è il verdetto: sotto mezz\'ora (o 10% del piano) di scarto si resta "in linea"; oltre, un glifo ▴/▾, e due glifi quando lo scarto supera 2h (o il 30% del piano).\n\nSulla settimana in corso compare anche Previsto = consuntivo fino a oggi + ore pianificate dei giorni restanti (proiezione "a piano").'} />
+      {/* Legenda del verdetto: i glifi sostituiscono il colore, senza questa riga vanno indovinati. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 14px', marginBottom: 8, fontSize: 11, color: 'var(--tb-text-muted)' }}>
+        {[['▾', 'sotto il piano'], ['▪', 'in linea'], ['▴', 'sopra il piano'], ['▾▾', 'scarto marcato (oltre 2h o il 30%)']].map(([glyph, label]) => (
+          <span key={glyph} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <Glyph glyph={glyph} size={10} className="tb-glyph" />{label}
+          </span>
+        ))}
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: '2px 12px', alignItems: 'center' }}>
         <span />
         <span />
@@ -662,7 +670,7 @@ function DaDecidereInsights({ perAreaWeekly }) {
             <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {it.area}
             </div>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--tb-text-secondary)', marginTop: 2, marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--tb-text-secondary)', marginTop: 2, marginBottom: 8 }}>
               {it.label}
             </div>
 
@@ -774,7 +782,7 @@ function ProspettivaLens({ rows }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 9, height: 9, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
               <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{r.name}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 {r.kind}{r.subtitle ? ` · ${r.subtitle}` : ''}
               </span>
               <span style={{ flex: 1 }} />
@@ -852,7 +860,7 @@ function AreaSparkCard({ client, planned, weeks }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>
         <span>{fmtH(lastWeek.done)} <span style={{ color: 'var(--tb-text-faint)', fontWeight: 600 }}>/ {fmtH(planned)}</span></span>
         <span>{verdict.label}</span>
       </div>
@@ -884,7 +892,7 @@ function LimitCard({ title, subtitle, color, limit, usage }) {
     ? [{ label: 'fatt.', hours: usage.billable }, { label: 'lavorate', hours: usage.worked }]
     : [{ label: null, hours: usage.worked }];
   const sep = <span style={{ margin: '0 6px', color: 'var(--tb-text-faint)', fontWeight: 400 }}>·</span>;
-  const small = { fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' };
+  const small = { fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' };
   return (
     <div style={{
       background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
@@ -894,10 +902,10 @@ function LimitCard({ title, subtitle, color, limit, usage }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)' }}>{title}</span>
-          {subtitle && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}>· {subtitle}</span>}
-          <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>·</span>
-          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em' }}>{Math.round(pct * 100)}%</span>
-          {pct > 1 && <span style={{ fontSize: 10, color: COL_OVER }} title={`Superato${kindNote(usage)}`}>⚠</span>}
+          {subtitle && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>· {subtitle}</span>}
+          <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>·</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em' }}>{Math.round(pct * 100)}%</span>
+          {pct > 1 && <span style={{ fontSize: 11, color: COL_OVER }} title={`Superato${kindNote(usage)}`}>⚠</span>}
         </div>
         <div style={{ maxWidth: '55%' }}>
           <Bar value={usage.worst} max={Math.max(limit, usage.worst)} color={color} />
@@ -946,7 +954,7 @@ function CardLabel({ children, inline, help }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 6,
-      fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase',
+      fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase',
       color: 'var(--tb-text-muted)', marginBottom: inline ? 0 : 8,
     }}>
       <span>{children}</span>
@@ -1033,7 +1041,7 @@ function AreaStatusDot({ client, done, planned, limit }) {
 
 function Legend() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
       <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <span style={{ width: 10, height: 8, borderRadius: 2, background: 'var(--tb-text-faint)', opacity: 0.4, display: 'inline-block' }} />
         Pianificato
@@ -1059,7 +1067,7 @@ function SectionHeader({ title, subtitle, inline, help }) {
         <h3 style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.01em', margin: 0 }}>{title}</h3>
         {help && <HelpDot text={help} />}
       </span>
-      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{subtitle}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{subtitle}</span>
     </div>
   );
 }
@@ -1082,7 +1090,7 @@ function ProjRow({ label, value, capacity, hint }) {
       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.02em' }}>{label}</span>
       <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
         <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(value)}</span>
-        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
           <Glyph glyph={delta >= 0 ? '▴' : '▾'} size={10} className="tb-glyph" />
           {delta >= 0 ? '+' : ''}{fmtH(delta)}
         </span>
@@ -1102,7 +1110,7 @@ function TrendChart({ data, capacity, mode }) {
       <div style={{
         position: 'absolute', left: 0, top: 0, bottom: 24, width: 30,
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        fontSize: 9, color: 'var(--tb-text-muted)', fontWeight: 700, textAlign: 'right', paddingRight: 6,
+        fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 700, textAlign: 'right', paddingRight: 6,
       }}>
         <span>{Math.round(maxVal)}h</span>
         <span>{Math.round(maxVal / 2)}h</span>
@@ -1121,7 +1129,7 @@ function TrendChart({ data, capacity, mode }) {
             borderTop: '2px dashed var(--tb-tick)', zIndex: 2,
           }}>
             <span style={{
-              position: 'absolute', right: -2, top: -16, fontSize: 9, fontWeight: 800,
+              position: 'absolute', right: -2, top: -16, fontSize: 11, fontWeight: 800,
               color: 'var(--tb-text-secondary)', background: 'var(--tb-panel-bg)', padding: '1px 4px', borderRadius: 3,
             }}>Capacità {Math.round(capLine)}h</span>
           </div>
@@ -1149,7 +1157,7 @@ function TrendChart({ data, capacity, mode }) {
                   {t.current && t.done > 0 && (
                     <div style={{
                       position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: -16,
-                      whiteSpace: 'nowrap', fontSize: 9, fontWeight: 800, color: 'var(--tb-text-primary)',
+                      whiteSpace: 'nowrap', fontSize: 11, fontWeight: 800, color: 'var(--tb-text-primary)',
                     }}>{fmtH(t.done)}</div>
                   )}
                 </div>
@@ -1161,7 +1169,7 @@ function TrendChart({ data, capacity, mode }) {
       <div style={{ marginLeft: 36, marginTop: 6, display: 'flex', justifyContent: 'space-around' }}>
         {data.map((t, i) => (
           <div key={i} style={{
-            flex: 1, textAlign: 'center', fontSize: 10, fontWeight: t.current ? 800 : 600,
+            flex: 1, textAlign: 'center', fontSize: 11, fontWeight: t.current ? 800 : 600,
             color: t.current ? 'var(--tb-text-primary)' : 'var(--tb-text-muted)',
           }}>{t.label}</div>
         ))}

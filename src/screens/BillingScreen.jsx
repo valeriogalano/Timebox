@@ -289,7 +289,7 @@ export default function BillingScreen({ clients, projects, screen }) {
                             border: `1px solid ${entry.billed ? 'var(--tb-text-primary)' : 'var(--tb-border-mid)'}`,
                             background: entry.billed ? 'var(--tb-text-primary)' : 'transparent',
                             color: entry.billed ? 'var(--tb-panel-bg)' : 'var(--tb-text-faint)',
-                            fontSize: 10, fontWeight: 800, cursor: 'pointer',
+                            fontSize: 11, fontWeight: 800, cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontFamily: "'Open Sans', sans-serif", flexShrink: 0,
                             transition: 'all 0.15s',
@@ -314,7 +314,7 @@ export default function BillingScreen({ clients, projects, screen }) {
 
       {fixedTotals.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 14, fontSize: 11, color: 'var(--tb-text-secondary)', padding: '0 4px' }}>
-          <span style={{ fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase', fontSize: 10 }}>
+          <span style={{ fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase', fontSize: 11 }}>
             Aree a corpo · ore lavorate nel periodo
           </span>
           {fixedTotals.map(t => (
@@ -332,7 +332,7 @@ export default function BillingScreen({ clients, projects, screen }) {
 function BulkBtn({ onClick, children, small, muted }) {
   return (
     <button onClick={onClick} style={{
-      fontSize: 10, fontWeight: 700, cursor: 'pointer',
+      fontSize: 11, fontWeight: 700, cursor: 'pointer',
       padding: small ? '2px 7px' : '3px 8px',
       borderRadius: 4, fontFamily: "'Open Sans', sans-serif",
       border: `1px solid ${muted ? 'var(--tb-border-mid)' : 'var(--tb-text-primary)'}`,
@@ -354,7 +354,7 @@ function Card({ children }) {
 function CardLabel({ children }) {
   return (
     <div style={{
-      fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase',
+      fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase',
       color: 'var(--tb-text-muted)', marginBottom: 8,
     }}>{children}</div>
   );
@@ -390,7 +390,7 @@ function NavBtn({ onClick, children, small }) {
     <button onClick={onClick} style={{
       background: 'var(--tb-navbtn-bg)', border: '1px solid var(--tb-navbtn-border)', borderRadius: 5,
       padding: small ? '3px 9px' : '3px 8px', cursor: 'pointer',
-      fontSize: small ? 10 : 14, fontWeight: 700, color: 'var(--tb-navbtn-text)',
+      fontSize: small ? 11 : 14, fontWeight: 700, color: 'var(--tb-navbtn-text)',
       fontFamily: "'Open Sans', sans-serif", lineHeight: 1.4,
     }}>
       {children}

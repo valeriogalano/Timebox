@@ -153,9 +153,9 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
             <span className="tb-delta">Δ</span>
             <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)' }}>Override ripetuti</span>
             {divergences.length > 0 && (
-              <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-secondary)', background: 'var(--tb-panel-bg-subtle)', borderRadius: 8, padding: '1px 7px' }}>{divergences.length}</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-secondary)', background: 'var(--tb-panel-bg-subtle)', borderRadius: 8, padding: '1px 7px' }}>{divergences.length}</span>
             )}
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}>slot che correggi a mano di continuo — il template non riflette come lavori</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>slot che correggi a mano di continuo — il template non riflette come lavori</span>
           </span>
         </summary>
         <div style={{ padding: '0 14px 12px' }}>
@@ -168,12 +168,12 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
             {(() => {
               const DIVERGENCE_COLUMNS = '14px minmax(150px, 1fr) 64px 80px 60px 48px 188px';
               const buttonBase = {
-                fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5,
+                fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 5,
                 border: '1px solid var(--tb-border)', cursor: 'pointer',
                 fontFamily: "'Open Sans', sans-serif",
               };
               const th = (label, align = 'right') => ({
-                textAlign: align, fontSize: 9, fontWeight: 800, letterSpacing: '0.08em',
+                textAlign: align, fontSize: 11, fontWeight: 800, letterSpacing: '0.08em',
                 textTransform: 'uppercase', color: 'var(--tb-text-faint)', paddingBottom: 4,
               });
               return (
@@ -198,7 +198,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
                     return (
                       <React.Fragment key={key}>
                         {showDayHeader && (
-                          <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginTop: idx === 0 ? 2 : 6, marginBottom: 2 }}>
+                          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginTop: idx === 0 ? 2 : 6, marginBottom: 2 }}>
                             {DAY_SHORT[item.day]}
                           </div>
                         )}
@@ -230,15 +230,15 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
       </details>
 
       <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', overflow: 'hidden', marginBottom: 16 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: `80px repeat(${RECURRING_DAYS}, 1fr)` }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `124px repeat(${RECURRING_DAYS}, 1fr)` }}>
 
           {/* Header */}
           <div style={{ background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)', padding: '10px 14px',
-            fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }} />
+            fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }} />
           {DAY_SHORT.map((d, i) => (
             <div key={i} style={{ background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)',
               borderLeft: '1px solid var(--tb-border-soft)', padding: '10px 8px', textAlign: 'center' }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-muted)' }}>{d}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-muted)' }}>{d}</div>
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-primary)', marginTop: 2 }}>{fmtH(totalPerDay[i])}</div>
             </div>
           ))}
@@ -250,7 +250,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
             return (
               <React.Fragment key={slot}>
                 <div style={{ padding: '14px 14px 12px', display: 'flex', alignItems: 'flex-start', ...rowBottom }}>
-                  <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', paddingTop: 4 }}>{SLOT_ROW_LABELS[slot]}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', paddingTop: 4 }}>{SLOT_ROW_LABELS[slot]}</div>
                 </div>
                 {Array.from({ length: RECURRING_DAYS }, (_, i) => {
                   const blocks = recurring.filter(r => r.day === i && r.slot === slot).sort((a, b) => a.position - b.position);
@@ -286,7 +286,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
       <div style={{ background: 'var(--tb-panel-bg)', borderRadius: 8, border: '1px solid var(--tb-panel-border)', padding: 16,
         display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
             color: 'var(--tb-text-faint)', marginBottom: 2 }}>Totale settimana</div>
           <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{fmtH(weekTotal)}</div>
         </div>

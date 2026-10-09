@@ -53,15 +53,15 @@ export default function TodoistTaskTooltip({ anchorRef, tasks, color }) {
       {tasks.map(t => (
         <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           <MarkdownText text={t.content || '(senza titolo)'} style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 700,
             color: 'var(--tb-text-primary)',
             lineHeight: 1.3,
             wordBreak: 'break-word',
           }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ fontSize: 9, color, fontWeight: 600 }}>{fmtH(t.hours)}</span>
-            <span style={{ fontSize: 9, color: 'var(--tb-text-faint)' }}>{t.projectName}</span>
+            <span style={{ fontSize: 11, color, fontWeight: 600 }}>{fmtH(t.hours)}</span>
+            <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>{t.projectName}</span>
           </div>
           <TodoistLabels labels={t.labels} compact />
         </div>
