@@ -117,7 +117,7 @@ function Divider() {
 
 function SectionLabel({ children }) {
   return (
-    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
+    <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
       color: 'var(--tb-text-muted)', marginBottom: 8 }}>
       {children}
     </div>
@@ -405,7 +405,7 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
                     color: 'var(--tb-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {c.name}
                   </div>
-                  <div style={{ fontSize: 10, color: 'var(--tb-text-faint)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>
                     {c.billing === 'none' || !c.billing
                       ? 'nessun compenso'
                       : `${c.billing === 'hourly' ? 'Compenso a ore' : 'Compenso fisso'} · ${c.limitHours ? `${c.limitHours}h/${c.limitType === 'global' ? 'tot' : 'sett'}` : 'no limite'}`}
@@ -474,7 +474,7 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
                     return (
                       <button key={key} title={title} onClick={() => updateClient('defaultStatus', key)}
                         style={{
-                          flex: 1, padding: '8px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
+                          flex: 1, padding: '8px 4px', borderRadius: 5, fontSize: 11, fontWeight: 700,
                           border: on ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
                           background: on ? sel.color + '15' : 'transparent',
                           color: on ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
@@ -507,7 +507,7 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
                         }
                       }}
                         style={{
-                          flex: 1, padding: '8px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
+                          flex: 1, padding: '8px 4px', borderRadius: 5, fontSize: 11, fontWeight: 700,
                           border: sel.limitType === t ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
                           background: sel.limitType === t ? sel.color + '15' : 'transparent',
                           color: sel.limitType === t ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
@@ -538,7 +538,7 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
                 {BILLING_OPTIONS.map(b => (
                   <button key={b} onClick={() => updateClient('billing', b)}
                     style={{
-                      flex: 1, padding: '8px 4px', borderRadius: 5, fontSize: 10, fontWeight: 700,
+                      flex: 1, padding: '8px 4px', borderRadius: 5, fontSize: 11, fontWeight: 700,
                       border: sel.billing === b ? `2px solid ${sel.color}` : '1px solid var(--tb-border-mid)',
                       background: sel.billing === b ? sel.color + '15' : 'transparent',
                       color: sel.billing === b ? sel.color : 'var(--tb-text-secondary)', cursor: 'pointer',
@@ -690,7 +690,7 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
                           onBlur={() => setMovingProjectId(null)}
                           onMouseDown={e => e.stopPropagation()}
                           style={{
-                            fontSize: 10, color: 'var(--tb-text-faint)',
+                            fontSize: 11, color: 'var(--tb-text-faint)',
                             border: '1px solid var(--tb-border-mid)', borderRadius: 4,
                             background: 'var(--tb-input-bg)', padding: '3px 5px', cursor: 'pointer',
                             fontFamily: "'Open Sans', sans-serif", maxWidth: 90,

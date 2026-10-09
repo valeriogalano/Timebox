@@ -378,7 +378,7 @@ function DayPlanningPanel({
           <TabBtn active={tab === 'piano'} onClick={() => setTab('piano')}>Piano</TabBtn>
           <TabBtn active={tab === 'ore'} onClick={() => setTab('ore')}>Ore</TabBtn>
         </div>
-        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
           {tab === 'piano'
             ? 'trascina tra Mattina, Pomeriggio e Sera · override solo per oggi'
             : 'registra le ore di oggi · una riga per progetto tracciato'}
@@ -395,8 +395,8 @@ function DayPlanningPanel({
                   onDrop={() => handleDrop(slot.key)}
                   style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                    <span style={{ fontSize: 10, fontWeight: 850, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>{slot.label}</span>
-                    {slot.timeLabel && <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', opacity: 0.7 }}>{slot.timeLabel}</span>}
+                    <span style={{ fontSize: 11, fontWeight: 850, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>{slot.label}</span>
+                    {slot.timeLabel && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-faint)', opacity: 0.7 }}>{slot.timeLabel}</span>}
                   </div>
                   <div style={{ outline: isDropTarget ? '2px dashed var(--tb-tick)' : 'none', outlineOffset: 2, borderRadius: 8 }}>
                     {loading ? (
@@ -425,7 +425,7 @@ function DayPlanningPanel({
           </div>
           {!loading && (planning.extraBlocks.length > 0 || planning.orphanTodoist.length > 0) && (
             <div style={{ padding: '0 12px 12px' }}>
-              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase', marginBottom: 5 }}>Extra / fuori piano</div>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase', marginBottom: 5 }}>Extra / fuori piano</div>
               <ExtraCell blocks={planning.extraBlocks} orphanTodoist={planning.orphanTodoist} clients={clients} isToday={isToday} isFuture={isFuture} />
             </div>
           )}
@@ -517,7 +517,7 @@ function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFutur
       </div>
       {rows.length === 0 ? (
         <div style={{ padding: '28px 8px', textAlign: 'center', color: 'var(--tb-text-muted)', fontSize: 11, fontWeight: 700, lineHeight: 1.6 }}>
-          Nessuna ora tracciata oggi.<br />Usa <kbd style={{ fontFamily: 'monospace', fontSize: 10, border: '1px solid var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }}>⌘L</kbd> per aggiungere un progetto.
+          Nessuna ora tracciata oggi.<br />Usa <kbd style={{ fontFamily: 'monospace', fontSize: 11, border: '1px solid var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }}>⌘L</kbd> per aggiungere un progetto.
         </div>
       ) : (
         <div style={{ border: '1px solid var(--tb-border)', borderRadius: 6, overflow: 'hidden' }}>
@@ -527,7 +527,7 @@ function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFutur
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.name}</div>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.name}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.name}</div>
                 </div>
               </div>
               <TimeCell
@@ -547,7 +547,7 @@ function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFutur
         </div>
       )}
       {rows.length > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', padding: '0 2px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', padding: '0 2px' }}>
           <span>Totale</span>
           <span style={{ color: 'var(--tb-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{fmtH(total)}</span>
         </div>
@@ -561,7 +561,7 @@ function SegToggle({ opts, value, onChange, title }) {
     <div style={{ display: 'inline-flex', border: '1px solid var(--tb-border-mid)', borderRadius: 6, overflow: 'hidden' }}>
       {opts.map(o => (
         <button key={o.k} onClick={() => onChange(o.k)} title={title} style={{
-          fontSize: 10, fontWeight: 800, padding: '3px 9px', border: 'none', cursor: 'pointer',
+          fontSize: 11, fontWeight: 800, padding: '3px 9px', border: 'none', cursor: 'pointer',
           background: value === o.k ? 'var(--tb-tab-active-bg)' : 'transparent',
           color: value === o.k ? 'var(--tb-tab-active-text)' : 'var(--tb-text-muted)',
           fontFamily: "'Open Sans', sans-serif",
@@ -585,14 +585,14 @@ function FreeCapacityCard({ loading, totals, capacity }) {
       {op && <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--tb-text-faint)' }}>{op}</span>}
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-secondary)', lineHeight: 1.1 }}>{loading ? '...' : fmtH(value)}</div>
-        <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginTop: 2 }}>{label}</div>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginTop: 2 }}>{label}</div>
       </div>
     </div>
   );
   return (
     <div style={{ border: '1px solid var(--tb-border)', borderRadius: 9, background: 'var(--tb-panel-bg)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9, fontWeight: 850, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 850, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
           Capacità libera della giornata
           <HelpDot text={help} />
         </div>
@@ -605,7 +605,7 @@ function FreeCapacityCard({ loading, totals, capacity }) {
         <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--tb-text-faint)' }}>=</span>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 34, fontWeight: 850, color: 'var(--tb-text-primary)', lineHeight: 1.05 }}>{loading ? '...' : fmtH(free)}</div>
-          <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-muted)', marginTop: 2 }}>Libera</div>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-muted)', marginTop: 2 }}>Libera</div>
         </div>
       </div>
     </div>
@@ -639,7 +639,7 @@ function TodayGauge({ planned, traced, capacity }) {
     <div style={{ border: '1px solid var(--tb-border)', borderRadius: 10, background: 'var(--tb-panel-bg)', padding: '16px 18px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
             Carico di oggi · adesso
             <HelpDot text={'Il piano di oggi viene distribuito in modo uniforme sulla giornata lavorativa (9:00–18:00). In base all\'ora attuale si calcola quante ore dovresti aver già tracciato a questo punto: quello è il ritmo atteso.\n\nIl verdetto confronta le ore che hai davvero tracciato con quel ritmo: più avanti = sopra il ritmo, meno = sotto.'} />
           </div>
@@ -652,7 +652,7 @@ function TodayGauge({ planned, traced, capacity }) {
           <Glyph glyph={verdict.glyph} size={15} className="tb-glyph" title={verdict.label} />
           <div>
             <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1.1 }}>{verdict.label}</div>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)', marginTop: 1 }}>{verdict.sub}</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)', marginTop: 1 }}>{verdict.sub}</div>
           </div>
         </div>
       </div>
@@ -663,7 +663,7 @@ function TodayGauge({ planned, traced, capacity }) {
         <span className="tb-tick" title="Piano del giorno" style={{ left: pct(planned) }} />
         <span title="Capacità" style={{ position: 'absolute', left: pct(capacity), top: -2, bottom: -2, width: 0, borderLeft: '2px dashed var(--tb-tick)' }} />
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 10, fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 10, fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 2, height: 10, background: 'var(--tb-text-primary)', display: 'inline-block' }} />ritmo atteso ora</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 2, height: 10, background: 'var(--tb-tick)', display: 'inline-block' }} />piano {fmtH(planned)}</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 0, height: 10, borderLeft: '2px dashed var(--tb-tick)', display: 'inline-block' }} />capacità {fmtH(capacity)}</span>
@@ -683,8 +683,8 @@ function Panel({ title, help, empty, meta, children }) {
           {help && <HelpDot text={help} />}
         </h2>
         {empty
-          ? <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-muted)' }}>{empty}</span>
-          : meta && <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--tb-text-muted)' }}>{meta}</span>}
+          ? <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-muted)' }}>{empty}</span>
+          : meta && <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-muted)' }}>{meta}</span>}
       </div>
       <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {children}
@@ -698,7 +698,7 @@ function InsightRow({ title, value, meta, color }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, alignItems: 'center', padding: '8px 9px', borderRadius: 6, background: 'var(--tb-panel-bg-subtle)' }}>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</div>
-        <div style={{ fontSize: 10, fontWeight: 650, color: 'var(--tb-text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{meta}</div>
+        <div style={{ fontSize: 11, fontWeight: 650, color: 'var(--tb-text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{meta}</div>
       </div>
       <div style={{ fontSize: 13, fontWeight: 850, color }}>{value}</div>
     </div>
@@ -733,7 +733,7 @@ function MismatchGroup({ label, count = 0, items = [], itemLabel, itemMeta, item
   if (!count) return null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-      <div style={{ fontSize: 10, fontWeight: 850, color: 'var(--tb-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+      <div style={{ fontSize: 11, fontWeight: 850, color: 'var(--tb-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
         {label} · {count}
       </div>
       {items.slice(0, MISMATCH_VISIBLE).map((item, index) => (

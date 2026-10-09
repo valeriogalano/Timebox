@@ -123,12 +123,12 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
           />
           {addMode ? (
             <span style={{
-              fontSize: 10, fontWeight: 700, color: 'var(--tb-panel-bg)',
+              fontSize: 11, fontWeight: 700, color: 'var(--tb-panel-bg)',
               background: 'var(--tb-text-primary)', borderRadius: 4,
               padding: '3px 6px', flexShrink: 0, fontFamily: 'monospace',
             }}>+{fmtH(addHours)} oggi</span>
           ) : (
-            <span style={{ fontSize: 10, color: 'var(--tb-text-faint)', flexShrink: 0, fontFamily: 'monospace' }}>⌘L</span>
+            <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0, fontFamily: 'monospace' }}>⌘L</span>
           )}
         </div>
 
@@ -156,15 +156,15 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {project.name}
                   </div>
-                  <div style={{ fontSize: 10, color: 'var(--tb-text-muted)', fontWeight: 600 }}>{client?.name ?? ''}</div>
+                  <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>{client?.name ?? ''}</div>
                   {q && project.description?.toLowerCase().includes(q) && (
-                    <div style={{ fontSize: 10, color: 'var(--tb-text-faint)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 11, color: 'var(--tb-text-faint)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {highlight(project.description, q)}
                     </div>
                   )}
                 </div>
                 {i === selectedIdx && (
-                  <span style={{ fontSize: 10, color: 'var(--tb-text-faint)', fontFamily: 'monospace', flexShrink: 0 }}>↵</span>
+                  <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', fontFamily: 'monospace', flexShrink: 0 }}>↵</span>
                 )}
               </div>
             );
@@ -174,7 +174,7 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
         <div style={{
           padding: '8px 16px', borderTop: '1px solid var(--tb-border-soft)',
           display: 'flex', gap: 16,
-          fontSize: 10, color: 'var(--tb-text-faint)', fontWeight: 600,
+          fontSize: 11, color: 'var(--tb-text-faint)', fontWeight: 600,
         }}>
           <span>↑↓ naviga</span>
           <span>↵ {addMode ? 'somma' : 'apri'}</span>

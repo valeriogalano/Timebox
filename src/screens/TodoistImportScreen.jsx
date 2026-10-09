@@ -221,7 +221,7 @@ export default function TodoistImportScreen({ clients, projects }) {
                     ) : (
                       <>
                         <span style={{
-                          fontSize: 8, fontWeight: 800, letterSpacing: '0.08em',
+                          fontSize: 11, fontWeight: 800, letterSpacing: '0.08em',
                           color: client ? client.color : 'var(--tb-text-faint)',
                           textTransform: 'uppercase', marginTop: 4,
                         }}>
@@ -234,16 +234,16 @@ export default function TodoistImportScreen({ clients, projects }) {
                           }}>
                             {displayTitle(row)}
                           </div>
-                          <div style={{ marginTop: 2, fontSize: 9, color: 'var(--tb-text-faint)' }}>
+                          <div style={{ marginTop: 2, fontSize: 11, color: 'var(--tb-text-faint)' }}>
                             Importato {row.importedAt ? new Date(row.importedAt).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : formatDateShort(row.date)}
                           </div>
                           {row.note && (
-                            <div style={{ marginTop: 5, fontSize: 10, color: 'var(--tb-text-muted)', lineHeight: 1.35, overflowWrap: 'anywhere' }}>
+                            <div style={{ marginTop: 5, fontSize: 11, color: 'var(--tb-text-muted)', lineHeight: 1.35, overflowWrap: 'anywhere' }}>
                               {row.note}
                             </div>
                           )}
                         </div>
-                        <span style={{ fontSize: 10, color: 'var(--tb-text-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 3 }}>
+                        <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 3 }}>
                           {project?.name ?? 'Progetto non disponibile'}
                         </span>
                         <span style={{

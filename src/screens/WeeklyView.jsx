@@ -9,6 +9,7 @@ import SlotCapacityBar from '../components/SlotCapacityBar';
 import AreaStatusGlyph from '../components/AreaStatusGlyph';
 import Glyph from '../components/Glyph';
 import OverCapacityBar from '../components/OverCapacityBar';
+import { areaText } from '../area-colors';
 import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
 import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries, resolveEntrySlot } from '../dayPlanning';
 
@@ -691,7 +692,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 <TemplateDivergenceBadge summary={templateDivergence} open={divergenceOpen} onToggle={() => setDivergenceOpen(v => !v)} />
                 <button onClick={resetWeekToTemplate}
                   style={{
-                    fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 5,
+                    fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 5,
                     background: 'var(--tb-navbtn-bg)', border: '1px solid var(--tb-navbtn-border)', color: 'var(--tb-navbtn-text)',
                     cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
                   }}>
@@ -770,14 +771,14 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   position: 'relative',
                 }}>
                   {d.isToday && <span style={{ position: 'absolute', top: 0, left: 8, right: 8, height: 3, background: 'var(--tb-tab-active-bg)', borderRadius: '0 0 2px 2px' }} />}
-                  <div style={{ fontSize: planningCompact ? 9 : 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
                     color: 'var(--tb-text-faint)' }}>{DAY_SHORT[i]}</div>
                   <div style={{ fontSize: planningCompact ? 11 : 12, fontWeight: 700, color: d.isToday ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)', lineHeight: 1.1 }}>
                     {d.date.getDate()}
                   </div>
                   {(d.isToday || divergentDays.has(i)) && (
                     <div style={{ display: 'flex', gap: 5, justifyContent: 'center', alignItems: 'center', margin: planningCompact ? '2px 0 0' : '3px 0 0', height: 12 }}>
-                      {d.isToday && <span title="Oggi" style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--tb-text-secondary)', border: '1px solid var(--tb-border-mid)', borderRadius: 4, padding: '0 4px', lineHeight: 1.5 }}>OGGI</span>}
+                      {d.isToday && <span title="Oggi" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', color: 'var(--tb-text-secondary)', border: '1px solid var(--tb-border-mid)', borderRadius: 4, padding: '0 4px', lineHeight: 1.5 }}>OGGI</span>}
                       {divergentDays.has(i) && <span title="Giorno modificato rispetto al template" className="tb-glyph" style={{ fontSize: 11 }}>Δ</span>}
                     </div>
                   )}
@@ -786,7 +787,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               <div style={{
                 background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)', borderLeft: '1px solid var(--tb-border-mid)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
+                fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
               }}>Tot</div>
 
               {/* One row per slot (AM / PM / Sera) */}
@@ -844,7 +845,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               {/* Extra row */}
               <div style={{
                 padding: '8px 14px', borderBottom: '1px solid var(--tb-border-soft)', display: 'flex', alignItems: 'center', gap: 5,
-                fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
+                fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
               }}>
                 <span>Extra</span>
               </div>
@@ -858,7 +859,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               <div style={{
                 padding: '6px 14px', borderBottom: '2px solid var(--tb-border-mid)',
                 display: 'flex', alignItems: 'center',
-                fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
+                fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase',
               }}>Bilancio</div>
               {days.map((d, i) => {
                 if (d.isWeekend) return (
@@ -876,22 +877,22 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                         <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{fmtH(d.loggedInPlan)}</span>
                         {d.plannedTotal > 0 && (
                           <>
-                            <span style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600 }}>/</span>
-                            <span style={{ fontSize: 9, color: 'var(--tb-text-muted)', fontWeight: 600 }}>{fmtH(d.plannedTotal)}</span>
+                            <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', fontWeight: 600 }}>/</span>
+                            <span style={{ fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>{fmtH(d.plannedTotal)}</span>
                           </>
                         )}
                         {d.bilancioExtra > 0 && (
-                          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-primary)', border: '1px solid var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Ore extra / oltre piano">+{fmtH(d.bilancioExtra)} extra</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-primary)', border: '1px solid var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Ore extra / oltre piano">+{fmtH(d.bilancioExtra)} extra</span>
                         )}
                         {d.pianificazioneExtra > 0 && (
-                          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', border: '1px dashed var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Pianificazione aggiuntiva">+{fmtH(d.pianificazioneExtra)} pianif.</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-muted)', border: '1px dashed var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Pianificazione aggiuntiva">+{fmtH(d.pianificazioneExtra)} pianif.</span>
                         )}
                       </div>
                     ) : d.isFuture && d.plannedTotal > 0 ? (
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>{fmtH(d.plannedTotal)}</span>
                         {d.pianificazioneExtra > 0 && (
-                          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--tb-text-muted)', border: '1px dashed var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Pianificazione aggiuntiva">+{fmtH(d.pianificazioneExtra)} pianif.</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-muted)', border: '1px dashed var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }} title="Pianificazione aggiuntiva">+{fmtH(d.pianificazioneExtra)} pianif.</span>
                         )}
                       </div>
                     ) : (
@@ -915,7 +916,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               position: 'relative',
             }}>
               {d.isToday && <span style={{ position: 'absolute', top: 0, left: 8, right: 8, height: 3, background: 'var(--tb-tab-active-bg)', borderRadius: '0 0 2px 2px' }} />}
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
                 color: 'var(--tb-text-faint)' }}>{DAY_SHORT[i]}</div>
               <div style={{ fontSize: 12, fontWeight: 700, color: d.isToday ? 'var(--tb-text-primary)' : 'var(--tb-text-secondary)' }}>{d.date.getDate()}</div>
             </div>
@@ -924,7 +925,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
             padding: '9px 4px', background: 'var(--tb-panel-bg-soft)',
             borderLeft: '1px solid var(--tb-border-mid)', borderBottom: '1px solid var(--tb-border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
+            fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
           }}>Tot</div>
 
           {/* Project rows */}
@@ -1006,7 +1007,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           {/* Day totals */}
           <div style={{
             padding: '10px 14px', background: 'var(--tb-panel-bg-soft)', borderTop: '2px solid var(--tb-border-mid)',
-            fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
+            fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
             display: 'flex', alignItems: 'center',
           }}>Totale</div>
           {days.map((d, i) => {
@@ -1023,7 +1024,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                   {dayTotal > 0 ? fmtH(dayTotal) : '—'}
                 </div>
                 {d.plannedTotal > 0 && !d.isFuture && (
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)' }}
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}
                     title={d.delta >= 0 ? 'Sopra il piano' : 'Sotto il piano'}>
                     <Glyph glyph={d.delta >= 0 ? '▴' : '▾'} size={10} className="tb-glyph" />
                     <span>{d.delta >= 0 ? '+' : ''}{fmtH(d.delta)}</span>
@@ -1114,11 +1115,12 @@ function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, total
       <div style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)', lineHeight: 1.2,
-          maxWidth: 155, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          maxWidth: 155, overflow: 'hidden', overflowWrap: 'break-word',
+          display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2 }}>
           {project.name}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-          <span style={{ fontSize: 9, color: 'var(--tb-text-faint)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.name}</span>
+          <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.name}</span>
           {client.areaStatus && (
             <span title={statusInfo.title}>
               <AreaStatusGlyph status={client.areaStatus} size={10} color="var(--tb-state-glyph)" />
@@ -1145,14 +1147,14 @@ function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, total
             {project.name}
           </span>
           {project.description && (
-            <span style={{ fontSize: 10, color: 'var(--tb-text-muted)', lineHeight: 1.4, wordBreak: 'break-word' }}>
+            <span style={{ fontSize: 11, color: 'var(--tb-text-muted)', lineHeight: 1.4, wordBreak: 'break-word' }}>
               {project.description}
             </span>
           )}
           {(project.budgetHours > 0 || project.weeklyHours > 0) && (
             <div style={{ borderTop: '1px solid var(--tb-border-soft)', paddingTop: 4, marginTop: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
               {project.budgetHours > 0 && (
-                <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                   <span>Budget totale</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>
                     <BudgetMeter level={budgetAlertLevel(totalUsage.worst / project.budgetHours)} />
@@ -1161,7 +1163,7 @@ function ProjectLabel({ project, client, alertLevel, rowActive, topBorder, total
                 </div>
               )}
               {project.weeklyHours > 0 && (
-                <div style={{ fontSize: 9, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--tb-text-faint)', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                   <span>Limite sett.</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>
                     <BudgetMeter level={budgetAlertLevel(weekUsage.worst / project.weeklyHours)} />
@@ -1192,6 +1194,16 @@ export function AreaStatusPanel({ clients, statuses, onChange, compact }) {
       flexWrap: compact ? 'nowrap' : 'wrap',
       width: compact ? '100%' : 'auto',
     }}>
+      {compact && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, fontSize: 11, color: 'var(--tb-sidebar-faint)' }}>
+          {AREA_STATUS_OPTIONS.map(option => (
+            <span key={option.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <AreaStatusGlyph status={option.key} size={9} color="var(--tb-sidebar-faint)" />
+              {option.label.toLowerCase()}
+            </span>
+          ))}
+        </div>
+      )}
       {clients.map(client => {
         const current = areaStatusOf(client, statuses);
         return (
@@ -1209,7 +1221,7 @@ export function AreaStatusPanel({ clients, statuses, onChange, compact }) {
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{client.name}</span>
             </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
               {AREA_STATUS_OPTIONS.map(option => {
                 const active = current === option.key;
                 return (
@@ -1217,8 +1229,14 @@ export function AreaStatusPanel({ clients, statuses, onChange, compact }) {
                     key={option.key}
                     onClick={() => onChange(client.id, option.key)}
                     title={option.title}
+                    aria-label={`${client.name}: ${option.label.toLowerCase()}`}
+                    aria-pressed={active}
+                    // Lo stato scelto si riconosce dal riquadro, non dal tono del glifo:
+                    // tre pallini quasi dello stesso grigio non dicevano quale fosse attivo.
                     style={{
-                      padding: 2, border: 'none', background: 'transparent', cursor: 'pointer',
+                      padding: 3, borderRadius: 5, background: 'transparent', cursor: 'pointer',
+                      border: `1.5px solid ${active ? 'var(--tb-sidebar-text)' : 'transparent'}`,
+                      opacity: active ? 1 : 0.45,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
                   >
@@ -1243,11 +1261,11 @@ function GridLabel({ children, border, header, timeLabel, compact }) {
       borderBottom: header ? '1px solid var(--tb-border)' : border ? '1px solid var(--tb-border-soft)' : '1px solid var(--tb-border)',
       display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3,
     }}>
-      <span style={{ fontSize: compact && !header ? 8 : 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--tb-text-faint)', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', lineHeight: 1.25, color: 'var(--tb-text-faint)', textTransform: 'uppercase', overflowWrap: 'break-word' }}>
         {children}
       </span>
       {timeLabel && (
-        <span style={{ fontSize: compact ? 7 : 8, fontWeight: 600, color: 'var(--tb-text-faint)', opacity: 0.7, letterSpacing: '0.04em', textTransform: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tb-text-faint)', opacity: 0.7, letterSpacing: '0.04em', textTransform: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {timeLabel}
         </span>
       )}
@@ -1291,7 +1309,7 @@ function TemplateDivergenceBadge({ summary, open, onToggle }) {
         border: '1px solid var(--tb-border-mid)',
         background: open ? 'var(--tb-panel-bg)' : 'var(--tb-panel-bg-soft)',
         color: 'var(--tb-text-secondary)',
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: 800,
         lineHeight: 1.2,
         whiteSpace: 'nowrap',
@@ -1326,7 +1344,7 @@ function TemplateDivergencePanel({ summary, clients, onRestore, onClose }) {
           Divergenze dal template · {summary.divergentSlots} slot · totale {summary.deltaHours >= 0 ? '+' : ''}{fmtH(summary.deltaHours)}
         </span>
         <button onClick={onClose} style={{
-          fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', background: 'none', border: 'none', cursor: 'pointer',
+          fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', background: 'none', border: 'none', cursor: 'pointer',
         }}>× chiudi</button>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1347,7 +1365,7 @@ function TemplateDivergencePanel({ summary, clients, onRestore, onClose }) {
                 {' '}(Δ{row.delta >= 0 ? '+' : ''}{fmtH(row.delta)}) · {client?.name ?? '—'} {DIVERGENCE_KIND_LABEL[row.kind]}
               </span>
               <button onClick={() => onRestore(row.dayIndex, row.slot, row.clientId)} style={{
-                fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5,
+                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 5,
                 border: '1px solid var(--tb-border)', background: 'var(--tb-panel-bg)',
                 color: 'var(--tb-text-primary)', cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
                 flexShrink: 0,
@@ -1456,10 +1474,10 @@ function CapacityMirror({ actual, planned, billable, extra, onNavigate }) {
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
           <span style={{ fontSize: 19, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em' }}>{fmtH(actual)}</span>{' '}
-          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(planned)}</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(planned)}</span>
           <span
             title={'Consuntivo dell\'intera settimana: ore effettivamente tracciate sul totale pianificato, e la percentuale di piano coperta.\n\nSotto:\nFatt. = quota fatturabile\nNF = quota non fatturabile\nExtra = ore fatte oltre il piano\n\nLa freccia apre l\'Andamento.'}
-            style={{ alignSelf: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 9, cursor: 'help', letterSpacing: 0 }}
+            style={{ alignSelf: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 11, cursor: 'help', letterSpacing: 0 }}
           >?</span>
         </span>
         {onNavigate ? (
@@ -1469,14 +1487,14 @@ function CapacityMirror({ actual, planned, billable, extra, onNavigate }) {
             fontFamily: "'Open Sans', sans-serif", flexShrink: 0,
           }}>
             <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{pct}%</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>→</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)' }}>→</span>
           </button>
         ) : (
           <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{pct}%</span>
         )}
       </div>
       <OverCapacityBar value={pct} cap={100} height={3} style={{ marginTop: 6 }} />
-      <div style={{ display: 'flex', gap: 8, marginTop: 5, fontSize: 9, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
+      <div style={{ display: 'flex', gap: 8, marginTop: 5, fontSize: 11, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
         <span>Fatt. {fmtH(billable)}</span>
         <span>NF {fmtH(nonBillable)}</span>
         {extra > 0 && <span>Extra {fmtH(extra)}</span>}
@@ -1497,12 +1515,12 @@ function WeeklySummaryStrip({ summary, clients, open, onToggle }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: open ? 8 : 0 }}>
-        <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
           Riepilogo settimana / area
         </span>
         <button onClick={onToggle} style={{
           background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
-          fontSize: 10, fontWeight: 700, color: 'var(--tb-text-muted)', fontFamily: "'Open Sans', sans-serif",
+          fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', fontFamily: "'Open Sans', sans-serif",
         }}>
           {open ? <>nascondi <Glyph glyph="▾" size={9} /></> : <>mostra <Glyph glyph="▸" size={9} /></>}
         </button>
@@ -1518,12 +1536,12 @@ function WeeklySummaryStrip({ summary, clients, open, onToggle }) {
                 background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
                 borderLeft: `3px solid ${client.color}`, borderRadius: 6, padding: '8px 10px',
               }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: client.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: areaText(client.color), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {client.name}
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--tb-text-primary)', marginTop: 2 }}>
                   {fmtH(actual)}
-                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tb-text-faint)' }}> / {fmtH(planned)}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tb-text-faint)' }}> / {fmtH(planned)}</span>
                 </div>
                 <OverCapacityBar
                   value={planned > 0 ? actual : (actual > 0 ? 1 : 0)}
@@ -1554,18 +1572,17 @@ function SlotSummary({ summary, clients, compact }) {
         const planned = data.planned || 0;
         const actual = data.actual || 0;
         return (
-          <div key={clientId} style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-            <div style={{ fontSize: compact ? 7 : 8, fontWeight: 700, color: cl.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 77 }}>
+          <div key={clientId} style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: areaText(cl.color), overflowWrap: 'break-word' }}>
               {cl.name}
             </div>
-            <div style={{ fontSize: compact ? 9 : 10, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-primary)' }}>
               {data.planned !== undefined ? (
                 <>
-                  <span style={{ color: actual > planned ? 'var(--tb-text-primary)' : 'inherit', whiteSpace: 'nowrap' }} title={actual > planned ? 'Sopra il piano' : undefined}>{fmtH(actual)}</span>
+                  <span style={{ color: actual > planned ? 'var(--tb-text-primary)' : 'inherit', whiteSpace: 'nowrap', display: 'inline-block' }} title={actual > planned ? 'Sopra il piano' : undefined}>{fmtH(actual)}</span>
                   {actual > planned && <span className="tb-hatch" style={{ width: 8, height: 8, borderRadius: 2, display: 'inline-block', verticalAlign: 'middle', marginLeft: 2 }} title="Oltre piano" />}
-                  <span style={{ color: 'var(--tb-text-faint)', fontWeight: 400, margin: '0 1px' }}>/</span>
-                  {/* nowrap: nella colonna stretta si va a capo alla barra, non dentro "3h 30m" */}
-                  <span style={{ color: 'var(--tb-text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtH(planned)}</span>
+                  {/* Un pezzo solo: nella colonna stretta "/ 3h 30m" va a capo intero, senza tagliarsi */}
+                  <span style={{ color: 'var(--tb-text-muted)', fontWeight: 600, whiteSpace: 'nowrap', display: 'inline-block', marginLeft: 3 }}>/ {fmtH(planned)}</span>
                 </>
               ) : (
                 <span style={{ color: 'var(--tb-text-primary)' }}>{fmtH(actual)}</span>

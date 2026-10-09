@@ -24,3 +24,13 @@ export function areaTints(color) {
     soft:   areaMix(color, 12),
   };
 }
+
+// Testo nel colore dell'area. Il colore puro non regge come testo: rosa e giallo
+// spariscono sul bianco e sul fondo in tinta. Mescolato col colore del testo del tema
+// tiene la tinta e guadagna contrasto in entrambi i temi (più scuro in light, più
+// chiaro in dark). Il colore puro resta per bordi, pallini e barre.
+// 38%: col giallo della palette Todoist, il caso peggiore, il contrasto sul fondo in
+// tinta del tema chiaro resta sopra 4,5:1; più colore di così e scende sotto.
+export function areaText(color) {
+  return `color-mix(in srgb, ${color} 38%, var(--tb-text-primary))`;
+}

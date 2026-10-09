@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fmtH, parseHHMM, budgetAlertLevel as meterLevel } from '../utils';
-import { areaTints } from '../area-colors';
+import { areaTints, areaText } from '../area-colors';
 import { usageOf, kindNote } from '../cap-usage';
 import TodoistTaskTooltip from './TodoistTaskTooltip';
 import AreaStatusGlyph from './AreaStatusGlyph';
@@ -16,6 +16,8 @@ const MIN_BLOCK_H = 0.5 * PX_PER_H;
 const MIN_BLOCK_H_COMPACT = 30;
 // Sotto questa altezza il blocco non regge header + riga durata + barra impilati.
 const SHORT_BLOCK_H = 46;
+// Da qui in su l'intestazione regge il nome dell'area su due righe (gemella in RecurringBlockRow).
+const TWO_LINE_BLOCK_H = 60;
 
 function Divider() {
   return (
@@ -57,7 +59,7 @@ function PlanningBlock({
 
   const tints = areaTints(cl.color);
   const barBg = tints.soft;
-  const readoutColor = logged === 0 ? `color-mix(in srgb, ${cl.color} 70%, transparent)` : cl.color;
+  const text = areaText(cl.color);
 
   // Sotto questa altezza non entrano header, riga durata e barra una sopra l'altra:
   // la durata passa nell'intestazione, accanto al nome.
@@ -71,33 +73,49 @@ function PlanningBlock({
       onClick={e => e.stopPropagation()}
       style={{
         width: 48, padding: '1px 4px', borderRadius: 3, border: `1px solid ${cl.color}`,
-        fontSize: compact ? 10 : 11, fontWeight: 800, color: cl.color, textAlign: 'right',
+        fontSize: 11, fontWeight: 800, color: text, textAlign: 'right',
         fontFamily: "'Open Sans', sans-serif", outline: 'none',
         background: 'var(--tb-input-bg)',
       }} />
   ) : (
     <div
       onClick={editable ? (e) => { e.stopPropagation(); onStartEdit(); } : undefined}
-      title={editable ? 'Modifica durata pianificata' : undefined}
+      title={[logged > 0 && `${fmtH(logged)} lavorate su ${fmtH(block.hours)} pianificate`, editable && 'Modifica durata pianificata'].filter(Boolean).join(' · ') || undefined}
       style={{
-        display: 'flex', alignItems: 'baseline', gap: 2, flexShrink: 0,
-        fontFamily: "'Open Sans', sans-serif", lineHeight: 1,
+        // Una riga sola: se "/ pianificato" non entra va a capo e resta nascosto, intero.
+        display: 'flex', alignItems: 'baseline', columnGap: 3, flexWrap: 'wrap', height: 14, overflow: 'hidden',
+        flexShrink: short ? 0 : 1, minWidth: 0,
+        fontFamily: "'Open Sans', sans-serif", lineHeight: '14px', whiteSpace: 'nowrap',
+        fontSize: 11, color: text,
         cursor: editable ? 'text' : 'default',
       }}>
-      {logged > 0 && (
-        <>
-          <span style={{ fontSize: compact ? 10 : 11, fontWeight: 400, color: readoutColor }}>
-            {fmtH(logged)}
-          </span>
-          <span style={{ fontSize: compact ? 8 : 9, color: tints.border, fontWeight: 400 }}>/</span>
-        </>
+      {logged > 0 && <span style={{ fontWeight: 600 }}>{fmtH(logged)}</span>}
+      {/* Nei blocchi bassi la riga è una sola e "0h 30m / 0h 30m" usciva dal blocco:
+          lì resta il valore lavorato, il pianificato è nel title e nell'altezza. */}
+      {(logged === 0 || !short) && (
+        <span style={{ opacity: logged > 0 ? 0.8 : 1 }}>{logged > 0 && <span>/ </span>}<span>{fmtH(block.hours)}</span></span>
       )}
-      <span style={{
-        fontSize: logged > 0 ? (compact ? 8 : 9) : (compact ? 10 : 11),
-        fontWeight: 400,
-        color: logged > 0 ? `color-mix(in srgb, ${cl.color} 75%, transparent)` : cl.color,
-      }}>{fmtH(block.hours)}</span>
     </div>
+  );
+
+  const signals = (
+    <>
+      {cl.areaStatus && (
+        <span title={(AREA_STATUS_OPTIONS.find(o => o.key === cl.areaStatus) ?? AREA_STATUS_OPTIONS[0]).title} style={{ flexShrink: 0, display: 'flex' }}>
+          <AreaStatusGlyph status={cl.areaStatus} size={compact ? 8 : 9} color="var(--tb-state-glyph)" />
+        </span>
+      )}
+      {budgetAlertLevel_combined > 0 && (
+        <span
+          className="tb-meter"
+          data-level={budgetAlertLevel_combined}
+          title={(budgetAlertLevel_combined === 3 ? 'Limite superato' : budgetAlertLevel_combined === 2 ? 'Limite all\'80%+' : 'Limite al 50%+') + kindNote(meter.usage)}
+          style={{ flexShrink: 0 }}
+        >
+          <i /><i /><i />
+        </span>
+      )}
+    </>
   );
 
   return (
@@ -123,34 +141,23 @@ function PlanningBlock({
         flexShrink: 0,
       }}
     >
-      {/* Header: client name + budget alert dot (+ durata nei blocchi bassi) */}
-      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: 3, paddingRight: short && editable ? 18 : 0 }}>
+      {/* Header: nome dell'area (+ durata nei blocchi bassi). Stato e meter stanno accanto
+          alla barra, così nome e durata hanno tutta la larghezza del blocco. */}
+      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: 4, paddingRight: short && editable && hover ? 18 : 0 }}>
         <span style={{
-          fontSize: compact ? 9 : 10, fontWeight: 700, color: cl.color,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          letterSpacing: '0.01em', flex: 1, minWidth: 0,
+          fontSize: 11, fontWeight: 700, color: text, lineHeight: 1.2,
+          overflow: 'hidden', letterSpacing: '0.01em', flex: 1, minWidth: 0,
+          // Da un'ora in su c'è posto per due righe: il nome va a capo invece di troncarsi.
+          ...(blockH >= TWO_LINE_BLOCK_H
+            ? { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflowWrap: 'break-word' }
+            : { textOverflow: 'ellipsis', whiteSpace: 'nowrap' }),
         }} title={cl.name}>{cl.name}</span>
-        {cl.areaStatus && (
-          <span title={(AREA_STATUS_OPTIONS.find(o => o.key === cl.areaStatus) ?? AREA_STATUS_OPTIONS[0]).title} style={{ flexShrink: 0, display: 'flex' }}>
-            <AreaStatusGlyph status={cl.areaStatus} size={compact ? 8 : 9} color="var(--tb-state-glyph)" />
-          </span>
-        )}
-        {budgetAlertLevel_combined > 0 && (
-          <span
-            className="tb-meter"
-            data-level={budgetAlertLevel_combined}
-            title={(budgetAlertLevel_combined === 3 ? 'Limite superato' : budgetAlertLevel_combined === 2 ? 'Limite all\'80%+' : 'Limite al 50%+') + kindNote(meter.usage)}
-            style={{ flexShrink: 0 }}
-          >
-            <i /><i /><i />
-          </span>
-        )}
         {short && durationEl}
       </div>
 
       {/* Durata pianificata: readout, o input quando in modifica */}
       {!short && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', marginBottom: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginTop: 'auto', marginBottom: 3 }}>
           {durationEl}
         </div>
       )}
@@ -183,6 +190,7 @@ function PlanningBlock({
             }} />
           )}
         </div>
+        {signals}
         {overflow && (
           <span title="Slot oltre capacità" className="tb-hatch" style={{ width: 9, height: 9, borderRadius: 2, flexShrink: 0 }} />
         )}
@@ -198,7 +206,7 @@ function PlanningBlock({
             background: 'var(--tb-panel-bg)',
             border: `1px solid ${cl.color}44`,
             cursor: 'pointer',
-            color: cl.color, fontSize: compact ? 10 : 11, lineHeight: 1, padding: 0,
+            color: text, fontSize: 11, lineHeight: 1, padding: 0,
             fontWeight: 700,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>×</button>
@@ -379,7 +387,7 @@ export default function PlanningCell({
 
       {visualBlocks.length === 0 && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--tb-border-mid)', fontSize: compact ? 10 : 11, minHeight: compact ? 28 : 40 }}>—</div>
+          color: 'var(--tb-border-mid)', fontSize: 11, minHeight: compact ? 28 : 40 }}>—</div>
       )}
 
       <div style={{ marginTop: 'auto', flexShrink: 0 }}>
@@ -390,7 +398,7 @@ export default function PlanningCell({
               width: '100%', padding: '3px 0', borderRadius: 4,
               border: '1px dashed var(--tb-border-mid)',
               background: addOpen ? 'var(--tb-panel-bg-soft)' : 'transparent',
-              color: 'var(--tb-text-faint)', fontSize: compact ? 9 : 10, fontWeight: 700, cursor: 'pointer',
+              color: 'var(--tb-text-faint)', fontSize: 11, fontWeight: 700, cursor: 'pointer',
               fontFamily: "'Open Sans', sans-serif",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
             }}>

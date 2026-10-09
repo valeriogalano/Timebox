@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Testi: nessun testo dell'app è più sotto gli 11px. Prima lo erano circa metà dei testi di Giorno e Ricorrenza e il 40% di quelli di Settimana.
+- Nome dell'area: dove è scritto nel colore dell'area (blocchi di Settimana e Ricorrenza, colonna dei totali, ore del timesheet) il colore è scurito nel tema chiaro e schiarito in quello scuro, così anche rosa e giallo si leggono. Bordi, pallini e barre restano nel colore pieno.
+- Settimana e Ricorrenza: nei blocchi da un'ora in su il nome dell'area va a capo su due righe invece di troncarsi. In Settimana lo stato dell'area e le tacche di limite stanno accanto alla barra, e lasciano al nome tutta la larghezza. Anche i nomi dei progetti nel timesheet e le etichette delle righe vanno a capo.
+- Barra laterale, stato delle aree: lo stato scelto ha un riquadro e gli altri due sono attenuati; sopra i pallini una riga dice cosa significano (attiva, minima, chiusa). Il titolo è "Aree · settimana".
+- Andamento · Settimana · Per area: sotto il titolo una riga spiega i glifi del verdetto (sotto il piano, in linea, sopra, scarto marcato).
+
+### Fixed
+- Settimana: nei blocchi da 30 minuti con ore registrate la scritta "0h 30m / 0h 30m" usciva dal blocco e finiva sulla colonna accanto. Ora il blocco mostra le ore lavorate, e il pianificato si legge passandoci sopra. Negli altri blocchi, se "/ pianificato" non entra, sparisce intero invece di tagliarsi.
+- Settimana: nella colonna dei totali "/ 0h 30m" non viene più tagliato a destra, va a capo.
+- Ricorrenza: l'etichetta "Pomeriggio" non finisce più sopra la prima colonna.
+- Ore dall'iPhone: aggiunta alla Home, la pagina ha l'icona di Timebox al posto di una "T" generica. Chi l'ha già aggiunta deve toglierla e aggiungerla di nuovo.
+
 ## [0.10.0] - 2026-10-08
 
 ### Added

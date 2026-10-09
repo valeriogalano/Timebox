@@ -228,7 +228,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
             {SLOTS.map(slot => (
               <label key={slot} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
+                <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
                   {SLOT_LABELS[slot]}
                 </span>
                 <input
@@ -626,7 +626,7 @@ function UpdateSection({ status, busy, onCheck, onInstall }) {
           {label.text}
         </div>
         {status?.error?.message && (
-          <div style={{ fontSize: 10, color: 'var(--tb-text-muted)', marginTop: 4, fontFamily: 'monospace' }}>{status.error.message}</div>
+          <div style={{ fontSize: 11, color: 'var(--tb-text-muted)', marginTop: 4, fontFamily: 'monospace' }}>{status.error.message}</div>
         )}
       </div>
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -701,7 +701,7 @@ function Section({ title, children }) {
       <div style={{
         padding: '10px 20px',
         background: 'var(--tb-panel-bg-soft)', borderBottom: '1px solid var(--tb-border)',
-        fontSize: 9, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
+        fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--tb-text-faint)',
       }}>
         {title}
       </div>

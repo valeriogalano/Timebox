@@ -2,6 +2,7 @@
   "name": "Timebox",
   "short_name": "Timebox",
   "display": "standalone",
+  "icons": [{ "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }],
   "background_color": "#f7f6f2",
   "theme_color": "#f7f6f2"
 }
