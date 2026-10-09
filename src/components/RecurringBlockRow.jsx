@@ -13,6 +13,8 @@ const PX_PER_H = 64;
 // basso di quanto le sue ore dicano — ponytail: casistica rara e già
 // preesistente, non risolta qui.
 const MIN_BLOCK_H = 0.5 * PX_PER_H;
+// Da qui in su l'intestazione regge il nome dell'area su due righe (gemella in PlanningCell).
+const TWO_LINE_BLOCK_H = 60;
 
 export default function RecurringBlockRow({ block, client, onUpdate, onRemove, onDuplicate, onDragStart, isDragging }) {
   const [hover, setHover] = useState(false);
@@ -109,7 +111,7 @@ export default function RecurringBlockRow({ block, client, onUpdate, onRemove, o
             fontSize: 11, fontWeight: 700, color: areaText(client.color), lineHeight: 1.2,
             overflow: 'hidden',
             // Da un'ora in su il nome va a capo invece di troncarsi (come in PlanningCell).
-            ...(blockH >= 60
+            ...(blockH >= TWO_LINE_BLOCK_H
               ? { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflowWrap: 'break-word' }
               : { textOverflow: 'ellipsis', whiteSpace: 'nowrap' }),
           }} title={client.name}>

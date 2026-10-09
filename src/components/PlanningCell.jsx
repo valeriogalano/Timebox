@@ -16,7 +16,7 @@ const MIN_BLOCK_H = 0.5 * PX_PER_H;
 const MIN_BLOCK_H_COMPACT = 30;
 // Sotto questa altezza il blocco non regge header + riga durata + barra impilati.
 const SHORT_BLOCK_H = 46;
-// Da qui in su l'intestazione regge il nome dell'area su due righe.
+// Da qui in su l'intestazione regge il nome dell'area su due righe (gemella in RecurringBlockRow).
 const TWO_LINE_BLOCK_H = 60;
 
 function Divider() {
