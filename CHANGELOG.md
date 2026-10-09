@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-09
+
 ### Changed
 - Testi: nessun testo dell'app è più sotto gli 11px. Prima lo erano circa metà dei testi di Giorno e Ricorrenza e il 40% di quelli di Settimana.
 - Nome dell'area: dove è scritto nel colore dell'area (blocchi di Settimana e Ricorrenza, colonna dei totali, ore del timesheet) il colore è scurito nel tema chiaro e schiarito in quello scuro, così anche rosa e giallo si leggono. Bordi, pallini e barre restano nel colore pieno.
