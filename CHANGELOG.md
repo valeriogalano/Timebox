@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-15
+
 ### Added
 - Prezzo a corpo sul progetto: in Aree, accanto al budget, si scrive il prezzo in euro di un progetto venduto a corpo. Quando il progetto ha ore lavorate, accanto compare la tariffa effettiva (prezzo diviso ore lavorate finora). Il campo si legge e si modifica anche dall'MCP (`create_project`, `update_project`, `projects`) e dall'API HTTP (`fixedPrice`).
 - Ore dall'iPhone: in cima alla pagina c'è il piano del giorno, in sola lettura. Per ogni fascia elenca le aree pianificate con le ore già coperte su quelle previste.
