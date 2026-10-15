@@ -128,7 +128,8 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
   const [selectedId, setSelectedId] = useState(clients[0]?.id);
   // Ore lavorate per progetto: servono solo per la tariffa effettiva dei progetti a corpo.
   const [workedTotals, setWorkedTotals] = useState({});
-  useEffect(() => { window.api.getProjectTotals().then(setWorkedTotals); }, []);
+  // Senza totali la tariffa non compare: il resto della schermata non ne dipende.
+  useEffect(() => { window.api.getProjectTotals().then(setWorkedTotals).catch(() => {}); }, []);
   const sel = clients.find(c => c.id === selectedId);
   const selProjects = projects
     .filter(p => p.clientId === selectedId)
