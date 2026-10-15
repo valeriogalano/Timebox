@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { DAY_SHORT, fmtH, SLOTS, getToday, getMondayOfWeek, fmt, addDays } from '../utils';
+import { DAY_SHORT, fmtH, SLOTS, SLOT_LABELS, getToday, getMondayOfWeek, fmt, addDays } from '../utils';
 import { computeDivergences, DIVERGENCE_HISTORY_WEEKS } from '../divergences';
 import MultiSlotCell from '../components/MultiSlotCell';
 import { withAreaStatus } from './WeeklyView';
 
 const RECURRING_DAYS = DAY_SHORT.length;
-const SLOT_ROW_LABELS = { am: 'Mattina', pm: 'Pomeriggio', sera: 'Sera' };
 
 export default function RecurringScreen({ clients, recurring, setRecurring, slotCapacity }) {
   const [dragging, setDragging] = useState(null); // { blockId, fromDay, fromSlot, clientId, hours }
@@ -37,7 +36,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
       ? (newHours <= 0 ? 'eliminare' : 'aggiornare')
       : 'aggiungere';
     const msg =
-      `Confermi di ${action} il blocco ricorrente per ${client?.name ?? '—'} in ${SLOT_ROW_LABELS[item.slot]} di ${DAY_SHORT[item.day]}?\n\n` +
+      `Confermi di ${action} il blocco ricorrente per ${client?.name ?? '—'} in ${SLOT_LABELS[item.slot]} di ${DAY_SHORT[item.day]}?\n\n` +
       `Template attuale: ${fmtH(templateHours)}\n` +
       `Effettivo medio: ${fmtH(templateHours + item.avgDelta)} (${item.avgDelta > 0 ? '+' : ''}${fmtH(item.avgDelta)})\n` +
       `Nuovo template: ${fmtH(newHours)}\n` +
@@ -205,7 +204,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
                         <div style={{ display: 'grid', gridTemplateColumns: DIVERGENCE_COLUMNS, gap: 8, alignItems: 'center', padding: '6px 8px', borderRadius: 6, background: 'var(--tb-panel-bg-subtle)' }}>
                           <div style={{ width: 10, height: 10, borderRadius: '50%', background: client?.color ?? 'var(--tb-border)' }} />
                           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {SLOT_ROW_LABELS[item.slot]} · {client?.name ?? '—'}
+                            {SLOT_LABELS[item.slot]} · {client?.name ?? '—'}
                           </div>
                           <div style={cellNum}>{fmtH(templateHours)}</div>
                           <div style={{ ...cellNum, color: 'var(--tb-text-primary)', fontWeight: 800 }}>{fmtH(effettivo)}</div>
@@ -250,7 +249,7 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
             return (
               <React.Fragment key={slot}>
                 <div style={{ padding: '14px 14px 12px', display: 'flex', alignItems: 'flex-start', ...rowBottom }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', paddingTop: 4 }}>{SLOT_ROW_LABELS[slot]}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', paddingTop: 4 }}>{SLOT_LABELS[slot]}</div>
                 </div>
                 {Array.from({ length: RECURRING_DAYS }, (_, i) => {
                   const blocks = recurring.filter(r => r.day === i && r.slot === slot).sort((a, b) => a.position - b.position);

@@ -6,8 +6,10 @@
   :root { --bg: #171717; --panel: #222222; --text: #f2f2f2; --muted: #a3a3a3; --border: #404040; }
 }
 * { box-sizing: border-box; }
+/* ponytail: 12px oltre la safe area perché su iOS 26 la sfumatura sotto la status bar
+   della PWA scende oltre il bordo e sfocava la data. Da verificare sul telefono. */
 body {
-  margin: 0; padding: env(safe-area-inset-top) 12px calc(env(safe-area-inset-bottom) + 24px);
+  margin: 0; padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 24px);
   background: var(--bg); color: var(--text);
   font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Open Sans", sans-serif;
 }
@@ -36,3 +38,10 @@ h2 small { margin-left: auto; font-weight: 600; color: var(--muted); }
 .row.saving output { opacity: 0.5; }
 .row.failed output { text-decoration: underline wavy; }
 footer { margin-top: 18px; text-align: center; }
+#plan { margin-top: 8px; }
+.plan-slot { padding: 8px 12px 10px; border-top: 1px solid var(--border); }
+.plan-slot:first-of-type { border-top: 0; }
+h3 { margin: 0 0 4px; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.plan-block { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 15px; }
+.plan-block .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-block .value { font-variant-numeric: tabular-nums; color: var(--muted); }

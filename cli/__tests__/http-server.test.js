@@ -561,6 +561,17 @@ describe('HTTP server', () => {
     assert.equal(body.name, 'Renamed Project');
   });
 
+  it('POST and PATCH /projects → fixedPrice is stored, changed and cleared', async () => {
+    const { body: created } = await post(port, '/projects', {
+      name: 'A corpo', areaId: getClients()[0].id, fixedPrice: 1000,
+    });
+    assert.equal(getProjects().find(p => p.id === created.id).fixedPrice, 1000);
+    const { body: changed } = await request(port, 'PATCH', `/projects/${created.id}`, { fixedPrice: 1200 });
+    assert.equal(changed.fixedPrice, 1200);
+    const { body: cleared } = await request(port, 'PATCH', `/projects/${created.id}`, { fixedPrice: null });
+    assert.equal(cleared.fixedPrice, null);
+  });
+
   it('PATCH /projects/:id → moves project to another area', async () => {
     const clients = getClients();
     const { body: created } = await post(port, '/projects', {

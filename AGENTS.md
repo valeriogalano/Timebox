@@ -268,7 +268,7 @@ codex mcp add timebox -- timebox-mcp
 
 ```sql
 clients        (id, name, color, billable, billing, rate, limitType, limitHours, position, defaultStatus)
-projects       (id, clientId, name, description, budgetHours, weeklyHours, position, archived)
+projects       (id, clientId, name, description, budgetHours, weeklyHours, fixedPrice, position, archived)
 recurring      (id, clientId, slot, day, hours, position)
 entries        (id, projectId, date, hours, billableHours, slot, billed)
 week_overrides (id, weekKey, dayIndex, slot, blocksJson)

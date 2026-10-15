@@ -113,7 +113,43 @@ function row(project) {
   return el;
 }
 
+// La pianificazione del giorno, in sola lettura: per fascia, le aree con le ore
+// coperte su quelle pianificate. Si aggiorna quando la pagina ricarica i dati.
+function renderPlan() {
+  const plan = $('plan');
+  plan.replaceChildren();
+  plan.hidden = !data.plan?.length;
+  if (plan.hidden) return;
+  const title = document.createElement('h2');
+  title.textContent = 'Piano del giorno';
+  plan.append(title);
+  for (const slot of data.plan) {
+    const group = document.createElement('div');
+    group.className = 'plan-slot';
+    const label = document.createElement('h3');
+    label.textContent = slot.label;
+    group.append(label);
+    for (const block of slot.blocks) {
+      const line = document.createElement('div');
+      line.className = 'plan-block';
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      if (block.color) dot.style.background = block.color;
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = block.area;
+      const value = document.createElement('span');
+      value.className = 'value';
+      value.textContent = `${fmtH(block.trackedHours)} su ${fmtH(block.hours)}`;
+      line.append(dot, name, value);
+      group.append(line);
+    }
+    plan.append(group);
+  }
+}
+
 function render() {
+  renderPlan();
   const areas = $('areas');
   areas.replaceChildren();
   for (const area of data.areas) {
@@ -146,6 +182,7 @@ async function load() {
     render();
   } catch (err) {
     $('areas').replaceChildren();
+    $('plan').hidden = true;
     $('totals').textContent = '';
     say(err.message);
   }

@@ -56,8 +56,33 @@ function getMobileDayData(date) {
     date,
     plannedHours: summary.plannedCapacity,
     trackedHours: summary.trackedHours,
+    plan: getMobilePlan(summary, clients),
     areas,
   };
+}
+
+// Etichette delle fasce come nell'app (SLOT_META in src/utils.js).
+const SLOT_LABELS = { am: 'Mattina', pm: 'Pomeriggio', sera: 'Sera' };
+
+// La pianificazione del giorno, in sola lettura: per fascia, un blocco per area con
+// le ore pianificate e quelle già coperte (il riempimento di fillPlannedBlocks).
+function getMobilePlan(summary, clients) {
+  const colorOf = Object.fromEntries(clients.map(c => [c.id, c.color]));
+  return SLOTS
+    .map(slot => {
+      const byArea = new Map();
+      for (const block of summary.slots[slot].plannedBlocks) {
+        const area = byArea.get(block.clientId) ?? { area: block.area, color: colorOf[block.clientId] ?? null, hours: 0 };
+        area.hours += block.hours;
+        byArea.set(block.clientId, area);
+      }
+      const blocks = [...byArea].map(([clientId, area]) => ({
+        ...area,
+        trackedHours: summary.slots[slot].trackedByArea[clientId] || 0,
+      }));
+      return { slot, label: SLOT_LABELS[slot], blocks };
+    })
+    .filter(slot => slot.blocks.length > 0);
 }
 
 // Imposta le ore lavorate di un progetto in un giorno, con la stessa regola di Giorno

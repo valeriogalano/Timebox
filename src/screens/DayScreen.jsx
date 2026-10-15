@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fmt, fmtH, getToday, addDays, getMondayOfWeek, SLOTS, currentSlot, effBillable, isHourly, MONTHS_IT } from '../utils';
+import { fmt, fmtH, getToday, addDays, getMondayOfWeek, SLOTS, SLOT_META, SLOT_LABELS, currentSlot, effBillable, isHourly, MONTHS_IT } from '../utils';
 import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks, resolveEntrySlot, planDayEntrySave } from '../dayPlanning';
 import { sumByProject, usageMaps, loadProjectTotals } from '../cap-usage';
 import PlanningCell from '../components/PlanningCell';
@@ -283,7 +283,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
             {loading ? <SkeletonRows /> : readyGroups.slice(0, READY_VISIBLE).map((group, index) => (
               <InsightRow
                 key={`${group.slot}-${group.areaId}-${index}`}
-                title={`${group.area} · ${group.slot.toUpperCase()}`}
+                title={`${group.area} · ${SLOT_LABELS[group.slot] ?? group.slot}`}
                 value={fmtH(group.missingHours)}
                 meta={`${fmtH(group.estimatedHours)} Todoist su ${fmtH(group.availableHours)} disponibili`}
                 color="var(--tb-text-primary)"
@@ -347,12 +347,6 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
     </div>
   );
 }
-
-const SLOT_META = {
-  am: { label: 'Mattina', timeLabel: 'fino alle 13:00' },
-  pm: { label: 'Pomeriggio', timeLabel: '13:00 – 18:00' },
-  sera: { label: 'Sera', timeLabel: 'dalle 18:00' },
-};
 
 function DayPlanningPanel({
   loading, clients, projects, totalUsage, weekUsage, planning, slotPlannedTotals,
@@ -712,7 +706,7 @@ function InsightRow({ title, value, meta, color }) {
 // slot ottico del numero senza esserlo, ed era la ragione per cui i due
 // pannelli si leggevano in due modi diversi a parità di layout.
 const metaLine = (...parts) => parts.filter(Boolean).join(' · ');
-const slotLabel = item => item.slot?.toUpperCase?.() || '';
+const slotLabel = item => SLOT_LABELS[item.slot] ?? item.slot ?? '';
 
 // Righe mostrate per gruppo di mismatch e nel pannello dei blocchi senza
 // azioni; le altre si dichiarano in coda.

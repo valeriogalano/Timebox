@@ -17,7 +17,8 @@ describe('computeDivergences', () => {
       overrideRow('2026-08-17', 3),
     ];
     const [result] = computeDivergences(pastOverrides, recurring);
-    assert.equal(result.avgDelta, 3 / DIVERGENCE_HISTORY_WEEKS);
+    // 3h su 8 settimane = 22m e mezzo, arrotondati al quarto d'ora.
+    assert.equal(result.avgDelta, 0.5);
   });
 
   test('occurrences conta solo le settimane effettivamente divergenti', () => {
@@ -44,9 +45,10 @@ describe('computeDivergences', () => {
       overrideRow('2026-08-03', 3), // +1
       overrideRow('2026-08-10', 1), // -1
       overrideRow('2026-08-17', 3), // +1
+      overrideRow('2026-08-24', 3), // +1
     ];
     const [result] = computeDivergences(pastOverrides, recurring);
-    assert.equal(result.avgDelta, 1 / DIVERGENCE_HISTORY_WEEKS);
+    assert.equal(result.avgDelta, 2 / DIVERGENCE_HISTORY_WEEKS);
   });
 
   test('una voce dismissed viene esclusa', () => {
@@ -57,5 +59,20 @@ describe('computeDivergences', () => {
     ];
     const dismissed = new Set(['1-am-c1']);
     assert.deepEqual(computeDivergences(pastOverrides, recurring, dismissed), []);
+  });
+
+  test('uno scarto medio sotto il quarto d\'ora è rumore e non compare', () => {
+    // -5m per tre settimane: in media meno di 2m, "Applica" non cambierebbe nulla.
+    const pastOverrides = [
+      overrideRow('2026-08-03', 2 - 5 / 60),
+      overrideRow('2026-08-10', 2 - 5 / 60),
+      overrideRow('2026-08-17', 2 - 5 / 60),
+    ];
+    assert.deepEqual(computeDivergences(pastOverrides, recurring), []);
+  });
+
+  test('l\'arrotondamento è simmetrico tra scarti positivi e negativi', () => {
+    const minus = [3, 1, 1, 1].map((h, i) => overrideRow(`2026-08-${10 + i * 7}`, h)); // -2h su 8 = -15m
+    assert.equal(computeDivergences(minus, recurring)[0].avgDelta, -0.25);
   });
 });

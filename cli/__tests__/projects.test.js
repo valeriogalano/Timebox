@@ -43,4 +43,14 @@ describe('getProjectsData', () => {
     // Seed data includes entries, so at least one project should have logged > 0
     assert.ok(data.some(p => p.logged > 0));
   });
+
+  test('effectiveRate is the fixed price over the hours worked so far', () => {
+    const worked = getProjectsData().find(p => p.logged > 0);
+    const project = getProjects().find(p => p.id === worked.id);
+    saveProject({ ...project, fixedPrice: 1000 });
+    const data = getProjectsData().find(p => p.id === worked.id);
+    assert.equal(data.fixedPrice, 1000);
+    assert.equal(data.effectiveRate, Math.round(1000 / worked.logged * 100) / 100);
+    assert.equal(getProjectsData().find(p => p.logged === 0)?.effectiveRate ?? null, null);
+  });
 });

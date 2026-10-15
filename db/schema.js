@@ -113,6 +113,7 @@ function initDb(dbPath) {
       name TEXT,
       budgetHours REAL,
       weeklyHours REAL,
+      fixedPrice REAL,
       description TEXT,
       position INTEGER DEFAULT 0,
       archived INTEGER DEFAULT 0
@@ -191,6 +192,7 @@ function initDb(dbPath) {
   try { db.exec('ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0'); } catch (_) {}
   try { db.exec('ALTER TABLE projects ADD COLUMN weeklyHours REAL'); } catch (_) {}
   try { db.exec('ALTER TABLE projects ADD COLUMN description TEXT'); } catch (_) {}
+  try { db.exec('ALTER TABLE projects ADD COLUMN fixedPrice REAL'); } catch (_) {}
   try { db.exec('ALTER TABLE entries ADD COLUMN billableHours REAL'); } catch (_) {}
   try { db.exec("ALTER TABLE todoist_imports ADD COLUMN slot TEXT NOT NULL DEFAULT 'am'"); } catch (_) {}
   try { db.exec('ALTER TABLE todoist_imports ADD COLUMN note TEXT'); } catch (_) {}
@@ -311,7 +313,7 @@ function rebuildForeignKeyTables(db) {
   const tables = [
     {
       name: 'projects',
-      columns: ['id', 'clientId', 'name', 'description', 'budgetHours', 'weeklyHours', 'position', 'archived'],
+      columns: ['id', 'clientId', 'name', 'description', 'budgetHours', 'weeklyHours', 'fixedPrice', 'position', 'archived'],
       sql: `CREATE TABLE projects (
         id TEXT PRIMARY KEY,
         clientId TEXT REFERENCES clients(id) ON DELETE CASCADE,
@@ -319,6 +321,7 @@ function rebuildForeignKeyTables(db) {
         description TEXT,
         budgetHours REAL,
         weeklyHours REAL,
+        fixedPrice REAL,
         position INTEGER DEFAULT 0,
         archived INTEGER DEFAULT 0
       )`,

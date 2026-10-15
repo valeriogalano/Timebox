@@ -251,7 +251,7 @@ const TOOLS = [
   },
   {
     name: 'update_project',
-    description: 'Update one or more fields of a Timebox project (name, description, budgetHours, weeklyHours, archived). Use find_project to get the id first. Only include the fields you want to change. Archiving keeps logged hours and hides the project from active lists and Todoist import matching; use archived: false to unarchive.',
+    description: 'Update one or more fields of a Timebox project (name, description, budgetHours, weeklyHours, fixedPrice, archived). Use find_project to get the id first. Only include the fields you want to change. Archiving keeps logged hours and hides the project from active lists and Todoist import matching; use archived: false to unarchive.',
     inputSchema: {
       type: 'object',
       required: ['id'],
@@ -261,6 +261,7 @@ const TOOLS = [
         description: { type: 'string', description: 'New description (pass empty string to clear it)' },
         budgetHours: { type: 'number', description: 'New total budget in hours (pass 0 to clear)' },
         weeklyHours: { type: 'number', description: 'New weekly hours limit (pass 0 to clear)' },
+        fixedPrice: { type: 'number', description: 'New fixed price in euro for a project sold at a flat fee (pass 0 to clear)' },
         archived: { type: 'boolean', description: 'Archive (true) or unarchive (false) the project' },
       },
     },
@@ -289,6 +290,7 @@ const TOOLS = [
         description: { type: 'string', description: 'Project description (optional, searchable)' },
         budgetHours: { type: 'number', description: 'Total budget in hours (optional)' },
         weeklyHours: { type: 'number', description: 'Weekly hours limit (optional)' },
+        fixedPrice: { type: 'number', description: 'Fixed price in euro, for a project sold at a flat fee (optional)' },
       },
     },
   },
@@ -676,6 +678,8 @@ async function callTool(name, args) {
       if (p.billable != null && Math.abs(p.billable - (p.logged || 0)) > 0.001) line += `, billable: ${p.billable}h`;
       if (p.budgetHours) line += `, budget: ${p.budgetHours}h`;
       if (p.weeklyHours) line += `, weekly limit: ${p.weeklyHours}h`;
+      if (p.fixedPrice) line += `, fixed price: ${p.fixedPrice}€`;
+      if (p.effectiveRate != null) line += `, effective rate: ${p.effectiveRate}€/h`;
       if (p.archived) line += ' (archived)';
       if (p.description) line += `\n  ${p.description}`;
       return line;
@@ -796,6 +800,7 @@ async function callTool(name, args) {
     if (args.description !== undefined) body.description = args.description || null;
     if (args.budgetHours !== undefined) body.budgetHours = args.budgetHours || null;
     if (args.weeklyHours !== undefined) body.weeklyHours = args.weeklyHours || null;
+    if (args.fixedPrice !== undefined)  body.fixedPrice = args.fixedPrice || null;
     if (args.archived !== undefined)    body.archived = args.archived;
     const d = await httpRequest(`/projects/${encodeURIComponent(args.id)}`, 'PATCH', body);
     const parts = [];
@@ -803,6 +808,7 @@ async function callTool(name, args) {
     if (args.description !== undefined) parts.push(`description: ${d.description ? `'${d.description}'` : 'cleared'}`);
     if (args.budgetHours !== undefined) parts.push(`budget: ${d.budgetHours ? `${d.budgetHours}h` : 'cleared'}`);
     if (args.weeklyHours !== undefined) parts.push(`weekly limit: ${d.weeklyHours ? `${d.weeklyHours}h` : 'cleared'}`);
+    if (args.fixedPrice !== undefined)  parts.push(`fixed price: ${d.fixedPrice ? `${d.fixedPrice}€` : 'cleared'}`);
     if (args.archived !== undefined)    parts.push(d.archived ? 'archived' : 'unarchived');
     return `Project '${d.name}' updated — ${parts.join(', ')}.`;
   }
@@ -823,6 +829,7 @@ async function callTool(name, args) {
       description: args.description ?? null,
       budgetHours: args.budgetHours ?? null,
       weeklyHours: args.weeklyHours ?? null,
+      fixedPrice: args.fixedPrice ?? null,
     };
     const d = await httpRequest('/projects', 'POST', body);
     return `Project '${d.name}' created in area '${d.area || d.client}'.`;

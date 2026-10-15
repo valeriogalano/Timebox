@@ -33,6 +33,9 @@ function getProjectsData({ clientFilter, areaFilter, includeArchived, nameSearch
     description: p.description || null,
     budgetHours: p.budgetHours,
     weeklyHours: p.weeklyHours,
+    fixedPrice: p.fixedPrice ?? null,
+    // Tariffa effettiva di un progetto a corpo: prezzo diviso le ore lavorate finora.
+    effectiveRate: p.fixedPrice > 0 && totals[p.id] > 0 ? Math.round(p.fixedPrice / totals[p.id] * 100) / 100 : null,
     logged: totals[p.id] || 0,
     // Ore fatturabili: solo nelle aree a ore, dove possono divergere dalle lavorate.
     billable: clientMap[p.clientId]?.billing === 'hourly' ? (billableTotals[p.id] ?? totals[p.id] ?? 0) : null,

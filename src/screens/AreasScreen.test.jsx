@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import AreasScreen from './AreasScreen.jsx';
 
@@ -7,6 +7,12 @@ const projects = [
   { id: 'p1', clientId: 'c1', name: 'Attivo', position: 0 },
   { id: 'p2', clientId: 'c1', name: 'Archiviato', position: 1, archived: true },
 ];
+
+let worked = {};
+beforeEach(() => {
+  worked = {};
+  window.api = { getProjectTotals: () => Promise.resolve(worked) };
+});
 
 describe('AreasScreen archived toggle', () => {
   test('nasconde i progetti archiviati di default e li mostra col toggle', () => {
@@ -40,5 +46,25 @@ describe('AreasScreen / elenco delle aree da tastiera', () => {
     fireEvent.keyDown(second, { key: 'Enter' });
     expect(second).toHaveAttribute('aria-pressed', 'true');
     expect(getByDisplayValue('Altro')).toBeInTheDocument();
+  });
+});
+
+describe('AreasScreen / prezzo a corpo', () => {
+  test('mostra la tariffa effettiva sulle ore lavorate', async () => {
+    worked = { p1: 25 };
+    const priced = [{ ...projects[0], fixedPrice: 1000 }];
+    const { getByDisplayValue, findByText } = render(
+      <AreasScreen clients={clients} projects={priced} setClients={() => {}} setProjects={() => {}} />
+    );
+    expect(getByDisplayValue('1000')).toBeInTheDocument();
+    expect(await findByText('· 40 €/h')).toBeInTheDocument();
+  });
+
+  test('senza ore lavorate la tariffa non compare', () => {
+    const priced = [{ ...projects[0], fixedPrice: 1000 }];
+    const { queryByText } = render(
+      <AreasScreen clients={clients} projects={priced} setClients={() => {}} setProjects={() => {}} />
+    );
+    expect(queryByText(/€\/h/)).not.toBeInTheDocument();
   });
 });

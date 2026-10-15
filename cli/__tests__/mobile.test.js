@@ -73,6 +73,18 @@ describe('pagina mobile: giornata e salvataggio', () => {
     assert.equal(getMobileDayData(DATE).trackedHours >= 1.5, true);
   });
 
+  test('il piano del giorno elenca solo le fasce con blocchi, con le ore già coperte', () => {
+    const { plan } = getMobileDayData(DATE);
+    assert.equal(plan.length, 1);
+    assert.equal(plan[0].slot, 'pm');
+    assert.equal(plan[0].label, 'Pomeriggio');
+    assert.equal(plan[0].blocks.length, 1);
+    const [block] = plan[0].blocks;
+    assert.equal(block.hours, 3);
+    assert.equal(block.trackedHours, 1.5);
+    assert.ok(block.area && block.color);
+  });
+
   test('senza blocchi dell\'area: mattina sui giorni passati', () => {
     saveMobileHours({ projectId: c1Project.id, date: DATE, clock: '0:45', today: '2000-01-01' });
     assert.equal(entriesOf(c1Project.id)[0].slot, 'am');

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Prezzo a corpo sul progetto: in Aree, accanto al budget, si scrive il prezzo in euro di un progetto venduto a corpo. Quando il progetto ha ore lavorate, accanto compare la tariffa effettiva (prezzo diviso ore lavorate finora). Il campo si legge e si modifica anche dall'MCP (`create_project`, `update_project`, `projects`) e dall'API HTTP (`fixedPrice`).
+- Ore dall'iPhone: in cima alla pagina c'è il piano del giorno, in sola lettura. Per ogni fascia elenca le aree pianificate con le ore già coperte su quelle previste.
+
+### Changed
+- Le fasce si chiamano Mattina, Pomeriggio e Sera in tutta l'app. Prima Giorno, Import Todoist, Impostazioni e i blocchi extra mostravano AM, PM e SERA. Nei badge stretti si usano Mat, Pom e Sera.
+
+### Fixed
+- Ricorrenza · Override ripetuti: lo scarto medio si arrotonda al quarto d'ora, cioè al passo con cui "Applica" scrive il template. Le righe da pochi minuti (es. 1h 28m contro 1h 30m) non compaiono più, perché applicarle non cambiava nulla.
+- Ore dall'iPhone: nell'app aggiunta alla Home la prima riga in alto poteva risultare sfocata sotto la status bar. Ora la pagina parte più in basso.
+
 ## [0.10.1] - 2026-10-09
 
 ### Changed

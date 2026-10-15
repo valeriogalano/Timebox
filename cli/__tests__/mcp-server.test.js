@@ -241,6 +241,15 @@ describe('MCP server', () => {
     assert.ok(afterUnarchive.result.content[0].text.includes('Brand Identity'));
   });
 
+  it('tools/call update_project fixedPrice → shown in the project list, cleared with 0', async () => {
+    const set = await rpc(mcp, msg('tools/call', { name: 'update_project', arguments: { id: 'p6', fixedPrice: 1500 } }));
+    assert.ok(set.result.content[0].text.includes('fixed price: 1500€'));
+    const list = await rpc(mcp, msg('tools/call', { name: 'projects', arguments: {} }));
+    assert.match(list.result.content[0].text, /Brand Identity .*fixed price: 1500€/);
+    const cleared = await rpc(mcp, msg('tools/call', { name: 'update_project', arguments: { id: 'p6', fixedPrice: 0 } }));
+    assert.ok(cleared.result.content[0].text.includes('fixed price: cleared'));
+  });
+
   it('tools/call areas → 4 seed areas', async () => {
     const res = await rpc(mcp, msg('tools/call', { name: 'areas', arguments: {} }));
     const text = res.result.content[0].text;

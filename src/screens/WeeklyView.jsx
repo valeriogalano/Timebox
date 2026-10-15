@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, parseHHMM, effBillable, isHourly, SLOTS, budgetAlertLevel } from '../utils';
+import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, parseHHMM, effBillable, isHourly, SLOTS, SLOT_META, budgetAlertLevel } from '../utils';
 import { sumByProject, usageMaps, usageOf, fmtUsage, loadProjectTotals } from '../cap-usage';
 import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
@@ -14,11 +14,6 @@ import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImpor
 import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries, resolveEntrySlot } from '../dayPlanning';
 
 const PLANNING_MODES = ['full', 'compact', 'hidden'];
-const SLOT_ROW_META = {
-  am: { label: 'Mattina', timeLabel: 'fino alle 13:00' },
-  pm: { label: 'Pomeriggio', timeLabel: '13:00 – 18:00' },
-  sera: { label: 'Sera', timeLabel: 'dalle 18:00' },
-};
 export const AREA_STATUS_OPTIONS = [
   { key: 'active', label: 'Attiva', title: 'Area attiva questa settimana' },
   { key: 'minimal', label: 'Minima', title: 'Area da mantenere al minimo questa settimana' },
@@ -793,7 +788,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
               {/* One row per slot (AM / PM / Sera) */}
               {SLOTS.map((slot, si) => (
                 <React.Fragment key={slot}>
-                  <GridLabel border compact={planningCompact} timeLabel={SLOT_ROW_META[slot].timeLabel}>{SLOT_ROW_META[slot].label}</GridLabel>
+                  <GridLabel border compact={planningCompact} timeLabel={SLOT_META[slot].timeLabel}>{SLOT_META[slot].label}</GridLabel>
                   {days.map((d, i) => {
                     const isDropTarget = dragOver?.day === i && dragOver?.slot === slot;
                     const plannedTotal = d.slotBlocks[slot].filter(b => clients.some(c => c.id === b.clientId)).reduce((s, b) => s + b.hours, 0);
@@ -1358,7 +1353,7 @@ function TemplateDivergencePanel({ summary, clients, onRestore, onClose }) {
             }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: client?.color ?? 'var(--tb-border)', flexShrink: 0 }} />
               <span style={{ fontWeight: 800, color: 'var(--tb-text-primary)', whiteSpace: 'nowrap' }}>
-                {DAY_SHORT[row.dayIndex]} · {SLOT_ROW_META[row.slot]?.label ?? row.slot}
+                {DAY_SHORT[row.dayIndex]} · {SLOT_META[row.slot]?.label ?? row.slot}
               </span>
               <span style={{ color: 'var(--tb-text-muted)', flex: 1 }}>
                 template {fmtH(row.templateHours)} → settimana {fmtH(row.actualHours)}
