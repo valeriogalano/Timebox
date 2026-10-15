@@ -93,7 +93,13 @@ export function effBillable(entry) {
 export const AM_END_HOUR = 13;
 export const PM_END_HOUR = 18;
 export const SLOTS = ['am', 'pm', 'sera'];
-export const SLOT_LABELS = { am: 'AM', pm: 'PM', sera: 'Sera' };
+export const SLOT_META = {
+  am: { label: 'Mattina', short: 'Mat', timeLabel: 'fino alle 13:00' },
+  pm: { label: 'Pomeriggio', short: 'Pom', timeLabel: '13:00 – 18:00' },
+  sera: { label: 'Sera', short: 'Sera', timeLabel: 'dalle 18:00' },
+};
+export const SLOT_LABELS = Object.fromEntries(SLOTS.map(s => [s, SLOT_META[s].label]));
+export const SLOT_SHORT = Object.fromEntries(SLOTS.map(s => [s, SLOT_META[s].short]));
 
 export function normalizeSlot(slot) {
   return SLOTS.includes(slot) ? slot : 'am';

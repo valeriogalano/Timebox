@@ -49,15 +49,15 @@ describe('DayScreen / Blocchi pianificati senza azioni', () => {
   test('oltre l\'ottavo blocco dichiara quelli non mostrati', async () => {
     mockApi(0, 10);
     const { findByText, queryByText } = render(<DayScreen projects={[]} slotCapacity={{ am: 5, pm: 4, eve: 2 }} />);
-    expect(await findByText('Area 8 · AM')).toBeInTheDocument();
-    expect(queryByText('Area 9 · AM')).not.toBeInTheDocument();
+    expect(await findByText('Area 8 · Mattina')).toBeInTheDocument();
+    expect(queryByText('Area 9 · Mattina')).not.toBeInTheDocument();
     expect(queryByText('e altri 2')).toBeInTheDocument();
   });
 
   test('fino a otto blocchi non c\'è niente da dichiarare', async () => {
     mockApi(0, 8);
     const { findByText, queryByText } = render(<DayScreen projects={[]} slotCapacity={{ am: 5, pm: 4, eve: 2 }} />);
-    expect(await findByText('Area 8 · AM')).toBeInTheDocument();
+    expect(await findByText('Area 8 · Mattina')).toBeInTheDocument();
     expect(queryByText(/^e (un altro|altri)/)).not.toBeInTheDocument();
   });
 });

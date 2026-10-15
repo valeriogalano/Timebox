@@ -30,7 +30,7 @@ describe('ExtraCell', () => {
         orphanTodoist={[{ clientId: 'c2', hours: 2, slot: 'pm', tasks: [] }]} />
     );
     expect(getByTitle('Task Todoist senza blocco pianificato')).toHaveTextContent('Blog');
-    expect(getByText('PM')).toBeInTheDocument();
+    expect(getByText('Pom')).toBeInTheDocument();
   });
 
   test('nella vista compatta mostra le stesse cose', () => {
