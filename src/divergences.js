@@ -8,6 +8,12 @@ import { SLOTS } from './utils.js';
 export const DIVERGENCE_HISTORY_WEEKS = 8;
 export const DIVERGENCE_MIN_OCCURRENCES = 3;
 
+// Il template si pianifica a quarti d'ora, ed è a quel passo che "Applica"
+// scrive. Uno scarto medio che arrotondato fa zero non cambierebbe nulla:
+// è rumore (minuti in più o in meno nelle singole settimane) e non si mostra.
+const QUARTER = 0.25;
+const toQuarter = h => Math.sign(h) * Math.round(Math.abs(h) / QUARTER) * QUARTER;
+
 // pastOverrides: righe { weekKey, dayIndex, slot, blocks } per la finestra osservata.
 // recurring: il template attuale (usato per calcolare lo scarto di ogni settimana).
 // dismissed: Set di chiavi "day-slot-clientId" da escludere.
@@ -56,9 +62,10 @@ export function computeDivergences(pastOverrides, recurring, dismissed = new Set
       // template (scarto zero) e deve contribuire al denominatore, altrimenti
       // lo scarto medio risulta gonfiato — ed è lui che "Applica" scrive nel
       // nuovo template.
-      avgDelta: s.deltas.reduce((a, b) => a + b, 0) / DIVERGENCE_HISTORY_WEEKS,
+      avgDelta: toQuarter(s.deltas.reduce((a, b) => a + b, 0) / DIVERGENCE_HISTORY_WEEKS),
       occurrences: s.deltas.length,
     }))
+    .filter(s => s.avgDelta !== 0)
     .filter(s => !dismissed.has(`${s.day}-${s.slot}-${s.clientId}`))
     // Ordine di lettura settimanale: giorno → fascia → più corretti prima.
     .sort((a, b) => a.day - b.day || SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot) || b.occurrences - a.occurrences);
