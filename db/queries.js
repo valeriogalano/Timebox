@@ -56,13 +56,13 @@ function getProjects() {
 
 function saveProject(project) {
   db.prepare(`
-    INSERT INTO projects (id,clientId,name,description,budgetHours,weeklyHours,position,archived)
-    VALUES (@id,@clientId,@name,@description,@budgetHours,@weeklyHours,@position,@archived)
+    INSERT INTO projects (id,clientId,name,description,budgetHours,weeklyHours,fixedPrice,position,archived)
+    VALUES (@id,@clientId,@name,@description,@budgetHours,@weeklyHours,@fixedPrice,@position,@archived)
     ON CONFLICT(id) DO UPDATE SET
       clientId=excluded.clientId, name=excluded.name, description=excluded.description,
-      budgetHours=excluded.budgetHours, weeklyHours=excluded.weeklyHours,
+      budgetHours=excluded.budgetHours, weeklyHours=excluded.weeklyHours, fixedPrice=excluded.fixedPrice,
       position=excluded.position, archived=excluded.archived
-  `).run({ position: 0, archived: 0, weeklyHours: null, description: null, ...project, archived: project.archived ? 1 : 0 });
+  `).run({ position: 0, archived: 0, weeklyHours: null, fixedPrice: null, description: null, ...project, archived: project.archived ? 1 : 0 });
 }
 
 function deleteProject(id) {

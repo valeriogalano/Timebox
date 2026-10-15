@@ -170,13 +170,13 @@ function createHttpServer() {
       }
 
       if (req.method === 'POST' && p === '/projects') {
-        const { name, clientId, areaId, description, budgetHours, weeklyHours } = await readBody(req);
+        const { name, clientId, areaId, description, budgetHours, weeklyHours, fixedPrice } = await readBody(req);
         const resolvedAreaId = areaId || clientId;
         if (!name || !resolvedAreaId) return json(res, 400, { error: 'name and areaId/clientId are required' });
         const client = getClients().find(c => c.id === resolvedAreaId);
         if (!client) return json(res, 400, { error: `Area not found: ${resolvedAreaId}` });
         const id = randomUUID();
-        saveProject({ id, clientId: resolvedAreaId, name, description: description ?? null, budgetHours: budgetHours ?? null, weeklyHours: weeklyHours ?? null });
+        saveProject({ id, clientId: resolvedAreaId, name, description: description ?? null, budgetHours: budgetHours ?? null, weeklyHours: weeklyHours ?? null, fixedPrice: fixedPrice ?? null });
         emitter.emit('change', 'structure');
         return json(res, 200, { id, name, clientId: resolvedAreaId, areaId: resolvedAreaId, client: client.name, area: client.name });
       }
@@ -212,11 +212,12 @@ function createHttpServer() {
         if ('description' in body)          updated.description = body.description ?? null;
         if ('budgetHours' in body)          updated.budgetHours = body.budgetHours ?? null;
         if ('weeklyHours' in body)          updated.weeklyHours = body.weeklyHours ?? null;
+        if ('fixedPrice' in body)           updated.fixedPrice = body.fixedPrice ?? null;
         if ('archived' in body)             updated.archived = !!body.archived;
         saveProject(updated);
         const client = getClients().find(c => c.id === updated.clientId);
         emitter.emit('change', 'structure');
-        return json(res, 200, { id, name: updated.name, clientId: updated.clientId, areaId: updated.clientId, client: client?.name, area: client?.name, description: updated.description, budgetHours: updated.budgetHours, weeklyHours: updated.weeklyHours, archived: updated.archived });
+        return json(res, 200, { id, name: updated.name, clientId: updated.clientId, areaId: updated.clientId, client: client?.name, area: client?.name, description: updated.description, budgetHours: updated.budgetHours, weeklyHours: updated.weeklyHours, fixedPrice: updated.fixedPrice, archived: updated.archived });
       }
 
       if (req.method === 'DELETE' && p.startsWith('/projects/') && p !== '/projects/') {

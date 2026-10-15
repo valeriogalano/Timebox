@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AREA_STATUS_OPTIONS } from './WeeklyView';
 
 const BILLING_OPTIONS = ['none', 'hourly', 'fixed'];
@@ -126,6 +126,9 @@ function SectionLabel({ children }) {
 
 export default function AreasScreen({ clients, projects, setClients, setProjects }) {
   const [selectedId, setSelectedId] = useState(clients[0]?.id);
+  // Ore lavorate per progetto: servono solo per la tariffa effettiva dei progetti a corpo.
+  const [workedTotals, setWorkedTotals] = useState({});
+  useEffect(() => { window.api.getProjectTotals().then(setWorkedTotals); }, []);
   const sel = clients.find(c => c.id === selectedId);
   const selProjects = projects
     .filter(p => p.clientId === selectedId)
@@ -671,6 +674,27 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
                               border: 'none', background: 'transparent', outline: 'none',
                               fontFamily: "'Open Sans', sans-serif" }} />
                           <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0 }}>h/s</span>
+                        </div>
+                        <div title="Prezzo a corpo del progetto (€). Accanto, la tariffa effettiva sulle ore lavorate finora."
+                          style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 7px',
+                            borderRadius: 4, border: '1px solid var(--tb-border-mid)', flexShrink: 0,
+                            color: 'var(--tb-text-faint)' }}>
+                          <input
+                            type="number"
+                            value={p.fixedPrice ?? ''}
+                            aria-label="Prezzo a corpo del progetto, in euro"
+                            placeholder="—"
+                            onChange={e => updateProject(p.id, 'fixedPrice', e.target.value ? Number(e.target.value) : null)}
+                            onMouseDown={e => e.stopPropagation()}
+                            style={{ width: 48, fontSize: 11, color: 'var(--tb-text-faint)', textAlign: 'right',
+                              border: 'none', background: 'transparent', outline: 'none',
+                              fontFamily: "'Open Sans', sans-serif" }} />
+                          <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0 }}>€</span>
+                          {p.fixedPrice > 0 && workedTotals[p.id] > 0 && (
+                            <span style={{ fontSize: 11, color: 'var(--tb-text-secondary)', flexShrink: 0 }}>
+                              · {Math.round(p.fixedPrice / workedTotals[p.id])} €/h
+                            </span>
+                          )}
                         </div>
                         <button
                           onClick={e => { e.stopPropagation(); setMovingProjectId(movingProjectId === p.id ? null : p.id); }}
