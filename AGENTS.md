@@ -225,7 +225,9 @@ In development, wrappers point at repository files. In packaged builds, they poi
 | `GET` | `/clients?search=` | `getClientsData(...)`. |
 | `GET` | `/areas?search=` | Alias for clients/areas. |
 | `GET` | `/status` | `getStatusData(today)`. |
-| `POST` | `/log` | `logHours(...)`; supports `billableHours`. |
+| `POST` | `/log` | `logHours(...)`; supports `billableHours` and `slot`. Without `slot`, a project with hours in more than one slot that day is an error. |
+| `PATCH` | `/entries/:id` | Correct an entry's slot: `{ slot }`, through `moveEntrySlot`. Merges with the project's entry already in that slot. |
+| `GET` | `/plan-vs-tracked?from=&to=` | `getPlanVsTrackedData(...)`: planned, covered and worked-in-slot hours per day, slot and area, extra hours and totals. Days before `slotsTrackedSince` are flagged and left out of the totals. |
 | `POST` | `/projects` | Create a project. |
 | `PATCH` | `/projects/:id` | Update project fields or move area. |
 | `DELETE` | `/projects/:id` | Delete a project with no entries. |
@@ -245,7 +247,7 @@ A second listener, off by default, macOS only. It exists so hours can be logged 
 - `lib/mobile-access.js` decides when it is open: switched on, a token exists, and the computer is on a local network. It does **not** recognise the home network: while on, the page is reachable on any network. This was a deliberate step back from "home only". On macOS an app cannot read the router's MAC address (`arp` returns "no entry" when a non-Apple program is in the process chain) nor the Wi-Fi name, and the router's UPnP id and TLS certificate were not usable either. Do not reintroduce `arp`-based detection: it works from a terminal and fails inside the app.
 - `lib/home-network.js` only finds where to listen: the computer's addresses in the router's subnet, from `route -n get default`. Never `0.0.0.0`.
 - Because nothing closes the page automatically, its switch is in the top bar (`src/components/MobileSwitch.jsx`), visible from every screen, filled when on. Settings -> iPhone has the same switch plus the link and the token. The two stay in step through the `MOBILE_CHANGED` window event.
-- The page works by project id. It changes worked hours only: `saveMobileHours` keeps the stored `billableHours` and `billed`, and writes through `planDayEntrySave`, the same rule `DayScreen` uses.
+- The page works by project id. It changes worked hours only: `saveMobileHours` keeps the stored `billableHours` and `billed`, and writes through `planDayEntrySave`, the same rule `DayScreen` uses. It shows the day total, so when a project has hours in more than one slot that day `PUT /api/hours` answers 409 and the correction is made from Giorno.
 - `mobile/` is plain files with no bundler, under a CSP that forbids inline script and style. Colours are set through the CSSOM (`el.style`), text through `textContent`.
 - Settings keys: `mobile_enabled`, `mobile_token_enc` (encrypted with `safeStorage`, like the Todoist token).
 - The accepted risks (plain HTTP, reachable on any network while on) are written in `SECURITY.md`. Read it before changing any of this.
@@ -254,7 +256,7 @@ A second listener, off by default, macOS only. It exists so hours can be logged 
 
 `cli/mcp-server.js` implements MCP spec `2024-11-05` with JSON-RPC over stdio.
 
-Tools: `today`, `week`, `projects`, `entries`, `areas`, `status`, `log_hours`, `find_area`, `find_project`, `rename_area`, `update_area`, `rename_project`, `update_project`, `move_project`, `create_project`, `delete_project`, `merge_project_entries`.
+Tools: `today`, `week`, `projects`, `entries`, `areas`, `status`, `log_hours`, `set_entry_slot`, `plan_vs_tracked`, `find_area`, `find_project`, `rename_area`, `update_area`, `rename_project`, `update_project`, `move_project`, `create_project`, `delete_project`, `merge_project_entries`. `entries`, `today` and `week` show each entry's slot and id; `day_summary` shows the hours worked in each slot next to the block filling.
 
 Codex manual configuration:
 
@@ -333,11 +335,15 @@ A `timebox.db` sitting in the repository root is **not** the app's database — 
 
 Editing the weekly view must not mutate the `recurring` table.
 
-### Slots Belong to the Plan, Not to Tracked Hours
+### Entry Slots and Block Filling Are Two Different Numbers
 
-AM, PM and Sera are a property of planned blocks. A tracked entry still stores a `slot` (the unique index is `projectId + date + slot`), but it is picked automatically by `resolveEntrySlot`, cannot be chosen in the UI and says nothing about when the work happened. Never show it and never compare planned against tracked through it.
+An entry's `slot` (AM, PM, Sera) says in which part of the day the work happened. There is one entry per project, day and slot (unique index on `projectId + date + slot`), so a project can have hours in more than one slot on the same day.
 
-Tracked hours meet slots in one place only: `fillPlannedBlocks` (`src/dayPlanning.js`, twin in `lib/domain.js`) spreads an area's hours for the day over its blocks in slot order. Per-slot tracked figures (`slotLogged` in `computeDayPlanning`, `slots[slot].trackedByArea` and `trackedHours` in `getDaySummaryData`) come from that fill; hours beyond the plan are extra and belong to no slot.
+- **Assigned automatically, corrected afterwards.** Logging never asks for the slot. `defaultEntrySlot` (`src/dayPlanning.js`, twin in `lib/domain.js`) picks the current slot for today; for other days `resolveEntrySlot` picks the area's first planned slot, else `am`. Saving hours on a project that already has one entry that day reuses its slot. Todoist imports use the due time when there is one, the plan for a date-only due, and the real slot thresholds for a task completed without a due date. A wrong slot is corrected afterwards through `moveEntrySlot` (`db/queries.js`): from the slot selector of each row in Giorno → Ore, with `set_entry_slot` or with `PATCH /entries/:id`. Moving into a slot where the project already has an entry merges the two (hours and billable hours summed, billed only if both were).
+- **Ambiguity is an error, not a guess.** `log_hours` without a slot on a project that has hours in more than one slot that day fails and asks for the slot; the mobile page answers 409. In Settimana a cell whose hours sit in more than one slot is read-only (`TimeCell` `readOnlyTitle`) and points to Giorno.
+- **Slots count from `slotsTrackedSince`.** Before this version slots were picked by the code and say nothing. `ensureSlotsTrackedSince` stores the date in `settings` the first time a database is opened by this version and never moves it. `plan_vs_tracked` flags the earlier days and leaves them out of its totals.
+
+Block filling stays a separate measure of how much of the plan is covered: `fillPlannedBlocks` (`src/dayPlanning.js`, twin in `lib/domain.js`) spreads an area's hours for the day over its blocks in slot order, ignoring the entry slot. `slotLogged` in `computeDayPlanning`, `slots[slot].trackedByArea` and `trackedHours` in `getDaySummaryData`, remaining capacity, extra blocks and the `day_*` diagnostics all come from that fill. The hours actually worked in a slot are `slots[slot].actualByArea` and `actualHours` in `getDaySummaryData`, and `trackedHours` per slot and area in `plan_vs_tracked` (`cli/commands/plan-vs-tracked.js`), where the fill appears as `coveredHours`. Never mix the two, and in the UI only the fill is shown.
 
 ### Empty Week Overrides
 
@@ -355,7 +361,7 @@ Extra blocks are computed from entries whose project area is not present in plan
 - Existing `projectId + date + slot` updates the row.
 - New rows use `crypto.randomUUID()`.
 
-There is one entry per `projectId + date + slot`; the database enforces this with a unique index on `entries(projectId, date, slot)`.
+There is one entry per `projectId + date + slot`; the database enforces this with a unique index on `entries(projectId, date, slot)`. A project can have entries in more than one slot on the same day; the cell shows their total and is read-only when there is more than one (see *Entry Slots and Block Filling Are Two Different Numbers*).
 
 ### Billable Hours and Billed State
 
