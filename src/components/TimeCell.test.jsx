@@ -64,4 +64,16 @@ describe('TimeCell — da tastiera', () => {
     fireEvent.keyDown(cell, { key: 'Enter' });
     expect(cell.querySelector('input')).toBeNull();
   });
+
+  it('con readOnlyTitle mostra le ore, non si apre e dice dove si modificano', () => {
+    const { container, getByText } = render(
+      <TimeCell hours={3} colIndex={0} projectId="a" readOnlyTitle="Ore su più fasce: si modificano da Giorno" onSave={() => {}} />
+    );
+    const cell = container.querySelector('[data-timecell]');
+    fireEvent.click(cell);
+    expect(cell.querySelector('input')).toBeNull();
+    expect(cell.tabIndex).toBe(-1);
+    expect(cell.title).toBe('Ore su più fasce: si modificano da Giorno');
+    expect(getByText('3h')).toBeTruthy();
+  });
 });

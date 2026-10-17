@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getToday, fmt, getMondayOfWeek, currentSlot } from './utils';
+import { planQuickLogAdd } from './dayPlanning';
 import QuickLogModal from './components/QuickLogModal';
 import Glyph from './components/Glyph';
 import MobileSwitch from './components/MobileSwitch';
@@ -42,25 +43,6 @@ function ExpandIcon()   { return <svg width="16" height="16" viewBox="0 0 16 16"
 
 // Accento neutro (REDLINE §1: nav attivo non ha colore di brand, solo forma/peso).
 const ACCENT = 'var(--tb-sidebar-nav-active-text)';
-
-function mergeProjectDayEntries(entries, projectId) {
-  const matches = entries.filter(entry => entry.projectId === projectId);
-  if (matches.length === 0) return { matches: [], merged: null };
-
-  const first = matches[0];
-  const hours = matches.reduce((sum, entry) => sum + entry.hours, 0);
-  const billableTotal = matches.reduce((sum, entry) => sum + (entry.billableHours ?? entry.hours), 0);
-
-  return {
-    matches,
-    merged: {
-      ...first,
-      hours,
-      billableHours: Math.abs(billableTotal - hours) < 0.001 ? null : billableTotal,
-      billed: matches.every(entry => entry.billed),
-    },
-  };
-}
 
 export default function App() {
   // ponytail: dev-only deep-link so headless screenshots can target a screen via ?screen=id
@@ -262,20 +244,14 @@ export default function App() {
     addHoursToToday(projectId, addHours);
   }
 
+  // Le ore vanno nella fascia dell'ora corrente; le entry del progetto in altre fasce
+  // restano. La fascia si corregge poi da Giorno.
   async function addHoursToToday(projectId, addHours) {
     const today = fmt(getToday());
     const entries = await window.api.getEntries(today, today);
-    const { matches, merged } = mergeProjectDayEntries(entries, projectId);
-    const newHours = (merged?.hours || 0) + addHours;
-    const slot = merged?.slot || currentSlot();
-    const entry = merged
-      ? { ...merged, hours: newHours }
-      : { id: crypto.randomUUID(), projectId, date: today, hours: newHours, billableHours: null, slot, billed: false };
-    await window.api.saveEntry(entry);
-    for (const match of matches) {
-      if (match.id === entry.id) continue;
-      await window.api.deleteEntry(match.id);
-    }
+    await window.api.saveEntry(planQuickLogAdd({
+      entries, projectId, date: today, addHours, slot: currentSlot(), newId: crypto.randomUUID(),
+    }));
     setWeekRefreshTick(t => t + 1);
   }
 
