@@ -2,9 +2,10 @@
 
 const { getEntries, getProjects, getClients } = require('../../db/queries');
 const { effBillable, isHourly } = require('../format');
+const { SLOTS } = require('../../lib/domain');
 
-// Le registrazioni di un giorno, in un elenco solo. Non sono divise per fascia: la
-// fascia di un'ora registrata non si sceglie, quindi non è un dato da mostrare.
+// Le registrazioni di un giorno, in un elenco solo, ognuna con id e fascia (per
+// correggerla con set_entry_slot). In ordine di fascia.
 function getTodayData(date) {
   const projectMap = Object.fromEntries(getProjects().map(p => [p.id, p]));
   const clientMap = Object.fromEntries(getClients().map(c => [c.id, c]));
@@ -13,6 +14,8 @@ function getTodayData(date) {
     const project = projectMap[e.projectId];
     const client = project ? clientMap[project.clientId] : null;
     return {
+      id: e.id,
+      slot: e.slot,
       hours: e.hours,
       billableHours: e.billableHours ?? null,
       project: project?.name || e.projectId,
@@ -21,7 +24,7 @@ function getTodayData(date) {
       isBillable: isHourly(client),
       billed: e.billed,
     };
-  });
+  }).sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
 
   return {
     date,

@@ -18,15 +18,13 @@ describe('getTodayData', () => {
     assert.deepEqual(data.entries, []);
   });
 
-  test('lists the entries of the day in one list, whatever slot they were logged in', () => {
-    logHours({ projectName: 'website', hoursStr: '3', slot: 'am', date: TEST_DATE, add: false });
+  test('lists the entries of the day in one list, in slot order, each with its slot and id', () => {
     logHours({ projectName: 'brand', hoursStr: '2', slot: 'pm', date: TEST_DATE, add: false });
+    logHours({ projectName: 'website', hoursStr: '3', slot: 'am', date: TEST_DATE, add: false });
     const data = getTodayData(TEST_DATE);
     assert.equal(data.total, 5);
-    assert.deepEqual(data.entries.map(e => e.project).sort(), ['Brand Identity', 'Website Redesign']);
-    // la fascia non è un dato delle ore registrate: non compare nella risposta
-    assert.ok(!('slots' in data) && !('amTotal' in data));
-    assert.ok(data.entries.every(e => !('slot' in e)));
+    assert.deepEqual(data.entries.map(e => [e.slot, e.project]), [['am', 'Website Redesign'], ['pm', 'Brand Identity']]);
+    assert.ok(data.entries.every(e => e.id));
   });
 
   test('resolves client name for each entry', () => {

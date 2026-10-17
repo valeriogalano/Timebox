@@ -7,14 +7,14 @@ const q = require('./db/queries');
 const { createHttpServer } = require('./cli/http-server');
 const { getDayInsightsData } = require('./cli/commands/day-insights');
 const { todoistTaskOrder } = require('./lib/todoist-order');
-const { slotForDueValue } = require('./lib/time-slots');
+const { getDaySummaryData } = require('./cli/commands/day-summary');
 const { setupAutoUpdater } = require('./lib/updater');
 const { setupUpdateNotifier } = require('./lib/update-notifier');
 const { createMobileServer } = require('./lib/mobile-server');
 const { createMobileAccess } = require('./lib/mobile-access');
 const { currentNetwork } = require('./lib/home-network');
 const { getMobileDayData, saveMobileHours, isDate } = require('./cli/commands/mobile');
-const { fmt, getToday } = require('./lib/domain');
+const { fmt, getToday, todoistTaskSlot } = require('./lib/domain');
 
 function getAppIcon() {
   const fileName = isDev ? 'icon-dev.png' : 'icon.png';
@@ -129,17 +129,6 @@ function taskDueValue(due) {
   return due?.datetime ?? due?.date ?? null;
 }
 
-function taskSlotFromDateTime(dateTime) {
-  if (!dateTime) return 'am';
-  const date = new Date(dateTime);
-  return Number.isNaN(date.getTime()) ? 'am' : (date.getHours() < 12 ? 'am' : 'pm');
-}
-
-function taskSlot(due, completedAt) {
-  const dueValue = taskDueValue(due);
-  if (!dueValue) return taskSlotFromDateTime(completedAt);
-  return slotForDueValue(dueValue);
-}
 
 function taskLabels(task) {
   if (Array.isArray(task.labels)) return task.labels;
@@ -203,6 +192,8 @@ function openDatabase(dbPath) {
   logger.info('db init', { dbPath });
   _db = initDb(dbPath);
   q.init(_db);
+  // Le fasce delle entry contano nei confronti col piano da qui in avanti.
+  q.ensureSlotsTrackedSince(fmt(getToday()));
   // Dev/test runs share the packaged app's userData/config.json (same app
   // name), so never persist the dev DB path there or the next production
   // launch would pick it up.
@@ -395,6 +386,7 @@ function setupIpc() {
   ipcMain.handle('db:getProjectBillableTotals', ()         => q.getProjectBillableTotals());
   ipcMain.handle('db:saveEntry',           (_, e)          => q.saveEntry(e));
   ipcMain.handle('db:deleteEntry',         (_, id)         => q.deleteEntry(id));
+  ipcMain.handle('db:moveEntrySlot',       (_, id, slot)   => q.moveEntrySlot(id, slot));
 
   ipcMain.handle('db:getWeekOverrides',      (_, wk)         => q.getWeekOverrides(wk));
   ipcMain.handle('db:getWeekOverridesRange', (_, f, t)       => q.getWeekOverridesRange(f, t));
@@ -641,7 +633,7 @@ function setupIpc() {
         labels: taskLabels(t),
         hours,
         estimatedHours: hours,
-        slot: taskSlot(t.due),
+        slot: todoistTaskSlot({ dueValue: taskDueValue(t.due) }),
         dueDate: taskDueValue(t.due),
         dayOrder: t.day_order ?? null,
         childOrder: t.child_order ?? null,
@@ -695,6 +687,9 @@ function setupIpc() {
       return timboxProjects.find(p => p.name === tp.name) ?? null;
     }
 
+    const plannedByDate = {};
+    const plannedBlocksOf = date => (plannedByDate[date] ??= getDaySummaryData(date).slots);
+
     const tasks = [];
     for (const t of completedTasks) {
       if (!t.id || importedIds.has(t.id)) continue;
@@ -717,7 +712,12 @@ function setupIpc() {
         labels: taskLabels(t),
         hours,
         estimatedHours: hours,
-        slot: taskSlot(t.due, completedAt),
+        slot: todoistTaskSlot({
+          dueValue: taskDueValue(t.due),
+          completedAt,
+          clientId: proj.clientId,
+          blocksForSlot: slot => plannedBlocksOf(date)[slot].plannedBlocks,
+        }),
         dueDate: taskDueValue(t.due),
         completedAt,
         completedDate: date,

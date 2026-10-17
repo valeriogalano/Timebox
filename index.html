@@ -258,6 +258,16 @@
         getProjectBillableTotals: async () => { const t = {}; entries.forEach(e => { t[e.projectId] = (t[e.projectId] || 0) + (e.billableHours ?? e.hours); }); return t; },
         saveEntry: async (e) => { const i = entries.findIndex(x => x.id === e.id); i >= 0 ? entries[i] = e : entries.push(e); },
         deleteEntry: async (id) => { entries = entries.filter(e => e.id !== id); },
+        moveEntrySlot: async (id, slot) => {
+          const e = entries.find(x => x.id === id);
+          if (!e) return null;
+          const t = entries.find(x => x !== e && x.projectId === e.projectId && x.date === e.date && x.slot === slot);
+          if (!t) { e.slot = slot; return { entry: e, merged: false }; }
+          const bill = t.billableHours == null && e.billableHours == null ? null : (t.billableHours ?? t.hours) + (e.billableHours ?? e.hours);
+          Object.assign(t, { hours: t.hours + e.hours, billableHours: bill, billed: t.billed && e.billed });
+          entries = entries.filter(x => x !== e);
+          return { entry: t, merged: true };
+        },
         getWeekOverrides: async (weekKey) => {
           if (weekKey !== localD(0)) return [];
           const todayIdx = (new Date().getDay() + 6) % 7; // Mon=0..Sun=6

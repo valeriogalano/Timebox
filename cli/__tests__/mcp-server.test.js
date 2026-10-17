@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createTestDb } = require('./helpers');
 const { createHttpServer } = require('../http-server');
-const { setTodoistCache } = require('../../db/queries');
+const { setTodoistCache, saveEntry } = require('../../db/queries');
 
 const MCP_SERVER = path.join(__dirname, '..', 'mcp-server.js');
 
@@ -79,9 +79,10 @@ describe('MCP server', () => {
     const res = await rpc(mcp, msg('tools/list', {}));
     const { tools } = res.result;
     assert.ok(Array.isArray(tools));
-    assert.equal(tools.length, 27);
+    assert.equal(tools.length, 29);
     const names = tools.map(t => t.name);
     for (const n of ['today', 'day_summary', 'day_free_capacity', 'day_ready_blocks', 'todoist_imported_tasks', 'day_mismatches', 'week', 'projects', 'entries', 'areas', 'status', 'log_hours',
+      'set_entry_slot', 'plan_vs_tracked',
       'find_area', 'find_project', 'rename_area', 'update_area', 'rename_project', 'update_project',
       'move_project', 'create_project', 'delete_project', 'merge_project_entries',
       'get_recurring', 'set_recurring_slot', 'get_week_overrides', 'set_week_override', 'clear_week_override']) {
@@ -207,11 +208,37 @@ describe('MCP server', () => {
     const res = await rpc(mcp, msg('tools/call', { name: 'entries', arguments: { from: '2000-01-01' } }));
     const text = res.result.content[0].text;
     assert.match(text, /^Entries from 2000-01-01 to \d{4}-\d{2}-\d{2}:/);
-    assert.match(text, /\d{4}-\d{2}-\d{2}  .+ \[.+\]: [\d.]+h/);
+    assert.match(text, /\d{4}-\d{2}-\d{2} (am|pm|sera)  .+ \[.+\]: [\d.]+h.* \(id .+\)/);
+    assert.ok(text.includes('Slot tracking start date not set'));
     assert.ok(text.includes('By area:') && text.includes('By project:') && text.includes('Total:'));
 
     const empty = await rpc(mcp, msg('tools/call', { name: 'entries', arguments: { from: '1999-01-01', to: '1999-01-02' } }));
     assert.equal(empty.result.content[0].text, 'No entries from 1999-01-01 to 1999-01-02.');
+  });
+
+  it('tools/call set_entry_slot → moves an entry, then merges into an existing slot', async () => {
+    saveEntry({ id: 'mv-am', projectId: 'p1', date: '2019-05-06', hours: 1, billableHours: null, slot: 'am', billed: false });
+    saveEntry({ id: 'mv-pm', projectId: 'p1', date: '2019-05-06', hours: 2, billableHours: null, slot: 'pm', billed: false });
+
+    const moved = await rpc(mcp, msg('tools/call', { name: 'set_entry_slot', arguments: { entryId: 'mv-am', slot: 'sera' } }));
+    assert.equal(moved.result.content[0].text, 'Entry mv-am (2019-05-06, 1h) is now in sera.');
+
+    const merged = await rpc(mcp, msg('tools/call', { name: 'set_entry_slot', arguments: { entryId: 'mv-pm', slot: 'sera' } }));
+    assert.match(merged.result.content[0].text, /^Moved to sera and merged .*now 3h \(2019-05-06, id mv-am\)/);
+
+    const missing = await rpc(mcp, msg('tools/call', { name: 'set_entry_slot', arguments: { entryId: 'nope', slot: 'am' } }));
+    assert.equal(missing.result.isError, true);
+    assert.match(missing.result.content[0].text, /Entry not found: nope/);
+  });
+
+  it('tools/call plan_vs_tracked → per slot and area, with the unreliable warning', async () => {
+    const res = await rpc(mcp, msg('tools/call', { name: 'plan_vs_tracked', arguments: { from: '2019-05-06', to: '2019-05-07' } }));
+    const text = res.result.content[0].text;
+    assert.match(text, /^Plan vs tracked from 2019-05-06 to 2019-05-07/);
+    assert.ok(text.includes('Warning: Slots are not reliable'));
+    assert.ok(text.includes('2019-05-06 (slots not reliable)'));
+    assert.match(text, /SERA: planned [\d.]+h, covered [\d.]+h, worked in slot 3h/);
+    assert.ok(text.includes('Totals (reliable days only): planned 0h'));
   });
 
   it('tools/call projects → lists projects with area', async () => {

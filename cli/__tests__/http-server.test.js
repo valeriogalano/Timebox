@@ -386,6 +386,36 @@ describe('HTTP server', () => {
     assert.equal((await get(port, '/entries?from=2026-02-01&to=2026-01-01')).status, 400);
   });
 
+  it('PATCH /entries/:id → moves the slot; bad slot 400, unknown id 404', async () => {
+    await post(port, '/log', { project: 'website', hours: '2', slot: 'am', date: '2018-03-05' });
+    const [entry] = getEntries('2018-03-05', '2018-03-05');
+    const { status, body } = await request(port, 'PATCH', `/entries/${entry.id}`, { slot: 'sera' });
+    assert.equal(status, 200);
+    assert.deepEqual([body.entry.id, body.entry.slot, body.merged], [entry.id, 'sera', false]);
+    assert.equal((await request(port, 'PATCH', `/entries/${entry.id}`, { slot: 'notte' })).status, 400);
+    assert.equal((await request(port, 'PATCH', '/entries/nope', { slot: 'am' })).status, 404);
+  });
+
+  it('POST /log without slot on a project with hours in two slots → 400 asking for the slot', async () => {
+    await post(port, '/log', { project: 'website', hours: '1', slot: 'pm', date: '2018-03-05' });
+    const { status, body } = await post(port, '/log', { project: 'website', hours: '1', date: '2018-03-05' });
+    assert.equal(status, 400);
+    assert.match(body.error, /Ambiguous slot/);
+    assert.equal((await post(port, '/log', { project: 'website', hours: '1', slot: 'x', date: '2018-03-05' })).status, 400);
+  });
+
+  it('GET /plan-vs-tracked → days with slots; invalid range 400', async () => {
+    const { status, body } = await get(port, '/plan-vs-tracked?from=2018-03-05');
+    assert.equal(status, 200);
+    assert.equal(body.to, '2018-03-05');
+    assert.equal(body.days.length, 1);
+    assert.deepEqual(body.days[0].slots.map(s => s.slot), ['am', 'pm', 'sera']);
+    assert.equal(body.days[0].trackedHours, 3);
+    assert.equal((await get(port, '/plan-vs-tracked')).status, 400);
+    assert.equal((await get(port, '/plan-vs-tracked?from=2018-03-06&to=2018-03-05')).status, 400);
+    assert.equal((await get(port, '/plan-vs-tracked?from=2018-01-01&to=2019-12-31')).status, 400);
+  });
+
   it('GET /areas → 4 seed areas', async () => {
     const { status, body } = await get(port, '/areas');
     assert.equal(status, 200);
