@@ -176,3 +176,73 @@ describe('logHours', () => {
     ]);
   });
 });
+
+describe('logHours without a slot', () => {
+  const { getProjects, saveWeekOverride } = require('../../db/queries');
+  const { fmt, getToday, currentSlot } = require('../../lib/domain');
+  // Mercoledì 17/6/2020: settimana del 15, giorno 2. L'area di "website" ha un solo
+  // blocco quel giorno, di pomeriggio.
+  const PAST = '2020-06-17';
+  let clientId;
+
+  before(() => {
+    createTestDb();
+    clientId = getProjects().find(p => p.id === 'p1').clientId;
+    for (const slot of ['am', 'pm', 'sera']) {
+      saveWeekOverride({ weekKey: '2020-06-15', dayIndex: 2, slot, blocks: slot === 'pm' ? [{ id: 'b1', clientId, hours: 3 }] : [] });
+    }
+  });
+
+  test('a past day goes to the first planned slot of the area, not to the current hour (regression)', () => {
+    const result = logHours({ projectName: 'website', hoursStr: '2', date: PAST, add: false });
+    assert.equal(result.slot, 'pm');
+  });
+
+  test('a past day without a plan for the area goes to am', () => {
+    const result = logHours({ projectName: 'website', hoursStr: '2', date: '2020-06-20', add: false });
+    assert.equal(result.slot, 'am');
+  });
+
+  test('replacing keeps the slot the project already has that day, without a second entry (regression)', () => {
+    saveEntry({ id: 'only-sera', projectId: 'p1', date: '2020-06-18', hours: 1, billableHours: null, slot: 'sera', billed: false });
+    const result = logHours({ projectName: 'website', hoursStr: '3', date: '2020-06-18', add: false });
+    assert.equal(result.action, 'updated');
+    assert.equal(result.slot, 'sera');
+    const entries = getEntries('2020-06-18', '2020-06-18').filter(e => e.projectId === 'p1');
+    assert.deepEqual(entries.map(e => [e.id, e.hours]), [['only-sera', 3]]);
+  });
+
+  test('today a new entry goes to the current slot', () => {
+    const today = fmt(getToday());
+    const result = logHours({ projectName: 'brand', hoursStr: '1', date: today, add: false });
+    assert.equal(result.slot, currentSlot());
+  });
+
+  test('today, adding hours goes to the current slot even if the project has another one', () => {
+    const today = fmt(getToday());
+    const other = currentSlot() === 'am' ? 'sera' : 'am';
+    saveEntry({ id: 'other-slot', projectId: 'p1', date: today, hours: 1, billableHours: null, slot: other, billed: false });
+    const result = logHours({ projectName: 'website', hoursStr: '0.5', date: today, add: true });
+    assert.equal(result.slot, currentSlot());
+    assert.equal(result.hours, 0.5);
+    const entries = getEntries(today, today).filter(e => e.projectId === 'p1');
+    assert.equal(entries.length, 2);
+  });
+
+  test('a project with hours in more than one slot asks for the slot', () => {
+    saveEntry({ id: 'multi-am', projectId: 'p1', date: '2020-06-19', hours: 1, billableHours: null, slot: 'am', billed: false });
+    saveEntry({ id: 'multi-pm', projectId: 'p1', date: '2020-06-19', hours: 2, billableHours: null, slot: 'pm', billed: false });
+    assert.throws(
+      () => logHours({ projectName: 'website', hoursStr: '1', date: '2020-06-19', add: false }),
+      /Ambiguous slot: .* am, pm .*Pass slot/,
+    );
+    assert.throws(() => logHours({ projectName: 'website', hoursStr: '1', date: '2020-06-19', add: true }), /Ambiguous slot/);
+    const result = logHours({ projectName: 'website', hoursStr: '0', slot: 'pm', date: '2020-06-19', add: false });
+    assert.equal(result.action, 'deleted');
+    assert.equal(getEntries('2020-06-19', '2020-06-19').filter(e => e.projectId === 'p1').length, 1);
+  });
+
+  test('rejects an unknown slot', () => {
+    assert.throws(() => logHours({ projectName: 'website', hoursStr: '1', slot: 'night', date: PAST, add: false }), /Invalid slot/);
+  });
+});

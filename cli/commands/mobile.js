@@ -7,7 +7,7 @@
 const { randomUUID } = require('node:crypto');
 const { getEntries, getProjects, getClients, saveEntry, deleteEntry } = require('../../db/queries');
 const { getDaySummaryData } = require('./day-summary');
-const { SLOTS, toHHMM, currentSlot, resolveEntrySlot, planDayEntrySave } = require('../../lib/domain');
+const { SLOTS, toHHMM, defaultEntrySlot, planDayEntrySave } = require('../../lib/domain');
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const isDate = value => typeof value === 'string' && DATE.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00`));
@@ -86,8 +86,11 @@ function getMobilePlan(summary, clients) {
 }
 
 // Imposta le ore lavorate di un progetto in un giorno, con la stessa regola di Giorno
-// (planDayEntrySave): una entry per progetto+giorno, zero ore la cancella. Ore
-// fatturabili e stato "fatturato" già salvati non si toccano.
+// (planDayEntrySave): la pagina mostra il totale del giorno, quindi lavora sull'unica
+// entry del progetto, o ne crea una nella fascia di default; zero ore la cancella.
+// Se le ore stanno su più fasce il totale non si può riscrivere senza sceglierne una:
+// risponde 409 e la correzione si fa da Giorno. Ore fatturabili e stato "fatturato"
+// già salvati non si toccano.
 function saveMobileHours({ projectId, date, clock, today }) {
   if (!isDate(date)) return { error: 'date must be YYYY-MM-DD' };
   const hours = parseClock(clock);
@@ -96,12 +99,12 @@ function saveMobileHours({ projectId, date, clock, today }) {
   if (!project) return { error: 'unknown project', status: 404 };
 
   const existingList = getEntries(date, date).filter(e => e.projectId === projectId);
+  if (existingList.length > 1) return { error: 'hours on more than one slot', status: 409 };
   const summary = getDaySummaryData(date);
-  const slot = resolveEntrySlot({
-    existingSlot: existingList[0]?.slot,
+  const slot = existingList[0]?.slot ?? defaultEntrySlot({
+    isToday: date === today,
     clientId: project.clientId,
     blocksForSlot: s => summary.slots[s].plannedBlocks,
-    fallback: date === today ? currentSlot() : 'am',
   });
   const { save, deleteIds } = planDayEntrySave({
     existingList, projectId, date, hours,

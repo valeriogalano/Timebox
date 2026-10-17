@@ -36,7 +36,7 @@ program
 program
   .command('log <project> <hours>')
   .description('Log hours to a project')
-  .option('--slot <slot>', 'Time slot: am or pm')
+  .option('--slot <slot>', 'Time slot: am, pm or sera (default: current slot today, else the slot already used or the first planned one)')
   .option('--date <date>', 'Date YYYY-MM-DD (default: today)')
   .option('--add', 'Add to existing hours instead of replacing')
   .option('--json', 'Output JSON')

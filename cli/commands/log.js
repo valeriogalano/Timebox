@@ -2,7 +2,8 @@
 
 const { randomUUID } = require('crypto');
 const { getProjects, getClients, getEntries, saveEntry, deleteEntry } = require('../../db/queries');
-const { currentSlot } = require('../../lib/time-slots');
+const { SLOTS, currentSlot, defaultEntrySlot, fmt, getToday } = require('../../lib/domain');
+const { getDaySummaryData } = require('./day-summary');
 const { parseHours, isHourly } = require('../format');
 
 function findProject(name) {
@@ -31,41 +32,38 @@ function findProject(name) {
   return { project, client: clientMap[project.clientId], area: clientMap[project.clientId] };
 }
 
-function effectiveBillable(entry) {
-  return entry.billableHours ?? entry.hours;
-}
-
-function mergeEntries(entries) {
-  if (entries.length === 0) return null;
-
-  const first = entries[0];
-  const hours = entries.reduce((sum, entry) => sum + entry.hours, 0);
-  const billableTotal = entries.reduce((sum, entry) => sum + effectiveBillable(entry), 0);
-
-  return {
-    ...first,
-    hours,
-    billableHours: Math.abs(billableTotal - hours) < 0.001 ? null : billableTotal,
-    billed: entries.every(entry => entry.billed),
-  };
+// Fascia di una registrazione senza fascia indicata. Se il progetto quel giorno ha
+// ore su più fasce non si indovina: si chiede. Oggi, aggiungendo ore, vale la fascia
+// dell'ora corrente; altrimenti quella dell'entry che c'è già, e per un'entry nuova
+// la regola di defaultEntrySlot.
+function resolveLogSlot({ project, dayEntries, date, add }) {
+  const slots = [...new Set(dayEntries.map(e => e.slot))];
+  if (slots.length > 1) {
+    throw new Error(`Ambiguous slot: "${project.name}" has hours in ${slots.join(', ')} on ${date}. Pass slot (am, pm or sera).`);
+  }
+  const isToday = date === fmt(getToday());
+  if (add && isToday) return currentSlot();
+  if (slots.length === 1) return slots[0];
+  const summary = getDaySummaryData(date);
+  return defaultEntrySlot({ isToday, clientId: project.clientId, blocksForSlot: s => summary.slots[s].plannedBlocks });
 }
 
 function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) {
   const { project, client, area } = findProject(projectName);
+  if (slot && !SLOTS.includes(slot)) throw new Error(`Invalid slot "${slot}": use am, pm or sera`);
   const parsed = parseHours(hoursStr);
   const isBillable = isHourly(client);
-  const resolvedSlot = slot || currentSlot();
+  const dayEntries = getEntries(date, date).filter(e => e.projectId === project.id);
+  const resolvedSlot = slot || resolveLogSlot({ project, dayEntries, date, add });
 
-  const entries = getEntries(date, date).filter(e => (
-    e.projectId === project.id && e.slot === resolvedSlot
-  ));
-  const existing = mergeEntries(entries);
+  // Una entry per progetto, giorno e fascia: le altre fasce non si toccano.
+  const existing = dayEntries.find(e => e.slot === resolvedSlot) ?? null;
   const newHours = add && existing ? existing.hours + parsed : parsed;
 
   if (newHours === 0) {
-    if (entries.length > 0) {
-      entries.forEach(entry => deleteEntry(entry.id));
-      return { action: 'deleted', client: client.name, area: area.name, project: project.name, date };
+    if (existing) {
+      deleteEntry(existing.id);
+      return { action: 'deleted', client: client.name, area: area.name, project: project.name, date, slot: resolvedSlot };
     }
     return { action: 'noop', client: client.name, area: area.name, project: project.name, date };
   }
@@ -88,9 +86,6 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
     billed: existing?.billed || false,
   };
   saveEntry(nextEntry);
-  entries.forEach(entry => {
-    if (entry.id !== nextEntry.id) deleteEntry(entry.id);
-  });
 
   return {
     action: existing ? 'updated' : 'created',

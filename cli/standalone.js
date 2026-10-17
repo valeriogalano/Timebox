@@ -210,7 +210,7 @@ async function cmdStatus(flags) {
 async function cmdLog(positional, flags) {
   const [, project, hoursStr] = positional;
   if (!project || !hoursStr) {
-    console.error('Usage: timebox log <project> <hours> [--billable HH:MM] [--slot am|pm] [--date YYYY-MM-DD] [--add]');
+    console.error('Usage: timebox log <project> <hours> [--billable HH:MM] [--slot am|pm|sera] [--date YYYY-MM-DD] [--add]');
     process.exit(1);
   }
   const body = {
@@ -225,7 +225,7 @@ async function cmdLog(positional, flags) {
   if (flags.json) { console.log(JSON.stringify(d)); return; }
 
   const action = d.action === 'deleted' ? 'Deleted' : d.action === 'updated' ? 'Updated' : 'Logged';
-  console.log(`\n  ${action}: ${fmtHB(d.hours || 0, d.billableHours ?? null)} on ${d.project} (${d.date}, ${d.slot || 'am'})\n`);
+  console.log(`\n  ${action}: ${fmtHB(d.hours || 0, d.billableHours ?? null)} on ${d.project} (${[d.date, d.slot].filter(Boolean).join(', ')})\n`);
 }
 
 function cmdHelp() {
@@ -244,7 +244,9 @@ Commands:
   log <proj> <hrs>  Log hours on a project
 
 Options (log):
-  --slot am|pm      Time slot (default: am)
+  --slot am|pm|sera Time slot. Default: the current one today, otherwise the
+                    slot already used that day, or the area's first planned slot.
+                    Required when the project has hours in more than one slot.
   --date YYYY-MM-DD Date (default: today)
   --add             Add to existing hours instead of replacing
   --billable HH     Billable hours override (e.g. "3:30"). Only applies to billable areas.

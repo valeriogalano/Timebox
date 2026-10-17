@@ -101,19 +101,28 @@ describe('pagina mobile: giornata e salvataggio', () => {
     assert.equal(after.billed, true);
   });
 
-  test('le registrazioni sparse su più fasce si accorpano in una', () => {
+  test('ore su più fasce: il totale non si riscrive, risponde 409 e non tocca niente', () => {
     saveEntry({ id: 'm-extra', projectId: c1Project.id, date: DATE, hours: 1, billableHours: null, slot: 'sera', billed: false });
-    assert.equal(entriesOf(c1Project.id).length, 2);
-    saveMobileHours({ projectId: c1Project.id, date: DATE, clock: '3:00', today: '2000-01-01' });
-    const after = entriesOf(c1Project.id);
-    assert.equal(after.length, 1);
-    assert.equal(after[0].hours, 3);
+    const before = entriesOf(c1Project.id);
+    assert.equal(before.length, 2);
+    assert.deepEqual(
+      saveMobileHours({ projectId: c1Project.id, date: DATE, clock: '3:00', today: '2000-01-01' }),
+      { error: 'hours on more than one slot', status: 409 },
+    );
+    assert.deepEqual(entriesOf(c1Project.id), before);
   });
 
   test('zero ore cancella la registrazione', () => {
-    const r = saveMobileHours({ projectId: c1Project.id, date: DATE, clock: '', today: '2000-01-01' });
+    saveEntry({ id: 'm-solo', projectId: c2Project.id, date: '2031-03-05', hours: 1, billableHours: null, slot: 'sera', billed: false });
+    const r = saveMobileHours({ projectId: c2Project.id, date: '2031-03-05', clock: '', today: '2000-01-01' });
     assert.equal(r.hours, 0);
-    assert.deepEqual(entriesOf(c1Project.id), []);
+    assert.deepEqual(getEntries('2031-03-05', '2031-03-05').filter(e => e.projectId === c2Project.id), []);
+  });
+
+  test('oggi una registrazione nuova va nella fascia dell\'ora corrente', () => {
+    const { currentSlot } = require('../../lib/domain');
+    saveMobileHours({ projectId: c2Project.id, date: '2031-03-06', clock: '1:00', today: '2031-03-06' });
+    assert.equal(getEntries('2031-03-06', '2031-03-06').find(e => e.projectId === c2Project.id).slot, currentSlot());
   });
 
   test('rifiuta ciò che non capisce, senza scrivere', () => {
