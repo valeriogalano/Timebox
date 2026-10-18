@@ -50,6 +50,7 @@ function mapEntry(entry, projectMap, clientMap, areaStatusMap) {
   const isBillable = isHourly(client);
   return {
     id: entry.id,
+    slot: entry.slot,
     projectId: entry.projectId,
     project: project?.name || entry.projectId,
     clientId: project?.clientId || null,
@@ -87,9 +88,15 @@ function getDaySummaryData(date) {
     sourceBySlot[slot] = overrides[weekKey]?.[dayIndex]?.[slot] !== undefined ? 'override' : 'template';
   }
   const allBlocks = SLOTS.flatMap(slot => plannedBlocks[slot]);
-  // Le registrazioni stanno sulla giornata, non sulla fascia: quella dell'entry non
-  // si sceglie e non dice quando si è lavorato.
   const allEntries = entries.map(entry => mapEntry(entry, projectMap, clientMap, areaStatusMap));
+
+  // Ore registrate davvero in ogni fascia, per area: dalla fascia delle entry. È un
+  // numero diverso dal riempimento qui sotto e non si mescola con quello.
+  const actualByArea = Object.fromEntries(SLOTS.map(slot => [slot, {}]));
+  for (const entry of allEntries) {
+    if (!entry.clientId || !actualByArea[entry.slot]) continue;
+    actualByArea[entry.slot][entry.clientId] = (actualByArea[entry.slot][entry.clientId] || 0) + entry.hours;
+  }
 
   const clientPlanned = {};
   for (const block of allBlocks) {
@@ -149,6 +156,8 @@ function getDaySummaryData(date) {
       plannedCapacity: plannedBlocks[slot].reduce((sum, block) => sum + block.hours, 0),
       trackedByArea: trackedByArea[slot],
       trackedHours: Object.values(trackedByArea[slot]).reduce((sum, hours) => sum + hours, 0),
+      actualByArea: actualByArea[slot],
+      actualHours: Object.values(actualByArea[slot]).reduce((sum, hours) => sum + hours, 0),
     }])),
     trackedEntries: allEntries,
     plannedCapacity,

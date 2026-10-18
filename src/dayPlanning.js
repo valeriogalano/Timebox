@@ -2,10 +2,12 @@
 // DayScreen (single day). Keeps the intricate block-fill / Todoist-coverage /
 // orphan logic in one place so the two screens can't drift apart.
 
-import { effBillable, SLOTS, normalizeSlot } from './utils.js';
+import { effBillable, SLOTS, normalizeSlot, currentSlot } from './utils.js';
 
 // Collapses the AM/PM rows a project may have on the same day into one entry
 // with summed hours (used for per-project timesheet + planning fill).
+// `slotCount` dice su quante fasce stavano le ore: con più di una, la cella del
+// totale non si può modificare senza scegliere la fascia.
 export function mergeProjectDayEntries(entries) {
   const grouped = new Map();
 
@@ -26,6 +28,7 @@ export function mergeProjectDayEntries(entries) {
       hours,
       billableHours: Math.abs(billableTotal - hours) < 0.001 ? null : billableTotal,
       billed: group.every(entry => entry.billed),
+      slotCount: group.length,
     };
   });
 }
@@ -46,18 +49,34 @@ export function resolveEntrySlot({ existingSlot, clientId, blocksForSlot, fallba
   return fallback;
 }
 
-// Cosa scrivere quando si impostano le ore di un progetto in un giorno. C'è una
-// entry sola per progetto+giorno: quella esistente si aggiorna, le altre sparse su
-// più fasce si cancellano, e a zero ore si cancella tutto. `billableHours` e
-// `slot` li decide chi chiama; `billed` resta quello dell'entry esistente.
+// Fascia di una registrazione nuova senza fascia indicata: oggi quella dell'ora
+// corrente, gli altri giorni la prima fascia pianificata per l'area, altrimenti 'am'.
+// Gemello CommonJS: defaultEntrySlot in lib/domain.js.
+export function defaultEntrySlot({ isToday, clientId, blocksForSlot }) {
+  return isToday ? currentSlot() : resolveEntrySlot({ clientId, blocksForSlot });
+}
+
+// Cosa scrivere quando si impostano le ore di un progetto in un giorno e in una
+// fascia. C'è una entry per progetto, giorno e fascia: si tocca solo quella di
+// `slot`, le altre fasce restano, e a zero ore si cancella. `billableHours` lo
+// decide chi chiama; `billed` resta quello dell'entry esistente.
 // Gemello CommonJS: planDayEntrySave in lib/domain.js (pagina mobile).
 export function planDayEntrySave({ existingList, projectId, date, hours, billableHours = null, slot, newId }) {
-  if (!(hours > 0)) return { save: null, deleteIds: existingList.map(e => e.id) };
-  const existing = existingList[0];
+  const existing = existingList.find(e => e.slot === slot);
+  if (!(hours > 0)) return { save: null, deleteIds: existing ? [existing.id] : [] };
   const save = existing
-    ? { ...existing, slot, hours, billableHours }
+    ? { ...existing, hours, billableHours }
     : { id: newId, projectId, date, hours, billableHours, slot, billed: false };
-  return { save, deleteIds: existingList.filter(e => e.id !== save.id).map(e => e.id) };
+  return { save, deleteIds: [] };
+}
+
+// Quick log: aggiunge ore oggi alla fascia indicata (quella dell'ora corrente), sulla
+// entry del progetto in quella fascia se c'è. Le entry delle altre fasce restano.
+export function planQuickLogAdd({ entries, projectId, date, addHours, slot, newId }) {
+  const existing = entries.find(e => e.projectId === projectId && e.date === date && e.slot === slot);
+  return existing
+    ? { ...existing, hours: existing.hours + addHours }
+    : { id: newId, projectId, date, hours: addHours, billableHours: null, slot, billed: false };
 }
 
 // Distribuisce le ore registrate di ogni area sui suoi blocchi del giorno, nell'ordine

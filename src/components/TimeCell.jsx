@@ -22,7 +22,7 @@ function getProjectRowCells(projectId) {
 export default function TimeCell({
   hours, billableHours, billed, isBillable,
   isFuture, isToday, clientColor, colIndex, projectId,
-  viewMode = 'tracked',
+  viewMode = 'tracked', readOnlyTitle,
   onSave, onResetBillable, onEditStart, onEditEnd,
 }) {
   const [editing, setEditing] = useState(false);
@@ -40,11 +40,13 @@ export default function TimeCell({
   const divergent = isBillable && hasEntry && billableHours !== null && billableHours !== undefined && Math.abs(billableHours - hours) > 0.001;
   const inBillableView = viewMode === 'billable';
   const lockedInBillable = inBillableView && !isBillable;
+  // Con `readOnlyTitle` la cella mostra le ore ma non si modifica (ore su più fasce).
+  const locked = lockedInBillable || !!readOnlyTitle;
   const displayValue = inBillableView ? billable : hours;
   const showDash = inBillableView && hasEntry && billableHours === 0;
 
   function startEdit() {
-    if (lockedInBillable) return;
+    if (locked) return;
     const base = inBillableView ? (hasEntry ? billable : 0) : hours;
     setDraft(base > 0 ? fmtH(base) : '');
     setEditing(true);
@@ -133,8 +135,9 @@ export default function TimeCell({
       data-timecell
       // In modifica il controllo è il campo: la cella esce dal giro di Tab e non è più un pulsante.
       role={editing ? undefined : 'button'}
-      tabIndex={lockedInBillable || editing ? -1 : 0}
-      aria-label={editing ? undefined : `Ore: ${hasEntry ? fmtH(displayValue) : 'nessuna'}. Invio per modificare`}
+      tabIndex={locked || editing ? -1 : 0}
+      title={readOnlyTitle}
+      aria-label={editing ? undefined : `Ore: ${hasEntry ? fmtH(displayValue) : 'nessuna'}. ${readOnlyTitle ?? 'Invio per modificare'}`}
       onKeyDown={e => {
         // Solo sulla cella: i tasti premuti nel campo arrivano qui per bubbling.
         if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); startEdit(); }
@@ -147,10 +150,10 @@ export default function TimeCell({
       style={{
         background: editing ? 'var(--tb-input-bg)'
           : isToday ? 'var(--tb-cell-today)'
-          : (hover && !lockedInBillable) ? 'var(--tb-cell-hover)' : 'var(--tb-cell-bg)',
+          : (hover && !locked) ? 'var(--tb-cell-hover)' : 'var(--tb-cell-bg)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         minHeight: 44,
-        cursor: lockedInBillable ? 'default' : 'pointer',
+        cursor: locked ? 'default' : 'pointer',
         position: 'relative',
         transition: 'background 0.1s',
       }}

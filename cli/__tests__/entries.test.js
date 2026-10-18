@@ -26,11 +26,11 @@ describe('getEntriesData', () => {
     saveEntry({ id: 'x-flat', projectId: flat.id, date: '2031-03-05', hours: 4, billableHours: 9, slot: 'am', billed: true });
   });
 
-  test('restituisce le entry del solo intervallo, per data e senza fascia', () => {
+  test('restituisce le entry del solo intervallo, per data e fascia, con la fascia', () => {
     const d = getEntriesData({ from: '2031-03-04', to: '2031-03-05' });
-    assert.deepEqual(d.entries.map(e => e.id).sort(), ['x-am', 'x-flat', 'x-pm']);
+    assert.deepEqual(d.entries.map(e => [e.id, e.slot]), [['x-am', 'am'], ['x-pm', 'pm'], ['x-flat', 'am']]);
     assert.deepEqual(d.entries.map(e => e.date), ['2031-03-04', '2031-03-04', '2031-03-05']);
-    assert.ok(d.entries.every(e => !('slot' in e)));
+    assert.ok('slotsTrackedSince' in d);
     assert.equal(d.total, 7);
     assert.equal(d.entries[0].project, hourly.name);
   });

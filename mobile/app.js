@@ -51,6 +51,7 @@ async function api(path, options = {}) {
     throw new Error('Il Mac non risponde. Deve essere acceso, con Timebox aperto e la pagina accesa, sulla stessa rete dell\'iPhone.');
   }
   if (res.status === 401) throw new Error('Link non valido. Riapri quello mostrato nelle Impostazioni di Timebox.');
+  if (res.status === 409) throw new Error('Quel giorno il progetto ha ore su più fasce: correggile da Giorno sul Mac.');
   if (!res.ok) throw new Error('Qualcosa non ha funzionato. Riprova.');
   return res.json();
 }

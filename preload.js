@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('api', {
   getProjectBillableTotals: ()     => ipcRenderer.invoke('db:getProjectBillableTotals'),
   saveEntry:          (e)          => ipcRenderer.invoke('db:saveEntry', e),
   deleteEntry:        (id)         => ipcRenderer.invoke('db:deleteEntry', id),
+  moveEntrySlot:      (id, slot)   => ipcRenderer.invoke('db:moveEntrySlot', id, slot),
 
   getWeekOverrides:      (wk)         => ipcRenderer.invoke('db:getWeekOverrides', wk),
   getWeekOverridesRange: (f, t)       => ipcRenderer.invoke('db:getWeekOverridesRange', f, t),

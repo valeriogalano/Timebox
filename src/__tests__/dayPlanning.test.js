@@ -7,8 +7,11 @@ import {
   computeDayPlanning,
   resolveEntrySlot,
   planDayEntrySave,
+  defaultEntrySlot,
+  planQuickLogAdd,
   fillPlannedBlocks,
 } from '../dayPlanning.js';
+import { currentSlot } from '../utils.js';
 
 // Gemelli CommonJS usati dal processo principale: devono dare gli stessi risultati.
 const domain = createRequire(import.meta.url)('../../lib/domain.js');
@@ -21,6 +24,7 @@ describe('mergeProjectDayEntries', () => {
     ]);
     assert.equal(merged.length, 1);
     assert.equal(merged[0].hours, 5);
+    assert.equal(merged[0].slotCount, 2);
   });
   test('billableHours stays null when it equals total hours', () => {
     const [m] = mergeProjectDayEntries([
@@ -213,17 +217,44 @@ describe('planDayEntrySave', () => {
       assert.deepEqual(deleteIds, []);
     });
 
-    test(`${name}: le entry sparse su più fasce si accorpano nella prima`, () => {
+    test(`${name}: tocca solo la fascia indicata, le altre restano`, () => {
       const { save, deleteIds } = plan({ ...base, existingList: [am, pm], hours: 4, billableHours: 0.5, slot: 'am' });
-      assert.equal(save.id, 'a');
-      assert.deepEqual(deleteIds, ['b']);
+      assert.deepEqual(save, { ...am, hours: 4 });
+      assert.deepEqual(deleteIds, []);
     });
 
-    test(`${name}: a zero ore cancella tutto e non salva niente`, () => {
-      assert.deepEqual(plan({ ...base, existingList: [am, pm], hours: 0 }), { save: null, deleteIds: ['a', 'b'] });
+    test(`${name}: una fascia senza entry ne crea una nuova anche se il progetto ne ha altre`, () => {
+      const { save } = plan({ ...base, existingList: [am], hours: 1, slot: 'sera' });
+      assert.equal(save.id, 'new');
+      assert.equal(save.slot, 'sera');
+    });
+
+    test(`${name}: a zero ore cancella solo l'entry della fascia`, () => {
+      assert.deepEqual(plan({ ...base, existingList: [am, pm], hours: 0 }), { save: null, deleteIds: ['b'] });
       assert.deepEqual(plan({ ...base, existingList: [], hours: 0 }), { save: null, deleteIds: [] });
     });
   }
+
+  for (const [name, def] of [['renderer', defaultEntrySlot], ['lib/domain', domain.defaultEntrySlot]]) {
+    test(`${name}: defaultEntrySlot usa l'ora corrente per oggi, il piano per gli altri giorni`, () => {
+      const blocksForSlot = slot => ({ am: [{ clientId: 'c1' }], sera: [{ clientId: 'c2' }] }[slot] || []);
+      assert.equal(def({ isToday: true, clientId: 'c1', blocksForSlot }), currentSlot());
+      assert.equal(def({ isToday: false, clientId: 'c2', blocksForSlot }), 'sera');
+      assert.equal(def({ isToday: false, clientId: 'c9', blocksForSlot }), 'am');
+    });
+  }
+
+  test('planQuickLogAdd somma sulla entry della fascia, senza toccare le altre', () => {
+    const entries = [{ id: 'a', projectId: 'p1', date: '2026-10-07', hours: 1, billableHours: 0.5, slot: 'am', billed: true }];
+    assert.deepEqual(
+      planQuickLogAdd({ entries, projectId: 'p1', date: '2026-10-07', addHours: 2, slot: 'am', newId: 'n' }),
+      { ...entries[0], hours: 3 },
+    );
+    assert.deepEqual(
+      planQuickLogAdd({ entries, projectId: 'p1', date: '2026-10-07', addHours: 2, slot: 'pm', newId: 'n' }),
+      { id: 'n', projectId: 'p1', date: '2026-10-07', hours: 2, billableHours: null, slot: 'pm', billed: false },
+    );
+  });
 
   test('il gemello di resolveEntrySlot segue la stessa priorità', () => {
     const blocksForSlot = slot => ({ sera: [{ clientId: 'c1' }] }[slot] || []);

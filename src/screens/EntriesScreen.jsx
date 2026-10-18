@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getToday, fmt, fmtH, parseHHMM, effBillable, isHourly, billingOnSave } from '../utils';
+import { getToday, fmt, fmtH, parseHHMM, effBillable, isHourly, billingOnSave, SLOTS, SLOT_LABELS } from '../utils';
 
 // "mer 7 ott 2026", come nel resto dell'app. L'anno resta: il Registro copre intervalli lunghi.
 const dateLabel = dateStr => new Date(`${dateStr}T00:00:00`)
@@ -47,6 +47,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
       hours: fmtH(entry.hours),
       billable: billableStr,
       projectId: entry.projectId,
+      slot: entry.slot,
       billed: entry.billed,
     });
   }
@@ -70,6 +71,10 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
       ),
     };
     await window.api.saveEntry(updated);
+    // La fascia passa da moveEntrySlot: se il progetto ha già ore in quella fascia, le fonde.
+    if (editState.slot && editState.slot !== entry.slot) {
+      await window.api.moveEntrySlot(entry.id, editState.slot);
+    }
     setEditingId(null);
     load();
     onEntryChange?.();
@@ -150,7 +155,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: 'var(--tb-table-header-bg, var(--tb-sidebar-bg))' }}>
-                {['Data', 'Area', 'Progetto', 'Ore', 'Fatturabili', 'Fatturato', ''].map(h => (
+                {['Data', 'Fascia', 'Area', 'Progetto', 'Ore', 'Fatturabili', 'Fatturato', ''].map(h => (
                   <th key={h} style={thStyle}>{h}</th>
                 ))}
               </tr>
@@ -176,6 +181,18 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
                             onChange={e => setEditState(s => ({ ...s, date: e.target.value }))}
                             style={{ ...inputStyle, width: 130 }} />
                         : <span style={{ fontVariantNumeric: 'tabular-nums' }}>{dateLabel(entry.date)}</span>
+                      }
+                    </td>
+
+                    {/* Slot */}
+                    <td style={tdStyle}>
+                      {isEditing
+                        ? <select aria-label="Fascia" value={editState.slot}
+                            onChange={e => setEditState(s => ({ ...s, slot: e.target.value }))}
+                            style={selectStyle}>
+                            {SLOTS.map(slot => <option key={slot} value={slot}>{SLOT_LABELS[slot]}</option>)}
+                          </select>
+                        : <span style={{ color: 'var(--tb-text-secondary)' }}>{SLOT_LABELS[entry.slot] ?? entry.slot}</span>
                       }
                     </td>
 

@@ -68,7 +68,7 @@ A new database starts empty: nothing is seeded automatically. To explore the int
 - **Recurring blocks:** the default weekly timeblocking template, defined Monday-Friday and split into AM (<13:00), PM (13:00–18:00) and Sera (from 18:00) slots.
 - **Week overrides:** per-week replacements for recurring blocks. Editing a block in the weekly view changes that week only.
 - **Weekly area status:** per-week markers for areas: active, minimal, or closed. They make the weekly planning decision visible without changing the recurring template.
-- **Entries:** logged work, one project/date record managed by application logic, with slot, hours, optional billable-hours override, and billed status.
+- **Entries:** logged work, one record per project, date and slot, with hours, optional billable-hours override, and billed status. The slot is picked automatically and can be corrected afterwards.
 - **Todoist cache:** local task snapshots grouped by due date and used to overlay planned Todoist work onto Timebox blocks.
 
 ### Product decision: prepaid hour packages via one project per package
@@ -249,7 +249,9 @@ While the app is open, a local API is available at `http://127.0.0.1:37373`.
 | `GET` | `/clients?search=` | Area/client list. |
 | `GET` | `/areas?search=` | Alias for `/clients`. |
 | `GET` | `/status` | Today, week, and alerts (project budget, project weekly limit, area limit). |
-| `POST` | `/log` | Log hours: `{ project, hours, slot, date, add, billableHours }`. `billableHours` is kept only for projects in hourly areas. |
+| `POST` | `/log` | Log hours: `{ project, hours, slot, date, add, billableHours }`. `billableHours` is kept only for projects in hourly areas. Without `slot`, a project with hours in more than one slot that day is a 400. |
+| `PATCH` | `/entries/:id` | Correct an entry's slot: `{ slot }`. Merges with the project's entry already in that slot. |
+| `GET` | `/plan-vs-tracked?from=&to=` | Plan against the real day per day, slot and area. |
 | `POST` | `/projects` | Create a project in an area. |
 | `PATCH` | `/projects/:id` | Update project name, area, description, budget, or weekly limit. |
 | `DELETE` | `/projects/:id` | Delete a project with no entries. |
@@ -348,6 +350,8 @@ Exposed tools:
 | `areas` | List areas. |
 | `status` | Quick status and alerts. |
 | `log_hours` | Log hours on a project. |
+| `set_entry_slot` | Correct the slot of one logged entry; merges with the project's entry already in that slot. |
+| `plan_vs_tracked` | Plan against the real day per day, slot and area over a date range, with totals. |
 | `find_area` | Search areas by name. |
 | `find_project` | Search projects by name or description. |
 | `rename_area` | Rename an area. |
@@ -366,12 +370,14 @@ Exposed tools:
 
 ### Daily planning tools
 
-These tools are the MCP-oriented daily layer on top of the weekly board and Todoist cache. They are read-only diagnostics except for `log_hours`.
+These tools are the MCP-oriented daily layer on top of the weekly board and Todoist cache. They are read-only diagnostics except for `log_hours` and `set_entry_slot`.
 
 | Tool | Input | Output |
 |---|---|---|
-| `today` | `{ date? }` | Logged entries for one day in a single list, with total tracked and billable hours. |
-| `day_summary` | `{ date? }` | Planned capacity, tracked hours, residual capacity, per-slot block source (`template` or `override`) with the hours of each slot's blocks that tracked work covers, the day's tracked entries, and extra work by area. |
+| `today` | `{ date? }` | Logged entries for one day in a single list, each with slot and id, with total tracked and billable hours. |
+| `day_summary` | `{ date? }` | Planned capacity, tracked hours, residual capacity, per-slot block source (`template` or `override`) with the hours of each slot's blocks that tracked work covers and the hours worked in that slot, the day's tracked entries, and extra work by area. |
+| `set_entry_slot` | `{ entryId, slot }` | Moves the entry to another slot, merging with the project's entry already there. |
+| `plan_vs_tracked` | `{ from, to? }` | Per day, slot and area: planned, covered and worked-in-slot hours, extra hours, and totals over the days with reliable slots. |
 | `day_free_capacity` | `{ date? }` | Split between capacity still reserved to planned areas and capacity that is truly free after tracked work and imported Todoist tasks. |
 | `day_ready_blocks` | `{ date? }` | AM/PM blocks that still lack enough ready Todoist work, grouped by area and then by Timebox project. |
 | `todoist_imported_tasks` | `{ date? }` | Imported tasks with Todoist project, matched Timebox project, area, slot, due date, estimate, and match status. |
@@ -382,7 +388,9 @@ All `date` inputs use `YYYY-MM-DD` and default to today when omitted.
 ### Output semantics
 
 - `day_summary` reports each slot as `AM [template]` or `PM [override]` to show whether the plan came from the recurring template or from a week-specific override.
-- Slots (AM, PM, Sera) belong to the plan only. Tracked hours are not attributed to the slot stored on the entry: an area's hours for the day are spread over its planned blocks in slot order, and what exceeds the plan is extra. `today` and `GET /today` list the day's entries without a slot.
+- Each entry has a slot (AM, PM, Sera). There is one entry per project, day and slot. Logging picks the slot automatically: the current one today, otherwise the slot the project already has that day or the area's first planned slot. A wrong slot is corrected afterwards, from Giorno or with `set_entry_slot`.
+- Two per-slot figures, never summed: *covered* spreads an area's hours for the whole day over its planned blocks in slot order (what exceeds the plan is extra), and measures how much of the plan is covered; *worked in slot* counts the entries logged in that slot, and measures when the work happened.
+- Entry slots count from the date the app first opened a database with this version (setting `slotsTrackedSince`). Earlier slots were picked by the app; `plan_vs_tracked` flags those days and leaves them out of its totals.
 - `todoist_imported_tasks` and the Todoist-related sections of `day_free_capacity` / `day_mismatches` work from the cached tasks imported into Timebox for that date, not directly from a live Todoist call.
 - `Residual` means planned capacity minus tracked hours for the day.
 - `Available after tracked + tasks` subtracts both tracked work and imported Todoist estimates from planned capacity.

@@ -286,6 +286,35 @@ function deleteEntry(id) {
   db.prepare('DELETE FROM entries WHERE id=?').run(id);
 }
 
+// Corregge la fascia di un'entry. Se lo stesso progetto quel giorno ha già un'entry
+// in quella fascia, le due si fondono: ore e fatturabili sommate (mergeBillable),
+// fatturata solo se lo erano entrambe. Restituisce l'entry risultante, o null se
+// l'id non esiste.
+function moveEntrySlot(id, slot) {
+  if (!SLOTS.includes(slot)) throw new Error(`Invalid slot "${slot}": use am, pm or sera`);
+  return db.transaction(() => {
+    const entry = db.prepare('SELECT * FROM entries WHERE id = ?').get(id);
+    if (!entry) return null;
+    if (entry.slot === slot) return { entry: normalizeEntry(entry), merged: false };
+    const target = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? AND slot = ?')
+      .get(entry.projectId, entry.date, slot);
+    if (!target) {
+      db.prepare('UPDATE entries SET slot = ? WHERE id = ?').run(slot, id);
+      return { entry: normalizeEntry({ ...entry, slot }), merged: false };
+    }
+    const merged = {
+      ...target,
+      hours: target.hours + entry.hours,
+      billableHours: mergeBillable(target.billableHours, target.hours, entry.billableHours, entry.hours),
+      billed: target.billed === 1 && entry.billed === 1 ? 1 : 0,
+    };
+    db.prepare('UPDATE entries SET hours = ?, billableHours = ?, billed = ? WHERE id = ?')
+      .run(merged.hours, merged.billableHours, merged.billed, target.id);
+    db.prepare('DELETE FROM entries WHERE id = ?').run(id);
+    return { entry: normalizeEntry(merged), merged: true };
+  })();
+}
+
 function normalizeEntry(row) {
   return { ...row, billed: row.billed === 1, billableHours: row.billableHours ?? null };
 }
@@ -612,6 +641,21 @@ function setSetting(key, value) {
   db.prepare('INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)').run(key, value);
 }
 
+// Da quale giorno la fascia delle entry è un dato su cui confrontare il piano. Prima
+// di questa versione la fascia si sceglieva da sola e non diceva quando si era
+// lavorato. La prima apertura di un database con la nuova versione la fissa a oggi;
+// le aperture successive non la toccano.
+const SLOTS_TRACKED_SINCE = 'slotsTrackedSince';
+
+function ensureSlotsTrackedSince(date) {
+  db.prepare('INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)').run(SLOTS_TRACKED_SINCE, date);
+  return getSetting(SLOTS_TRACKED_SINCE);
+}
+
+function getSlotsTrackedSince() {
+  return getSetting(SLOTS_TRACKED_SINCE);
+}
+
 // ── Todoist cache ──────────────────────────────────────────────────────────────
 function getTodoistCache(dates) {
   if (!dates || dates.length === 0) return [];
@@ -803,11 +847,11 @@ module.exports = {
   getClients, saveClient, deleteClient,
   getProjects, saveProject, deleteProject, hasProjectEntries, mergeProjectEntries,
   getRecurring, saveRecurring, deleteRecurring, deleteRecurringByClient,
-  getEntries, getProjectTotals, getProjectBillableTotals, saveEntry, deleteEntry,
+  getEntries, getProjectTotals, getProjectBillableTotals, saveEntry, deleteEntry, moveEntrySlot,
   getTodoistImportIds, getTodoistImports, saveTodoistImport, updateTodoistImport, deleteTodoistImport, importCompletedTodoistTasks,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange, toMonday,
   getWeekAreaStatuses, getWeekAreaStatusMap, saveWeekAreaStatus,
-  getSetting, setSetting,
+  getSetting, setSetting, ensureSlotsTrackedSince, getSlotsTrackedSince,
   getTodoistCache, setTodoistCache, getAllTodoistCache, getImportedTodoistTasks,
   importTodoistProjects,
   findProjectsMissingFromTodoist,

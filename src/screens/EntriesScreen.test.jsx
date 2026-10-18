@@ -29,6 +29,7 @@ describe('EntriesScreen', () => {
       getEntries: vi.fn(() => Promise.resolve(entries)),
       saveEntry: vi.fn(() => Promise.resolve()),
       deleteEntry: vi.fn(() => Promise.resolve()),
+      moveEntrySlot: vi.fn(() => Promise.resolve()),
     };
   });
 
@@ -112,5 +113,21 @@ describe('EntriesScreen', () => {
     await waitFor(() => expect(window.api.deleteEntry).toHaveBeenCalledWith('e1'));
     await waitFor(() => expect(window.api.getEntries).toHaveBeenCalledTimes(2));
     expect(await findByText(/3 registrazioni ·/)).toBeInTheDocument();
+  });
+
+  test('la fascia si corregge da Modifica e passa da moveEntrySlot; senza cambio non si sposta', async () => {
+    window.api.getEntries = vi.fn(() => Promise.resolve([entries[0]]));
+    const { findByText, getByLabelText, getByText } = renderScreen();
+    const row = rowOf(await findByText('Mattina', inTable));
+
+    fireEvent.click(within(row).getByText('Modifica'));
+    fireEvent.click(getByText('Salva'));
+    await waitFor(() => expect(window.api.saveEntry).toHaveBeenCalledTimes(1));
+    expect(window.api.moveEntrySlot).not.toHaveBeenCalled();
+
+    fireEvent.click(within(rowOf(await findByText('Mattina', inTable))).getByText('Modifica'));
+    fireEvent.change(getByLabelText('Fascia'), { target: { value: 'pm' } });
+    fireEvent.click(getByText('Salva'));
+    await waitFor(() => expect(window.api.moveEntrySlot).toHaveBeenCalledWith('e1', 'pm'));
   });
 });

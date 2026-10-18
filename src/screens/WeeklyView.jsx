@@ -11,7 +11,7 @@ import Glyph from '../components/Glyph';
 import OverCapacityBar from '../components/OverCapacityBar';
 import { areaText } from '../area-colors';
 import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
-import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries, resolveEntrySlot } from '../dayPlanning';
+import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries, defaultEntrySlot } from '../dayPlanning';
 
 const PLANNING_MODES = ['full', 'compact', 'hidden'];
 export const AREA_STATUS_OPTIONS = [
@@ -331,11 +331,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   async function saveEntry(projectId, dateStr, payload, slot) {
     const hours = typeof payload === 'object' ? payload.hours : payload;
     const dateIndex = days.findIndex(d => d.dateStr === dateStr);
-    const resolvedSlot = resolveEntrySlot({
-      existingSlot: slot,
+    const resolvedSlot = slot ?? defaultEntrySlot({
+      isToday: !!days[dateIndex]?.isToday,
       clientId: projects.find(p => p.id === projectId)?.clientId,
       blocksForSlot: dateIndex >= 0 ? (s => effectiveBlocks(dateIndex, s)) : null,
-      fallback: 'am',
     });
     const matches = weekEntries.filter(e => (
       e.projectId === projectId && e.date === dateStr && e.slot === resolvedSlot
@@ -968,6 +967,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                           colIndex={i}
                           projectId={project.id}
                           viewMode={viewMode}
+                          readOnlyTitle={entry?.slotCount > 1 ? 'Ore su più fasce: si modificano da Giorno' : undefined}
                           onSave={payload => saveEntry(project.id, d.dateStr, payload, entry?.slot)}
                           onResetBillable={() => resetBillable(project.id, d.dateStr, entry?.slot)}
                           onEditStart={() => startEditingProject(project.id)}

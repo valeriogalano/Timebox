@@ -16,9 +16,11 @@ const { getEntriesData } = require('./commands/entries');
 const { getClientsData }  = require('./commands/clients');
 const { getStatusData }   = require('./commands/status');
 const { logHours }        = require('./commands/log');
+const { getPlanVsTrackedData, MAX_DAYS } = require('./commands/plan-vs-tracked');
 const { fmt, getToday }   = require('./format');
+const { SLOTS }           = require('../lib/domain');
 const {
-  getClients, saveClient,
+  getClients, saveClient, moveEntrySlot,
   getProjects, saveProject, deleteProject,
   hasProjectEntries, mergeProjectEntries,
   getRecurring, saveRecurring, deleteRecurring,
@@ -35,6 +37,8 @@ function serializeWeek(data) {
     days: data.days.map(d => ({ ...d, day: fmt(d.day) })),
   };
 }
+
+const isDateParam = s => /^\d{4}-\d{2}-\d{2}$/.test(s ?? '');
 
 function json(res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json' });
@@ -118,16 +122,34 @@ function createHttpServer() {
       }
 
       if (req.method === 'GET' && p === '/entries') {
-        const isDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
         const from = q.get('from');
         const to = q.get('to') || fmt(getToday());
-        if (!isDate(from) || !isDate(to)) return json(res, 400, { error: 'from (required) and to must be YYYY-MM-DD dates' });
+        if (!isDateParam(from) || !isDateParam(to)) return json(res, 400, { error: 'from (required) and to must be YYYY-MM-DD dates' });
         if (from > to) return json(res, 400, { error: 'from must not be after to' });
         return json(res, 200, getEntriesData({
           from, to,
           areaFilter: q.get('area') || undefined,
           projectFilter: q.get('project') || undefined,
         }));
+      }
+
+      if (req.method === 'GET' && p === '/plan-vs-tracked') {
+        const from = q.get('from');
+        const to = q.get('to') || from;
+        if (!isDateParam(from) || !isDateParam(to)) return json(res, 400, { error: 'from (required) and to must be YYYY-MM-DD dates' });
+        if (from > to) return json(res, 400, { error: 'from must not be after to' });
+        if ((Date.parse(to) - Date.parse(from)) / 86400000 >= MAX_DAYS) return json(res, 400, { error: `range must be at most ${MAX_DAYS} days` });
+        return json(res, 200, getPlanVsTrackedData({ from, to }));
+      }
+
+      if (req.method === 'PATCH' && p.startsWith('/entries/') && p !== '/entries/') {
+        const id = decodeURIComponent(p.slice('/entries/'.length));
+        const { slot } = await readBody(req);
+        if (!SLOTS.includes(slot)) return json(res, 400, { error: 'slot must be am, pm or sera' });
+        const result = moveEntrySlot(id, slot);
+        if (!result) return json(res, 404, { error: `Entry not found: ${id}` });
+        emitter.emit('change', 'entries');
+        return json(res, 200, result);
       }
 
       if (req.method === 'GET' && (p === '/clients' || p === '/areas')) {
@@ -301,7 +323,8 @@ function createHttpServer() {
 
       json(res, 404, { error: 'Not found' });
     } catch (err) {
-      json(res, err.message?.includes('No project') || err.message?.includes('Ambiguous') ? 400 : 500, { error: err.message });
+      const clientError = ['No project', 'Ambiguous', 'Invalid slot'].some(text => err.message?.includes(text));
+      json(res, clientError ? 400 : 500, { error: err.message });
     }
   });
   server.emitter = emitter;
