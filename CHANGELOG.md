@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Fascia delle ore lavorate: ogni registrazione ha la sua fascia (Mattina, Pomeriggio, Sera), assegnata in automatico. In Giorno → Ore c'è una riga per ogni fascia in cui il progetto ha ore, con un selettore per correggerla; spostando un'entry in una fascia dove il progetto ha già ore, le due si sommano.
+- Fascia delle ore lavorate: ogni registrazione ha la sua fascia (Mattina, Pomeriggio, Sera), assegnata in automatico. Nel Registro la colonna Fascia si corregge da Modifica; in Giorno → Ore c'è una riga per ogni fascia in cui il progetto ha ore, con un selettore per correggerla; spostando un'entry in una fascia dove il progetto ha già ore, le due si sommano.
 - MCP e API HTTP: `entries`, `today` e `week` mostrano la fascia e l'id di ogni entry, `day_summary` aggiunge le ore lavorate in ciascuna fascia accanto al riempimento dei blocchi. Il nuovo tool `set_entry_slot` (`PATCH /entries/:id`) corregge la fascia di un'entry.
 - MCP e API HTTP: il nuovo tool `plan_vs_tracked` (`GET /plan-vs-tracked`) confronta piano e giornata reale per giorno, fascia e area su un intervallo di date, con le ore extra e i totali. Le fasce contano dal giorno in cui questa versione apre il database la prima volta; i giorni precedenti sono segnalati e restano fuori dai totali.
 
