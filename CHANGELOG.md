@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Ricorrenza → Override ripetuti: compaiono solo gli scarti che superano la tolleranza dei glifi di Andamento (mezz'ora o 10% del template, la più larga delle due), e l'elenco parte dallo scarto più grande invece che dal giorno. Sulle ultime 8 settimane reali le righe passano da 22 a 10. Il giorno ora sta nella riga ("Mar · Mattina · Area") al posto delle intestazioni per giorno.
+
 ## [0.12.0] - 2026-10-18
 
 ### Added
