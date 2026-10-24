@@ -662,6 +662,27 @@ describe('HTTP server', () => {
     assert.ok(!hasProjectEntries(src.id), 'source project left with no entries');
   });
 
+  it('POST /overrides with an unknown clientId (an area name) → 400, nothing stored', async () => {
+    const area = getClients()[0];
+    const weekKey = currentWeekDate(0);
+    const { status, body } = await post(port, '/overrides', {
+      weekKey, dayIndex: 2, slot: 'am', blocks: [{ clientId: area.name, hours: 2 }],
+    });
+    assert.equal(status, 400);
+    assert.match(body.error, new RegExp(`Area not found: ${area.name}`));
+    const { body: stored } = await get(port, `/overrides?week=${weekKey}`);
+    assert.ok(!stored.some(o => o.dayIndex === 2 && o.slot === 'am'), 'no row written');
+  });
+
+  it('POST /overrides with an area id → 200 and stored; empty blocks still allowed', async () => {
+    const area = getClients()[0];
+    const weekKey = currentWeekDate(7);
+    const ok = await post(port, '/overrides', { weekKey, dayIndex: 1, slot: 'pm', blocks: [{ clientId: area.id, hours: 2 }] });
+    assert.equal(ok.status, 200);
+    const empty = await post(port, '/overrides', { weekKey, dayIndex: 1, slot: 'am', blocks: [] });
+    assert.equal(empty.status, 200);
+  });
+
   it('POST /projects/merge with unknown fromId → 400', async () => {
     const clients = getClients();
     const { body: dst } = await post(port, '/projects', { name: 'Merge Dest 2', areaId: clients[0].id });

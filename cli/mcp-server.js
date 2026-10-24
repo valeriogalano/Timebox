@@ -363,7 +363,7 @@ const TOOLS = [
             type: 'object',
             required: ['clientId', 'hours'],
             properties: {
-              clientId: { type: 'string' },
+              clientId: { type: 'string', description: 'Area id (from areas or find_area), not the area name' },
               hours:    { type: 'number' },
             },
           },
@@ -399,7 +399,7 @@ const TOOLS = [
             type: 'object',
             required: ['clientId', 'hours'],
             properties: {
-              clientId: { type: 'string' },
+              clientId: { type: 'string', description: 'Area id (from areas or find_area), not the area name' },
               hours:    { type: 'number' },
             },
           },
@@ -923,7 +923,7 @@ async function callTool(name, args) {
       for (const slot of SLOTS) {
         const dayBlocks = blocks.filter(b => b.day === day && b.slot === slot).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
         if (dayBlocks.length) {
-          lines.push(`${DAYS[day]} ${slot.toUpperCase()}: ${dayBlocks.map(b => `${clientMap[b.clientId] ?? b.clientId} ${b.hours}h`).join(', ')}`);
+          lines.push(`${DAYS[day]} ${slot.toUpperCase()}: ${dayBlocks.map(b => `${clientMap[b.clientId] ?? `? (${b.clientId})`} ${b.hours}h`).join(', ')}`);
         }
       }
     }
@@ -953,7 +953,7 @@ async function callTool(name, args) {
     const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const lines = [`Week ${args.weekKey} overrides:`];
     for (const o of overrides) {
-      const blockSummary = o.blocks.length ? o.blocks.map(b => `${clientMap[b.clientId] ?? b.clientId} ${b.hours}h`).join(', ') : '(empty)';
+      const blockSummary = o.blocks.length ? o.blocks.map(b => `${clientMap[b.clientId] ?? `? (${b.clientId})`} ${b.hours}h`).join(', ') : '(empty)';
       lines.push(`  ${DAYS[o.dayIndex] ?? o.dayIndex} ${o.slot.toUpperCase()}: ${blockSummary}`);
     }
     return lines.join('\n');
