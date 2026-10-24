@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Giorno → Ore: accanto al selettore di fascia c'è un "+" che aggiunge una riga in una fascia dove il progetto non ha ancora ore, anche su un giorno passato. Prima, con ore già registrate in una fascia, non c'era modo di aggiungerne in un'altra.
+
 ### Fixed
+- `set_week_override` (`POST /overrides`) accettava un `clientId` che non corrisponde a nessuna area, per esempio il nome al posto dell'id, e salvava un blocco che poi compariva come area "?". Ora risponde con un errore. `get_week_overrides` mostra un id sconosciuto come `? (id)` invece di ripeterlo come se fosse il nome.
 - Andamento → Da decidere: l'azione "Porta la ricorrenza da 16h a ~4h 30m" si leggeva come "a −4h 30m" per via della tilde. Ora dice "da 16h a 4h 30m": il valore è già arrotondato al quarto d'ora ed è quello da scrivere nella ricorrenza.
 
 ## [0.12.0] - 2026-10-18
