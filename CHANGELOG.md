@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Andamento → Da decidere: l'azione "Porta la ricorrenza da 16h a ~4h 30m" si leggeva come "a −4h 30m" per via della tilde. Ora dice "da 16h a 4h 30m": il valore è già arrotondato al quarto d'ora ed è quello da scrivere nella ricorrenza.
+
 ## [0.12.0] - 2026-10-18
 
 ### Added

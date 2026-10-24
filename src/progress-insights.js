@@ -114,11 +114,13 @@ export function distributionLabel({ weeksOff, of, kind, peakDelta, peakWeek }) {
 // Cosa fare, con il numero già pronto. Se la ricorrenza di oggi è già al valore
 // suggerito lo scarto viene da settimane passate e non c'è niente da modificare.
 export function actionLabel({ suggested, template }) {
-  // "Porta la ricorrenza a ~0h" non è un'istruzione: a zero ore la scelta è togliere i blocchi.
+  // Niente "~": il valore è già arrotondato al quarto d'ora, è quello da scrivere, e a 11px
+  // la tilde si leggeva come un segno meno ("da 16h a −4h").
+  // "Porta la ricorrenza a 0h" non è un'istruzione: a zero ore la scelta è togliere i blocchi.
   if (!(suggested > 0)) return 'Nessuna ora svolta: valuta di togliere i blocchi dalla ricorrenza';
-  if (template == null) return `Porta la ricorrenza a ~${hNb(suggested)}`;
+  if (template == null) return `Porta la ricorrenza a ${hNb(suggested)}`;
   if (Math.abs(template - suggested) < 0.25) return `Ricorrenza già a ${hNb(template)}: nessuna modifica`;
-  return `Porta la ricorrenza da ${hNb(template)} a ~${hNb(suggested)}`;
+  return `Porta la ricorrenza da ${hNb(template)} a ${hNb(suggested)}`;
 }
 
 // Lente "In prospettiva": quanto manca a esaurire i tetti CUMULATIVI (budget totale
