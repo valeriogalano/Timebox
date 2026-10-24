@@ -9,9 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Giorno → Ore: accanto al selettore di fascia c'è un "+" che aggiunge una riga in una fascia dove il progetto non ha ancora ore, anche su un giorno passato. Prima, con ore già registrate in una fascia, non c'era modo di aggiungerne in un'altra.
+- Settimana: un avviso quando il piano porta un'area oltre il suo limite settimanale, mentre le ore fatte ci stanno ancora. Prima l'avviso arrivava solo a limite già superato.
+- Andamento → Trend: nei mini-grafici delle aree con limite settimanale c'è la linea del limite, con quante settimane chiuse ci sono finite oltre.
 
 ### Changed
 - Ricorrenza → Override ripetuti: compaiono solo gli scarti che superano la tolleranza dei glifi di Andamento (mezz'ora o 10% del template, la più larga delle due), e l'elenco parte dallo scarto più grande invece che dal giorno. Sulle ultime 8 settimane reali le righe passano da 22 a 10. Il giorno ora sta nella riga ("Mar · Mattina · Area") al posto delle intestazioni per giorno.
+- Andamento → Settimana risponde a "dove arrivo a fine settimana, e sto nei limiti?". Percentuale, glifo e stato del carico, il verdetto per area e il ⚠ dei limiti settimanali si leggono sul Previsto: ore fatte fino a ieri, più per oggi e i giorni successivi il piano (o le ore già registrate, se sono di più). A settimana chiusa il Previsto coincide con il fatto, quindi le settimane passate si leggono come prima. Il 15/10 un'area risultava sotto il piano mentre andava 2h oltre il suo limite.
+- Andamento → Settimana: tolta la proiezione "a ritmo", che contava il weekend e ignorava il piano. Per area restano Piano, Fatto e Previsto; Extra, Δ e la colonna Limite escono (lo scarto è nell'aiuto del glifo, i limiti hanno la loro sezione). La proiezione del fatturabile a consumo è il fatto più il piano fatturabile che resta.
+- Andamento: i Budget totali escono dalla lente Settimana e restano in In prospettiva, che mostra gli stessi tetti.
+- Andamento → Trend: nei mini-grafici il segno del piano è quello di ciascuna settimana, non della settimana selezionata, e il glifo si calcola solo sulle settimane chiuse.
 
 ### Fixed
 - `set_week_override` (`POST /overrides`) accettava un `clientId` che non corrisponde a nessuna area, per esempio il nome al posto dell'id, e salvava un blocco che poi compariva come area "?". Ora risponde con un errore. `get_week_overrides` mostra un id sconosciuto come `? (id)` invece di ripeterlo come se fosse il nome.

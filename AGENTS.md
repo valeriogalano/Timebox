@@ -375,6 +375,14 @@ The logic lives in `src/cap-usage.js` for the renderer and in `capUsage` in `lib
 
 In UI text, tracked hours are "ore lavorate" (never "ore reali") and billable hours are "ore fatturabili", abbreviated "fatt.".
 
+### Weekly Verdicts Are on the Forecast (Previsto)
+
+Andamento → Settimana and the weekly-limit warnings judge the **Previsto**, not the hours done so far: mid-week, done hours against the whole week's plan always read "under". `weekForecast` (`src/week-forecast.js`, CommonJS twin in `lib/domain.js`) counts the hours done before today and, from today on, each day's plan or what is already logged if more. Today therefore includes its remaining plan. Once the week is closed the Previsto equals the done hours, so closed weeks read as before.
+
+- The load card, the per-area table and the ⚠ on weekly limits use it. A project has no plan (`recurring` maps areas), so its Previsto is its done hours.
+- `forecastUsage` adds the remaining plan to both counts of a cap (worked and billable); `weeklyLimitsAtRisk` is the warning in Settimana while planning, for areas whose Previsto exceeds the weekly limit while the done hours still fit.
+- The Trend mini charts judge the closed weeks only.
+
 ### Reset to Template
 
 `resetWeekToTemplate()` removes current-week overrides locally and calls `deleteWeekOverride` for every weekday AM/PM slot.

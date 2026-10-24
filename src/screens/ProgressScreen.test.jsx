@@ -38,49 +38,105 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     };
   });
 
-  test('separa i limiti della settimana dai budget totali, con aree e progetti', async () => {
+  test('Limiti della settimana mostra solo i tetti settimanali; i budget totali stanno in In prospettiva', async () => {
     const { findByText, getByText, queryByText } = renderPanoramica();
 
     const weekly = (await findByText('Limiti della settimana')).closest('div').parentElement;
-    const total = getByText('Budget totali').closest('div').parentElement;
-    expect(getByText('da inizio progetto · indipendente dal periodo')).toBeInTheDocument();
-
+    expect(queryByText('Budget totali')).not.toBeInTheDocument();
     // area con limite settimanale e progetto con ore settimanali
     expect(within(weekly).getByText('Settimanale')).toBeInTheDocument();
     expect(within(weekly).getByText('Progetto uno')).toBeInTheDocument();
     expect(within(weekly).queryByText('Progetto due')).not.toBeInTheDocument();
-    // area con limite globale e progetto con budget totale
-    expect(within(total).getByText('Globale')).toBeInTheDocument();
-    expect(within(total).getByText('Progetto due')).toBeInTheDocument();
-    expect(within(total).queryByText('Progetto uno')).not.toBeInTheDocument();
-    // il tetto globale d'area consuma anche le ore dei progetti archiviati: 30h + 20h.
-    // Su un tetto di 100h il residuo è anch'esso 50h: fatte e residuo, due volte.
-    expect(within(total).getAllByText('50h')).toHaveLength(2);
+    expect(within(weekly).queryByText('Globale')).not.toBeInTheDocument();
+
+    fireEvent.click(getByText('In prospettiva'));
+    // il tetto globale d'area consuma anche le ore dei progetti archiviati: 30h + 20h
+    expect((await findByText('Globale')).closest('div').parentElement).toHaveTextContent('consumato 50h su 100h');
+    expect(getByText('Progetto due')).toBeInTheDocument();
     // un progetto archiviato è storia: il suo budget non è più una decisione
     expect(queryByText('Archiviato')).not.toBeInTheDocument();
   });
 
   test('ogni card mostra il residuo, o di quanto il tetto è superato', async () => {
-    const { findByText, getByText } = renderPanoramica();
+    const { findByText } = renderPanoramica();
 
     const weekly = (await findByText('Limiti della settimana')).closest('div').parentElement;
-    const total = getByText('Budget totali').closest('div').parentElement;
-
-    // Progetto due: 30h su 40h di budget
-    expect(within(total).getByText('10h').previousSibling).toHaveTextContent('mancano');
     // Progetto uno: 12h su 5h settimanali
     expect(within(weekly).getByText('7h').previousSibling).toHaveTextContent('oltre di');
+    // Settimanale: 12h su 10h, oltre già ora e quindi anche sul previsto
+    expect(within(weekly).getByText('2h').previousSibling).toHaveTextContent('oltre di');
   });
 
   test('in un\'area a ore la card mostra ore fatturabili e ore lavorate quando divergono', async () => {
-    const { findByText } = renderPanoramica();
+    const today = fmt(getToday());
+    window.api.getEntries = () => Promise.resolve([
+      { id: 'e1', projectId: 'p6', date: today, hours: 8, billableHours: 6, slot: 'am' },
+    ]);
+    const hourly = { id: 'c5', name: 'Consulenza', color: '#b8255f', billing: 'hourly', rate: 50, limitType: 'weekly', limitHours: 10 };
+    const { findByText } = render(
+      <ProgressScreen clients={[hourly]} projects={[{ id: 'p6', clientId: 'c5', name: 'Supporto' }]} recurring={[]}
+        screen="progress" weekOffset={0} setWeekOffset={() => {}} />
+    );
 
-    // Pacchetto: 40h di budget, 31h lavorate di cui 26h fatturabili
-    const card = (await findByText('Pacchetto')).closest('div').parentElement.parentElement;
-    expect(card).toHaveTextContent('mancano14hfatt.·mancano9hlavorate');
-    expect(card).toHaveTextContent('26h fatt.·31h lavorate / 40h');
-    // la percentuale segue il conteggio messo peggio: 31h su 40h
-    expect(card).toHaveTextContent('78%');
+    const card = (await findByText('Consulenza', { selector: 'span[style*="font-size: 13px"]' })).closest('div').parentElement.parentElement;
+    expect(card).toHaveTextContent('mancano4hfatt.·mancano2hlavorate');
+    expect(card).toHaveTextContent('6h fatt.·8h lavorate / 10h');
+    // la percentuale segue il conteggio messo peggio: 8h su 10h
+    expect(card).toHaveTextContent('80%');
+  });
+
+  test('settimana futura: il previsto è il piano, e il ⚠ scatta quando supera il limite', async () => {
+    // 2h al giorno su Settimanale (limite 10h): la settimana prossima arriva a 14h
+    const recurring = Array.from({ length: 7 }, (_, day) => ({ id: `r${day}`, clientId: 'c1', day, slot: 'am', hours: 2, position: 0 }));
+    window.api.getEntries = () => Promise.resolve([]);
+    const { findByText, getByText, getAllByTitle } = render(
+      <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen="progress"
+        weekOffset={1} setWeekOffset={() => {}} />
+    );
+
+    const weekly = (await findByText('Limiti della settimana')).closest('div').parentElement;
+    const card = within(weekly).getByText('Settimanale').closest('div').parentElement.parentElement;
+    // ancora nessuna ora fatta, ma il piano porta a 14h
+    expect(card).toHaveTextContent('mancano10h');
+    expect(card).toHaveTextContent('previsto 14h');
+    expect(getAllByTitle('Previsto 14h su 10h · Limite − Previsto -4h').length).toBeGreaterThanOrEqual(1);
+
+    // per area: piano, fatto e previsto; in linea perché il previsto è il piano
+    expect(getByText('piano · fatto · previsto')).toBeInTheDocument();
+    expect(getAllByTitle('In linea · Δ +0h sul previsto')).toHaveLength(1);
+    // carico: 14h previste su 14h di capacità
+    expect(getByText('100%')).toBeInTheDocument();
+    expect(getByText('Previsto a fine settimana')).toBeInTheDocument();
+  });
+
+  test('settimana chiusa: niente colonna Previsto, il verdetto è sul fatto', async () => {
+    const monday = getMondayOfWeek(getToday());
+    const lastWeek = fmt(addDays(monday, -7));
+    const recurring = [{ id: 'r1', clientId: 'c3', day: 0, slot: 'am', hours: 4, position: 0 }];
+    window.api.getEntries = () => Promise.resolve([{ id: 'e1', projectId: 'p3', date: lastWeek, hours: 1, slot: 'am' }]);
+    const { findByText, queryByText, getAllByTitle } = render(
+      <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen="progress"
+        weekOffset={-1} setWeekOffset={() => {}} />
+    );
+
+    expect(await findByText('piano · fatto')).toBeInTheDocument();
+    expect(queryByText('Previsto')).not.toBeInTheDocument();
+    expect(queryByText('Previsto a fine settimana')).not.toBeInTheDocument();
+    // 1h su 4h: molto sotto, scarto di 3h
+    expect(getAllByTitle('Molto sottocarico · Δ -3h')).toHaveLength(1);
+  });
+
+  test('le frecce spostano la settimana e Oggi torna a quella corrente', async () => {
+    const moves = [];
+    const setWeekOffset = f => moves.push(typeof f === 'function' ? f(1) : f);
+    const { findByText, getByText } = render(
+      <ProgressScreen clients={clients} projects={projects} recurring={[]} screen="progress"
+        weekOffset={1} setWeekOffset={setWeekOffset} />
+    );
+    fireEvent.click(await findByText('‹'));
+    fireEvent.click(getByText('›'));
+    fireEvent.click(getByText('Oggi'));
+    expect(moves).toEqual([0, 2, 0]);
   });
 
   test('le lenti sono pulsanti, con l\'aiuto raggiungibile a parte', async () => {
@@ -129,14 +185,6 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
 
     fireEvent.click(await findByText('In prospettiva'));
     expect(getByText('Nessun tetto cumulativo')).toBeInTheDocument();
-  });
-
-  test('la colonna Limite compare nel consuntivo per area e segnala il superamento', async () => {
-    const { findByText, getAllByTitle } = renderPanoramica();
-
-    await findByText('Limite');
-    // 12h su un limite di 10h: ⚠ nella colonna e nella card dell'area
-    expect(getAllByTitle('Superato').length).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -205,4 +253,30 @@ describe('ProgressScreen / Trend: Da decidere', () => {
     await findByText('Per area');
     expect(queryByText('Da decidere')).not.toBeInTheDocument();
   });
+
+  test('mini-grafici: piano di ogni settimana, glifo sulle chiuse, settimane oltre il limite', async () => {
+    // Settimanale (limite 10h), 8h a settimana di piano; due delle sette settimane chiuse a 12h
+    const weekly = [{ id: 'r1', clientId: 'c1', day: 0, slot: 'am', hours: 8, position: 0 }];
+    const monday = getMondayOfWeek(getToday());
+    const past = Array.from({ length: 7 }, (_, k) => ({
+      id: `e${k}`, projectId: 'p1', date: fmt(addDays(monday, -7 * (k + 1))), hours: k < 2 ? 12 : 8, slot: 'am',
+    }));
+    // la settimana in corso, a zero, non deve far dire "sotto" al glifo
+    window.api.getEntries = () => Promise.resolve(past);
+
+    const { findByText, getByText } = render(
+      <ProgressScreen clients={clients} projects={projects} recurring={weekly} screen="progress"
+        weekOffset={0} setWeekOffset={() => {}} />
+    );
+    fireEvent.click(await findByText('Trend'));
+    const card = getByText('Settimanale', { selector: 'span[style*="flex: 1"]' }).closest('div').parentElement;
+
+    expect(within(card).getByText('2 su 7 oltre il limite di 10h')).toBeInTheDocument();
+    expect(within(card).getByTitle('Limite settimanale 10h')).toBeInTheDocument();
+    // 64h fatte su 56h di piano nelle chiuse: oltre il 10% e oltre mezz'ora
+    expect(within(card).getByTitle('Sovraccarico · settimane chiuse')).toBeInTheDocument();
+    // un segno di piano per ognuna delle 8 settimane
+    expect(card.querySelectorAll('[data-plan-mark]')).toHaveLength(8);
+  });
 });
+
