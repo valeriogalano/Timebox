@@ -67,7 +67,7 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     expect(within(weekly).getByText('2h').previousSibling).toHaveTextContent('oltre di');
   });
 
-  test('in un\'area a ore la card mostra ore fatturabili e ore lavorate quando divergono', async () => {
+  test('in un\'area a ore la card mostra il conteggio messo peggio, con entrambi nel tooltip', async () => {
     const today = fmt(getToday());
     window.api.getEntries = () => Promise.resolve([
       { id: 'e1', projectId: 'p6', date: today, hours: 8, billableHours: 6, slot: 'am' },
@@ -79,8 +79,11 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     );
 
     const card = (await findByText('Consulenza', { selector: 'span[style*="font-size: 13px"]' })).closest('div').parentElement.parentElement;
-    expect(card).toHaveTextContent('mancano4hfatt.·mancano2hlavorate');
-    expect(card).toHaveTextContent('6h fatt.·8h lavorate / 10h');
+    // 8h lavorate contro 6h fatturabili: conta il conteggio messo peggio, ed è etichettato
+    expect(card).toHaveTextContent('mancano2hlavorate');
+    expect(card).toHaveTextContent('8h lavorate / 10h');
+    expect(card).not.toHaveTextContent('fatt.');
+    expect(within(card).getByTitle('Ore lavorate 8h · ore fatturabili 6h')).toBeInTheDocument();
     // la percentuale segue il conteggio messo peggio: 8h su 10h
     expect(card).toHaveTextContent('80%');
   });

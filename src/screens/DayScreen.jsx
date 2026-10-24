@@ -378,7 +378,7 @@ function DayPlanningPanel({
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
           {tab === 'piano'
             ? 'trascina tra Mattina, Pomeriggio e Sera · override solo per oggi'
-            : 'registra le ore di oggi · una riga per progetto e fascia'}
+            : 'registra le ore del giorno · una riga per progetto e fascia'}
         </span>
       </div>
       {tab === 'piano' ? (
@@ -536,36 +536,41 @@ function DayTimesheet({ loading, dayEntries, slotEntries = [], clients, projects
         <div style={{ border: '1px solid var(--tb-border)', borderRadius: 6, overflow: 'hidden' }}>
           {rows.map(({ entry, project, client, freeSlots }, i) => (
             <div key={`${project.id}:${entry.slot ?? ''}`} style={{ display: 'grid', gridTemplateColumns: '1fr 72px', alignItems: 'stretch', borderTop: i ? '1px solid var(--tb-border-soft)' : 'none' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '0 10px', minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 10px', minWidth: 0 }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.name}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.name}</div>
+                  {/* Fascia e "+" sulla riga dell'area: sulla prima toglievano spazio al nome,
+                      che nel pannello stretto si riduceva a poche lettere. */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, marginTop: 1 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{client.name}</span>
+                    {entry.id && (
+                      <select
+                        aria-label={`Fascia di ${project.name}`}
+                        title="Fascia in cui hai lavorato: cambiala se è diversa"
+                        value={entry.slot}
+                        onChange={e => onMoveSlot(entry.id, e.target.value)}
+                        style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', background: 'transparent', border: '1px solid var(--tb-border-mid)', borderRadius: 4, padding: '1px 2px', fontFamily: "'Open Sans', sans-serif", flexShrink: 0 }}>
+                        {SLOTS.map(s => <option key={s} value={s}>{SLOT_LABELS[s]}</option>)}
+                      </select>
+                    )}
+                    {!entry.id && entry.slot && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', flexShrink: 0 }}>{SLOT_LABELS[entry.slot]}</span>
+                    )}
+                    {freeSlots.length > 0 && (
+                      <select
+                        aria-label={`Aggiungi ore di ${project.name} in un'altra fascia`}
+                        title="Aggiungi ore in un'altra fascia"
+                        value=""
+                        onChange={e => setAddedRows(rs => [...rs, { projectId: project.id, slot: e.target.value }])}
+                        // Un quadrato con il solo "+": con la freccia nativa sembrava un secondo selettore di fascia.
+                        style={{ appearance: 'none', WebkitAppearance: 'none', width: 24, height: 24, textAlign: 'center', textAlignLast: 'center', fontSize: 14, fontWeight: 700, lineHeight: 1, color: 'var(--tb-text-muted)', background: 'transparent', border: '1px solid var(--tb-border-mid)', borderRadius: 4, padding: 0, cursor: 'pointer', fontFamily: "'Open Sans', sans-serif", flexShrink: 0 }}>
+                        <option value="">+</option>
+                        {freeSlots.map(s => <option key={s} value={s}>{SLOT_LABELS[s]}</option>)}
+                      </select>
+                    )}
+                  </div>
                 </div>
-                {entry.id && (
-                  <select
-                    aria-label={`Fascia di ${project.name}`}
-                    title="Fascia in cui hai lavorato: cambiala se è diversa"
-                    value={entry.slot}
-                    onChange={e => onMoveSlot(entry.id, e.target.value)}
-                    style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', background: 'transparent', border: '1px solid var(--tb-border-mid)', borderRadius: 4, padding: '1px 2px', fontFamily: "'Open Sans', sans-serif", flexShrink: 0 }}>
-                    {SLOTS.map(s => <option key={s} value={s}>{SLOT_LABELS[s]}</option>)}
-                  </select>
-                )}
-                {!entry.id && entry.slot && (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', flexShrink: 0 }}>{SLOT_LABELS[entry.slot]}</span>
-                )}
-                {freeSlots.length > 0 && (
-                  <select
-                    aria-label={`Aggiungi ore di ${project.name} in un'altra fascia`}
-                    title="Aggiungi ore in un'altra fascia"
-                    value=""
-                    onChange={e => setAddedRows(rs => [...rs, { projectId: project.id, slot: e.target.value }])}
-                    style={{ width: 22, fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', background: 'transparent', border: '1px solid var(--tb-border-mid)', borderRadius: 4, padding: '1px 0', fontFamily: "'Open Sans', sans-serif", flexShrink: 0 }}>
-                    <option value="">+</option>
-                    {freeSlots.map(s => <option key={s} value={s}>{SLOT_LABELS[s]}</option>)}
-                  </select>
-                )}
               </div>
               <TimeCell
                 hours={entry.hours}
@@ -577,6 +582,7 @@ function DayTimesheet({ loading, dayEntries, slotEntries = [], clients, projects
                 colIndex={0}
                 projectId={project.id}
                 viewMode={viewMode}
+                autoEdit={!entry.id && !!entry.slot} showHint={!entry.id && !!entry.slot}
                 onSave={payload => onSaveDayEntry(project.id, payload, entry.slot)}
                 onResetBillable={() => onResetBillable(project.id, entry.slot)} />
             </div>
