@@ -4,6 +4,7 @@
 // settimane passate, e segnala gli slot dove lo scostamento è sistematico.
 
 import { SLOTS } from './utils.js';
+import { TOL_HOURS, TOL_PCT } from './progress-insights.js';
 
 export const DIVERGENCE_HISTORY_WEEKS = 8;
 export const DIVERGENCE_MIN_OCCURRENCES = 3;
@@ -13,6 +14,10 @@ export const DIVERGENCE_MIN_OCCURRENCES = 3;
 // è rumore (minuti in più o in meno nelle singole settimane) e non si mostra.
 const QUARTER = 0.25;
 const toQuarter = h => Math.sign(h) * Math.round(Math.abs(h) / QUARTER) * QUARTER;
+
+const templateHours = (recurring, { day, slot, clientId }) => recurring
+  .filter(r => r.day === day && r.slot === slot && r.clientId === clientId)
+  .reduce((sum, r) => sum + r.hours, 0);
 
 // pastOverrides: righe { weekKey, dayIndex, slot, blocks } per la finestra osservata.
 // recurring: il template attuale (usato per calcolare lo scarto di ogni settimana).
@@ -65,8 +70,11 @@ export function computeDivergences(pastOverrides, recurring, dismissed = new Set
       avgDelta: toQuarter(s.deltas.reduce((a, b) => a + b, 0) / DIVERGENCE_HISTORY_WEEKS),
       occurrences: s.deltas.length,
     }))
-    .filter(s => s.avgDelta !== 0)
+    // Stessa tolleranza dei glifi di Andamento (statusFor): mezz'ora o 10% del template,
+    // la più larga. Uno scarto medio più piccolo è rumore e disperde quelli che contano.
+    .filter(s => Math.abs(s.avgDelta) > Math.max(TOL_HOURS, templateHours(recurring, s) * TOL_PCT))
     .filter(s => !dismissed.has(`${s.day}-${s.slot}-${s.clientId}`))
-    // Ordine di lettura settimanale: giorno → fascia → più corretti prima.
-    .sort((a, b) => a.day - b.day || SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot) || b.occurrences - a.occurrences);
+    // Dal più grande: è la riga su cui si decide. A parità, ordine di lettura settimanale.
+    .sort((a, b) => Math.abs(b.avgDelta) - Math.abs(a.avgDelta)
+      || a.day - b.day || SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot) || b.occurrences - a.occurrences);
 }
