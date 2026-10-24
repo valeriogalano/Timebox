@@ -12,8 +12,6 @@ import HelpDot from '../components/HelpDot';
 // Redesign: nessun colore di stato. L'identità è solo l'area (client.color).
 // over/under/in-line si leggono per posizione/glyph, non per verde/arancio/rosso.
 const COL_OVER  = 'var(--tb-text-primary)';
-const COL_UNDER = 'var(--tb-text-muted)';
-const COL_OK    = 'var(--tb-text-primary)';
 
 const TREND_WEEKS  = 8;
 const TREND_MONTHS = 6;
@@ -43,49 +41,16 @@ function weekRange(offset) {
   return { start, end, startStr: fmt(start), endStr: fmt(end) };
 }
 
-// Returns first and last day of a month at offset from current
-function monthRange(offset) {
-  const today = getToday();
-  const d = new Date(today.getFullYear(), today.getMonth() + offset, 1);
-  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-  return {
-    start: d,
-    end: last,
-    startStr: fmt(d),
-    endStr: fmt(last),
-    year: d.getFullYear(),
-    monthIdx: d.getMonth(),
-  };
-}
-
-function periodLabel(period, offset) {
-  if (period === 'week') {
-    const { start, end } = weekRange(offset);
-    const sm = start.getDate();
-    const em = end.getDate();
-    const startMonth = MONTHS_IT[start.getMonth()].slice(0, 3);
-    const endMonth   = MONTHS_IT[end.getMonth()].slice(0, 3);
-    if (start.getMonth() === end.getMonth()) {
-      return `${sm} – ${em} ${endMonth} ${end.getFullYear()}`;
-    }
-    return `${sm} ${startMonth} – ${em} ${endMonth} ${end.getFullYear()}`;
+function periodLabel(offset) {
+  const { start, end } = weekRange(offset);
+  const sm = start.getDate();
+  const em = end.getDate();
+  const startMonth = MONTHS_IT[start.getMonth()].slice(0, 3);
+  const endMonth   = MONTHS_IT[end.getMonth()].slice(0, 3);
+  if (start.getMonth() === end.getMonth()) {
+    return `${sm} – ${em} ${endMonth} ${end.getFullYear()}`;
   }
-  const { year, monthIdx } = monthRange(offset);
-  return `${MONTHS_IT[monthIdx]} ${year}`;
-}
-
-function countWeeksInMonth(monthIdx, year) {
-  // Count Mon–Fri weeks that fall (even partially) in this month
-  const first = new Date(year, monthIdx, 1);
-  const last  = new Date(year, monthIdx + 1, 0);
-  const startMonday = getMondayOfWeek(first);
-  let count = 0;
-  let cur = startMonday;
-  while (cur <= last) {
-    count++;
-    cur = addDays(cur, 7);
-  }
-  return count;
+  return `${sm} ${startMonth} – ${em} ${endMonth} ${end.getFullYear()}`;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -368,7 +333,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
   // settimana direbbe sempre "sotto".
   const status  = statusFor(stats.totalForecast, stats.capacity);
   const deltaH  = stats.totalForecast - stats.capacity;
-  const label   = periodLabel('week', periodOffset);
+  const label   = periodLabel(periodOffset);
   const isToday = periodOffset === 0;
 
   // Un progetto archiviato è storia: il suo budget non è più una decisione da prendere.
@@ -968,31 +933,6 @@ function NavBtn({ children, onClick, small }) {
   );
 }
 
-function Segmented({ value, options, onChange, small }) {
-  return (
-    <div style={{
-      display: 'inline-flex', padding: 2, borderRadius: 7,
-      background: 'var(--tb-panel-bg-subtle)', border: '1px solid var(--tb-border-soft)',
-    }}>
-      {options.map(o => {
-        const active = o.v === value;
-        return (
-          <button key={o.v} onClick={() => onChange(o.v)} style={{
-            padding: small ? '4px 10px' : '5px 14px',
-            border: 'none', borderRadius: 5, cursor: 'pointer',
-            fontFamily: "'Open Sans',sans-serif",
-            fontSize: small ? 11 : 12, fontWeight: active ? 800 : 600,
-            background: active ? 'var(--tb-panel-bg)' : 'transparent',
-            color: active ? 'var(--tb-text-primary)' : 'var(--tb-text-muted)',
-            boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-            letterSpacing: '0.01em',
-          }}>{o.l}</button>
-        );
-      })}
-    </div>
-  );
-}
-
 function CapacityBar({ done, capacity }) {
   return <OverCapacityBar value={done} cap={capacity} height={10} style={{ marginTop: 14 }} />;
 }
@@ -1011,24 +951,6 @@ function Bar({ value, max, color, thin }) {
       }} />
     </div>
   );
-}
-
-function AreaStatusDot({ client, done, planned, limit }) {
-  let color = 'var(--tb-text-faint)';
-  let title = '';
-  if (limit) {
-    const r = done / limit;
-    if (r > 1.05)     { color = COL_OVER;  title = 'Oltre limite'; }
-    else if (r > 0.95){ color = COL_OK;    title = 'Vicino al limite'; }
-    else if (r > 0.3) { color = COL_UNDER; title = 'In corso'; }
-    else              { color = 'var(--tb-text-faint)'; title = 'Basso utilizzo'; }
-  } else if (planned > 0) {
-    const r = done / planned;
-    if (r > 1.2)     { color = COL_OVER;  title = 'Sopra piano'; }
-    else if (r >= 0.85){ color = COL_OK;  title = 'In linea'; }
-    else if (r > 0)  { color = COL_UNDER; title = 'Sotto piano'; }
-  }
-  return <div title={title} style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />;
 }
 
 function Legend() {
