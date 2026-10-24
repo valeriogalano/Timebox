@@ -126,6 +126,19 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     expect(getAllByTitle('Molto sottocarico · Δ -3h')).toHaveLength(1);
   });
 
+  test('le frecce spostano la settimana e Oggi torna a quella corrente', async () => {
+    const moves = [];
+    const setWeekOffset = f => moves.push(typeof f === 'function' ? f(1) : f);
+    const { findByText, getByText } = render(
+      <ProgressScreen clients={clients} projects={projects} recurring={[]} screen="progress"
+        weekOffset={1} setWeekOffset={setWeekOffset} />
+    );
+    fireEvent.click(await findByText('‹'));
+    fireEvent.click(getByText('›'));
+    fireEvent.click(getByText('Oggi'));
+    expect(moves).toEqual([0, 2, 0]);
+  });
+
   test('le lenti sono pulsanti, con l\'aiuto raggiungibile a parte', async () => {
     const { findByRole, getByRole, findByText } = renderPanoramica();
 
