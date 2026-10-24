@@ -277,7 +277,12 @@
             { weekKey, dayIndex: otherIdx, slot: 'sera', blocks: [{ id:'ov3', clientId:'c3', hours:2 }] },
           ];
         },
-        getWeekOverridesRange: async () => [],
+        // Stessi override demo di getWeekOverrides: con [] Andamento leggeva un piano
+        // diverso da Settimana per la stessa settimana.
+        getWeekOverridesRange: async (fromWeekKey, toWeekKey) => {
+          const weekKey = localD(0);
+          return weekKey >= fromWeekKey && weekKey <= toWeekKey ? window.api.getWeekOverrides(weekKey) : [];
+        },
         saveWeekOverride: async () => {}, deleteWeekOverride: async () => {},
         getWeekAreaStatuses: async (weekKey) => Object.entries(weekAreaStatuses[weekKey] || {}).map(([areaId, status]) => ({ weekKey, areaId, status })),
         saveWeekAreaStatus: async ({ weekKey, areaId, status }) => {
