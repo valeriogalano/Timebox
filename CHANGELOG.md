@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-10-24
+
 ### Changed
 - Giorno → Ore: fascia e "+" stanno sulla seconda riga, accanto all'area, e il nome del progetto torna leggibile per intero. Il "+" è un quadrato senza freccia, e la riga aggiunta si apre già pronta per scrivere le ore.
 - Andamento → Carico della settimana: percentuale, glifo, stato e Δ stanno sulla riga del Previsto (o della settimana chiusa), non più accanto alle ore fatte, a cui non si riferivano. Il Δ compare una volta sola.
