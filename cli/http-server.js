@@ -289,6 +289,11 @@ function createHttpServer() {
           return json(res, 400, { error: 'weekKey, dayIndex, slot and blocks[] are required' });
         if (toMonday(weekKey) !== weekKey)
           return json(res, 400, { error: 'weekKey must be the Monday (YYYY-MM-DD) of the target week' });
+        // Same check as POST /recurring: an unknown clientId (typically an area name
+        // passed instead of its id) would be stored and later show up as area "?".
+        const areaIds = new Set(getClients().map(c => c.id));
+        const unknown = blocks.map(b => b?.clientId).filter(id => !areaIds.has(id));
+        if (unknown.length) return json(res, 400, { error: `Area not found: ${unknown.map(String).join(', ')}. clientId must be an area id (see find_area).` });
         saveWeekOverride({ weekKey, dayIndex, slot, blocks });
         emitter.emit('change', 'structure');
         return json(res, 200, { weekKey, dayIndex, slot, blocks });
