@@ -121,5 +121,40 @@ describe('computeDivergences / soglia e ordine', () => {
     const out = computeDivergences(past, tpl);
     assert.deepEqual(out.map(i => [i.day, i.avgDelta]), [[3, 3], [0, 1], [2, 1]]);
   });
+
+  test('a parità di scarto e di giorno, prima la fascia che viene prima', () => {
+    const tpl = [
+      { id: 'a', day: 1, slot: 'pm', clientId: 'c1', hours: 2 },
+      { id: 'b', day: 1, slot: 'am', clientId: 'c1', hours: 2 },
+    ];
+    const out = computeDivergences([...rows(1, 'pm', 'c1', 4), ...rows(1, 'am', 'c1', 4)], tpl);
+    assert.deepEqual(out.map(i => i.slot), ['am', 'pm']);
+  });
+
+  test('a parità di scarto, giorno e fascia, prima l\'area corretta più spesso', () => {
+    const tpl = [
+      { id: 'a', day: 1, slot: 'am', clientId: 'c1', hours: 2 },
+      { id: 'b', day: 1, slot: 'am', clientId: 'c2', hours: 2 },
+    ];
+    // entrambe a +6h su 8 (0,75h): c1 in 3 settimane da +2h, c2 in 4 settimane (+2, +2, +1, +1)
+    const hoursByWeek = [[4, 4], [4, 4], [4, 3], [2, 3], [2, 2], [2, 2], [2, 2], [2, 2]];
+    const past = weeks.map((weekKey, i) => ({
+      weekKey, dayIndex: 1, slot: 'am',
+      blocks: [{ clientId: 'c1', hours: hoursByWeek[i][0] }, { clientId: 'c2', hours: hoursByWeek[i][1] }],
+    }));
+    const out = computeDivergences(past, tpl);
+    assert.deepEqual(out.map(i => [i.clientId, i.avgDelta, i.occurrences]), [['c2', 0.75, 4], ['c1', 0.75, 3]]);
+  });
+
+  test('una settimana in cui l\'override coincide col template non conta come scarto', () => {
+    const past = [...rows(1, 'am', 'c1', 4).slice(0, 3), { weekKey: weeks[3], dayIndex: 1, slot: 'am', blocks: [{ clientId: 'c1', hours: 2 }] }];
+    assert.equal(computeDivergences(past, recurring)[0].occurrences, 3);
+  });
+
+  test('un override senza blocchi azzera lo slot: lo scarto è tutto il template', () => {
+    const past = weeks.slice(0, 3).map(weekKey => ({ weekKey, dayIndex: 1, slot: 'am' }));
+    const [item] = computeDivergences(past, recurring);
+    assert.equal(item.avgDelta, -0.75);
+  });
 });
 
