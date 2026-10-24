@@ -70,6 +70,13 @@ export function planDayEntrySave({ existingList, projectId, date, hours, billabl
   return { save, deleteIds: [] };
 }
 
+// Fasce in cui il progetto non ha ancora ore quel giorno: sono quelle dove si può
+// aggiungere una nuova riga in Giorno → Ore (una entry per progetto, giorno e fascia).
+export function freeEntrySlots(entries, projectId) {
+  const used = new Set(entries.filter(e => e.projectId === projectId).map(e => e.slot));
+  return SLOTS.filter(slot => !used.has(slot));
+}
+
 // Quick log: aggiunge ore oggi alla fascia indicata (quella dell'ora corrente), sulla
 // entry del progetto in quella fascia se c'è. Le entry delle altre fasce restano.
 export function planQuickLogAdd({ entries, projectId, date, addHours, slot, newId }) {

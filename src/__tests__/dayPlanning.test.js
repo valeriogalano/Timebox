@@ -9,6 +9,7 @@ import {
   planDayEntrySave,
   defaultEntrySlot,
   planQuickLogAdd,
+  freeEntrySlots,
   fillPlannedBlocks,
 } from '../dayPlanning.js';
 import { currentSlot } from '../utils.js';
@@ -286,4 +287,21 @@ describe('fillPlannedBlocks', () => {
       assert.deepEqual(logged, { a: 4 });
     });
   }
+});
+
+describe('freeEntrySlots', () => {
+  const entries = [
+    { projectId: 'p1', slot: 'am' },
+    { projectId: 'p2', slot: 'pm' },
+  ];
+  test('lists the slots where the project has no entry yet, in slot order', () => {
+    assert.deepEqual(freeEntrySlots(entries, 'p1'), ['pm', 'sera']);
+  });
+  test('entries of other projects do not count', () => {
+    assert.deepEqual(freeEntrySlots(entries, 'p3'), ['am', 'pm', 'sera']);
+  });
+  test('nothing left when the project uses every slot', () => {
+    const all = ['am', 'pm', 'sera'].map(slot => ({ projectId: 'p1', slot }));
+    assert.deepEqual(freeEntrySlots(all, 'p1'), []);
+  });
 });

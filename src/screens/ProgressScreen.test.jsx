@@ -235,7 +235,7 @@ describe('ProgressScreen / Trend: Da decidere', () => {
     expect(within(card).getByText('200%')).toBeInTheDocument();
     expect(within(card).getByTitle('Oltre il piano')).toBeInTheDocument();
     expect(within(card).getByText(/^7 settimane su 7 sopra · la più carica \+4h/)).toBeInTheDocument();
-    expect(within(card).getByText('Porta la ricorrenza da 4h a ~8h')).toBeInTheDocument();
+    expect(within(card).getByText('Porta la ricorrenza da 4h a 8h')).toBeInTheDocument();
   });
 
   test('un\'area in linea con il piano non compare', async () => {

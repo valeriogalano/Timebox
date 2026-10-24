@@ -255,13 +255,13 @@ describe('card Da decidere: verdetto e azione', () => {
     const [item] = areaPlanFitInsights([area('A', rep(PERSIST_WINDOW, wk(4.45, 12.5)))]);
     assert.equal(item.suggested, 4.5);
     assert.equal(item.template, null);
-    assert.equal(actionLabel(item), 'Porta la ricorrenza a ~4h\u00a030m');
+    assert.equal(actionLabel(item), 'Porta la ricorrenza a 4h\u00a030m');
   });
 
   test('con la ricorrenza di oggi l\'azione dice da quanto a quanto', () => {
     const [item] = areaPlanFitInsights([withTemplate(16, wk(4.45, 12.5))]);
     assert.equal(item.template, 16);
-    assert.equal(actionLabel(item), 'Porta la ricorrenza da 16h a ~4h\u00a030m');
+    assert.equal(actionLabel(item), 'Porta la ricorrenza da 16h a 4h\u00a030m');
   });
 
   test('a zero ore svolte non si suggerisce di portare la ricorrenza a 0h', () => {

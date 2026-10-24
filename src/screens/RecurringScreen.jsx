@@ -179,32 +179,26 @@ export default function RecurringScreen({ clients, recurring, setRecurring, slot
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: DIVERGENCE_COLUMNS, gap: 8, padding: '0 8px' }}>
                     <div />
-                    <div style={th('Fascia · Area', 'left')}>Fascia · Area</div>
+                    <div style={th('Giorno · Fascia · Area', 'left')}>Giorno · Fascia · Area</div>
                     <div style={th()}>Template</div>
                     <div style={th()}>Effettivo</div>
                     <div style={th()}>Δ</div>
                     <div style={th()}>Sett.</div>
                     <div style={th('Azioni', 'right')}>Azioni</div>
                   </div>
-                  {divergences.map((item, idx) => {
+                  {divergences.map(item => {
                     const client = clients.find(c => c.id === item.clientId);
                     const template = recurring.find(r => r.day === item.day && r.slot === item.slot && r.clientId === item.clientId);
                     const templateHours = template?.hours ?? 0;
                     const effettivo = templateHours + item.avgDelta;
                     const key = `${item.day}-${item.slot}-${item.clientId}`;
-                    const showDayHeader = idx === 0 || divergences[idx - 1].day !== item.day;
                     const cellNum = { textAlign: 'right', fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--tb-text-secondary)', whiteSpace: 'nowrap' };
                     return (
                       <React.Fragment key={key}>
-                        {showDayHeader && (
-                          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginTop: idx === 0 ? 2 : 6, marginBottom: 2 }}>
-                            {DAY_SHORT[item.day]}
-                          </div>
-                        )}
                         <div style={{ display: 'grid', gridTemplateColumns: DIVERGENCE_COLUMNS, gap: 8, alignItems: 'center', padding: '6px 8px', borderRadius: 6, background: 'var(--tb-panel-bg-subtle)' }}>
                           <div style={{ width: 10, height: 10, borderRadius: '50%', background: client?.color ?? 'var(--tb-border)' }} />
                           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {SLOT_LABELS[item.slot]} · {client?.name ?? '—'}
+                            {DAY_SHORT[item.day]} · {SLOT_LABELS[item.slot]} · {client?.name ?? '—'}
                           </div>
                           <div style={cellNum}>{fmtH(templateHours)}</div>
                           <div style={{ ...cellNum, color: 'var(--tb-text-primary)', fontWeight: 800 }}>{fmtH(effettivo)}</div>

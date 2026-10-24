@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fmt, fmtH, getToday, addDays, getMondayOfWeek, SLOTS, SLOT_META, SLOT_LABELS, effBillable, isHourly, MONTHS_IT } from '../utils';
-import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks, defaultEntrySlot, planDayEntrySave } from '../dayPlanning';
+import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks, defaultEntrySlot, planDayEntrySave, freeEntrySlots } from '../dayPlanning';
 import { sumByProject, usageMaps, loadProjectTotals } from '../cap-usage';
 import PlanningCell from '../components/PlanningCell';
 import TimeCell from '../components/TimeCell';
@@ -264,7 +264,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
           removeBlockFromSlot={removeBlockFromSlot} setSlotOverride={setSlotOverride}
           dragging={dragging} setDragging={setDragging} handleDrop={handleDrop}
           dayEntries={dayEntries} slotEntries={rawEntries} onSaveDayEntry={saveDayEntry} onResetBillable={resetDayBillable}
-          onMoveSlot={moveDayEntrySlot}
+          onMoveSlot={moveDayEntrySlot} dateKey={today}
         />
 
         <div style={{ flex: 1, minWidth: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -356,7 +356,7 @@ function DayPlanningPanel({
   slotCapacity, hasTodoistSync, isToday, isFuture, isWeekend,
   addBlockToSlot, updateBlockInSlot, removeBlockFromSlot, setSlotOverride,
   dragging, setDragging, handleDrop,
-  dayEntries, slotEntries, onSaveDayEntry, onResetBillable, onMoveSlot,
+  dayEntries, slotEntries, onSaveDayEntry, onResetBillable, onMoveSlot, dateKey,
 }) {
   const [tab, setTab] = useState('piano');
   const slots = SLOTS.map(key => ({
@@ -429,6 +429,7 @@ function DayPlanningPanel({
         </>
       ) : (
         <DayTimesheet
+          key={dateKey}
           loading={loading} dayEntries={dayEntries} slotEntries={slotEntries} clients={clients} projects={projects}
           isToday={isToday} isFuture={isFuture}
           onSaveDayEntry={onSaveDayEntry} onResetBillable={onResetBillable} onMoveSlot={onMoveSlot} />
@@ -456,6 +457,9 @@ function TabBtn({ active, onClick, children }) {
 // selettore, e spostarla dove il progetto ha già ore fonde le due entry.
 function DayTimesheet({ loading, dayEntries, slotEntries = [], clients, projects, isToday, isFuture, onSaveDayEntry, onResetBillable, onMoveSlot }) {
   const [viewMode, setViewMode] = useState('tracked');
+  // Righe vuote aggiunte con "+": un progetto che ha già ore in una fascia le registra
+  // anche in un'altra. Vivono solo qui finché non si salvano ore; `key` sul giorno le azzera.
+  const [addedRows, setAddedRows] = useState([]);
   // Stessa preferenza del timesheet settimanale: "Progetti lavorati" vs "Tutti i progetti"
   const [hideEmpty, setHideEmpty] = useState(() => localStorage.getItem('timebox-hide-empty-projects') === 'true');
 
@@ -487,8 +491,17 @@ function DayTimesheet({ loading, dayEntries, slotEntries = [], clients, projects
       const entries = slotEntries
         .filter(e => e.projectId === project.id)
         .sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
-      return (entries.length ? entries : [{ projectId: project.id, hours: 0, billableHours: null, billed: false }])
-        .map(entry => ({ entry, project, client }));
+      const added = addedRows
+        .filter(r => r.projectId === project.id && !entries.some(e => e.slot === r.slot))
+        .map(r => ({ projectId: project.id, slot: r.slot, hours: 0, billableHours: null, billed: false }));
+      const all = [...entries, ...added].sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
+      const lastReal = entries[entries.length - 1];
+      return (all.length ? all : [{ projectId: project.id, hours: 0, billableHours: null, billed: false }])
+        .map(entry => ({
+          entry, project, client,
+          // "+" sull'ultima riga reale del progetto, se resta una fascia libera
+          freeSlots: entry === lastReal ? freeEntrySlots([...entries, ...added], project.id) : [],
+        }));
     })
     .sort((a, b) =>
       (a.client.position ?? 0) - (b.client.position ?? 0)
@@ -521,7 +534,7 @@ function DayTimesheet({ loading, dayEntries, slotEntries = [], clients, projects
         </div>
       ) : (
         <div style={{ border: '1px solid var(--tb-border)', borderRadius: 6, overflow: 'hidden' }}>
-          {rows.map(({ entry, project, client }, i) => (
+          {rows.map(({ entry, project, client, freeSlots }, i) => (
             <div key={`${project.id}:${entry.slot ?? ''}`} style={{ display: 'grid', gridTemplateColumns: '1fr 72px', alignItems: 'stretch', borderTop: i ? '1px solid var(--tb-border-soft)' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '0 10px', minWidth: 0 }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
@@ -537,6 +550,20 @@ function DayTimesheet({ loading, dayEntries, slotEntries = [], clients, projects
                     onChange={e => onMoveSlot(entry.id, e.target.value)}
                     style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', background: 'transparent', border: '1px solid var(--tb-border-mid)', borderRadius: 4, padding: '1px 2px', fontFamily: "'Open Sans', sans-serif", flexShrink: 0 }}>
                     {SLOTS.map(s => <option key={s} value={s}>{SLOT_LABELS[s]}</option>)}
+                  </select>
+                )}
+                {!entry.id && entry.slot && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', flexShrink: 0 }}>{SLOT_LABELS[entry.slot]}</span>
+                )}
+                {freeSlots.length > 0 && (
+                  <select
+                    aria-label={`Aggiungi ore di ${project.name} in un'altra fascia`}
+                    title="Aggiungi ore in un'altra fascia"
+                    value=""
+                    onChange={e => setAddedRows(rs => [...rs, { projectId: project.id, slot: e.target.value }])}
+                    style={{ width: 22, fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', background: 'transparent', border: '1px solid var(--tb-border-mid)', borderRadius: 4, padding: '1px 0', fontFamily: "'Open Sans', sans-serif", flexShrink: 0 }}>
+                    <option value="">+</option>
+                    {freeSlots.map(s => <option key={s} value={s}>{SLOT_LABELS[s]}</option>)}
                   </select>
                 )}
               </div>
