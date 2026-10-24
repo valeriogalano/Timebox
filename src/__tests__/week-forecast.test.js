@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import * as esm from '../week-forecast.js';
-import { forecastUsage } from '../week-forecast.js';
+import { forecastUsage, weeklyLimitsAtRisk } from '../week-forecast.js';
 import { capUsage } from '../cap-usage.js';
 
 // Gemello CommonJS usato da CLI e MCP: deve dare gli stessi risultati.
@@ -84,5 +84,31 @@ describe('forecastUsage', () => {
   });
   test('fuori dalle aree a ore resta un conteggio solo', () => {
     assert.deepEqual(forecastUsage(capUsage(10), 2, false), { worked: 12, billable: 12, worst: 12, kind: null });
+  });
+});
+
+describe('weeklyLimitsAtRisk', () => {
+  const clients = [
+    { id: 'a', name: 'A', limitType: 'weekly', limitHours: 10, billing: 'none' },
+    { id: 'b', name: 'B', limitType: 'weekly', limitHours: 10, billing: 'none' },
+    { id: 'c', name: 'C', limitType: 'global', limitHours: 10, billing: 'none' },
+    { id: 'd', name: 'D', limitType: 'weekly', limitHours: 10, billing: 'hourly' },
+  ];
+  const forecast = { byArea: {
+    a: { done: 6, forecast: 12 },   // ci sta ora, non a fine settimana
+    b: { done: 11, forecast: 13 },  // già oltre: ha il suo avviso
+    c: { done: 6, forecast: 12 },   // limite globale, non settimanale
+    d: { done: 6, forecast: 9 },    // fatturabili 8: 8 + 3 = 11 oltre il tetto
+  } };
+  const areaUsage = { a: capUsage(6), b: capUsage(11), c: capUsage(6), d: capUsage(6, 8, true) };
+
+  test('segnala solo i tetti settimanali che il previsto supera e il fatto ancora no', () => {
+    const risk = weeklyLimitsAtRisk(clients, areaUsage, forecast);
+    assert.deepEqual(risk.map(r => [r.client.id, r.usage.worst]), [['a', 12], ['d', 11]]);
+    assert.equal(risk[1].usage.kind, 'fatt.');
+  });
+
+  test('un\'area senza ore né piano non è a rischio', () => {
+    assert.deepEqual(weeklyLimitsAtRisk(clients.slice(0, 1), {}, { byArea: {} }), []);
   });
 });

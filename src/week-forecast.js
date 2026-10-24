@@ -7,7 +7,8 @@
 // al piano, o a quanto è già registrato se è di più. Oggi vale quindi fatto + residuo del
 // piano di oggi, max(0, piano − fatto), per area.
 // Gemello CommonJS per CLI e MCP: weekForecast e forecastTodayIndex in lib/domain.js.
-import { capUsage } from './cap-usage.js';
+import { capUsage, usageOf } from './cap-usage.js';
+import { isHourly } from './utils.js';
 
 // Indice di oggi nella settimana che inizia il lunedì `weekKey` (entrambe YYYY-MM-DD):
 // 0 = lunedì … 6 = domenica, negativo per una settimana futura, oltre 6 per una passata.
@@ -41,4 +42,17 @@ export function weekForecast({ plannedByDay, doneByDay, todayIdx }) {
 // un'ora pianificata è un'ora da fatturare.
 export function forecastUsage(usage, remaining, hourly) {
   return capUsage(usage.worked + remaining, usage.billable + remaining, hourly);
+}
+
+// Aree con limite settimanale che il Previsto porta oltre il tetto mentre le ore fatte ci
+// stanno ancora: in Settimana l'avviso deve arrivare mentre si pianifica, non solo a tetto
+// già sfondato (quello ha il suo avviso). `areaUsage` è la mappa per area di usageMaps.
+export function weeklyLimitsAtRisk(clients, areaUsage, forecast) {
+  return clients.flatMap(c => {
+    if (c.limitType !== 'weekly' || !(c.limitHours > 0)) return [];
+    const usage = usageOf(areaUsage, c.id);
+    const a = forecast.byArea[c.id];
+    const projected = forecastUsage(usage, a ? a.forecast - a.done : 0, isHourly(c));
+    return usage.worst <= c.limitHours && projected.worst > c.limitHours ? [{ client: c, usage: projected }] : [];
+  });
 }

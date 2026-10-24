@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Settimana: un avviso quando il piano porta un'area oltre il suo limite settimanale, mentre le ore fatte ci stanno ancora. Prima l'avviso arrivava solo a limite già superato.
+- Andamento → Trend: nei mini-grafici delle aree con limite settimanale c'è la linea del limite, con quante settimane chiuse ci sono finite oltre.
+
+### Changed
+- Andamento → Settimana risponde a "dove arrivo a fine settimana, e sto nei limiti?". Percentuale, glifo e stato del carico, il verdetto per area e il ⚠ dei limiti settimanali si leggono sul Previsto: ore fatte fino a ieri, più per oggi e i giorni successivi il piano (o le ore già registrate, se sono di più). A settimana chiusa il Previsto coincide con il fatto, quindi le settimane passate si leggono come prima. Il 15/10 un'area risultava sotto il piano mentre andava 2h oltre il suo limite.
+- Andamento → Settimana: tolta la proiezione "a ritmo", che contava il weekend e ignorava il piano. Per area restano Piano, Fatto e Previsto; Extra, Δ e la colonna Limite escono (lo scarto è nell'aiuto del glifo, i limiti hanno la loro sezione). La proiezione del fatturabile a consumo è il fatto più il piano fatturabile che resta.
+- Andamento: i Budget totali escono dalla lente Settimana e restano in In prospettiva, che mostra gli stessi tetti.
+- Andamento → Trend: nei mini-grafici il segno del piano è quello di ciascuna settimana, non della settimana selezionata, e il glifo si calcola solo sulle settimane chiuse.
+
 ## [0.12.0] - 2026-10-18
 
 ### Added

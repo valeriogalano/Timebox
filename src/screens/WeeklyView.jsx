@@ -12,6 +12,7 @@ import OverCapacityBar from '../components/OverCapacityBar';
 import { areaText } from '../area-colors';
 import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
 import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries, defaultEntrySlot } from '../dayPlanning';
+import { forecastTodayIndex, weekForecast, weeklyLimitsAtRisk } from '../week-forecast';
 
 const PLANNING_MODES = ['full', 'compact', 'hidden'];
 export const AREA_STATUS_OPTIONS = [
@@ -595,6 +596,19 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     c.limitType === 'weekly' && c.limitHours > 0 && usageOf(weekUsage.area, c.id).worst > c.limitHours
   );
 
+  // Aree che il Previsto porta oltre il limite settimanale mentre le ore fatte ci stanno
+  // ancora (vedi ../week-forecast): l'avviso arriva mentre pianifico, non a tetto sfondato.
+  const sumHours = (items, keyOf) => items.reduce((m, x) => {
+    const k = keyOf(x);
+    if (k) m[k] = (m[k] ?? 0) + x.hours;
+    return m;
+  }, {});
+  const weeklyAtRiskClients = weeklyLimitsAtRisk(clients, weekUsage.area, weekForecast({
+    plannedByDay: days.map(d => sumHours(SLOTS.flatMap(slot => d.slotBlocks[slot]).filter(b => validClientIds.has(b.clientId)), b => b.clientId)),
+    doneByDay: days.map(d => sumHours(d.dayEntries, e => projects.find(p => p.id === e.projectId)?.clientId)),
+    todayIdx: forecastTodayIndex(days[0].dateStr, fmt(getToday())),
+  }));
+
   // Clients exceeding global area limit (all-time)
   const globalOverClients = clients.filter(c =>
     c.limitType === 'global' && c.limitHours > 0 && usageOf(totalUsage.area, c.id).worst > c.limitHours
@@ -654,6 +668,21 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           <span style={{ fontSize: 12, color: 'var(--tb-text-primary)', flex: 1 }}>
             <strong>Limite settimanale area superato:</strong>{' '}
             {weeklyOverClients.map(c => `${c.name} (${fmtUsage(usageOf(weekUsage.area, c.id))} / ${fmtH(c.limitHours)})`).join(' · ')}
+          </span>
+        </div>
+      )}
+
+      {/* Limite settimanale d'area superato dal previsto, mentre le ore fatte ci stanno */}
+      {!alertDismissed && weeklyAtRiskClients.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 14px', borderRadius: 7,
+          background: 'var(--tb-panel-bg-soft)', border: '1px solid var(--tb-border)',
+        }}>
+          <span className="tb-hatch" style={{ width: 12, height: 12, borderRadius: 3, flexShrink: 0, opacity: 0.6 }} title="Oltre soglia a fine settimana" />
+          <span style={{ fontSize: 12, color: 'var(--tb-text-primary)', flex: 1 }}>
+            <strong>Limite settimanale area superato dal piano:</strong>{' '}
+            {weeklyAtRiskClients.map(({ client, usage }) => `${client.name} (previsto ${fmtUsage(usage)} / ${fmtH(client.limitHours)})`).join(' · ')}
           </span>
         </div>
       )}
