@@ -292,8 +292,8 @@ function createHttpServer() {
         // Same check as POST /recurring: an unknown clientId (typically an area name
         // passed instead of its id) would be stored and later show up as area "?".
         const areaIds = new Set(getClients().map(c => c.id));
-        const badAt = blocks.findIndex(b => !areaIds.has(b?.clientId));
-        if (badAt !== -1) return json(res, 400, { error: `Area not found: ${blocks[badAt]?.clientId}. clientId must be an area id (see find_area).` });
+        const unknown = blocks.map(b => b?.clientId).filter(id => !areaIds.has(id));
+        if (unknown.length) return json(res, 400, { error: `Area not found: ${unknown.map(String).join(', ')}. clientId must be an area id (see find_area).` });
         saveWeekOverride({ weekKey, dayIndex, slot, blocks });
         emitter.emit('change', 'structure');
         return json(res, 200, { weekKey, dayIndex, slot, blocks });

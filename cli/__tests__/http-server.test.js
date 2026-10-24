@@ -674,6 +674,15 @@ describe('HTTP server', () => {
     assert.ok(!stored.some(o => o.dayIndex === 2 && o.slot === 'am'), 'no row written');
   });
 
+  it('POST /overrides with missing fields or a non-Monday weekKey → 400', async () => {
+    const area = getClients()[0];
+    const blocks = [{ clientId: area.id, hours: 1 }];
+    const missing = await post(port, '/overrides', { weekKey: currentWeekDate(0), slot: 'am', blocks });
+    assert.equal(missing.status, 400);
+    const notMonday = await post(port, '/overrides', { weekKey: currentWeekDate(1), dayIndex: 0, slot: 'am', blocks });
+    assert.equal(notMonday.status, 400);
+  });
+
   it('POST /overrides with a null block → 400', async () => {
     const { status } = await post(port, '/overrides', { weekKey: currentWeekDate(0), dayIndex: 3, slot: 'am', blocks: [null] });
     assert.equal(status, 400);

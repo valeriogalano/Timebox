@@ -923,7 +923,7 @@ async function callTool(name, args) {
       for (const slot of SLOTS) {
         const dayBlocks = blocks.filter(b => b.day === day && b.slot === slot).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
         if (dayBlocks.length) {
-          lines.push(`${DAYS[day]} ${slot.toUpperCase()}: ${dayBlocks.map(b => `${clientMap[b.clientId] ?? `? (${b.clientId})`} ${b.hours}h`).join(', ')}`);
+          lines.push(`${DAYS[day]} ${slot.toUpperCase()}: ${dayBlocks.map(b => `${clientMap[b.clientId] ?? b.clientId} ${b.hours}h`).join(', ')}`);
         }
       }
     }

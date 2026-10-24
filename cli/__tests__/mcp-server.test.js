@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createTestDb } = require('./helpers');
 const { createHttpServer } = require('../http-server');
-const { setTodoistCache, saveEntry } = require('../../db/queries');
+const { setTodoistCache, saveEntry, saveWeekOverride } = require('../../db/queries');
 
 const MCP_SERVER = path.join(__dirname, '..', 'mcp-server.js');
 
@@ -353,6 +353,14 @@ describe('MCP server', () => {
     }));
     assert.ok(res.result.isError, 'should be isError');
     assert.ok(res.result.content[0].text.startsWith('Error:'));
+  });
+
+  it('get_week_overrides shows an unknown area id as "? (id)"', async () => {
+    // Written straight to the database: POST /overrides now refuses such a block.
+    // (recurring has a foreign key on clientId, so it cannot hold an unknown id.)
+    saveWeekOverride({ weekKey: '2020-01-06', dayIndex: 0, slot: 'am', blocks: [{ id: 'b1', clientId: 'Personale', hours: 2 }] });
+    const ov = await rpc(mcp, msg('tools/call', { name: 'get_week_overrides', arguments: { weekKey: '2020-01-06' } }));
+    assert.match(ov.result.content[0].text, /\? \(Personale\) 2h/);
   });
 
   it('unknown method → error -32601', async () => {
