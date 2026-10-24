@@ -273,12 +273,13 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     });
   }, [entries, periodOffset, clients, recurring, overridesByWeek, projectClientMap, currentWeekKey]);
 
-  // Small-multiples per area (lente "Nel tempo", REDLINE §8: grid 3 colonne, SMALL_MULT_WEEKS settimane).
-  // planned per settimana usa lo storicizzato (week_overrides) quando disponibile;
-  // la linea tratteggiata nel card resta il ritmo della settimana corrente.
+  // Small-multiples per area (lente Trend, grid 3 colonne, SMALL_MULT_WEEKS settimane).
+  // planned per settimana usa lo storicizzato (week_overrides) quando disponibile.
+  // `isCurrent` è la settimana selezionata; `isClosed` una settimana già finita, prima
+  // della settimana di oggi: solo quelle contano per il glifo del mini-grafico.
   const perAreaWeekly = useMemo(() => {
+    const thisMonday = fmt(getMondayOfWeek(getToday()));
     return clients.map(c => {
-      const planned = plannedByClientEffective[c.id] ?? 0;
       const weeks = Array.from({ length: SMALL_MULT_WEEKS }, (_, i) => {
         const weekIdx  = i - (SMALL_MULT_WEEKS - 1) + periodOffset;
         const monday   = addDays(getMondayOfWeek(getToday()), weekIdx * 7);
@@ -289,13 +290,13 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
           .filter(e => e.date >= startStr && e.date <= endStr && projectClientMap[e.projectId] === c.id)
           .reduce((s, e) => s + e.hours, 0);
         const weekPlanned = plannedByClientForWeek(startStr)[c.id] ?? 0;
-        return { week: startStr, done, planned: weekPlanned, isCurrent: startStr === currentWeekKey };
+        return { week: startStr, done, planned: weekPlanned, isCurrent: startStr === currentWeekKey, isClosed: startStr < thisMonday };
       });
       // ore a settimana della ricorrenza di oggi, senza override: è ciò che si modifica in Ricorrenza
       const template = recurring.filter(r => r.clientId === c.id && r.day < PLANNING_DAYS).reduce((sum, r) => sum + r.hours, 0);
-      return { client: c, planned, template, weeks };
+      return { client: c, template, weeks };
     });
-  }, [clients, recurring, entries, overridesByWeek, periodOffset, projectClientMap, currentWeekKey, plannedByClientEffective]);
+  }, [clients, recurring, entries, overridesByWeek, periodOffset, projectClientMap, currentWeekKey]);
 
   const totalUsage = useMemo(() => usageMaps(projectTotals, projects, clients), [projectTotals, projects, clients]);
 
@@ -461,11 +462,12 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
 
           {/* Per-area: small-multiples, posizione vs linea-piano = segnale */}
           <div>
-            <SectionHeader title="Per area" subtitle={`${SMALL_MULT_WEEKS} settimane · piano = ritmo template`}
-              help={`Mini-trend per area sulle ultime ${SMALL_MULT_WEEKS} settimane.\n\nBarre: ore svolte; la più chiara è la settimana corrente.\nLinea tratteggiata: il piano, cioè il ritmo del template.\nBarre tratteggiate: settimane oltre piano.`} />
+            <SectionHeader title="Per area" subtitle={`${SMALL_MULT_WEEKS} settimane · segno = piano di ogni settimana`}
+              help={`Mini-trend per area sulle ultime ${SMALL_MULT_WEEKS} settimane.\n\nBarre: ore svolte; la più piena è la settimana selezionata.\nSegno tratteggiato su ogni barra: il piano di quella settimana, con override.\nBarre tratteggiate: settimane oltre piano.\nLinea continua: il limite settimanale, nelle aree che ce l'hanno, con quante settimane chiuse ci sono finite oltre.\n\nIl glifo in alto è il verdetto sulle sole settimane chiuse, sommate: la settimana in corso non conta.`} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-              {perAreaWeekly.map(({ client, planned, weeks }) => (
-                <AreaSparkCard key={client.id} client={client} planned={planned} weeks={weeks} />
+              {perAreaWeekly.map(({ client, weeks }) => (
+                <AreaSparkCard key={client.id} client={client} weeks={weeks}
+                  limit={client.limitType === 'weekly' && client.limitHours > 0 ? client.limitHours : null} />
               ))}
             </div>
           </div>
@@ -794,15 +796,22 @@ function ProspettivaLens({ rows }) {
   );
 }
 
-// Small-multiples: mini-trend per area (SMALL_MULT_WEEKS settimane). La linea-piano tratteggiata è il
-// riferimento; sotto/sopra si legge dalla posizione delle barre rispetto ad essa, oltre-piano
-// è tratteggiato (.tb-hatch) — nessun colore di stato, solo l'identità (client.color).
-function AreaSparkCard({ client, planned, weeks }) {
+// Small-multiples: mini-trend per area (SMALL_MULT_WEEKS settimane). Ogni barra ha il suo
+// segno di piano, il piano di QUELLA settimana (override o template), non quello della
+// settimana selezionata; oltre-piano è tratteggiato (.tb-hatch). Il glifo è il verdetto sulle
+// sole settimane chiuse, sommate: la settimana in corso direbbe sempre "sotto". Per le aree
+// con limite settimanale una linea continua segna il tetto, e sotto si conta quante
+// settimane chiuse ci sono finite oltre. Nessun colore di stato, solo l'identità (client.color).
+function AreaSparkCard({ client, weeks, limit }) {
   const CHART_H = 44;
-  const maxVal = Math.max(planned, ...weeks.map(w => w.done), 1) * 1.15;
-  const planLineY = CHART_H - (planned / maxVal) * CHART_H;
+  const maxVal = Math.max(limit ?? 0, ...weeks.map(w => Math.max(w.done, w.planned)), 1) * 1.15;
+  const y = h => CHART_H - (h / maxVal) * CHART_H;
+  const closed = weeks.filter(w => w.isClosed);
+  const verdict = statusFor(closed.reduce((s, w) => s + w.done, 0), closed.reduce((s, w) => s + w.planned, 0));
   const lastWeek = weeks[weeks.length - 1];
-  const verdict = statusFor(lastWeek.done, lastWeek.planned ?? planned);
+  // ponytail: oltre il limite sulle ore lavorate, come le barre; nelle aree a ore il tetto
+  // vero segue anche le fatturabili, da aggiungere se qui servisse il conteggio esatto.
+  const overLimit = limit ? closed.filter(w => w.done > limit).length : 0;
 
   return (
     <div style={{
@@ -813,24 +822,28 @@ function AreaSparkCard({ client, planned, weeks }) {
         <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {client.name}
         </span>
-        <Glyph glyph={verdict.glyph} size={12} className="tb-glyph" title={verdict.label} />
+        <Glyph glyph={verdict.glyph} size={12} className="tb-glyph" title={`${verdict.label} · settimane chiuse`} />
       </div>
 
       <div style={{ position: 'relative', height: CHART_H }}>
-        {planned > 0 && (
-          <div style={{ position: 'absolute', left: 0, right: 0, top: planLineY, borderTop: '1.5px dashed var(--tb-tick)' }} />
+        {limit > 0 && (
+          <div title={`Limite settimanale ${fmtH(limit)}`} style={{ position: 'absolute', left: 0, right: 0, top: y(limit), borderTop: '1.5px solid var(--tb-text-muted)', zIndex: 1 }} />
         )}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: '100%' }}>
           {weeks.map((w, i) => {
-            const weekPlanned = w.planned ?? planned;
             const barH = Math.max(1, (w.done / maxVal) * CHART_H);
-            const over = weekPlanned > 0 && w.done > weekPlanned;
+            const over = w.planned > 0 && w.done > w.planned;
             return (
-              <div key={i} title={`${fmtH(w.done)} / ${fmtH(weekPlanned)}`} style={{
-                flex: 1, height: barH, borderRadius: '2px 2px 0 0',
-                background: w.isCurrent ? client.color : areaMix(client.color, 55),
-              }}>
-                {over && <div className="tb-hatch" style={{ height: '100%', borderRadius: '2px 2px 0 0' }} />}
+              <div key={i} title={`${fmtH(w.done)} / ${fmtH(w.planned)}`} style={{ flex: 1, height: '100%', position: 'relative', display: 'flex', alignItems: 'flex-end' }}>
+                <div style={{
+                  width: '100%', height: barH, borderRadius: '2px 2px 0 0',
+                  background: w.isCurrent ? client.color : areaMix(client.color, 55),
+                }}>
+                  {over && <div className="tb-hatch" style={{ height: '100%', borderRadius: '2px 2px 0 0' }} />}
+                </div>
+                {w.planned > 0 && (
+                  <div data-plan-mark style={{ position: 'absolute', left: 0, right: 0, top: y(w.planned), borderTop: '1.5px dashed var(--tb-tick)' }} />
+                )}
               </div>
             );
           })}
@@ -838,9 +851,14 @@ function AreaSparkCard({ client, planned, weeks }) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>
-        <span>{fmtH(lastWeek.done)} <span style={{ color: 'var(--tb-text-faint)', fontWeight: 600 }}>/ {fmtH(planned)}</span></span>
+        <span>{fmtH(lastWeek.done)} <span style={{ color: 'var(--tb-text-faint)', fontWeight: 600 }}>/ {fmtH(lastWeek.planned)}</span></span>
         <span>{verdict.label}</span>
       </div>
+      {limit > 0 && (
+        <div style={{ marginTop: 2, fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
+          {overLimit} su {closed.length} oltre il limite di {fmtH(limit)}
+        </div>
+      )}
     </div>
   );
 }

@@ -240,4 +240,30 @@ describe('ProgressScreen / Trend: Da decidere', () => {
     await findByText('Per area');
     expect(queryByText('Da decidere')).not.toBeInTheDocument();
   });
+
+  test('mini-grafici: piano di ogni settimana, glifo sulle chiuse, settimane oltre il limite', async () => {
+    // Settimanale (limite 10h), 8h a settimana di piano; due delle sette settimane chiuse a 12h
+    const weekly = [{ id: 'r1', clientId: 'c1', day: 0, slot: 'am', hours: 8, position: 0 }];
+    const monday = getMondayOfWeek(getToday());
+    const past = Array.from({ length: 7 }, (_, k) => ({
+      id: `e${k}`, projectId: 'p1', date: fmt(addDays(monday, -7 * (k + 1))), hours: k < 2 ? 12 : 8, slot: 'am',
+    }));
+    // la settimana in corso, a zero, non deve far dire "sotto" al glifo
+    window.api.getEntries = () => Promise.resolve(past);
+
+    const { findByText, getByText } = render(
+      <ProgressScreen clients={clients} projects={projects} recurring={weekly} screen="progress"
+        weekOffset={0} setWeekOffset={() => {}} />
+    );
+    fireEvent.click(await findByText('Trend'));
+    const card = getByText('Settimanale', { selector: 'span[style*="flex: 1"]' }).closest('div').parentElement;
+
+    expect(within(card).getByText('2 su 7 oltre il limite di 10h')).toBeInTheDocument();
+    expect(within(card).getByTitle('Limite settimanale 10h')).toBeInTheDocument();
+    // 64h fatte su 56h di piano nelle chiuse: oltre il 10% e oltre mezz'ora
+    expect(within(card).getByTitle('Sovraccarico · settimane chiuse')).toBeInTheDocument();
+    // un segno di piano per ognuna delle 8 settimane
+    expect(card.querySelectorAll('[data-plan-mark]')).toHaveLength(8);
+  });
 });
+
