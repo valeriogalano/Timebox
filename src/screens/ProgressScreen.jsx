@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, SLOTS } from '../utils';
+import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, isHourly, SLOTS } from '../utils';
+import { getEffectiveBlocks } from '../dayPlanning';
+import { forecastTodayIndex, forecastUsage, weekForecast } from '../week-forecast';
 import { areaMix } from '../area-colors';
-import { sumByProject, usageMaps, usageOf, kindNote, loadProjectTotals } from '../cap-usage';
+import { sumByProject, usageMaps, usageOf, kindNote, fmtUsage, loadProjectTotals } from '../cap-usage';
 import { actionLabel, areaPlanFitInsights, capRunway, distributionLabel, runwaySummary, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_ORDER, RUNWAY_WINDOW, TOLERANCE_LABEL } from '../progress-insights';
 import OverCapacityBar from '../components/OverCapacityBar';
 import Glyph from '../components/Glyph';
@@ -197,49 +199,47 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
 
     const billable = clients.filter(isBillableClient);
     const billedDoneEur     = billable.reduce((s, c) => s + (billableByClient[c.id] ?? 0) * c.rate, 0);
-    const projectionEur     = billable.reduce((s, c) => s + Math.max(billableByClient[c.id] ?? 0, plannedByClient[c.id] ?? 0) * c.rate, 0);
     const billableDoneHours = billable.reduce((s, c) => s + (billableByClient[c.id] ?? 0), 0);
 
     // Uso dei tetti settimanali, su ore lavorate e ore fatturabili (vedi ../cap-usage).
     const weekUsage = usageMaps(sumByProject(consuntivoEntries), projects, clients);
 
-    // Proiezione fine settimana, solo sulla settimana in corso non ancora conclusa.
-    // - a piano: consuntivo + ore pianificate (override o template) dei giorni da
-    //   domani a domenica. Risponde a "se completo il piano, dove arrivo?".
-    // - a ritmo: consuntivo / giorni trascorsi × 7. Risponde a "se continuo così,
-    //   dove arrivo?" indipendentemente dal piano.
-    let projTemplateHours = null, projRhythmHours = null, daysElapsed = null, projByClient = null;
-    if (isCurrentWeek) {
-      const monday = addDays(getMondayOfWeek(getToday()), periodOffset * 7);
-      const de = Math.floor((getToday() - monday) / 86400000) + 1; // lun=1 … dom=7
-      daysElapsed = de;
-      if (de < PLANNING_DAYS) {
-        const todayIdx = de - 1;
-        const remainingByClient = {};
-        clients.forEach(c => { remainingByClient[c.id] = 0; });
-        const weekOverride = overridesByWeek[currentWeekKey];
-        for (let d = todayIdx + 1; d < PLANNING_DAYS; d++) {
-          for (const slot of SLOTS) {
-            const dayOverride = weekOverride && weekOverride[d];
-            const blocks = dayOverride && dayOverride[slot] !== undefined
-              ? dayOverride[slot]
-              : recurring.filter(r => r.day === d && r.slot === slot).map(r => ({ clientId: r.clientId, hours: r.hours }));
-            blocks.forEach(b => { if (b.clientId in remainingByClient) remainingByClient[b.clientId] += b.hours; });
-          }
-        }
-        const remainingPlanned = Object.values(remainingByClient).reduce((s, v) => s + v, 0);
-        projTemplateHours = totalDone + remainingPlanned;
-        projRhythmHours  = de > 0 ? totalDone / de * PLANNING_DAYS : 0;
-        // Per area, stessa definizione "a piano": consuntivo (fino a oggi) + piano dei giorni restanti.
-        projByClient = {};
-        clients.forEach(c => { projByClient[c.id] = (actualByClient[c.id] ?? 0) + remainingByClient[c.id]; });
+    // Previsto a fine settimana (vedi ../week-forecast): fatto fino a ieri, da oggi in
+    // avanti almeno il piano. Oggi include quindi il suo residuo. Sulle settimane chiuse
+    // coincide con il fatto: il verdetto si dà sempre sul Previsto.
+    const todayIdx = forecastTodayIndex(startStr, todayStr);
+    const known = new Set(clients.map(c => c.id));
+    const plannedByDay = Array.from({ length: PLANNING_DAYS }, (_, d) => {
+      const day = {};
+      for (const slot of SLOTS) {
+        getEffectiveBlocks(recurring, overridesByWeek, startStr, d, slot).forEach(b => {
+          if (known.has(b.clientId)) day[b.clientId] = (day[b.clientId] ?? 0) + b.hours;
+        });
       }
-    }
+      return day;
+    });
+    const doneByDay = Array.from({ length: PLANNING_DAYS }, () => ({}));
+    consuntivoEntries.forEach(e => {
+      const cid = projectClientMap[e.projectId];
+      if (!known.has(cid)) return;
+      const day = doneByDay[forecastTodayIndex(startStr, e.date)];
+      day[cid] = (day[cid] ?? 0) + e.hours;
+    });
+    const forecast = weekForecast({ plannedByDay, doneByDay, todayIdx });
+    const forecastByClient = {}, remainingByClient = {};
+    clients.forEach(c => {
+      const a = forecast.byArea[c.id];
+      forecastByClient[c.id] = a?.forecast ?? 0;
+      remainingByClient[c.id] = a ? a.forecast - a.done : 0;
+    });
+
+    // Fatturabile a consumo, stessa definizione: fatto fatturabile + piano che resta.
+    const projectionEur = billable.reduce((s, c) => s + ((billableByClient[c.id] ?? 0) + remainingByClient[c.id]) * c.rate, 0);
 
     return {
-      actualByClient, plannedByClient, weekUsage, numWeeks: 1,
-      capacity, totalDone, billedDoneEur, projectionEur, billableDoneHours,
-      projTemplateHours, projRhythmHours, daysElapsed, projByClient,
+      actualByClient, plannedByClient, forecastByClient, remainingByClient, weekUsage,
+      capacity, totalDone, totalForecast: forecast.forecast, isOpen: todayIdx <= 6,
+      billedDoneEur, projectionEur, billableDoneHours,
     };
   }, [entries, periodOffset, clients, projects, projectClientMap, plannedByClientEffective, recurring, overridesByWeek, currentWeekKey]);
 
@@ -363,8 +363,10 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     return rows.sort((a, b) => (RUNWAY_ORDER.indexOf(a.band) - RUNWAY_ORDER.indexOf(b.band)) || (b.ratio - a.ratio));
   }, [clients, projects, recurring, totalUsage, entries, periodOffset]);
 
-  const status  = statusFor(stats.totalDone, stats.capacity);
-  const deltaH  = stats.totalDone - stats.capacity;
+  // Verdetto sul Previsto: a metà settimana il fatto contro il piano dell'intera
+  // settimana direbbe sempre "sotto".
+  const status  = statusFor(stats.totalForecast, stats.capacity);
+  const deltaH  = stats.totalForecast - stats.capacity;
   const label   = periodLabel('week', periodOffset);
   const isToday = periodOffset === 0;
 
@@ -372,26 +374,26 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
   // Stessa regola della lente "In prospettiva" (vedi capRows).
   const activeProjects = projects.filter(p => !p.archived);
 
-  // Due famiglie di tetti, con un significato diverso rispetto al periodo selezionato:
-  // - limiti della settimana: si azzerano ogni settimana, il fatto è quello del periodo;
-  // - budget totali: cumulati da inizio progetto, indipendenti dal periodo.
-  // Le aree vengono prima dei loro progetti.
-  // Il consumato di un limite globale d'area comprende anche i progetti archiviati (come in
-  // "In prospettiva"): le loro ore sono state spese sullo stesso tetto.
-  const limitCards = (areaType, projectHours, usage) => [
+  // Tetti che si azzerano ogni settimana: aree con limite settimanale e progetti con ore
+  // settimanali, le aree prima dei loro progetti. Il ⚠ scatta sul Previsto: per un'area
+  // sono le ore fatte più il piano che resta; un progetto non ha piano (`recurring` mappa
+  // le aree), quindi il suo Previsto è il fatto. I budget totali stanno in In prospettiva.
+  const weeklyLimits = [
     ...clients
-      .filter(c => c.limitType === areaType && c.limitHours > 0)
-      .map(c => ({ key: `area-${c.id}`, title: c.name, color: c.color, limit: c.limitHours, usage: usageOf(usage.area, c.id) })),
+      .filter(c => c.limitType === 'weekly' && c.limitHours > 0)
+      .map(c => {
+        const usage = usageOf(stats.weekUsage.area, c.id);
+        return { key: `area-${c.id}`, title: c.name, color: c.color, limit: c.limitHours, usage,
+          forecast: forecastUsage(usage, stats.remainingByClient[c.id] ?? 0, isHourly(c)) };
+      }),
     ...activeProjects
-      .filter(p => p[projectHours] > 0)
+      .filter(p => p.weeklyHours > 0)
       .map(p => {
         const c = clients.find(x => x.id === p.clientId);
-        return c && { key: `proj-${p.id}`, title: p.name, subtitle: c.name, color: c.color, limit: p[projectHours], usage: usageOf(usage.project, p.id) };
+        return c && { key: `proj-${p.id}`, title: p.name, subtitle: c.name, color: c.color, limit: p.weeklyHours, usage: usageOf(stats.weekUsage.project, p.id) };
       })
       .filter(Boolean),
   ];
-  const weeklyLimits = limitCards('weekly', 'weeklyHours', stats.weekUsage);
-  const totalBudgets = limitCards('global', 'budgetHours', totalUsage);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 24 }}>
@@ -413,9 +415,9 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
         </div>
         <div className="tb-seg">
           {[
-            { key: 'settimana', label: 'Settimana', help: 'Consuntivo della settimana selezionata.\n\nCarico: ore tracciate contro la capacità, con lo stato.\nFatturabile a consumo: ricavo delle ore fatturabili.\nPer area: pianificato, tracciato, extra e Δ.\nLimiti e budget: i tetti di aree e progetti.\n\nSulla settimana in corso il carico è fino a oggi, con proiezione a fine settimana (a piano e a ritmo). Sulle settimane chiuse è il consuntivo completo e serve la chiusura settimanale.' },
+            { key: 'settimana', label: 'Settimana', help: 'Dove arrivo a fine settimana, e se sto nei limiti.\n\nPrevisto = ore fatte fino a ieri + per oggi e i giorni successivi il piano, o le ore già registrate se sono di più.\n\nCarico: verdetto sul Previsto contro la capacità.\nFatturabile a consumo: ricavo delle ore fatturabili, e quello previsto completando il piano.\nPer area: piano, fatto e previsto.\nLimiti della settimana: i tetti settimanali di aree e progetti, con ⚠ quando il Previsto li supera.\n\nA settimana chiusa il Previsto coincide con il fatto. I budget totali stanno in In prospettiva.' },
             { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane, per scoprire la deriva del ritmo.\n\nAggregato: pianificato, svolto e capacità settimana per settimana.\nPer area: il mini-trend di ogni area.\nDa decidere: le divergenze persistenti fra piano e svolto.' },
-            { key: 'prospettiva', label: 'In prospettiva', help: `Quanto manca a esaurire i tetti cumulativi, proiettato sul ritmo misurato nelle ultime ${RUNWAY_WINDOW} settimane chiuse.\n\nBudget totale dei progetti.\nLimite globale delle aree.\n\nI tetti settimanali non stanno qui: si azzerano ogni settimana, il loro margine si legge in Settimana.` },
+            { key: 'prospettiva', label: 'In prospettiva', help: `I budget cumulativi bastano? Quanto manca a esaurire i tetti cumulativi, proiettato sul ritmo misurato nelle ultime ${RUNWAY_WINDOW} settimane chiuse.\n\nBudget totale dei progetti.\nLimite globale delle aree.\n\nI tetti settimanali non stanno qui: si azzerano ogni settimana, il loro margine si legge in Settimana.` },
           ].map((o, idx) => (
             <span
               key={o.key}
@@ -431,17 +433,14 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
         </div>
       </div>
 
-      {/* ── Lente "Settimana" ── consuntivo della settimana chiusa ── */}
+      {/* ── Lente "Settimana" ── dove arrivo a fine settimana, e sto nei limiti? ── */}
       {trendLens === 'settimana' && (
         <>
           <RetroSummary stats={stats} status={status} deltaH={deltaH} />
           <AreaConsuntivo clients={clients} stats={stats} />
-          <LimitSection title="Limiti della settimana" subtitle="nella settimana selezionata"
-            help={'Il tetto di ore che si azzera ogni settimana, contro le ore tracciate nella settimana selezionata.\n\nVale per le aree con limite settimanale e per i progetti con ore settimanali.'}
+          <LimitSection title="Limiti della settimana" subtitle="nella settimana selezionata · ⚠ sul previsto"
+            help={'Il tetto di ore che si azzera ogni settimana, contro le ore lavorate nella settimana selezionata.\n\nVale per le aree con limite settimanale e per i progetti con ore settimanali.\n\n⚠ quando il Previsto supera il tetto: per un\'area sono le ore fatte più il piano che resta, per un progetto le ore fatte (il piano è per area). Il margine sul previsto è nell\'aiuto del ⚠.'}
             cards={weeklyLimits} />
-          <LimitSection title="Budget totali" subtitle="da inizio progetto · indipendente dal periodo"
-            help={'Il tetto complessivo di ore, contro tutte le ore tracciate da sempre: non cambia con la settimana selezionata.\n\nVale per le aree con limite globale e per i progetti con budget totale.'}
-            cards={totalBudgets} />
         </>
       )}
 
@@ -484,15 +483,16 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-// Lente "Settimana" → consuntivo della settimana chiusa: carico vs capacità,
-// fatturabile a consumo, stato. Serve la chiusura settimanale v4.
+// Lente "Settimana" → "dove arrivo a fine settimana?": carico vs capacità e fatturabile a
+// consumo. Il numero grande resta il fatto; percentuale, glifo, stato e Δ sono sul Previsto,
+// che a settimana chiusa coincide con il fatto. Serve anche la chiusura settimanale.
 function RetroSummary({ stats, status, deltaH }) {
-  const pct = stats.capacity > 0 ? Math.round(stats.totalDone / stats.capacity * 100) : 0;
+  const pct = stats.capacity > 0 ? Math.round(stats.totalForecast / stats.capacity * 100) : 0;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
       {/* Carico + Stato fusi, modellati sullo specchietto capacità della Settimana */}
       <Card>
-        <CardLabel help={`Ore svolte (tracciate) sulla capacità della settimana.\n\n% = svolto ÷ capacità\nΔ = svolto − capacità\nStato: in linea entro ${TOLERANCE_LABEL}; fuori da lì è sotto-carico o sovraccarico\n\nSulla settimana in corso il valore è il consuntivo fino a oggi. Sotto, la proiezione fine settimana:\na piano = consuntivo + piano dei giorni restanti\na ritmo = consuntivo / giorni trascorsi × 7`}>Carico della settimana</CardLabel>
+        <CardLabel help={`Ore fatte sulla capacità della settimana, con il verdetto sul Previsto.\n\nPrevisto = fatto fino a ieri + per oggi e i giorni successivi il piano, o le ore già registrate se sono di più\n% = previsto ÷ capacità\nΔ = previsto − capacità\nStato: in linea entro ${TOLERANCE_LABEL}; fuori da lì è sotto-carico o sovraccarico\n\nA settimana chiusa il Previsto è il fatto.`}>Carico della settimana</CardLabel>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
             <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
@@ -500,7 +500,7 @@ function RetroSummary({ stats, status, deltaH }) {
             </span>
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(stats.capacity)}</span>
           </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title={status.label}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title={`${status.label} · previsto ÷ capacità`}>
             <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{pct}%</span>
             <Glyph glyph={status.glyph} size={16} className="tb-glyph" title={status.label} />
           </span>
@@ -513,28 +513,16 @@ function RetroSummary({ stats, status, deltaH }) {
             Δ {deltaH >= 0 ? '+' : ''}{fmtH(deltaH)}
           </span>
         </div>
-        {stats.projTemplateHours != null && stats.daysElapsed > 0 && stats.daysElapsed < PLANNING_DAYS && (
-          <div style={{
-            marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--tb-border-soft)',
-            display: 'flex', flexDirection: 'column', gap: 6,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-              <ProjectionIcon />
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-secondary)', letterSpacing: '0.03em' }}>
-                Proiezione fine settimana
-                <span style={{ color: 'var(--tb-text-muted)', fontWeight: 600, marginLeft: 6 }}>· {PLANNING_DAYS - stats.daysElapsed}g al termine</span>
-              </span>
-            </div>
-            <ProjRow label="a piano" value={stats.projTemplateHours} capacity={stats.capacity}
-              hint="consuntivo + ore pianificate (override o template) dei giorni da domani a domenica" />
-            <ProjRow label="a ritmo" value={stats.projRhythmHours} capacity={stats.capacity}
-              hint="consuntivo / giorni trascorsi × 7: estrapolazione del ritmo attuale" />
+        {stats.isOpen && (
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--tb-border-soft)' }}>
+            <ProjRow label="Previsto a fine settimana" value={stats.totalForecast} capacity={stats.capacity}
+              hint="fatto fino a ieri + piano di oggi e dei giorni successivi (o le ore già registrate, se sono di più)" />
           </div>
         )}
       </Card>
 
       <Card>
-        <CardLabel help={'Ricavo delle ore fatturabili già svolte = ore fatturabili × tariffa dell\'area.\n\nProiezione fine settimana = ricavo atteso completando il piano fatturabile. Le aree non fatturabili (fisse) sono escluse.'}>Fatturabile a consumo</CardLabel>
+        <CardLabel help={'Ricavo delle ore fatturabili già svolte = ore fatturabili × tariffa dell\'area.\n\nProiezione fine settimana = ricavo delle ore fatturabili fatte + quello del piano che resta nelle aree a ore. Le aree non fatturabili (fisse) sono escluse.'}>Fatturabile a consumo</CardLabel>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
           <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
             {fmtEur(stats.billedDoneEur)}
@@ -564,29 +552,28 @@ function RetroSummary({ stats, status, deltaH }) {
   );
 }
 
-// Lente "Settimana" → consuntivo PER AREA della settimana: pianificato,
-// tracciato, extra (ore oltre il piano) e Δ. È il passo v4 "confronta ore pianificate,
-// tracciate ed extra per area / identifica aree in disavanzo o sovraccarico".
+// Lente "Settimana" → per area: piano, fatto e, finché la settimana è aperta, previsto. Il
+// glifo è il verdetto sul Previsto contro il piano, e il suo aiuto dice lo scarto. Niente
+// Extra (è lo scarto positivo) né colonna Limite: i tetti settimanali hanno la loro sezione.
 function AreaConsuntivo({ clients, stats }) {
   const rows = clients
-    .map(c => {
-      const planned = stats.plannedByClient[c.id] ?? 0;
-      const done = stats.actualByClient[c.id] ?? 0;
-      return { c, planned, done, extra: Math.max(0, done - planned), delta: done - planned, limitUsage: usageOf(stats.weekUsage.area, c.id) };
-    })
+    .map(c => ({
+      c,
+      planned: stats.plannedByClient[c.id] ?? 0,
+      done: stats.actualByClient[c.id] ?? 0,
+      forecast: stats.forecastByClient[c.id] ?? 0,
+    }))
     .filter(r => r.planned > 0 || r.done > 0);
   if (!rows.length) return null;
-  const proj = stats.projByClient; // presente solo sulla settimana in corso non conclusa
-  // Colonna Limite solo se qualche area ha un limite settimanale: altrimenti sarebbe tutta trattini.
-  const hasLimit = rows.some(r => r.c.limitType === 'weekly' && r.c.limitHours > 0);
-  const COLS = `40px minmax(0,1fr)${' 64px'.repeat(4 + (proj ? 1 : 0) + (hasLimit ? 1 : 0))}`;
+  const open = stats.isOpen; // a settimana chiusa il Previsto è il fatto: colonna superflua
+  const COLS = `40px minmax(0,1fr)${' 64px'.repeat(open ? 3 : 2)}`;
   const numCell = { fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', textAlign: 'right' };
   const headCell = { fontSize: 11, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' };
   const topCell = { borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 };
   return (
     <div>
-      <SectionHeader title="Per area · consuntivo" subtitle="pianificato · tracciato · extra"
-        help={'Per ogni area, nella settimana selezionata.\n\nPiano = ore pianificate\nFatto = ore tracciate\nExtra = ore fatte oltre il piano, max(0, fatto − piano)\nΔ = fatto − piano\nLimite = tetto settimanale dell\'area, con ⚠ se superato (compare solo se qualche area ne ha uno)\n\nIl glifo a sinistra è il verdetto: sotto mezz\'ora (o 10% del piano) di scarto si resta "in linea"; oltre, un glifo ▴/▾, e due glifi quando lo scarto supera 2h (o il 30% del piano).\n\nSulla settimana in corso compare anche Previsto = consuntivo fino a oggi + ore pianificate dei giorni restanti (proiezione "a piano").'} />
+      <SectionHeader title="Per area · consuntivo" subtitle={open ? 'piano · fatto · previsto' : 'piano · fatto'}
+        help={'Per ogni area, nella settimana selezionata.\n\nPiano = ore pianificate\nFatto = ore registrate\nPrevisto = fatto fino a ieri + per oggi e i giorni successivi il piano, o le ore già registrate se sono di più (solo finché la settimana è aperta: dopo coincide con il fatto)\n\nIl glifo a sinistra è il verdetto sul Previsto contro il piano, con lo scarto nel suo aiuto: sotto mezz\'ora (o 10% del piano) di scarto si resta "in linea"; oltre, un glifo ▴/▾, e due glifi quando lo scarto supera 2h (o il 30% del piano).'} />
       {/* Legenda del verdetto: i glifi sostituiscono il colore, senza questa riga vanno indovinati. */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 14px', marginBottom: 8, fontSize: 11, color: 'var(--tb-text-muted)' }}>
         {[['▾', 'sotto il piano'], ['▪', 'in linea'], ['▴', 'sopra il piano'], ['▾▾', 'scarto marcato (oltre 2h o il 30%)']].map(([glyph, label]) => (
@@ -600,16 +587,15 @@ function AreaConsuntivo({ clients, stats }) {
         <span />
         <span style={headCell}>Piano</span>
         <span style={headCell}>Fatto</span>
-        {proj && <span style={headCell}>Previsto</span>}
-        <span style={headCell}>Extra</span>
-        <span style={headCell}>Δ</span>
-        {hasLimit && <span style={headCell}>Limite</span>}
-        {rows.map(({ c, planned, done, extra, delta, limitUsage }) => {
-          const v = statusFor(done, planned);
+        {open && <span style={headCell}>Previsto</span>}
+        {rows.map(({ c, planned, done, forecast }) => {
+          const v = statusFor(forecast, planned);
+          const delta = forecast - planned;
+          const title = `${v.label} · Δ ${delta >= 0 ? '+' : ''}${fmtH(delta)}${open ? ' sul previsto' : ''}`;
           return (
             <React.Fragment key={c.id}>
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', ...topCell }}>
-                <Glyph glyph={v.glyph} size={13} className="tb-glyph" title={v.label} />
+                <Glyph glyph={v.glyph} size={13} className="tb-glyph" title={title} />
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, ...topCell }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
@@ -617,16 +603,7 @@ function AreaConsuntivo({ clients, stats }) {
               </span>
               <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-muted)' }}>{fmtH(planned)}</span>
               <span style={{ ...numCell, ...topCell }}>{fmtH(done)}</span>
-              {proj && <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-secondary)' }}>{fmtH(proj[c.id] ?? done)}</span>}
-              <span style={{ ...numCell, ...topCell, color: extra > 0 ? 'var(--tb-text-primary)' : 'var(--tb-text-faint)' }}>{extra > 0 ? fmtH(extra) : '—'}</span>
-              <span style={{ ...numCell, borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6, color: 'var(--tb-text-muted)' }}>{delta >= 0 ? '+' : ''}{fmtH(delta)}</span>
-              {hasLimit && (
-                <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-muted)' }}>
-                  {c.limitType === 'weekly' && c.limitHours > 0
-                    ? <>{limitUsage.worst > c.limitHours && <span style={{ color: COL_OVER }} title={`Superato${kindNote(limitUsage)}`}>⚠ </span>}{fmtH(c.limitHours)}</>
-                    : '—'}
-                </span>
-              )}
+              {open && <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-secondary)' }}>{fmtH(forecast)}</span>}
             </React.Fragment>
           );
         })}
@@ -883,10 +860,14 @@ function LimitSection({ title, subtitle, help, cards }) {
 // Un tetto, una barra. Il numero in evidenza è il residuo (limite − ore), perché è quello su
 // cui si decide; ore/limite resta sotto come contesto. Nelle aree a ore il tetto si misura su
 // ore lavorate e ore fatturabili: quando divergono la card le mostra entrambe, etichettate, e
-// barra, percentuale e ⚠ seguono il conteggio messo peggio. Il sottotitolo c'è solo per i
-// progetti (nome dell'area); per un'area il titolo è già l'area.
-function LimitCard({ title, subtitle, color, limit, usage }) {
+// barra e percentuale seguono il conteggio messo peggio. Il ⚠ segue il Previsto (`forecast`,
+// per un'area le ore fatte più il piano che resta; senza, il fatto) e ne dà il margine.
+// Il sottotitolo c'è solo per i progetti (nome dell'area); per un'area il titolo è già l'area.
+function LimitCard({ title, subtitle, color, limit, usage, forecast = usage }) {
   const pct = usage.worst / limit;
+  const margin = limit - forecast.worst;
+  const warnTitle = `Previsto ${fmtUsage(forecast)} su ${fmtH(limit)} · Limite − Previsto ${margin >= 0 ? '+' : ''}${fmtH(margin)}${kindNote(forecast)}`;
+  const showForecast = Math.abs(forecast.worst - usage.worst) > 0.001;
   // Un solo conteggio senza etichetta quando coincidono; altrimenti prima le fatturabili.
   const counts = usage.kind
     ? [{ label: 'fatt.', hours: usage.billable }, { label: 'lavorate', hours: usage.worked }]
@@ -905,7 +886,7 @@ function LimitCard({ title, subtitle, color, limit, usage }) {
           {subtitle && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>· {subtitle}</span>}
           <span style={{ fontSize: 11, color: 'var(--tb-text-faint)' }}>·</span>
           <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em' }}>{Math.round(pct * 100)}%</span>
-          {pct > 1 && <span style={{ fontSize: 11, color: COL_OVER }} title={`Superato${kindNote(usage)}`}>⚠</span>}
+          {margin < 0 && <span style={{ fontSize: 11, color: COL_OVER }} title={warnTitle}>⚠</span>}
         </div>
         <div style={{ maxWidth: '55%' }}>
           <Bar value={usage.worst} max={Math.max(limit, usage.worst)} color={color} />
@@ -930,6 +911,7 @@ function LimitCard({ title, subtitle, color, limit, usage }) {
             </React.Fragment>
           ))}
           {' '}/ {fmtH(limit)}
+          {showForecast && <span title={warnTitle}>{sep}previsto {fmtUsage(forecast)}</span>}
         </div>
       </div>
     </div>
