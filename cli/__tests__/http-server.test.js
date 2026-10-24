@@ -674,6 +674,11 @@ describe('HTTP server', () => {
     assert.ok(!stored.some(o => o.dayIndex === 2 && o.slot === 'am'), 'no row written');
   });
 
+  it('POST /overrides with a null block → 400', async () => {
+    const { status } = await post(port, '/overrides', { weekKey: currentWeekDate(0), dayIndex: 3, slot: 'am', blocks: [null] });
+    assert.equal(status, 400);
+  });
+
   it('POST /overrides with an area id → 200 and stored; empty blocks still allowed', async () => {
     const area = getClients()[0];
     const weekKey = currentWeekDate(7);
