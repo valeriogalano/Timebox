@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-24
+
 ### Added
 - Giorno → Ore: accanto al selettore di fascia c'è un "+" che aggiunge una riga in una fascia dove il progetto non ha ancora ore, anche su un giorno passato. Prima, con ore già registrate in una fascia, non c'era modo di aggiungerne in un'altra.
 - Settimana: un avviso quando il piano porta un'area oltre il suo limite settimanale, mentre le ore fatte ci stanno ancora. Prima l'avviso arrivava solo a limite già superato.
