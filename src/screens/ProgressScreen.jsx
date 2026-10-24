@@ -495,32 +495,32 @@ function RetroSummary({ stats, status, deltaH }) {
       {/* Carico + Stato fusi, modellati sullo specchietto capacità della Settimana */}
       <Card>
         <CardLabel help={`Ore fatte sulla capacità della settimana, con il verdetto sul Previsto.\n\nPrevisto = fatto fino a ieri + per oggi e i giorni successivi il piano, o le ore già registrate se sono di più\n% = previsto ÷ capacità\nΔ = previsto − capacità\nStato: in linea entro ${TOLERANCE_LABEL}; fuori da lì è sotto-carico o sovraccarico\n\nA settimana chiusa il Previsto è il fatto.`}>Carico della settimana</CardLabel>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-              {fmtH(stats.totalDone)}
-            </span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(stats.capacity)}</span>
+        {/* In alto il fatto, con la sua barra. Percentuale, glifo, stato e Δ stanno sulla riga
+            del previsto: accanto al numero grande sembravano dire del fatto, e non tornavano. */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+          <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            {fmtH(stats.totalDone)}
           </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title={`${status.label} · previsto ÷ capacità`}>
-            <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{pct}%</span>
-            <Glyph glyph={status.glyph} size={16} className="tb-glyph" title={status.label} />
-          </span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tb-text-muted)' }}>fatte su {fmtH(stats.capacity)}</span>
         </div>
         <CapacityBar done={stats.totalDone} capacity={stats.capacity} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
-          <span>{status.label} · capacità {fmtH(stats.capacity)}</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <Glyph glyph={deltaH >= 0 ? '▴' : '▾'} size={11} className="tb-glyph" />
-            Δ {deltaH >= 0 ? '+' : ''}{fmtH(deltaH)}
-          </span>
-        </div>
-        {stats.isOpen && (
-          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--tb-border-soft)' }}>
-            <ProjRow label="Previsto a fine settimana" value={stats.totalForecast} capacity={stats.capacity}
-              hint="fatto fino a ieri + piano di oggi e dei giorni successivi (o le ore già registrate, se sono di più)" />
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--tb-border-soft)' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}
+            title={stats.isOpen ? 'fatto fino a ieri + piano di oggi e dei giorni successivi (o le ore già registrate, se sono di più)' : undefined}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.02em' }}>
+              {stats.isOpen ? 'Previsto a fine settimana' : 'Settimana chiusa'}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(stats.totalForecast)}</span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }} title="previsto ÷ capacità">{pct}%</span>
+              <Glyph glyph={status.glyph} size={16} className="tb-glyph" title={status.label} />
+            </span>
           </div>
-        )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
+            <span>{status.label}</span>
+            <span>Δ {deltaH >= 0 ? '+' : ''}{fmtH(deltaH)} sulla capacità</span>
+          </div>
+        </div>
       </Card>
 
       <Card>
@@ -572,8 +572,10 @@ function AreaConsuntivo({ clients, stats }) {
   const numCell = { fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', textAlign: 'right' };
   const headCell = { fontSize: 11, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' };
   const topCell = { borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 };
+  // Larghezza massima: a tutto schermo fra nome e numeri restavano centinaia di pixel vuoti,
+  // e l'occhio perdeva la riga. Vale per l'intestazione, così il sottotitolo resta sopra le colonne.
   return (
-    <div>
+    <div style={{ maxWidth: 640 }}>
       <SectionHeader title="Per area · consuntivo" subtitle={open ? 'piano · fatto · previsto' : 'piano · fatto'}
         help={'Per ogni area, nella settimana selezionata.\n\nPiano = ore pianificate\nFatto = ore registrate\nPrevisto = fatto fino a ieri + per oggi e i giorni successivi il piano, o le ore già registrate se sono di più (solo finché la settimana è aperta: dopo coincide con il fatto)\n\nIl glifo a sinistra è il verdetto sul Previsto contro il piano, con lo scarto nel suo aiuto: sotto mezz\'ora (o 10% del piano) di scarto si resta "in linea"; oltre, un glifo ▴/▾, e due glifi quando lo scarto supera 2h (o il 30% del piano).'} />
       {/* Legenda del verdetto: i glifi sostituiscono il colore, senza questa riga vanno indovinati. */}
@@ -886,10 +888,10 @@ function LimitCard({ title, subtitle, color, limit, usage, forecast = usage }) {
   const margin = limit - forecast.worst;
   const warnTitle = `Previsto ${fmtUsage(forecast)} su ${fmtH(limit)} · Limite − Previsto ${margin >= 0 ? '+' : ''}${fmtH(margin)}${kindNote(forecast)}`;
   const showForecast = Math.abs(forecast.worst - usage.worst) > 0.001;
-  // Un solo conteggio senza etichetta quando coincidono; altrimenti prima le fatturabili.
-  const counts = usage.kind
-    ? [{ label: 'fatt.', hours: usage.billable }, { label: 'lavorate', hours: usage.worked }]
-    : [{ label: null, hours: usage.worked }];
+  // Un conteggio solo: quello messo peggio, etichettato quando i due divergono. Il dettaglio
+  // di entrambi sta nel tooltip, perché sei numeri affiancati coprivano quello che conta.
+  const left = limit - usage.worst;
+  const bothTitle = usage.kind ? `Ore lavorate ${fmtH(usage.worked)} · ore fatturabili ${fmtH(usage.billable)}` : undefined;
   const sep = <span style={{ margin: '0 6px', color: 'var(--tb-text-faint)', fontWeight: 400 }}>·</span>;
   const small = { fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' };
   return (
@@ -906,29 +908,19 @@ function LimitCard({ title, subtitle, color, limit, usage, forecast = usage }) {
           <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em' }}>{Math.round(pct * 100)}%</span>
           {margin < 0 && <span style={{ fontSize: 11, color: COL_OVER }} title={warnTitle}>⚠</span>}
         </div>
-        <div style={{ maxWidth: '55%' }}>
+        {/* Traccia a larghezza fissa: con la percentuale la lunghezza dipendeva dal testo a destra. */}
+        <div style={{ width: 360, maxWidth: '100%' }}>
           <Bar value={usage.worst} max={Math.max(limit, usage.worst)} color={color} />
         </div>
       </div>
-      <div style={{ textAlign: 'right', minWidth: 80, flexShrink: 0 }}>
+      <div style={{ textAlign: 'right', minWidth: 80, flexShrink: 0 }} title={bothTitle}>
         <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>
-          {counts.map(({ label, hours }, i) => (
-            <React.Fragment key={label ?? 'ore'}>
-              {i > 0 && sep}
-              <span style={{ ...small, marginRight: 5 }}>{limit - hours >= 0 ? 'mancano' : 'oltre di'}</span>
-              <strong style={{ fontWeight: 800 }}>{fmtH(Math.abs(limit - hours))}</strong>
-              {label && <span style={{ ...small, marginLeft: 4 }}>{label}</span>}
-            </React.Fragment>
-          ))}
+          <span style={{ ...small, marginRight: 5 }}>{left >= 0 ? 'mancano' : 'oltre di'}</span>
+          <strong style={{ fontWeight: 800 }}>{fmtH(Math.abs(left))}</strong>
+          {usage.kind && <span style={{ ...small, marginLeft: 4 }}>{usage.kind}</span>}
         </div>
         <div style={{ ...small, letterSpacing: '0.04em', marginTop: 3 }}>
-          {counts.map(({ label, hours }, i) => (
-            <React.Fragment key={label ?? 'ore'}>
-              {i > 0 && sep}
-              <span>{fmtH(hours)}</span>{label && ` ${label}`}
-            </React.Fragment>
-          ))}
-          {' '}/ {fmtH(limit)}
+          {fmtUsage(usage)} / {fmtH(limit)}
           {showForecast && <span title={warnTitle}>{sep}previsto {fmtUsage(forecast)}</span>}
         </div>
       </div>
@@ -1078,24 +1070,6 @@ function ProjectionIcon() {
       <path d="M1 9L4 6L6 7.5L10 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M7.5 2H10V4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
-  );
-}
-
-// Riga di proiezione fine settimana (carico): valore orario + Δ vs capacità.
-// Usata solo sulla settimana in corso non ancora conclusa.
-function ProjRow({ label, value, capacity, hint }) {
-  const delta = value - capacity;
-  return (
-    <div title={hint} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.02em' }}>{label}</span>
-      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(value)}</span>
-        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-          <Glyph glyph={delta >= 0 ? '▴' : '▾'} size={10} className="tb-glyph" />
-          {delta >= 0 ? '+' : ''}{fmtH(delta)}
-        </span>
-      </span>
-    </div>
   );
 }
 

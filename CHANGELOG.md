@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Giorno → Ore: fascia e "+" stanno sulla seconda riga, accanto all'area, e il nome del progetto torna leggibile per intero. Il "+" è un quadrato senza freccia, e la riga aggiunta si apre già pronta per scrivere le ore.
+- Andamento → Carico della settimana: percentuale, glifo, stato e Δ stanno sulla riga del Previsto (o della settimana chiusa), non più accanto alle ore fatte, a cui non si riferivano. Il Δ compare una volta sola.
+- Andamento → Limiti della settimana: ogni card mostra un conteggio solo, quello messo peggio, con ore lavorate e fatturabili nel tooltip. La barra ha la stessa lunghezza in tutte le card.
+- Andamento → Per area: la tabella ha una larghezza massima, così i numeri restano vicini ai nomi.
+
 ## [0.13.0] - 2026-10-24
 
 ### Added

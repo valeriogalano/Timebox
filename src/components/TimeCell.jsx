@@ -23,6 +23,9 @@ export default function TimeCell({
   hours, billableHours, billed, isBillable,
   isFuture, isToday, clientColor, colIndex, projectId,
   viewMode = 'tracked', readOnlyTitle,
+  // autoEdit: la cella si apre già in modifica (riga appena aggiunta in Giorno → Ore);
+  // showHint: "ore" resta visibile anche senza passarci sopra, per dire dove scrivere.
+  autoEdit = false, showHint = false,
   onSave, onResetBillable, onEditStart, onEditEnd,
 }) {
   const [editing, setEditing] = useState(false);
@@ -34,6 +37,8 @@ export default function TimeCell({
   useEffect(() => {
     if (editing && inputRef.current) inputRef.current.select();
   }, [editing]);
+
+  useEffect(() => { if (autoEdit) startEdit(); }, []);
 
   const hasEntry = hours > 0;
   const billable = (billableHours ?? hours);
@@ -193,7 +198,7 @@ export default function TimeCell({
         </div>
       ) : (
         <span style={{
-          fontSize: 12, color: hover ? 'var(--tb-text-faint)' : 'transparent',
+          fontSize: 12, color: hover || showHint ? 'var(--tb-text-faint)' : 'transparent',
           fontWeight: 600, transition: 'color 0.1s', letterSpacing: '0.02em',
         }}>
           ore

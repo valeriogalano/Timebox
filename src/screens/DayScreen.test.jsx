@@ -90,7 +90,7 @@ describe('DayScreen / Ore per fascia', () => {
     const saved = [];
     window.api.getEntries = () => Promise.resolve(entries);
     window.api.saveEntry = e => { saved.push(e); return Promise.resolve({}); };
-    const { findByText, findByLabelText, findAllByLabelText, getByLabelText } = render(
+    const { findByText, findByLabelText, findAllByLabelText, getByLabelText, findByPlaceholderText } = render(
       <DayScreen projects={projects} clients={clients} slotCapacity={{ am: 5, pm: 4, sera: 2 }} />
     );
     fireEvent.click(await findByText('Ore'));
@@ -99,6 +99,8 @@ describe('DayScreen / Ore per fascia', () => {
     fireEvent.change(plus, { target: { value: 'pm' } });
     // la riga nuova mostra la sua fascia e una cella vuota; la riga di Mattina resta com'è
     expect(await findByText('Pomeriggio', { selector: 'span' })).toBeInTheDocument();
+    // la riga nuova si apre già in modifica, con il campo pronto per le ore
+    expect(await findByPlaceholderText('1h 30m')).toBeInTheDocument();
     expect((await findAllByLabelText('Fascia di Progetto')).map(s => s.value)).toEqual(['am']);
     // il + ora offre solo Sera
     expect([...getByLabelText(/Aggiungi ore di Progetto/).options].map(o => o.value)).toEqual(['', 'sera']);
