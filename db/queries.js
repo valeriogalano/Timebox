@@ -105,6 +105,11 @@ function mergeProjectEntries(fromId, toId, deleteSource = true) {
         db.prepare('UPDATE entries SET projectId = ? WHERE id = ?').run(toId, e.id);
       }
     }
+    // The import ledger follows the hours: left on the source it is deleted with
+    // it (ON DELETE CASCADE), the task looks never imported and the next
+    // "Importa completati" adds its hours a second time. Undoing an import must
+    // also find the entry where its hours now are.
+    db.prepare('UPDATE todoist_imports SET projectId = ? WHERE projectId = ?').run(toId, fromId);
     if (deleteSource) db.prepare('DELETE FROM projects WHERE id = ?').run(fromId);
   })();
   return { count };
