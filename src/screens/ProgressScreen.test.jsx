@@ -57,6 +57,16 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     expect(queryByText('Archiviato')).not.toBeInTheDocument();
   });
 
+  test('Per area · consuntivo: le colonne dicono Piano, Fatto e Previsto, il titolo non le ripete', async () => {
+    const { findByText } = renderPanoramica();
+
+    const section = (await findByText('Per area · consuntivo')).closest('div').parentElement;
+    expect(within(section).getByText('Piano')).toBeInTheDocument();
+    expect(within(section).getByText('Fatto')).toBeInTheDocument();
+    expect(within(section).getByText('Previsto')).toBeInTheDocument();
+    expect(within(section).queryByText(/piano · fatto/i)).not.toBeInTheDocument();
+  });
+
   test('ogni card mostra il residuo, o di quanto il tetto è superato', async () => {
     const { findByText } = renderPanoramica();
 
@@ -105,7 +115,7 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     expect(getAllByTitle('Previsto 14h su 10h · Limite − Previsto -4h').length).toBeGreaterThanOrEqual(1);
 
     // per area: piano, fatto e previsto; in linea perché il previsto è il piano
-    expect(getByText('piano · fatto · previsto')).toBeInTheDocument();
+    expect(getByText('Previsto')).toBeInTheDocument();
     expect(getAllByTitle('In linea · Δ +0h sul previsto')).toHaveLength(1);
     // carico: 14h previste su 14h di capacità
     expect(getByText('100%')).toBeInTheDocument();
@@ -122,7 +132,7 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
         weekOffset={-1} setWeekOffset={() => {}} />
     );
 
-    expect(await findByText('piano · fatto')).toBeInTheDocument();
+    expect(await findByText('Per area · consuntivo')).toBeInTheDocument();
     expect(queryByText('Previsto')).not.toBeInTheDocument();
     expect(queryByText('Previsto a fine settimana')).not.toBeInTheDocument();
     // 1h su 4h: molto sotto, scarto di 3h

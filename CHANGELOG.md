@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - iPhone: i pulsanti −15m/+15m/+1h sono sostituiti da due menu nativi, fascia e ore, che su iPhone si aprono come ruota. Le ore vanno da 0h a 12h a passi di 15 minuti. Un giorno con ore su più fasce si modifica dalla pagina, senza più l'errore che rimandava a Giorno.
 
+### Fixed
+- Andamento → Per area: il titolo della sezione torna a tutta larghezza come quello delle altre, e non ripete più "piano · fatto" sopra le colonne che lo dicono già.
+
 ## [0.13.1] - 2026-10-24
 
 ### Changed
