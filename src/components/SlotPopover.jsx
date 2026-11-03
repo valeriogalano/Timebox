@@ -17,11 +17,15 @@ export default function SlotPopover({
   useEffect(() => {
     const onKey = e => { if (e.key === 'Escape') onClose(); };
     const onDown = e => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    // Il popover è fisso sullo schermo: se la pagina scorre, la cella si allontana. Si chiude.
+    const onScroll = e => { if (!ref.current?.contains(e.target)) onClose(); };
     document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onDown);
+    window.addEventListener('scroll', onScroll, true);
     return () => {
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('mousedown', onDown);
+      window.removeEventListener('scroll', onScroll, true);
     };
   }, [onClose]);
 
@@ -33,15 +37,20 @@ export default function SlotPopover({
   ].sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
   const free = freeEntrySlots(rows.map(r => ({ ...r, projectId: project.id })), project.id);
 
-  // Sotto la cella, dentro lo schermo.
+  // Sotto la cella; se sotto non c'è spazio (righe in fondo alla finestra), sopra.
+  // L'altezza è una stima: titolo, una riga per fascia, il "+".
   const width = 280;
   const left = Math.max(8, Math.min((anchorRect?.left ?? 0), window.innerWidth - width - 8));
-  const top = (anchorRect?.bottom ?? 0) + 4;
+  const estimatedHeight = 44 + rows.length * 52 + (free.length > 0 ? 34 : 0);
+  const fitsBelow = (anchorRect?.bottom ?? 0) + 4 + estimatedHeight <= window.innerHeight;
+  const vertical = fitsBelow
+    ? { top: (anchorRect?.bottom ?? 0) + 4 }
+    : { bottom: window.innerHeight - (anchorRect?.top ?? 0) + 4 };
 
   return (
     <div ref={ref} role="dialog" aria-label={`Fasce di ${project.name}, ${dateLabel}`}
       style={{
-        position: 'fixed', left, top, width, zIndex: 900,
+        position: 'fixed', left, ...vertical, width, zIndex: 900,
         background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border)', borderRadius: 8,
         boxShadow: '0 12px 32px rgba(0,0,0,0.35)', padding: 10, display: 'flex', flexDirection: 'column', gap: 6,
       }}>
