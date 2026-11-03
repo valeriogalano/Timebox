@@ -7,6 +7,7 @@ const q = require('./db/queries');
 const { createHttpServer } = require('./cli/http-server');
 const { getDayInsightsData } = require('./cli/commands/day-insights');
 const { todoistTaskOrder } = require('./lib/todoist-order');
+const { saveDbCopy } = require('./lib/db-copy');
 const { getDaySummaryData } = require('./cli/commands/day-summary');
 const { setupAutoUpdater } = require('./lib/updater');
 const { setupUpdateNotifier } = require('./lib/update-notifier');
@@ -777,8 +778,7 @@ function setupIpc() {
     });
     if (canceled || !filePath) return null;
     const finalPath = filePath.endsWith('.db') ? filePath : filePath + '.db';
-    fs.copyFileSync(_dbPath, finalPath);
-    return finalPath;
+    return saveDbCopy(_db, _dbPath, finalPath);
   });
 
   ipcMain.handle('app:createNewDb', async () => {
