@@ -407,11 +407,15 @@ function subtractImportedHours(projectId, date, slot, hours) {
     return;
   }
 
+  // A billable override is an absolute value: adding imported hours leaves it
+  // alone, and so does removing them, but it can never end up above the hours
+  // still worked (3.5h billable on an entry back to 3h is capped at 3h).
+  const nextBillable = existingBillable != null ? Math.min(existingBillable, nextHours) : null;
   db.prepare(`
     UPDATE entries
     SET hours = ?, billableHours = ?
     WHERE id = ?
-  `).run(nextHours, existingBillable != null && Math.abs(existingBillable - nextHours) > 0.001 ? existingBillable : null, first.id);
+  `).run(nextHours, nextBillable != null && Math.abs(nextBillable - nextHours) > 0.001 ? nextBillable : null, first.id);
   for (const duplicate of matches.slice(1)) deleteEntryStmt.run(duplicate.id);
 }
 
