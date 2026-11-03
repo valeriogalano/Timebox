@@ -4,6 +4,7 @@ import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks, default
 import { sumByProject, usageMaps, loadProjectTotals } from '../cap-usage';
 import PlanningCell from '../components/PlanningCell';
 import TimeCell from '../components/TimeCell';
+import { EntrySlotSelect, AddSlotSelect } from '../components/SlotSelects';
 import SlotCapacityBar from '../components/SlotCapacityBar';
 import { dayCapacityHours } from '../slot-capacity';
 import ExtraCell from '../components/ExtraCell';
@@ -544,30 +545,13 @@ function DayTimesheet({ loading, dayEntries, slotEntries = [], clients, projects
                       che nel pannello stretto si riduceva a poche lettere. */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, marginTop: 1 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{client.name}</span>
-                    {entry.id && (
-                      <select
-                        aria-label={`Fascia di ${project.name}`}
-                        title="Fascia in cui hai lavorato: cambiala se è diversa"
-                        value={entry.slot}
-                        onChange={e => onMoveSlot(entry.id, e.target.value)}
-                        style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', background: 'transparent', border: '1px solid var(--tb-border-mid)', borderRadius: 4, padding: '1px 2px', fontFamily: "'Open Sans', sans-serif", flexShrink: 0 }}>
-                        {SLOTS.map(s => <option key={s} value={s}>{SLOT_LABELS[s]}</option>)}
-                      </select>
-                    )}
+                    {entry.id && <EntrySlotSelect entry={entry} projectName={project.name} onMove={onMoveSlot} />}
                     {!entry.id && entry.slot && (
                       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', flexShrink: 0 }}>{SLOT_LABELS[entry.slot]}</span>
                     )}
                     {freeSlots.length > 0 && (
-                      <select
-                        aria-label={`Aggiungi ore di ${project.name} in un'altra fascia`}
-                        title="Aggiungi ore in un'altra fascia"
-                        value=""
-                        onChange={e => setAddedRows(rs => [...rs, { projectId: project.id, slot: e.target.value }])}
-                        // Un quadrato con il solo "+": con la freccia nativa sembrava un secondo selettore di fascia.
-                        style={{ appearance: 'none', WebkitAppearance: 'none', width: 24, height: 24, textAlign: 'center', textAlignLast: 'center', fontSize: 14, fontWeight: 700, lineHeight: 1, color: 'var(--tb-text-muted)', background: 'transparent', border: '1px solid var(--tb-border-mid)', borderRadius: 4, padding: 0, cursor: 'pointer', fontFamily: "'Open Sans', sans-serif", flexShrink: 0 }}>
-                        <option value="">+</option>
-                        {freeSlots.map(s => <option key={s} value={s}>{SLOT_LABELS[s]}</option>)}
-                      </select>
+                      <AddSlotSelect freeSlots={freeSlots} projectName={project.name}
+                        onAdd={slot => setAddedRows(rs => [...rs, { projectId: project.id, slot }])} />
                     )}
                   </div>
                 </div>

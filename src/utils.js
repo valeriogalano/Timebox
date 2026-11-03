@@ -101,6 +101,17 @@ export const SLOT_META = {
 export const SLOT_LABELS = Object.fromEntries(SLOTS.map(s => [s, SLOT_META[s].label]));
 export const SLOT_SHORT = Object.fromEntries(SLOTS.map(s => [s, SLOT_META[s].short]));
 
+// Fascia scritta in coda a un campo ore: "2h +pom" -> { rest: "2h", slot: "pm" }.
+// Serve un separatore (spazio o "+"), così "30m" o "2h" non diventano mai una fascia;
+// un nome sconosciuto non è un suffisso e resta nel testo.
+const SLOT_ALIASES = { am: 'am', mat: 'am', mattina: 'am', pm: 'pm', pom: 'pm', pomeriggio: 'pm', sera: 'sera' };
+export function splitSlotSuffix(str) {
+  const text = String(str ?? '');
+  const m = text.match(/^(.*?)[\s+]+([a-zà-ÿ]+)\s*$/i);
+  const slot = m && SLOT_ALIASES[m[2].toLowerCase()];
+  return slot ? { rest: m[1].trim(), slot } : { rest: text.trim(), slot: null };
+}
+
 export function normalizeSlot(slot) {
   return SLOTS.includes(slot) ? slot : 'am';
 }

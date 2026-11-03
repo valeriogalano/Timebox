@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   getMondayOfWeek, addDays, fmt, fmtH, parseHHMM,
-  effBillable, billingOnSave, isHourly, normalizeSlot, slotForDate, budgetAlertLevel, getToday, currentSlot, SLOTS,
+  effBillable, billingOnSave, isHourly, normalizeSlot, slotForDate, budgetAlertLevel, getToday, currentSlot, SLOTS, splitSlotSuffix,
 } from '../utils.js';
 import {
   DEFAULT_MINUTES_THRESHOLD, normalizeMinutesThreshold,
@@ -209,5 +209,21 @@ describe('getToday e currentSlot', () => {
   test('currentSlot è la fascia dell\'ora corrente', () => {
     assert.ok(SLOTS.includes(currentSlot()));
     assert.equal(currentSlot(), slotForDate(new Date()));
+  });
+});
+
+describe('splitSlotSuffix', () => {
+  test('legge la fascia in coda, con o senza "+"', () => {
+    assert.deepEqual(splitSlotSuffix('2h +pom'), { rest: '2h', slot: 'pm' });
+    assert.deepEqual(splitSlotSuffix('2h pom'), { rest: '2h', slot: 'pm' });
+    assert.deepEqual(splitSlotSuffix('1:30 +Sera'), { rest: '1:30', slot: 'sera' });
+    assert.deepEqual(splitSlotSuffix('1h +mattina'), { rest: '1h', slot: 'am' });
+    assert.deepEqual(splitSlotSuffix('+mat'), { rest: '', slot: 'am' });
+  });
+  test('senza separatore o con un nome sconosciuto non c\'è fascia', () => {
+    assert.deepEqual(splitSlotSuffix('30m'), { rest: '30m', slot: null });
+    assert.deepEqual(splitSlotSuffix('2h'), { rest: '2h', slot: null });
+    assert.deepEqual(splitSlotSuffix('2h +xx'), { rest: '2h +xx', slot: null });
+    assert.deepEqual(splitSlotSuffix(''), { rest: '', slot: null });
   });
 });

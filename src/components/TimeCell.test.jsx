@@ -25,7 +25,7 @@ describe('TimeCell — Enter saves and moves one row down', () => {
     fireEvent.change(input, { target: { value: '1:30' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    expect(onSave).toHaveBeenCalledWith({ hours: 1.5, billableHours: null });
+    expect(onSave).toHaveBeenCalledWith({ hours: 1.5, billableHours: null }, null);
     // focusCell clicks the target, which opens its editor
     expect(bottomCell.querySelector('input')).not.toBeNull();
   });
@@ -65,15 +65,45 @@ describe('TimeCell — da tastiera', () => {
     expect(cell.querySelector('input')).toBeNull();
   });
 
-  it('con readOnlyTitle mostra le ore, non si apre e dice dove si modificano', () => {
+  it('con ore su più fasce non si apre: apre le fasce e mostra il tag', () => {
+    const onOpenSlots = vi.fn();
     const { container, getByText } = render(
-      <TimeCell hours={3} colIndex={0} projectId="a" readOnlyTitle="Ore su più fasce: si modificano da Giorno" onSave={() => {}} />
+      <TimeCell hours={3} colIndex={0} projectId="a" slots={['am', 'pm']} onOpenSlots={onOpenSlots} onSave={() => {}} />
     );
     const cell = container.querySelector('[data-timecell]');
+    expect(getByText('M·P')).toBeTruthy();
     fireEvent.click(cell);
     expect(cell.querySelector('input')).toBeNull();
-    expect(cell.tabIndex).toBe(-1);
-    expect(cell.title).toBe('Ore su più fasce: si modificano da Giorno');
-    expect(getByText('3h')).toBeTruthy();
+    expect(onOpenSlots).toHaveBeenCalledTimes(1);
+  });
+
+  it('con una fascia mostra l\'iniziale e il clic sul tag apre le fasce', () => {
+    const onOpenSlots = vi.fn();
+    const { container, getByText } = render(
+      <TimeCell hours={2} colIndex={0} projectId="a" slots={['pm']} onOpenSlots={onOpenSlots} onSave={() => {}} />
+    );
+    fireEvent.click(getByText('P'));
+    expect(onOpenSlots).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('input')).toBeNull();
+  });
+
+  it('un suffisso di fascia nel campo arriva a onSave', () => {
+    const onSave = vi.fn();
+    const { container } = render(<TimeCell hours={0} colIndex={0} projectId="a" onSave={onSave} />);
+    fireEvent.click(container.querySelector('[data-timecell]'));
+    const input = container.querySelector('input');
+    fireEvent.change(input, { target: { value: '2h +pom' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSave).toHaveBeenCalledWith({ hours: 2, billableHours: null }, 'pm');
+  });
+
+  it('"+pom" da solo sposta le ore che ci sono senza cambiarle', () => {
+    const onSave = vi.fn();
+    const { container } = render(<TimeCell hours={2} colIndex={0} projectId="a" onSave={onSave} />);
+    fireEvent.click(container.querySelector('[data-timecell]'));
+    const input = container.querySelector('input');
+    fireEvent.change(input, { target: { value: '+pom' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSave).toHaveBeenCalledWith({ hours: 2, billableHours: null }, 'pm');
   });
 });
