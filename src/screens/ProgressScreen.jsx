@@ -537,12 +537,14 @@ function AreaConsuntivo({ clients, stats }) {
   const numCell = { fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', textAlign: 'right' };
   const headCell = { fontSize: 11, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' };
   const topCell = { borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 };
-  // Larghezza massima: a tutto schermo fra nome e numeri restavano centinaia di pixel vuoti,
-  // e l'occhio perdeva la riga. Vale per l'intestazione, così il sottotitolo resta sopra le colonne.
+  // Larghezza massima solo su legenda e tabella: a tutto schermo fra nome e numeri restavano
+  // centinaia di pixel vuoti, e l'occhio perdeva la riga. L'intestazione resta a tutta
+  // larghezza come quella delle altre sezioni; le colonne dicono già Piano · Fatto · Previsto.
   return (
-    <div style={{ maxWidth: 640 }}>
-      <SectionHeader title="Per area · consuntivo" subtitle={open ? 'piano · fatto · previsto' : 'piano · fatto'}
+    <div>
+      <SectionHeader title="Per area · consuntivo"
         help={'Per ogni area, nella settimana selezionata.\n\nPiano = ore pianificate\nFatto = ore registrate\nPrevisto = fatto fino a ieri + per oggi e i giorni successivi il piano, o le ore già registrate se sono di più (solo finché la settimana è aperta: dopo coincide con il fatto)\n\nIl glifo a sinistra è il verdetto sul Previsto contro il piano, con lo scarto nel suo aiuto: sotto mezz\'ora (o 10% del piano) di scarto si resta "in linea"; oltre, un glifo ▴/▾, e due glifi quando lo scarto supera 2h (o il 30% del piano).'} />
+      <div style={{ maxWidth: 640 }}>
       {/* Legenda del verdetto: i glifi sostituiscono il colore, senza questa riga vanno indovinati. */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 14px', marginBottom: 8, fontSize: 11, color: 'var(--tb-text-muted)' }}>
         {[['▾', 'sotto il piano'], ['▪', 'in linea'], ['▴', 'sopra il piano'], ['▾▾', 'scarto marcato (oltre 2h o il 30%)']].map(([glyph, label]) => (
@@ -576,6 +578,7 @@ function AreaConsuntivo({ clients, stats }) {
             </React.Fragment>
           );
         })}
+      </div>
       </div>
     </div>
   );
