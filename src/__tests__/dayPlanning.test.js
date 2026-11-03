@@ -7,6 +7,7 @@ import {
   computeDayPlanning,
   resolveEntrySlot,
   planDayEntrySave,
+  planDayTotalSave,
   defaultEntrySlot,
   planQuickLogAdd,
   freeEntrySlots,
@@ -303,5 +304,30 @@ describe('freeEntrySlots', () => {
   test('nothing left when the project uses every slot', () => {
     const all = ['am', 'pm', 'sera'].map(slot => ({ projectId: 'p1', slot }));
     assert.deepEqual(freeEntrySlots(all, 'p1'), []);
+  });
+});
+
+describe('planDayTotalSave', () => {
+  const base = { projectId: 'p1', date: '2026-11-04', billableHours: null, defaultSlot: 'am', newId: 'new' };
+  const entry = { id: 'e1', projectId: 'p1', date: '2026-11-04', hours: 1, billableHours: 2, slot: 'am', billed: true };
+
+  test('senza entry nasce nella fascia scelta, altrimenti in quella di default', () => {
+    assert.equal(planDayTotalSave({ ...base, existingList: [], hours: 2, slot: 'sera' }).save.slot, 'sera');
+    assert.equal(planDayTotalSave({ ...base, existingList: [], hours: 2, slot: null }).save.slot, 'am');
+  });
+  test('con una entry e la stessa fascia (o nessuna) aggiorna le ore', () => {
+    const { save } = planDayTotalSave({ ...base, existingList: [entry], hours: 3, slot: 'am', billableHours: 2 });
+    assert.deepEqual(save, { ...entry, hours: 3 });
+    assert.equal(planDayTotalSave({ ...base, existingList: [entry], hours: 3, slot: null }).save.slot, 'am');
+  });
+  test('con una entry e un\'altra fascia la sposta: stesso id, fatturato conservato', () => {
+    const { save, deleteIds } = planDayTotalSave({ ...base, existingList: [entry], hours: 1, slot: 'pm', billableHours: 2 });
+    assert.equal(save.id, 'e1');
+    assert.equal(save.slot, 'pm');
+    assert.equal(save.billed, true);
+    assert.deepEqual(deleteIds, []);
+  });
+  test('a zero ore cancella la entry', () => {
+    assert.deepEqual(planDayTotalSave({ ...base, existingList: [entry], hours: 0, slot: 'pm' }), { save: null, deleteIds: ['e1'] });
   });
 });

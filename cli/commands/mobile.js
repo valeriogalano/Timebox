@@ -5,7 +5,7 @@
 // rispondere "ambiguo", e `GET /today` restituisce righe senza identificativi.
 
 const { randomUUID } = require('node:crypto');
-const { getEntries, getProjects, getClients, saveEntry, deleteEntry } = require('../../db/queries');
+const { getEntries, getProjects, getClients, saveEntry, deleteEntry, moveEntrySlot } = require('../../db/queries');
 const { getDaySummaryData } = require('./day-summary');
 const { SLOTS, toHHMM, defaultEntrySlot, planDayEntrySave } = require('../../lib/domain');
 
@@ -22,13 +22,19 @@ function parseClock(value) {
   return hours <= 24 ? hours : null;
 }
 
-// Una riga per progetto, con le ore del giorno già sommate sulle fasce. Prima le
-// aree pianificate quel giorno, poi le altre, nell'ordine dell'app.
-function getMobileDayData(date) {
+// Un progetto per area, con le ore del giorno: `hours` è il totale, `entries` le ore di
+// ogni fascia (la pagina mostra una riga per fascia) e `defaultSlot` la fascia in cui
+// finirebbero ore nuove. Prima le aree pianificate quel giorno, poi le altre, nell'ordine
+// dell'app. `today` serve a sapere se la fascia di default è quella dell'ora corrente.
+function getMobileDayData(date, today) {
   const clients = getClients();
   const projects = getProjects();
   const hoursByProject = {};
-  for (const e of getEntries(date, date)) hoursByProject[e.projectId] = (hoursByProject[e.projectId] || 0) + e.hours;
+  const entriesByProject = {};
+  for (const e of getEntries(date, date)) {
+    hoursByProject[e.projectId] = (hoursByProject[e.projectId] || 0) + e.hours;
+    (entriesByProject[e.projectId] ||= []).push({ id: e.id, slot: e.slot, hours: e.hours });
+  }
 
   const summary = getDaySummaryData(date);
   const plannedByArea = {};
@@ -47,7 +53,15 @@ function getMobileDayData(date) {
       // Un progetto archiviato compare solo se quel giorno ha già delle ore.
       projects: projects
         .filter(p => p.clientId === client.id && (!p.archived || hoursByProject[p.id] > 0))
-        .map(p => ({ id: p.id, name: p.name, hours: hoursByProject[p.id] || 0, clock: toHHMM(hoursByProject[p.id] || 0) })),
+        .map(p => ({
+          id: p.id, name: p.name, hours: hoursByProject[p.id] || 0, clock: toHHMM(hoursByProject[p.id] || 0),
+          entries: (entriesByProject[p.id] || []).sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot)),
+          defaultSlot: defaultEntrySlot({
+            isToday: date === today,
+            clientId: client.id,
+            blocksForSlot: slot => summary.slots[slot].plannedBlocks,
+          }),
+        })),
     }))
     .filter(area => area.projects.length > 0)
     .sort((a, b) => (b.plannedHours > 0) - (a.plannedHours > 0));
@@ -85,23 +99,37 @@ function getMobilePlan(summary, clients) {
     .filter(slot => slot.blocks.length > 0);
 }
 
+const SLOT_ERROR = 'slot must be am, pm or sera';
+
 // Imposta le ore lavorate di un progetto in un giorno, con la stessa regola di Giorno
-// (planDayEntrySave): la pagina mostra il totale del giorno, quindi lavora sull'unica
-// entry del progetto, o ne crea una nella fascia di default; zero ore la cancella.
-// Se le ore stanno su più fasce il totale non si può riscrivere senza sceglierne una:
-// risponde 409 e la correzione si fa da Giorno. Ore fatturabili e stato "fatturato"
+// (planDayEntrySave); zero ore cancella la entry. Ore fatturabili e stato "fatturato"
 // già salvati non si toccano.
-function saveMobileHours({ projectId, date, clock, today }) {
+// Con `slot` si scrive solo la entry di quella fascia e le altre restano (è ciò che fa la
+// pagina: una riga per fascia). Senza `slot` si riscrive il totale del giorno sull'unica
+// entry del progetto, o se ne crea una nella fascia di default; se le ore stanno su più
+// fasce risponde 409. Quel ramo serve a una pagina rimasta in cache sulla Home.
+function saveMobileHours({ projectId, date, clock, today, slot }) {
   if (!isDate(date)) return { error: 'date must be YYYY-MM-DD' };
   const hours = parseClock(clock);
   if (hours == null) return { error: 'hours must be H:MM, at most 24:00' };
+  if (slot !== undefined && !SLOTS.includes(slot)) return { error: SLOT_ERROR };
   const project = getProjects().find(p => p.id === projectId);
   if (!project) return { error: 'unknown project', status: 404 };
 
   const existingList = getEntries(date, date).filter(e => e.projectId === projectId);
+  if (slot !== undefined) {
+    const { save, deleteIds } = planDayEntrySave({
+      existingList, projectId, date, hours,
+      billableHours: existingList.find(e => e.slot === slot)?.billableHours ?? null,
+      slot, newId: randomUUID(),
+    });
+    if (save) saveEntry(save);
+    for (const id of deleteIds) deleteEntry(id);
+    return { projectId, date, slot, hours, clock: toHHMM(hours) };
+  }
   if (existingList.length > 1) return { error: 'hours on more than one slot', status: 409 };
   const summary = getDaySummaryData(date);
-  const slot = existingList[0]?.slot ?? defaultEntrySlot({
+  const totalSlot = existingList[0]?.slot ?? defaultEntrySlot({
     isToday: date === today,
     clientId: project.clientId,
     blocksForSlot: s => summary.slots[s].plannedBlocks,
@@ -109,11 +137,22 @@ function saveMobileHours({ projectId, date, clock, today }) {
   const { save, deleteIds } = planDayEntrySave({
     existingList, projectId, date, hours,
     billableHours: existingList[0]?.billableHours ?? null,
-    slot, newId: randomUUID(),
+    slot: totalSlot, newId: randomUUID(),
   });
   if (save) saveEntry(save);
   for (const id of deleteIds) deleteEntry(id);
   return { projectId, date, hours, clock: toHHMM(hours) };
 }
 
-module.exports = { getMobileDayData, saveMobileHours, parseClock, isDate };
+// Sposta le ore di un progetto da una fascia a un'altra, come il selettore di fascia di
+// Giorno (moveEntrySlot): se nella fascia di arrivo ce ne sono già, le due si sommano.
+function moveMobileSlot({ projectId, date, from, to }) {
+  if (!isDate(date)) return { error: 'date must be YYYY-MM-DD' };
+  if (!SLOTS.includes(from) || !SLOTS.includes(to)) return { error: SLOT_ERROR };
+  const entry = getEntries(date, date).find(e => e.projectId === projectId && e.slot === from);
+  if (!entry) return { error: 'no hours in that slot', status: 404 };
+  moveEntrySlot(entry.id, to);
+  return { projectId, date, from, to };
+}
+
+module.exports = { getMobileDayData, saveMobileHours, moveMobileSlot, parseClock, isDate };

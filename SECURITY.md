@@ -33,8 +33,8 @@ Timebox can serve a page for logging hours from a phone. It is off by default an
 What limits it:
 
 - **It binds only to the computer's addresses in the router's subnet**, never to `0.0.0.0`, so VPN interfaces do not expose it. It follows network changes by rechecking every 30 seconds.
-- **It serves four static files and two data routes.** `GET /api/day` returns one day's projects and worked hours; `PUT /api/hours` sets the worked hours of one project on one day. Billable hours, the billed flag, projects, areas and everything else in the local API are not reachable from it.
-- **The two data routes require a token** in the `Authorization` header: 32 random bytes, stored encrypted with `safeStorage`, compared in constant time. It can be regenerated in Settings, which invalidates the old link at once. The static files need no token and contain no data.
+- **It serves its static files and three data routes.** `GET /api/day` returns one day's projects and worked hours by slot; `PUT /api/hours` sets the worked hours of one project on one day, in one slot; `PUT /api/slot` moves one project's hours from one slot to another. A move into a slot that already has hours merges the two entries, the same rule as Giorno, so it can change the billed flag and the billable hours of the entry it merges into, only as a side effect of the merge. Apart from that, billable hours, the billed flag, projects, areas and everything else in the local API are not reachable from it.
+- **The three data routes require a token** in the `Authorization` header: 32 random bytes, stored encrypted with `safeStorage`, compared in constant time. It can be regenerated in Settings, which invalidates the old link at once. The static files need no token and contain no data.
 - The page is sent with a Content Security Policy that only allows its own files.
 
 Accepted risks:

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Settimana: la cella del giorno mostra in che fascia stanno le ore (`M`, `P`, `S`, o `M·P` con più fasce). Scrivere `2h +pom` mette le ore nel pomeriggio, e `+pom` da solo sposta quelle che ci sono. Un clic sul tag, o su una cella con ore su più fasce, apre le fasce del giorno: una riga per fascia, con selettore, ore e "+", come in Giorno. Le celle con più fasce non sono più in sola lettura.
+- Quick log (⌘L): la fascia si scrive dopo il tempo, `Acme +1h +pom`. Senza, resta quella dell'ora corrente.
+- iPhone: una riga per fascia, con la fascia cambiabile (le ore si spostano) e un "+ fascia" per aggiungerne un'altra.
+
+### Changed
+- iPhone: i pulsanti −15m/+15m/+1h sono sostituiti da due menu nativi, fascia e ore, che su iPhone si aprono come ruota. Le ore vanno da 0h a 12h a passi di 15 minuti. Un giorno con ore su più fasce si modifica dalla pagina, senza più l'errore che rimandava a Giorno.
+
 ## [0.13.1] - 2026-10-24
 
 ### Changed

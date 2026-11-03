@@ -6,8 +6,8 @@ import { effBillable, SLOTS, normalizeSlot, currentSlot } from './utils.js';
 
 // Collapses the AM/PM rows a project may have on the same day into one entry
 // with summed hours (used for per-project timesheet + planning fill).
-// `slotCount` dice su quante fasce stavano le ore: con più di una, la cella del
-// totale non si può modificare senza scegliere la fascia.
+// `slotCount` e `slots` dicono su quali fasce stavano le ore: con più di una, la cella
+// del totale apre il popover delle fasce invece di modificarsi.
 export function mergeProjectDayEntries(entries) {
   const grouped = new Map();
 
@@ -29,6 +29,7 @@ export function mergeProjectDayEntries(entries) {
       billableHours: Math.abs(billableTotal - hours) < 0.001 ? null : billableTotal,
       billed: group.every(entry => entry.billed),
       slotCount: group.length,
+      slots: SLOTS.filter(slot => group.some(e => e.slot === slot)),
     };
   });
 }
@@ -68,6 +69,17 @@ export function planDayEntrySave({ existingList, projectId, date, hours, billabl
     ? { ...existing, hours, billableHours }
     : { id: newId, projectId, date, hours, billableHours, slot, billed: false };
   return { save, deleteIds: [] };
+}
+
+// Cella del totale giornaliero (Settimana): `existingList` sono le entry del progetto
+// in quel giorno. Con una sola entry la cella la possiede: se `slot` è un'altra fascia
+// l'entry si sposta (stesso id, `billed` e ore fatturabili restano). Senza entry nasce
+// in `slot ?? defaultSlot`. Con più entry la cella è del popover: qui non si arriva.
+export function planDayTotalSave({ existingList, projectId, date, hours, billableHours = null, slot, defaultSlot, newId }) {
+  const single = existingList.length === 1 ? existingList[0] : null;
+  const target = slot ?? single?.slot ?? defaultSlot;
+  const list = single && single.slot !== target ? [{ ...single, slot: target }] : existingList;
+  return planDayEntrySave({ existingList: list, projectId, date, hours, billableHours, slot: target, newId });
 }
 
 // Fasce in cui il progetto non ha ancora ore quel giorno: sono quelle dove si può

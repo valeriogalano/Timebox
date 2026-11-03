@@ -233,7 +233,7 @@ export default function App() {
     );
   }
 
-  function handleQuickLogSelect(projectId, addHours) {
+  function handleQuickLogSelect(projectId, addHours, slot) {
     setQuickLogOpen(false);
     if (addHours == null) {
       setScreen('weekly');
@@ -241,16 +241,16 @@ export default function App() {
       setAutoFocusProject(projectId);
       return;
     }
-    addHoursToToday(projectId, addHours);
+    addHoursToToday(projectId, addHours, slot);
   }
 
-  // Le ore vanno nella fascia dell'ora corrente; le entry del progetto in altre fasce
-  // restano. La fascia si corregge poi da Giorno.
-  async function addHoursToToday(projectId, addHours) {
+  // Le ore vanno nella fascia scritta nel testo ("+1h +pom") o, senza, in quella dell'ora
+  // corrente; le entry del progetto in altre fasce restano. Si corregge poi da Giorno.
+  async function addHoursToToday(projectId, addHours, slot) {
     const today = fmt(getToday());
     const entries = await window.api.getEntries(today, today);
     await window.api.saveEntry(planQuickLogAdd({
-      entries, projectId, date: today, addHours, slot: currentSlot(), newId: crypto.randomUUID(),
+      entries, projectId, date: today, addHours, slot: slot ?? currentSlot(), newId: crypto.randomUUID(),
     }));
     setWeekRefreshTick(t => t + 1);
   }

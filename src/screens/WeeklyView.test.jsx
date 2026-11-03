@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, fireEvent, waitFor } from '@testing-library/react';
+import { getToday, getMondayOfWeek, addDays, fmt } from '../utils';
 import WeeklyView from './WeeklyView.jsx';
 
 const projects = [{ id: 'p1', clientId: 'c1', name: 'Progetto uno' }];
@@ -36,5 +37,52 @@ describe('WeeklyView / avviso sul limite settimanale previsto', () => {
     const { findAllByText, queryByText } = renderWeek({ id: 'c1', name: 'Libera', color: '#4073ff', billing: 'none', limitType: 'none' });
     await findAllByText('Libera');
     expect(queryByText('Limite settimanale area superato dal piano:')).not.toBeInTheDocument();
+  });
+});
+
+describe('WeeklyView / fasce nella cella del giorno', () => {
+  const client = { id: 'c1', name: 'Area uno', color: '#4073ff', billing: 'none', limitType: 'none' };
+  const monday = fmt(getMondayOfWeek(addDays(getToday(), 7)));
+  const entry = (id, slot, hours) => ({ id, projectId: 'p1', date: monday, hours, billableHours: null, slot, billed: false });
+
+  function setup(entries) {
+    const calls = { saved: [], moved: [] };
+    window.api = {
+      getEntries: () => Promise.resolve(entries),
+      getWeekOverrides: () => Promise.resolve([]),
+      getWeekAreaStatuses: () => Promise.resolve([]),
+      getTodoistCache: () => Promise.resolve([]),
+      getProjectTotals: () => Promise.resolve({}),
+      getProjectBillableTotals: () => Promise.resolve({}),
+      syncTodoist: () => Promise.resolve({ byDate: {} }),
+      saveEntry: e => { calls.saved.push(e); return Promise.resolve(); },
+      deleteEntry: () => Promise.resolve(),
+      moveEntrySlot: (id, slot) => { calls.moved.push([id, slot]); return Promise.resolve({}); },
+    };
+    return calls;
+  }
+
+  test('una cella con ore su due fasce mostra M·P e apre il popover; cambiare fascia sposta', async () => {
+    const calls = setup([entry('e1', 'am', 1), entry('e2', 'pm', 2)]);
+    const { findByText, findByRole, findAllByLabelText } = renderWeek(client);
+    fireEvent.click(await findByText('M·P'));
+    await findByRole('dialog');
+    const selects = await findAllByLabelText('Fascia di Progetto uno');
+    expect(selects.map(s => s.value)).toEqual(['am', 'pm']);
+    fireEvent.change(selects[1], { target: { value: 'sera' } });
+    await waitFor(() => expect(calls.moved).toEqual([['e2', 'sera']]));
+  });
+
+  test('"+pom" in una cella con una sola entry la sposta: stesso id, nuova fascia', async () => {
+    const calls = setup([entry('e1', 'am', 2)]);
+    const { findByText, container } = renderWeek(client);
+    await findByText('M');
+    const cell = [...container.querySelectorAll('[data-timecell]')].find(c => c.textContent.includes('2h'));
+    fireEvent.click(cell);
+    const input = cell.querySelector('input');
+    fireEvent.change(input, { target: { value: '+pom' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(calls.saved).toHaveLength(1));
+    expect(calls.saved[0]).toMatchObject({ id: 'e1', slot: 'pm', hours: 2 });
   });
 });
