@@ -29,9 +29,22 @@ function saveClient(client) {
   });
 }
 
+// Hours are never deleted along with their project or area: archive instead.
+// The UI asks first (src/delete-guard.js), HTTP and MCP answer 409; this is
+// the rule that holds for every path.
+class HasEntriesError extends Error {}
+
+function assertNoEntries(projectIds, what) {
+  const withEntries = projectIds.filter(projectId => hasProjectEntries(projectId));
+  if (withEntries.length > 0) {
+    throw new HasEntriesError(`${what} has logged entries: archive it or move its hours first`);
+  }
+}
+
 function deleteClient(id) {
   db.transaction(() => {
     const projectIds = db.prepare('SELECT id FROM projects WHERE clientId=?').all(id).map(row => row.id);
+    assertNoEntries(projectIds, `Area ${id}`);
     const deleteEntries = db.prepare('DELETE FROM entries WHERE projectId=?');
     const deleteImports = db.prepare('DELETE FROM todoist_imports WHERE projectId=?');
     for (const projectId of projectIds) {
@@ -67,6 +80,7 @@ function saveProject(project) {
 
 function deleteProject(id) {
   db.transaction(() => {
+    assertNoEntries([id], `Project ${id}`);
     db.prepare('DELETE FROM entries WHERE projectId=?').run(id);
     db.prepare('DELETE FROM todoist_imports WHERE projectId=?').run(id);
     db.prepare('DELETE FROM projects WHERE id=?').run(id);
@@ -845,7 +859,7 @@ function seedDemoData() {
 module.exports = {
   init,
   getClients, saveClient, deleteClient,
-  getProjects, saveProject, deleteProject, hasProjectEntries, mergeProjectEntries,
+  getProjects, saveProject, deleteProject, hasProjectEntries, mergeProjectEntries, HasEntriesError,
   getRecurring, saveRecurring, deleteRecurring, deleteRecurringByClient,
   getEntries, getProjectTotals, getProjectBillableTotals, saveEntry, deleteEntry, moveEntrySlot,
   getTodoistImportIds, getTodoistImports, saveTodoistImport, updateTodoistImport, deleteTodoistImport, importCompletedTodoistTasks,
