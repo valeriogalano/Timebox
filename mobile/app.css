@@ -18,7 +18,7 @@ header > div { flex: 1; }
 h1 { margin: 0; font-size: 18px; font-weight: 800; }
 h1::first-letter { text-transform: uppercase; }
 #totals { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
-button {
+button, select {
   font: inherit; color: var(--text); background: var(--panel);
   border: 1px solid var(--border); border-radius: 8px;
   min-width: 44px; min-height: 44px; padding: 0 10px;
@@ -29,14 +29,16 @@ section { margin-top: 14px; background: var(--panel); border: 1px solid var(--bo
 h2 { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; font-size: 13px; font-weight: 800; border-bottom: 1px solid var(--border); }
 h2 small { margin-left: auto; font-weight: 600; color: var(--muted); }
 .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-/* Il nome del progetto ha una riga sua: accanto ai pulsanti si leggevano tre lettere. */
-.row { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--border); }
-.row:first-of-type { border-top: 0; }
-.row .name { flex: 0 0 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 600; }
-.row output { flex: 1; text-align: center; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.row output.zero { color: var(--muted); font-weight: 600; }
-.row.saving output { opacity: 0.5; }
-.row.failed output { text-decoration: underline wavy; }
+/* Il nome del progetto ha una riga sua; sotto, una riga per fascia: due menu, fascia e ore. */
+.project { padding: 10px 12px; border-top: 1px solid var(--border); }
+.project:first-of-type { border-top: 0; }
+.project .name { margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 600; }
+.row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.row select { flex: 1 1 0; min-width: 0; font-weight: 600; }
+.row select.hours { flex: 0 0 120px; font-weight: 800; font-variant-numeric: tabular-nums; text-align: center; text-align-last: center; }
+.row select.zero { color: var(--muted); font-weight: 600; }
+.row.saving select.hours { opacity: 0.5; }
+select.add { width: 100%; margin-top: 4px; min-height: 36px; color: var(--muted); background: transparent; border-style: dashed; }
 footer { margin-top: 18px; text-align: center; }
 #plan { margin-top: 8px; }
 .plan-slot { padding: 8px 12px 10px; border-top: 1px solid var(--border); }

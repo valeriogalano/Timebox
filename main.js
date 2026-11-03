@@ -13,7 +13,7 @@ const { setupUpdateNotifier } = require('./lib/update-notifier');
 const { createMobileServer } = require('./lib/mobile-server');
 const { createMobileAccess } = require('./lib/mobile-access');
 const { currentNetwork } = require('./lib/home-network');
-const { getMobileDayData, saveMobileHours, isDate } = require('./cli/commands/mobile');
+const { getMobileDayData, saveMobileHours, moveMobileSlot, isDate } = require('./cli/commands/mobile');
 const { fmt, getToday, todoistTaskSlot } = require('./lib/domain');
 
 function getAppIcon() {
@@ -865,6 +865,7 @@ app.whenReady().then(() => {
         getToken: () => _mobileAccess.getToken(),
         getDay: getMobileDayData,
         saveHours: saveMobileHours,
+        moveSlot: moveMobileSlot,
         isDate,
         today: () => fmt(getToday()),
         onChange: () => {
