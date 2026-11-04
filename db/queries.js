@@ -298,6 +298,11 @@ function moveEntrySlot(id, slot) {
     if (entry.slot === slot) return { entry: normalizeEntry(entry), merged: false };
     const target = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? AND slot = ?')
       .get(entry.projectId, entry.date, slot);
+    // The import ledger records the slot its hours went to: it follows the
+    // hours, or undoing an import would look for them in the old slot and
+    // subtract nothing.
+    db.prepare('UPDATE todoist_imports SET slot = ? WHERE projectId = ? AND date = ? AND slot = ?')
+      .run(slot, entry.projectId, entry.date, entry.slot);
     if (!target) {
       db.prepare('UPDATE entries SET slot = ? WHERE id = ?').run(slot, id);
       return { entry: normalizeEntry({ ...entry, slot }), merged: false };
