@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { doneCutoff, isDone } from '../week-done';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, isHourly, SLOTS } from '../utils';
 import { getEffectiveBlocks } from '../dayPlanning';
 import { forecastTodayIndex, forecastUsage, weekForecast } from '../week-forecast';
@@ -135,13 +136,11 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     const periodEntries = entries.filter(e => e.date >= startStr && e.date <= endStr);
 
     // Settimana in corso: il consuntivo è "fino al giorno corrente" (esclude
-    // eventuali entry datate in avanti). La proiezione fine settimana (vedi sotto)
-    // parte da questo consuntivo.
-    const isCurrentWeek = periodOffset === 0;
+    // eventuali entry datate in avanti), con la stessa regola del riepilogo di
+    // Settimana (../week-done). La proiezione fine settimana parte da qui.
     const todayStr = fmt(getToday());
-    const consuntivoEntries = isCurrentWeek
-      ? periodEntries.filter(e => e.date <= todayStr)
-      : periodEntries;
+    const cutoff = doneCutoff(startStr, endStr, todayStr);
+    const consuntivoEntries = periodEntries.filter(e => isDone(e.date, cutoff));
 
     const actualByClient = {};
     const billableByClient = {};
