@@ -760,7 +760,9 @@ function seedDemoData() {
   function pd(offset) {
     const dt = new Date(prevMonday);
     dt.setDate(dt.getDate() + offset);
-    return dt.toISOString().slice(0, 10);
+    // local date, like fmtLocal: toISOString() is UTC and, with prevMonday at local
+    // midnight, east of Greenwich it fell on the day before
+    return fmtLocal(dt);
   }
 
   const now = new Date().toISOString();
