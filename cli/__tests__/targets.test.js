@@ -57,6 +57,7 @@ describe('week area targets: queries', () => {
 
   it('deleting an area and resetting the data remove its targets', () => {
     q.addWeekAreaTarget({ weekKey: WEEK, areaId: 'b', hours: 2 });
+    q.deleteEntry('e4');   // an area with logged hours cannot be deleted
     q.deleteClient('b');
     assert.ok(q.getWeekAreaTargets(WEEK).every(r => r.areaId !== 'b'));
     q.resetAllData();
