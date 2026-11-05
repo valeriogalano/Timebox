@@ -2,7 +2,7 @@
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { fmtH, parseHours } = require('../format');
+const { fmtH } = require('../format');
 const domain = require('../../lib/domain');
 
 describe('fmtH', () => {
@@ -27,6 +27,5 @@ describe('fmtH', () => {
 describe('format shared domain wrappers', () => {
   test('CLI format reuses shared domain functions', () => {
     assert.equal(fmtH, domain.fmtH);
-    assert.equal(parseHours, domain.parseHours);
   });
 });

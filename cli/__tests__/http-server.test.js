@@ -7,12 +7,19 @@ const { createTestDb } = require('./helpers');
 const { createHttpServer } = require('../http-server');
 const { getClients, getEntries, getProjects, hasProjectEntries, setTodoistCache } = require('../../db/queries');
 
+// The demo seed writes local dates: the fixtures must too. toISOString() is UTC,
+// and in Italy just after midnight it is still the day before.
+function localDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+
 function currentWeekDate(offset) {
   const today = new Date();
   const monday = new Date(today);
   const dow = monday.getDay();
   monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1) + offset);
-  return monday.toISOString().slice(0, 10);
+  return localDate(monday);
 }
 
 function previousWeekDate(offset) {
@@ -20,7 +27,7 @@ function previousWeekDate(offset) {
   const monday = new Date(today);
   const dow = monday.getDay();
   monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1) - 7 + offset);
-  return monday.toISOString().slice(0, 10);
+  return localDate(monday);
 }
 
 function get(port, path) {
@@ -664,7 +671,9 @@ describe('HTTP server', () => {
 
   it('POST /overrides with an unknown clientId (an area name) → 400, nothing stored', async () => {
     const area = getClients()[0];
-    const weekKey = currentWeekDate(0);
+    // not the current week: on Wednesdays the demo seed puts an override on
+    // day 2 AM, the very slot this test expects to stay empty
+    const weekKey = '2020-06-15';
     const { status, body } = await post(port, '/overrides', {
       weekKey, dayIndex: 2, slot: 'am', blocks: [{ clientId: area.name, hours: 2 }],
     });
@@ -702,5 +711,18 @@ describe('HTTP server', () => {
     const { body: dst } = await post(port, '/projects', { name: 'Merge Dest 2', areaId: clients[0].id });
     const { status } = await post(port, '/projects/merge', { fromId: 'nonexistent', toId: dst.id });
     assert.equal(status, 400);
+  });
+
+  it('PUT /recurring/slot replaces the slot; an invalid block answers 400 and keeps the old blocks', async () => {
+    const area = getClients()[0];
+    const ok = await request(port, 'PUT', '/recurring/slot', { day: 4, slot: 'sera', blocks: [{ clientId: area.id, hours: 1.5 }] });
+    assert.equal(ok.status, 200);
+    assert.equal(ok.body.created.length, 1);
+    const bad = await request(port, 'PUT', '/recurring/slot', { day: 4, slot: 'sera', blocks: [{ clientId: area.name, hours: 1 }] });
+    assert.equal(bad.status, 400);
+    const rec = (await get(port, '/recurring')).body.filter(b => b.day === 4 && b.slot === 'sera');
+    assert.deepEqual(rec.map(b => b.hours), [1.5]);
+    const neg = await request(port, 'POST', '/recurring', { clientId: area.id, slot: 'am', day: 0, hours: -2 });
+    assert.equal(neg.status, 400);
   });
 });

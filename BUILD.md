@@ -6,14 +6,10 @@ Timebox is personal workflow software built for the maintainer's own timeblockin
 
 ## Requirements
 
-- Node.js 20+ (LTS recommended)
+- Node.js 22.12+ (CI uses 24)
 - npm 10+
-- Operating-system build tools:
-  - macOS: Xcode Command Line Tools
-  - Windows: Visual Studio Build Tools with Desktop development with C++
-  - Linux: C/C++ toolchain, for example `build-essential` on Debian/Ubuntu
 
-The project uses `better-sqlite3`, a native module. Build on the target operating system whenever possible.
+No C/C++ toolchain is needed: `better-sqlite3` 13 is an N-API module that ships a prebuilt binary per platform in `prebuilds/`, and the same binary loads in Node and in Electron. Package on the target operating system anyway: `build.files` in `package.json` keeps only that platform's binary, and `build/after-pack.js` fails the package if it does not contain exactly one.
 
 Current support stance: Timebox is macOS-first for the maintainer's daily workflow. Windows and Linux packages are configured and should be built on their target operating systems; platform-specific integrations are documented where they differ.
 
@@ -21,18 +17,17 @@ Current support stance: Timebox is macOS-first for the maintainer's daily workfl
 
 ```bash
 npm ci --ignore-scripts
-npm run rebuild
 ```
 
-`better-sqlite3` may not have prebuilt binaries for recent Node versions. `npm run rebuild` compiles it against Electron 31 headers.
+There is nothing to rebuild: `npm run rebuild`, the `postinstall` hook and the rebuild inside `npm test` were removed in October 2026 together with `better-sqlite3` 12. `--ignore-scripts` is what CI uses; plain `npm ci` works too.
 
 ## Development
 
 ```bash
-npm run dev
+npm start
 ```
 
-This starts the Vite dev server and Electron together.
+This starts the Vite dev server and Electron together (`npm start` runs `npm run dev`).
 
 ## Renderer Build
 
@@ -111,7 +106,8 @@ Releases are published by `.github/workflows/release.yml` when a `v*` tag is pus
 
 Local commits do not start a build. The current GitHub Actions triggers are:
 
-- `.github/workflows/ci.yml`: runs on pull requests and pushes to `main`; it validates the app with install, rebuild, tests, and renderer build.
+- `.github/workflows/ci.yml`: runs on pull requests and pushes to `main`; it validates the app with install, tests, and renderer build.
+- `.github/workflows/package-check.yml`: runs on pull requests that touch `package.json`, the lockfile or `build/`; it packages the app on macOS, Windows and Linux without publishing.
 - `.github/workflows/release.yml`: runs only on pushed tags matching `v*`; it packages and publishes macOS, Windows, and Linux release artifacts.
 
 For normal development without publishing new versions, use feature branches, commit locally as needed, and avoid pushing `v*` tags. Pushing a feature branch is safe from release publishing; opening or updating a pull request will run CI but will not create a release.
