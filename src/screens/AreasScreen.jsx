@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AREA_STATUS_OPTIONS } from './WeeklyView';
+import { fmtH } from '../utils';
+import { projectHours, projectsWithHours } from '../delete-guard';
 
 const BILLING_OPTIONS = ['none', 'hourly', 'fixed'];
 const COLORS = [
@@ -182,12 +184,19 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
   function deleteClient(id) {
     const area = clients.find(c => c.id === id);
     const areaProjects = projects.filter(p => p.clientId === id);
+    const withHours = projectsWithHours(areaProjects, workedTotals);
+    if (withHours.length > 0) {
+      window.alert(
+        `L'area "${area?.name}" ha progetti con ore registrate (${withHours.map(p => p.name).join(', ')}): ` +
+        'eliminandola le perderesti. Archivia i progetti, oppure sposta le loro ore, prima di eliminarla.'
+      );
+      return;
+    }
     const msg = areaProjects.length > 0
       ? `Eliminare l'area "${area?.name}" e i suoi ${areaProjects.length} progetti?`
       : `Eliminare l'area "${area?.name}"?`;
     if (!window.confirm(msg)) return;
-    areaProjects.forEach(p => window.api.deleteProject(p.id));
-    window.api.deleteRecurringByClient(id);
+    // deleteClient elimina anche i progetti, le ricorrenze e gli stati dell'area
     window.api.deleteClient(id);
     setProjects(prev => prev.filter(p => p.clientId !== id));
     setClients(prev => {
@@ -283,6 +292,18 @@ export default function AreasScreen({ clients, projects, setClients, setProjects
 
   function deleteProject(projectId) {
     const proj = projects.find(p => p.id === projectId);
+    const hours = projectHours(projectId, workedTotals);
+    if (hours > 0) {
+      if (proj?.archived) {
+        window.alert(`Il progetto "${proj?.name}" ha ${fmtH(hours)} registrate: eliminandolo le perderesti. Resta archiviato.`);
+        return;
+      }
+      const archive = window.confirm(
+        `Il progetto "${proj?.name}" ha ${fmtH(hours)} registrate: eliminandolo le perderesti. Archiviarlo invece?`
+      );
+      if (archive) updateProject(projectId, 'archived', true);
+      return;
+    }
     if (!window.confirm(`Eliminare il progetto "${proj?.name}"?`)) return;
     window.api.deleteProject(projectId);
     setProjects(prev => prev.filter(p => p.id !== projectId));

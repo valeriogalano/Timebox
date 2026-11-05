@@ -47,7 +47,7 @@
          spazio per un terzo. Il token resta perché è usato in molti punti. */
       --tb-text-faint:            var(--tb-text-muted);
 
-      /* Neutral state signals (theme-dependent, HANDOFF-TEMA §3) */
+      /* Neutral state signals (theme-dependent) */
       --tb-tick:                  #8a8a8a;
       --tb-bar-track:             rgba(0,0,0,0.06);
       --tb-bar-tracked:           #4a4a4a;
@@ -143,7 +143,7 @@
       --tb-scrollbar-thumb:       #444444;
       --tb-scrollbar-hover:       #555555;
 
-      /* Neutral state signals (theme-dependent, HANDOFF-TEMA §3) */
+      /* Neutral state signals (theme-dependent) */
       --tb-tick:                  #8a8a8a;
       --tb-bar-track:             rgba(255,255,255,0.07);
       --tb-bar-tracked:           #cfcfcf;
@@ -296,7 +296,6 @@
         getDbPath: async () => '/Users/demo/Documents/Timebox/timebox.db',
         selectDbFile: async () => null,
         createNewDb: async () => null,
-        saveDbCopy: async () => null,
         getTodoistToken: async () => '',
         setTodoistToken: async () => {},
         getSetting: async (key) => settings[key] ?? null,

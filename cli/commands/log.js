@@ -2,9 +2,19 @@
 
 const { randomUUID } = require('crypto');
 const { getProjects, getClients, getEntries, saveEntry, deleteEntry } = require('../../db/queries');
-const { SLOTS, currentSlot, defaultEntrySlot, fmt, getToday } = require('../../lib/domain');
+const { SLOTS, currentSlot, defaultEntrySlot, fmt, getToday, parseHoursStrict, isDateString } = require('../../lib/domain');
 const { getDaySummaryData } = require('./day-summary');
-const { parseHours, isHourly } = require('../format');
+const { isHourly } = require('../format');
+
+const MAX_DAY_HOURS = 24;
+
+function readHours(str, what) {
+  const hours = parseHoursStrict(str);
+  if (hours == null || hours < 0 || hours > MAX_DAY_HOURS) {
+    throw new Error(`Invalid hours "${str}" for ${what}: use 2, 2.5, 2:30 or 2h 30m, between 0 and ${MAX_DAY_HOURS}`);
+  }
+  return hours;
+}
 
 function findProject(name) {
   const projects = getProjects();
@@ -49,9 +59,11 @@ function resolveLogSlot({ project, dayEntries, date, add }) {
 }
 
 function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) {
+  if (!isDateString(date)) throw new Error(`Invalid date "${date}": use YYYY-MM-DD`);
   const { project, client, area } = findProject(projectName);
   if (slot && !SLOTS.includes(slot)) throw new Error(`Invalid slot "${slot}": use am, pm or sera`);
-  const parsed = parseHours(hoursStr);
+  const parsed = readHours(hoursStr, 'hours');
+  const parsedBillable = billableHoursStr != null ? readHours(billableHoursStr, 'billable hours') : null;
   const isBillable = isHourly(client);
   const dayEntries = getEntries(date, date).filter(e => e.projectId === project.id);
   const resolvedSlot = slot || resolveLogSlot({ project, dayEntries, date, add });
@@ -59,6 +71,9 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
   // Una entry per progetto, giorno e fascia: le altre fasce non si toccano.
   const existing = dayEntries.find(e => e.slot === resolvedSlot) ?? null;
   const newHours = add && existing ? existing.hours + parsed : parsed;
+  if (newHours > MAX_DAY_HOURS) {
+    throw new Error(`Invalid hours: ${newHours}h in one slot is more than ${MAX_DAY_HOURS}h`);
+  }
 
   if (newHours === 0) {
     if (existing) {
@@ -71,8 +86,8 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
   // Fuori dalle aree a ore le ore fatturabili non si impostano, ma quelle già salvate
   // restano: sono nascoste, mai cancellate (vedi billingOnSave in src/utils.js).
   let billableHours = existing?.billableHours ?? null;
-  if (isBillable && billableHoursStr != null) {
-    const parsedB = parseHours(billableHoursStr);
+  if (isBillable && parsedBillable != null) {
+    const parsedB = parsedBillable;
     billableHours = Math.abs(parsedB - newHours) < 0.001 ? null : parsedB;
   }
 

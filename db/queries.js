@@ -1,5 +1,6 @@
 const { INIT_CLIENTS, INIT_PROJECTS, INIT_RECURRING, getSeedEntries } = require('./schema');
 const { SLOTS, normalizeSlot } = require('../lib/domain');
+const { isSlot, isDayIndex, isPositiveHours, MAX_BLOCK_HOURS } = require('../lib/validate');
 const { randomUUID } = require('crypto');
 
 let db;
@@ -29,9 +30,38 @@ function saveClient(client) {
   });
 }
 
+// week_overrides keeps its blocks as JSON, with no foreign key to the area:
+// without this the blocks of a deleted area stayed in every override, hidden
+// by the UI and shown as area "?" (and counted) by the CLI and MCP. A slot left
+// without blocks stays an explicit empty override: the area was what filled it.
+function removeAreaFromOverrides(areaId) {
+  const rows = db.prepare('SELECT id, blocksJson FROM week_overrides').all();
+  const update = db.prepare('UPDATE week_overrides SET blocksJson = ? WHERE id = ?');
+  for (const row of rows) {
+    let blocks;
+    try { blocks = JSON.parse(row.blocksJson); } catch (_) { continue; }
+    if (!Array.isArray(blocks)) continue;
+    const kept = blocks.filter(b => b?.clientId !== areaId);
+    if (kept.length !== blocks.length) update.run(JSON.stringify(kept), row.id);
+  }
+}
+
+// Hours are never deleted along with their project or area: archive instead.
+// The UI asks first (src/delete-guard.js), HTTP and MCP answer 409; this is
+// the rule that holds for every path.
+class HasEntriesError extends Error {}
+
+function assertNoEntries(projectIds, what) {
+  const withEntries = projectIds.filter(projectId => hasProjectEntries(projectId));
+  if (withEntries.length > 0) {
+    throw new HasEntriesError(`${what} has logged entries: archive it or move its hours first`);
+  }
+}
+
 function deleteClient(id) {
   db.transaction(() => {
     const projectIds = db.prepare('SELECT id FROM projects WHERE clientId=?').all(id).map(row => row.id);
+    assertNoEntries(projectIds, `Area ${id}`);
     const deleteEntries = db.prepare('DELETE FROM entries WHERE projectId=?');
     const deleteImports = db.prepare('DELETE FROM todoist_imports WHERE projectId=?');
     for (const projectId of projectIds) {
@@ -39,6 +69,7 @@ function deleteClient(id) {
       deleteImports.run(projectId);
     }
     db.prepare('DELETE FROM recurring WHERE clientId=?').run(id);
+    removeAreaFromOverrides(id);
     db.prepare('DELETE FROM week_area_status WHERE areaId=?').run(id);
     db.prepare('DELETE FROM projects WHERE clientId=?').run(id);
     db.prepare('DELETE FROM clients WHERE id=?').run(id);
@@ -67,6 +98,7 @@ function saveProject(project) {
 
 function deleteProject(id) {
   db.transaction(() => {
+    assertNoEntries([id], `Project ${id}`);
     db.prepare('DELETE FROM entries WHERE projectId=?').run(id);
     db.prepare('DELETE FROM todoist_imports WHERE projectId=?').run(id);
     db.prepare('DELETE FROM projects WHERE id=?').run(id);
@@ -75,6 +107,13 @@ function deleteProject(id) {
 
 function hasProjectEntries(id) {
   return db.prepare('SELECT COUNT(*) as c FROM entries WHERE projectId = ?').get(id).c > 0;
+}
+
+// Two entries merged into one are billed only if both were: hours that were
+// never invoiced must not disappear from Rendiconto under a billed flag.
+// Shared by mergeProjectEntries and moveEntrySlot.
+function mergeBilled(a, b) {
+  return a === 1 && b === 1 ? 1 : 0;
 }
 
 function mergeBillable(aBillable, aHours, bBillable, bHours) {
@@ -99,12 +138,18 @@ function mergeProjectEntries(fromId, toId, deleteSource = true) {
       ).get(toId, e.date, e.slot);
       if (existing) {
         const mergedBillable = mergeBillable(existing.billableHours, existing.hours, e.billableHours, e.hours);
-        db.prepare('UPDATE entries SET hours = ?, billableHours = ? WHERE id = ?').run(existing.hours + e.hours, mergedBillable, existing.id);
+        db.prepare('UPDATE entries SET hours = ?, billableHours = ?, billed = ? WHERE id = ?')
+          .run(existing.hours + e.hours, mergedBillable, mergeBilled(existing.billed, e.billed), existing.id);
         db.prepare('DELETE FROM entries WHERE id = ?').run(e.id);
       } else {
         db.prepare('UPDATE entries SET projectId = ? WHERE id = ?').run(toId, e.id);
       }
     }
+    // The import ledger follows the hours: left on the source it is deleted with
+    // it (ON DELETE CASCADE), the task looks never imported and the next
+    // "Importa completati" adds its hours a second time. Undoing an import must
+    // also find the entry where its hours now are.
+    db.prepare('UPDATE todoist_imports SET projectId = ? WHERE projectId = ?').run(toId, fromId);
     if (deleteSource) db.prepare('DELETE FROM projects WHERE id = ?').run(fromId);
   })();
   return { count };
@@ -237,6 +282,34 @@ function saveRecurring(r) {
   `).run({ position: 0, ...r });
 }
 
+// Single entry point for "replace one day+slot of the template": validate every
+// block, freeze, then replace, all in one transaction (nothing is deleted if a block is invalid).
+function replaceRecurringSlot(day, slot, blocks) {
+  // the same checks as POST /recurring (lib/validate.js)
+  if (!isDayIndex(day)) throw new Error(`Invalid day "${day}": use 0 (Mon) to 6 (Sun)`);
+  if (!isSlot(slot)) throw new Error(`Invalid slot "${slot}": use am, pm or sera`);
+  if (!Array.isArray(blocks)) throw new Error('Invalid blocks: expected an array');
+  return db.transaction(() => {
+    const areas = new Set(db.prepare('SELECT id FROM clients').all().map(c => c.id));
+    for (const b of blocks) {
+      if (!areas.has(b?.clientId)) throw new Error(`Area not found: ${b?.clientId}`);
+      if (!isPositiveHours(Number(b.hours))) {
+        throw new Error(`Invalid hours "${b?.hours}": must be above 0 and up to ${MAX_BLOCK_HOURS}`);
+      }
+    }
+    const current = getRecurring();
+    freezeWeeksBeforeRecurringChange(current);
+    db.prepare('DELETE FROM recurring WHERE day=? AND slot=?').run(day, slot);
+    const insert = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours,position) VALUES (?,?,?,?,?,?)');
+    const created = blocks.map((b, i) => {
+      const id = randomUUID();
+      insert.run(id, b.clientId, slot, day, Number(b.hours), i);
+      return { id, clientId: b.clientId, slot, day, hours: Number(b.hours), position: i };
+    });
+    return { removed: current.filter(r => r.day === day && r.slot === slot).length, created };
+  })();
+}
+
 function deleteRecurring(id) {
   freezeWeeksBeforeRecurringChange(getRecurring());
   db.prepare('DELETE FROM recurring WHERE id=?').run(id);
@@ -306,7 +379,7 @@ function moveEntrySlot(id, slot) {
       ...target,
       hours: target.hours + entry.hours,
       billableHours: mergeBillable(target.billableHours, target.hours, entry.billableHours, entry.hours),
-      billed: target.billed === 1 && entry.billed === 1 ? 1 : 0,
+      billed: mergeBilled(target.billed, entry.billed),
     };
     db.prepare('UPDATE entries SET hours = ?, billableHours = ?, billed = ? WHERE id = ?')
       .run(merged.hours, merged.billableHours, merged.billed, target.id);
@@ -378,7 +451,9 @@ function addImportedHours(projectId, date, slot, hours) {
   const existingBillable = hasBillableOverride
     ? matches.reduce((sum, entry) => sum + (entry.billableHours ?? entry.hours), 0)
     : null;
-  const billed = matches.every(entry => entry.billed === 1) ? 1 : 0;
+  // the imported hours were never invoiced: an entry that grows is no longer
+  // billed, or those hours would vanish from Rendiconto (as in mergeBilled)
+  const billed = 0;
   db.prepare(`
     UPDATE entries
     SET hours = ?, billableHours = ?, slot = ?, billed = ?
@@ -407,11 +482,19 @@ function subtractImportedHours(projectId, date, slot, hours) {
     return;
   }
 
+  // A billable override is an absolute value: adding imported hours leaves it
+  // alone, and so does removing them. An override below the worked hours was a
+  // reduction, so it is capped at the hours still worked (3.5h billable on an
+  // entry back to 3h becomes 3h). One at or above them is deliberate (a minimum,
+  // a round-up) and stays.
+  const nextBillable = existingBillable != null && existingBillable < existingHours - 0.001
+    ? Math.min(existingBillable, nextHours)
+    : existingBillable;
   db.prepare(`
     UPDATE entries
     SET hours = ?, billableHours = ?
     WHERE id = ?
-  `).run(nextHours, existingBillable != null && Math.abs(existingBillable - nextHours) > 0.001 ? existingBillable : null, first.id);
+  `).run(nextHours, nextBillable != null && Math.abs(nextBillable - nextHours) > 0.001 ? nextBillable : null, first.id);
   for (const duplicate of matches.slice(1)) deleteEntryStmt.run(duplicate.id);
 }
 
@@ -428,8 +511,14 @@ function updateTodoistImport(todoistImport) {
     });
     if (!(next.hours > 0)) return { updated: false, error: 'invalid_hours' };
 
-    subtractImportedHours(previous.projectId, previous.date, previous.slot, previous.hours);
-    addImportedHours(next.projectId, next.date, next.slot, next.hours);
+    // editing only the title or the note moves no hours: leave the entry, and
+    // its billed state, alone
+    const movesHours = previous.projectId !== next.projectId || previous.date !== next.date
+      || previous.slot !== next.slot || Math.abs(previous.hours - next.hours) > 0.001;
+    if (movesHours) {
+      subtractImportedHours(previous.projectId, previous.date, previous.slot, previous.hours);
+      addImportedHours(next.projectId, next.date, next.slot, next.hours);
+    }
 
     db.prepare(`
       UPDATE todoist_imports
@@ -592,21 +681,23 @@ function getPastWeekKeysFrom(firstWeekKey) {
   return weekKeys;
 }
 
+// Weeks to freeze: every past week from the first one with data, plus the current
+// week (frozen only up to yesterday, see below). Future weeks are never included, and
+// todoist_cache is not a signal: the sync writes it for today and future days.
 function getUsedWeekKeys() {
-  const dates = [
-    ...db.prepare('SELECT DISTINCT date FROM entries').all().map(r => r.date),
-    ...db.prepare('SELECT DISTINCT dateStr FROM todoist_cache').all().map(r => r.dateStr),
-  ];
+  const currentWeekKey = toMonday(fmtDate(new Date()));
+  const dates = db.prepare('SELECT DISTINCT date FROM entries').all().map(r => r.date);
   const explicitWeeks = db.prepare('SELECT DISTINCT weekKey FROM week_overrides').all()
     .map(r => r.weekKey)
     .filter(weekKey => toMonday(weekKey) === weekKey); // ignora chiavi non-lunedì: non devono propagarsi nel freeze
-  const seedWeeks = [...new Set([...dates.map(toMonday), ...explicitWeeks])].sort();
+  const seedWeeks = [...new Set([...dates.map(toMonday), ...explicitWeeks])].filter(w => w <= currentWeekKey).sort();
   if (!seedWeeks.length) return [];
-  return [...new Set([...getPastWeekKeysFrom(seedWeeks[0]), ...seedWeeks])].sort();
+  return [...getPastWeekKeysFrom(seedWeeks[0]), currentWeekKey];
 }
 
 function freezeWeeksBeforeRecurringChange(currentRecurring) {
-  const RECURRING_DAYS = 7;
+  const currentWeekKey = toMonday(fmtDate(new Date()));
+  const todayIndex = (new Date().getDay() + 6) % 7; // Mon=0; the current week freezes days < today
   const weekKeys = getUsedWeekKeys();
   if (!weekKeys.length) return;
 
@@ -617,7 +708,8 @@ function freezeWeeksBeforeRecurringChange(currentRecurring) {
 
   db.transaction(() => {
     for (const weekKey of weekKeys) {
-      for (let dayIndex = 0; dayIndex < RECURRING_DAYS; dayIndex++) {
+      const days = weekKey === currentWeekKey ? todayIndex : 7;
+      for (let dayIndex = 0; dayIndex < days; dayIndex++) {
         for (const slot of SLOTS) {
           const id = `${weekKey}-${dayIndex}-${slot}`;
           const blocks = currentRecurring
@@ -760,7 +852,9 @@ function seedDemoData() {
   function pd(offset) {
     const dt = new Date(prevMonday);
     dt.setDate(dt.getDate() + offset);
-    return dt.toISOString().slice(0, 10);
+    // local date, like fmtLocal: toISOString() is UTC and, with prevMonday at local
+    // midnight, east of Greenwich it fell on the day before
+    return fmtLocal(dt);
   }
 
   const now = new Date().toISOString();
@@ -845,8 +939,8 @@ function seedDemoData() {
 module.exports = {
   init,
   getClients, saveClient, deleteClient,
-  getProjects, saveProject, deleteProject, hasProjectEntries, mergeProjectEntries,
-  getRecurring, saveRecurring, deleteRecurring, deleteRecurringByClient,
+  getProjects, saveProject, deleteProject, hasProjectEntries, mergeProjectEntries, HasEntriesError,
+  getRecurring, saveRecurring, replaceRecurringSlot, deleteRecurring, deleteRecurringByClient,
   getEntries, getProjectTotals, getProjectBillableTotals, saveEntry, deleteEntry, moveEntrySlot,
   getTodoistImportIds, getTodoistImports, saveTodoistImport, updateTodoistImport, deleteTodoistImport, importCompletedTodoistTasks,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange, toMonday,
