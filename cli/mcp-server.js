@@ -182,7 +182,7 @@ const TOOLS = [
       required: ['project', 'hours'],
       properties: {
         project: { type: 'string', description: 'Project name (partial match, must be unambiguous)' },
-        hours: { type: 'string', description: 'Hours to log — "2", "2.5", or "2:30"' },
+        hours: { type: 'string', description: 'Hours to log, 0 to 24 — "2", "2.5", "2:30" or "2h 30m". "0" deletes the entry; any other text is an error.' },
         billable_hours: { type: 'string', description: 'Billable hours override (optional). Same format as hours. Defaults to identical to hours.' },
         slot: { type: 'string', enum: ['am', 'pm', 'sera'], description: 'Time slot. Default: today with add=true, the current slot; otherwise the slot the project already has that day; for a new entry the current slot today and the area\'s first planned slot (else am) on other days.' },
         date: { type: 'string', description: 'Date in YYYY-MM-DD format (default: today)' },

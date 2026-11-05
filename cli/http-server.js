@@ -39,6 +39,9 @@ function serializeWeek(data) {
 }
 
 const isDateParam = s => /^\d{4}-\d{2}-\d{2}$/.test(s ?? '');
+const { isDate, isSlot, isDayIndex, isPositiveHours, MAX_BLOCK_HOURS } = require('../lib/validate');
+const SLOT_ERROR = 'slot must be am, pm or sera';
+const DAY_ERROR = 'day must be an integer from 0 (Monday) to 6 (Sunday)';
 
 function json(res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json' });
@@ -75,36 +78,43 @@ function createHttpServer() {
 
       if (req.method === 'GET' && p === '/today') {
         const date = q.get('date') || fmt(getToday());
+        if (!isDate(date)) return json(res, 400, { error: 'date must be a YYYY-MM-DD day' });
         return json(res, 200, getTodayData(date));
       }
 
       if (req.method === 'GET' && p === '/day-summary') {
         const date = q.get('date') || fmt(getToday());
+        if (!isDate(date)) return json(res, 400, { error: 'date must be a YYYY-MM-DD day' });
         return json(res, 200, getDaySummaryData(date));
       }
 
       if (req.method === 'GET' && p === '/day-free-capacity') {
         const date = q.get('date') || fmt(getToday());
+        if (!isDate(date)) return json(res, 400, { error: 'date must be a YYYY-MM-DD day' });
         return json(res, 200, getDayFreeCapacityData(date));
       }
 
       if (req.method === 'GET' && p === '/day-ready-blocks') {
         const date = q.get('date') || fmt(getToday());
+        if (!isDate(date)) return json(res, 400, { error: 'date must be a YYYY-MM-DD day' });
         return json(res, 200, getDayReadyBlocksData(date));
       }
 
       if (req.method === 'GET' && p === '/todoist-imported') {
         const date = q.get('date') || fmt(getToday());
+        if (!isDate(date)) return json(res, 400, { error: 'date must be a YYYY-MM-DD day' });
         return json(res, 200, getImportedTodoistTasksData(date));
       }
 
       if (req.method === 'GET' && p === '/day-mismatches') {
         const date = q.get('date') || fmt(getToday());
+        if (!isDate(date)) return json(res, 400, { error: 'date must be a YYYY-MM-DD day' });
         return json(res, 200, getDayMismatchesData(date));
       }
 
       if (req.method === 'GET' && p === '/day/insights') {
         const date = q.get('date') || fmt(getToday());
+        if (!isDate(date)) return json(res, 400, { error: 'date must be a YYYY-MM-DD day' });
         return json(res, 200, getDayInsightsData(date));
       }
 
@@ -267,7 +277,10 @@ function createHttpServer() {
 
       if (req.method === 'POST' && p === '/recurring') {
         const { id, clientId, slot, day, hours, position } = await readBody(req);
-        if (!clientId || !slot || day == null || !(Number(hours) > 0)) return json(res, 400, { error: 'clientId, slot, day and hours are required' });
+        if (!clientId || !slot || day == null || !hours) return json(res, 400, { error: 'clientId, slot, day and hours are required' });
+        if (!isSlot(slot)) return json(res, 400, { error: SLOT_ERROR });
+        if (!isDayIndex(day)) return json(res, 400, { error: DAY_ERROR });
+        if (!isPositiveHours(hours)) return json(res, 400, { error: `hours must be a number above 0 and up to ${MAX_BLOCK_HOURS}` });
         const client = getClients().find(c => c.id === clientId);
         if (!client) return json(res, 400, { error: `Area not found: ${clientId}` });
         const rid = id || randomUUID();
@@ -294,8 +307,12 @@ function createHttpServer() {
         const { weekKey, dayIndex, slot, blocks } = await readBody(req);
         if (!weekKey || dayIndex == null || !slot || !Array.isArray(blocks))
           return json(res, 400, { error: 'weekKey, dayIndex, slot and blocks[] are required' });
-        if (toMonday(weekKey) !== weekKey)
+        if (!isDate(weekKey) || toMonday(weekKey) !== weekKey)
           return json(res, 400, { error: 'weekKey must be the Monday (YYYY-MM-DD) of the target week' });
+        if (!isDayIndex(dayIndex)) return json(res, 400, { error: 'dayIndex must be an integer from 0 (Monday) to 6 (Sunday)' });
+        if (!isSlot(slot)) return json(res, 400, { error: SLOT_ERROR });
+        if (blocks.some(b => !isPositiveHours(b?.hours)))
+          return json(res, 400, { error: `every block needs hours above 0 and up to ${MAX_BLOCK_HOURS}` });
         // Same check as POST /recurring: an unknown clientId (typically an area name
         // passed instead of its id) would be stored and later show up as area "?".
         const areaIds = new Set(getClients().map(c => c.id));
@@ -311,6 +328,10 @@ function createHttpServer() {
         const day  = q.get('day');
         const slot = q.get('slot');
         if (!week || day == null || !slot) return json(res, 400, { error: 'week, day and slot query params required' });
+        if (!isDate(week) || toMonday(week) !== week)
+          return json(res, 400, { error: 'week must be the Monday (YYYY-MM-DD) of the target week' });
+        if (!/^\d+$/.test(day) || !isDayIndex(Number(day))) return json(res, 400, { error: DAY_ERROR });
+        if (!isSlot(slot)) return json(res, 400, { error: SLOT_ERROR });
         deleteWeekOverride(week, Number(day), slot);
         emitter.emit('change', 'structure');
         return json(res, 200, { weekKey: week, dayIndex: Number(day), slot });
@@ -335,7 +356,8 @@ function createHttpServer() {
 
       json(res, 404, { error: 'Not found' });
     } catch (err) {
-      const clientError = ['No project', 'Ambiguous', 'Invalid slot', 'Invalid day', 'Invalid hours', 'Invalid blocks', 'Area not found'].some(text => err.message?.includes(text));
+      const clientError = ['No project', 'Ambiguous', 'Invalid slot', 'Invalid day', 'Invalid hours', 'Invalid blocks', 'Invalid date', 'Area not found']
+        .some(text => err.message?.includes(text));
       json(res, clientError ? 400 : 500, { error: err.message });
     }
   });

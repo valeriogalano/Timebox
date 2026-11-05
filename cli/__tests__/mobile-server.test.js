@@ -8,6 +8,13 @@ const { createTestDb } = require('./helpers');
 const { createMobileServer, tokenMatches } = require('../../lib/mobile-server');
 const { getMobileDayData, saveMobileHours, moveMobileSlot, isDate } = require('../commands/mobile');
 const { getEntries, getProjects } = require('../../db/queries');
+const { currentSlot } = require('../../lib/domain');
+
+// The first save without a slot lands in the slot of the current hour. The slot
+// the later tests write to must be another one, or after 18:00 both are 'sera'
+// and the second save overwrites the first. 'pm' is never OTHER: it is the
+// destination of the move below.
+const OTHER = currentSlot() === 'sera' ? 'am' : 'sera';
 
 const TOKEN = 'token-di-prova';
 const DATE = '2031-03-04';
@@ -162,9 +169,9 @@ describe('listener della pagina mobile', () => {
 
   it('PUT /api/hours con la fascia scrive solo quella; PUT /api/slot sposta e avvisa l\'app', async () => {
     const before = changes;
-    const hours = await call(port, 'PUT', '/api/hours', { body: { projectId: project.id, date: DATE, clock: '0:30', slot: 'sera' } });
+    const hours = await call(port, 'PUT', '/api/hours', { body: { projectId: project.id, date: DATE, clock: '0:30', slot: OTHER } });
     assert.equal(hours.status, 200);
-    assert.equal(hours.json().slot, 'sera');
+    assert.equal(hours.json().slot, OTHER);
     assert.equal(getEntries(DATE, DATE).filter(e => e.projectId === project.id).length, 2, 'la entry di prima resta');
     const bad = await call(port, 'PUT', '/api/hours', { body: { projectId: project.id, date: DATE, clock: '0:30', slot: 'notte' } });
     assert.equal(bad.status, 400);
@@ -172,9 +179,9 @@ describe('listener della pagina mobile', () => {
     // oggi (today() = DATE) il primo salvataggio è finito nella fascia dell'ora corrente: il
     // pomeriggio può avere ore o no, a seconda di quando gira il test
     const pmBefore = getEntries(DATE, DATE).find(e => e.projectId === project.id && e.slot === 'pm')?.hours ?? 0;
-    const moved = await call(port, 'PUT', '/api/slot', { body: { projectId: project.id, date: DATE, from: 'sera', to: 'pm' } });
+    const moved = await call(port, 'PUT', '/api/slot', { body: { projectId: project.id, date: DATE, from: OTHER, to: 'pm' } });
     assert.equal(moved.status, 200);
-    assert.deepEqual(moved.json(), { projectId: project.id, date: DATE, from: 'sera', to: 'pm' });
+    assert.deepEqual(moved.json(), { projectId: project.id, date: DATE, from: OTHER, to: 'pm' });
     assert.equal(getEntries(DATE, DATE).find(e => e.projectId === project.id && e.slot === 'pm').hours, pmBefore + 0.5);
     assert.equal(changes, before + 2);
   });
@@ -183,7 +190,7 @@ describe('listener della pagina mobile', () => {
     const before = changes;
     const body = { projectId: project.id, date: DATE, from: 'pm', to: 'am' };
     assert.equal((await call(port, 'PUT', '/api/slot', { token: 'sbagliato', body })).status, 401);
-    assert.equal((await call(port, 'PUT', '/api/slot', { body: { ...body, from: 'sera' } })).status, 404);
+    assert.equal((await call(port, 'PUT', '/api/slot', { body: { ...body, from: OTHER } })).status, 404);
     assert.equal((await call(port, 'PUT', '/api/slot', { body: { ...body, to: 'x' } })).status, 400);
     assert.equal((await call(port, 'PUT', '/api/slot', { rawBody: '{non json' })).status, 400);
     assert.equal((await call(port, 'GET', '/api/slot')).status, 404);
