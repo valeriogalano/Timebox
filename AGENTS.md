@@ -352,7 +352,7 @@ When the last block is removed from a slot in Settimana, the code saves an expli
 
 A missing row still means "use the recurring template". Rows are deleted only on purpose: "Ripristina template" (`resetWeekToTemplate`), `DELETE /overrides` and the MCP `clear_week_override`.
 
-One exception: deleting an area (`deleteClient` → `removeAreaFromOverrides`) drops its blocks from every override, and a slot left without blocks stays an explicit `[]`. Most of those rows are frozen past weeks, and falling back to today's template would rewrite a plan that already happened.
+Deleting an area follows the same rule: `deleteClient` → `removeAreaFromOverrides` drops its blocks from every override, and a slot left without blocks stays an explicit `[]`. Most of those rows are frozen past weeks, and falling back to today's template would rewrite a plan that already happened.
 
 ### Extra Blocks
 
