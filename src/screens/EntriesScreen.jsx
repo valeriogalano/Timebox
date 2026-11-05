@@ -246,7 +246,7 @@ export default function EntriesScreen({ clients, projects, onEntryChange }) {
                         const eff = effBillable(entry);
                         const diverges = entry.billableHours != null && Math.abs(entry.billableHours - entry.hours) > 0.001;
                         return (
-                          <span title={diverges ? `Tracciate: ${fmtH(entry.hours)}` : undefined}>
+                          <span title={diverges ? `Lavorate: ${fmtH(entry.hours)}` : undefined}>
                             {fmtH(eff)}
                             {diverges && <span className="tb-divergent" style={{ marginLeft: 5 }}>◇</span>}
                           </span>

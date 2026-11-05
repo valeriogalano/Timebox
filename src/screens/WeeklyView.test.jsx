@@ -92,7 +92,7 @@ describe('WeeklyView / la cella del giorno ha solo ore', () => {
     const { findByTitle, container } = renderWeek(client);
     const cell = await waitFor(() => cellWith(container, '1h') ?? Promise.reject(new Error('cell')));
     fireEvent.mouseEnter(cell);
-    fireEvent.click(await findByTitle('Resetta override · usa il valore tracciato'));
+    fireEvent.click(await findByTitle('Resetta override · usa il valore lavorato'));
     await waitFor(() => expect(calls.saved).toHaveLength(1));
     expect(calls.saved[0]).toMatchObject({ id: 'e1', hours: 2, billableHours: null });
     localStorage.removeItem('timebox-timesheet-view');

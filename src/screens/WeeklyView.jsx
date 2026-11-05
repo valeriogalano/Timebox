@@ -963,7 +963,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                     {rowDivergent && (
                       <DivergenceDot
                         tooltip={viewMode === 'billable'
-                          ? `Tracciate: ${fmtH(weekTotalTracked)}`
+                          ? `Lavorate: ${fmtH(weekTotalTracked)}`
                           : `Fatturabili: ${fmtH(weekTotalBillable)}`}
                       />
                     )}
@@ -1002,7 +1002,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 {d.dayDivergent && (
                   <DivergenceDot
                     tooltip={viewMode === 'billable'
-                      ? `Tracciate: ${fmtH(d.dayHours)}`
+                      ? `Lavorate: ${fmtH(d.dayHours)}`
                       : `Fatturabili: ${fmtH(d.dayBillable)}`}
                   />
                 )}
@@ -1020,7 +1020,7 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
             {weekDivergent && (
               <DivergenceDot
                 tooltip={viewMode === 'billable'
-                  ? `Tracciate: ${fmtH(weekActual)}`
+                  ? `Lavorate: ${fmtH(weekActual)}`
                   : `Fatturabili: ${fmtH(weekBillable)}`}
               />
             )}
@@ -1348,7 +1348,7 @@ function TemplateDivergencePanel({ summary, clients, onRestore, onClose }) {
 
 function ViewModeToggle({ value, onChange }) {
   const opts = [
-    { key: 'tracked',  label: 'Ore tracciate' },
+    { key: 'tracked',  label: 'Ore lavorate' },
     { key: 'billable', label: 'Ore fatturabili' },
   ];
   return (
@@ -1362,7 +1362,7 @@ function ViewModeToggle({ value, onChange }) {
             data-on={active ? 'true' : 'false'}
             aria-pressed={active}
             onClick={() => onChange(o.key)}
-            title="Alterna tra Ore tracciate e Ore fatturabili · ⌘⇧V"
+            title="Alterna tra Ore lavorate e Ore fatturabili · ⌘⇧V"
             style={idx > 0 ? { borderLeft: '1px solid var(--tb-border-mid)' } : undefined}
           >
             {o.label}
@@ -1444,7 +1444,7 @@ function CapacityMirror({ actual, planned, billable, extra, futureHours = 0, onN
           <span style={{ fontSize: 19, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em' }}>{fmtH(actual)}</span>{' '}
           <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(planned)}</span>
           <span
-            title={'Consuntivo della settimana fino a oggi (come in Andamento): ore tracciate sul totale pianificato, e la percentuale di piano coperta.\n\nSotto:\nFatt. = quota fatturabile\nNF = quota non fatturabile\nExtra = ore fatte oltre il piano\n\nLa freccia apre l\'Andamento.'}
+            title={'Ore lavorate nella settimana fino a oggi (come in Andamento): ore lavorate sul piano, e la percentuale di piano coperta.\n\nSotto:\nFatt. = quota fatturabile\nNF = quota non fatturabile\nExtra = ore fatte oltre il piano\n\nLa freccia apre l\'Andamento.\n\nVedi Guida → Settimana.'}
             style={{ alignSelf: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 11, cursor: 'help', letterSpacing: 0 }}
           >?</span>
         </span>

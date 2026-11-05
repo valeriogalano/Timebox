@@ -22,6 +22,6 @@ describe('SlotCapacityBar', () => {
   test('title describes planned and logged hours', () => {
     const { container } = render(<SlotCapacityBar plannedHours={2} loggedHours={3} capacityHours={4} />);
     const bar = container.querySelector('[title]');
-    expect(bar.getAttribute('title')).toMatch(/Pianificate 2h, tracciate 3h/);
+    expect(bar.getAttribute('title')).toMatch(/Piano 2h, lavorate 3h/);
   });
 });

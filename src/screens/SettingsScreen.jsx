@@ -212,7 +212,7 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
               Capacità per slot
             </div>
             <div style={{ fontSize: 11, color: 'var(--tb-text-muted)' }}>
-              Target delle barre di capacità in Settimana, Giorno e Ricorrenza.
+              Ore che una fascia può contenere, per le barre in Settimana, Giorno e Ricorrenza (Guida → Capacità).
               Giornata: {fmtH(dayCapacityHours(slotCapacityDraft))}
             </div>
           </div>

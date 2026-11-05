@@ -141,6 +141,8 @@ TimeBox/
       log.js
     __tests__/
       *.test.js     node:test coverage for commands, HTTP, MCP, and Todoist ordering
+  docs/
+    guida.md        The in-app Guide (Italian): concepts, screens, glossary. Bundled into the renderer
   mobile/           The mobile page served by lib/mobile-server.js (plain HTML/CSS/JS, no build step)
   public/
     fonts/          OpenSans-Variable.woff2
@@ -158,6 +160,8 @@ TimeBox/
       RecurringScreen.jsx
       TodoistImportScreen.jsx
       SettingsScreen.jsx
+      GuideScreen.jsx   renders docs/guida.md
+    guide-markdown.js   block parser behind GuideScreen (headings, paragraphs, nested bullets)
     components/
       PlanningCell.jsx
       ExtraCell.jsx
@@ -305,7 +309,7 @@ A `timebox.db` sitting in the repository root is **not** the app's database — 
 - Loads `clients`, `projects`, and `recurring` on mount.
 - Holds navigation state: `screen`, `weekOffset`, and theme.
 - Refreshes shared data on `db:changed` events.
-- Renders `DayScreen`, `WeeklyView`, `ProgressScreen`, `BillingScreen`, `AreasScreen`, `RecurringScreen`, `EntriesScreen`, `TodoistImportScreen`, and `SettingsScreen`.
+- Renders `DayScreen`, `WeeklyView`, `ProgressScreen`, `BillingScreen`, `AreasScreen`, `RecurringScreen`, `EntriesScreen`, `TodoistImportScreen`, `SettingsScreen` and `GuideScreen`.
 
 ### WeeklyView.jsx
 
@@ -323,7 +327,7 @@ A `timebox.db` sitting in the repository root is **not** the app's database — 
 
 - These screens load their own entry/cache ranges when opened.
 - Billing respects `billableHours` when present and `billed` state on entries.
-- TodoistImportScreen shows all cached rows grouped by date with the latest sync timestamp.
+- TodoistImportScreen shows the ledger of imported completed tasks (`todoist_imports`) grouped by date; editing a row moves its hours, deleting it subtracts them.
 
 ---
 
@@ -342,7 +346,7 @@ Editing the weekly view must not mutate the `recurring` table.
 
 Logged hours have no slot. There is one entry per project and day (unique index `idx_entries_project_date` on `entries(projectId, date)`); slots (AM, PM, Sera) belong to planned blocks only (`recurring`, `week_overrides`), which also give Todoist tasks their time of day.
 
-- **Where hours are written.** Settimana (the day cell), Giorno → Ore (one row per project), Registro, quick log (⌘L, `Acme +1h`), the iPhone page, `log_hours` / `POST /log` / `timebox log`, and the Todoist completed-task import. All of them read and write the project's single entry for that day: `planDayEntrySave` (`src/dayPlanning.js`, twin in `lib/domain.js`) for the screens and the phone, `logHours` for the CLI and MCP, `addImportedHours` / `subtractImportedHours` for imports (matched on project and date).
+- **Where hours are written.** Settimana (the day cell), Giorno → Ore (one row per project), Registro, quick log (the Q key, `Acme +1h`), the iPhone page, `log_hours` / `POST /log` / `timebox log`, and the Todoist completed-task import. All of them read and write the project's single entry for that day: `planDayEntrySave` (`src/dayPlanning.js`, twin in `lib/domain.js`) for the screens and the phone, `logHours` for the CLI and MCP, `addImportedHours` / `subtractImportedHours` for imports (matched on project and date).
 - **Moving an entry onto a day the project already has.** `saveEntry` (`db/queries.js`) merges the two, like `mergeProjectEntries`: hours summed, billable hours summed as effective values (`mergeBillable`), billed only if both were (`mergeBilled`). This happens when the date or the project of an entry is changed in Registro.
 - **Block filling** is how logged hours relate to slots: `fillPlannedBlocks` (`src/dayPlanning.js`, twin in `lib/domain.js`) spreads an area's hours for the day over its blocks in slot order. `slotLogged` in `computeDayPlanning`, `slots[slot].trackedByArea` and `trackedHours` in `getDaySummaryData`, `coveredHours` in `plan_vs_tracked`, remaining capacity, extra blocks and the `day_*` diagnostics all come from that fill. It says how much of the plan is covered, not when the work happened.
 - **The migration** (`mergeSameDayEntries` in `db/schema.js`, run by `initDb` at every start). Entries of the same project on the same day are merged into the oldest row: hours summed, billable hours summed as effective values (`billableHours ?? hours`) and stored as `null` when the sum equals the hours, billed only if all were. Then `idx_entries_project_date_slot` is dropped and `idx_entries_project_date` created, and the `slotsTrackedSince` setting is deleted. When there is something to merge, the database is first copied next to its file as `<name>-before-entry-merge-<UTC timestamp>.db` with `VACUUM INTO` (a consistent copy that includes the `-wal` content; better-sqlite3's `db.backup()` is asynchronous and `initDb` is not); if the copy fails, nothing is merged. A merged database has no duplicates, so later starts neither copy nor change anything. The import ledger (`todoist_imports`) points at entries by project and date, so it needs no change.
@@ -473,7 +477,14 @@ Used by the recurring screen. It wraps recurring block rows and manages the inli
 
 ### MarkdownText
 
-Dependency-free inline Markdown renderer used for Todoist task text. Supports bold, italic, code, strikethrough, and links rendered as text.
+Dependency-free inline Markdown renderer used for Todoist task text and, inside the blocks `src/guide-markdown.js` produces, for the Guide. Supports bold, italic, code, strikethrough, and links rendered as text.
+
+### GuideScreen and the Guide
+
+`docs/guida.md` is the in-app Guide ("Guida", last item of the sidebar, so ⌘1–9 keep their screens). It is Italian, explains Timebox only (not the planning routines), and is imported as raw text (`docs/guida.md?raw`), so it ships inside the renderer bundle with no runtime file access. `parseGuide` (`src/guide-markdown.js`, tested in `src/__tests__/guide-markdown.test.js`) turns it into blocks and `GuideScreen` renders them; no Markdown dependency. It handles `#`/`##`/`###`, paragraphs and `-` lists with one nesting level, nothing else: tables, quotes, numbered lists and code fences need a new block type in the parser first.
+
+- **The glossary is the single source of the words** used in the UI, help texts and agent skills. Do not define a term anywhere else; point at it. Rules that follow from it: hours are "ore lavorate" (not "tracciate", "svolte", "reali"), "capacità" only means the per-slot hours of Settings, "ritmo" only means the measured pace in In prospettiva, the hours of the blocks are "piano".
+- **Help texts point to the Guide** where a longer explanation exists, as `Vedi Guida → <heading>`. A test checks that every such pointer matches a heading of the Guide, so renaming a heading means updating the pointers.
 
 ---
 
@@ -525,6 +536,10 @@ Update handling is split by platform in `main.js` (`app.whenReady`):
 
 ## Adding Features
 
+### Update the Guide in the Same PR
+
+Every pull request that changes a screen, a panel or a calculation updates `docs/guida.md` in the same PR, like `CHANGELOG.md`: the concept if a number is computed differently, the screen section if a panel appears, disappears or answers something else, the glossary if a word changes. Help texts and labels use the glossary's words (see *GuideScreen and the Guide*). Verify what you write against the code, not against memory or old docs.
+
 ### Extract the Logic Before Changing a Screen
 
 The screens are large and barely covered by tests (`WeeklyView.jsx` is over 1500 lines), and the same rule has ended up copied across several of them more than once. There is no plan to refactor the whole app. Instead, every change that touches a rule inside a screen moves that rule out first:
@@ -551,6 +566,7 @@ Do this only for the logic the change actually touches. A feature is not a licen
 2. Add a `NAV_ITEMS` entry in `src/App.jsx`.
 3. Add conditional rendering in App's content area.
 4. Add a 15x15 inline SVG icon in `App.jsx`, matching the existing pattern.
+5. Add its section to `docs/guida.md`.
 
 ### New Query
 

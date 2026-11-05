@@ -200,14 +200,14 @@ export default function TimeCell({
       {!editing && divergent && (
         <DivergenceDot
           tooltip={inBillableView
-            ? `Tracciate: ${fmtH(hours)}`
+            ? `Lavorate: ${fmtH(hours)}`
             : `Fatturabili: ${fmtH(billable)}`}
         />
       )}
       {!editing && hover && divergent && inBillableView && (
         <button
           onClick={handleReset}
-          title="Resetta override · usa il valore tracciato"
+          title="Resetta override · usa il valore lavorato"
           style={{
             position: 'absolute', bottom: 2, left: 2,
             background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-border)',

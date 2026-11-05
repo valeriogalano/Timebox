@@ -14,6 +14,7 @@ import RecurringScreen from './screens/RecurringScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import EntriesScreen from './screens/EntriesScreen';
 import TodoistImportScreen from './screens/TodoistImportScreen';
+import GuideScreen from './screens/GuideScreen';
 import { SLOT_CAPACITY_SETTING_KEY, normalizeSlotCapacity } from './slot-capacity';
 import { MINUTES_THRESHOLD_SETTING_KEY, DEFAULT_MINUTES_THRESHOLD, setMinutesThreshold } from './hours-threshold';
 
@@ -27,6 +28,8 @@ const NAV_ITEMS = [
   { id: 'areas',      label: 'Aree',            icon: ClientsIcon   },
   { id: 'recurring',  label: 'Ricorrenza',      icon: RepeatIcon    },
   { id: 'settings',   label: 'Impostazioni',    icon: SettingsIcon  },
+  // Ultima: ⌘1–9 restano sulle prime nove schermate.
+  { id: 'guide',      label: 'Guida',           icon: GuideIcon     },
 ];
 
 function TodayIcon()    { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 4v3.6l2.4 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
@@ -35,6 +38,7 @@ function ChartIcon()    { return <svg width="15" height="15" viewBox="0 0 15 15"
 function ClientsIcon()  { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="2" y="4" width="11" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 4V2.5C5 1.67 5.67 1 6.5 1H8.5C9.33 1 10 1.67 10 2.5V4" stroke="currentColor" strokeWidth="1.4"/><path d="M2 7.5h11" stroke="currentColor" strokeWidth="1.4"/></svg>; }
 function RepeatIcon()   { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="1" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 5h13M1 9h13" stroke="currentColor" strokeWidth="1.2"/><path d="M5 5v9M10 5v9" stroke="currentColor" strokeWidth="1.2"/></svg>; }
 function SettingsIcon() { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 1v1.5M7.5 12.5V14M14 7.5h-1.5M2.5 7.5H1M11.7 3.3l-1.1 1.1M4.4 10.6l-1.1 1.1M11.7 11.7l-1.1-1.1M4.4 4.4 3.3 3.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
+function GuideIcon()    { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 2.5C2 1.67 2.67 1 3.5 1H12v11H3.5C2.67 12 2 12.67 2 13.5V2.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M2 13.5C2 14.33 2.67 14 3.5 14H12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function ListIcon()     { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M3 4h9M3 7.5h9M3 11h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function TodoistIcon()   { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7.5l1.8 1.8L10 5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function BillingIcon()  { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="2" width="13" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1 5.5h13" stroke="currentColor" strokeWidth="1.2"/><path d="M4 9h2M9 9h2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
@@ -468,6 +472,7 @@ export default function App() {
             <EntriesScreen clients={clients} projects={projects} onEntryChange={refreshSidebar} />
           )}
           {screen === 'todoist-import' && <TodoistImportScreen clients={clients} projects={projects} />}
+          {screen === 'guide' && <GuideScreen />}
           {screen === 'settings' && (
             <SettingsScreen
               theme={theme}
@@ -505,17 +510,17 @@ function KeyboardHelp({ onClose }) {
     ['⌘ 1–9',   'Naviga alle schermate in ordine sidebar'],
     ['⌘ ⇧ H',  'Nascondi / mostra vuoti nel Timesheet'],
     ['⌘ ⇧ P',  'Cicla Completa / Compatta / Nascosta'],
-    ['⌘ ⇧ V',  'Alterna Ore tracciate / Ore fatturabili'],
-    ['?',        'Mostra / nasconde questa guida'],
+    ['⌘ ⇧ V',  'Alterna Ore lavorate / Ore fatturabili'],
+    ['?',        'Mostra / nasconde questa legenda'],
   ];
 
   // Legenda dei glifi di segnale. Le viste li usano al posto del colore (over/under
   // si leggono per forma, non per verde/rosso): senza legenda restano da indovinare.
   const glyphs = [
-    [<Glyph glyph="▪" size={12} className="tb-glyph" />,  'In linea col piano / col ritmo, entro il tetto'],
-    [<Glyph glyph="▴" size={12} className="tb-glyph" />,  'Sopra: sovraccarico, sopra il ritmo, oltre il tetto'],
+    [<Glyph glyph="▪" size={12} className="tb-glyph" />,  'In linea col piano, entro il tetto'],
+    [<Glyph glyph="▴" size={12} className="tb-glyph" />,  'Sopra: oltre il piano, oltre il tetto'],
     [<Glyph glyph="▴▴" size={12} className="tb-glyph" />, 'Scarto marcato in eccesso (oltre 2h o il 30% del piano)'],
-    [<Glyph glyph="▾" size={12} className="tb-glyph" />,  'Sotto: sottocarico, sotto il ritmo'],
+    [<Glyph glyph="▾" size={12} className="tb-glyph" />,  'Sotto: sotto il piano'],
     [<Glyph glyph="▾▾" size={12} className="tb-glyph" />, 'Scarto marcato in difetto (oltre 2h o il 30% del piano)'],
     [<span className="tb-glyph" style={{ fontSize: 12 }}>·</span>, 'Nessun verdetto: niente da confrontare (area ferma, nessun tetto)'],
     [<span className="tb-glyph" style={{ fontSize: 12 }}>Δ</span>, 'Giorno modificato rispetto al template ricorrente'],
