@@ -386,7 +386,9 @@ function addImportedHours(projectId, date, slot, hours) {
   const existingBillable = hasBillableOverride
     ? matches.reduce((sum, entry) => sum + (entry.billableHours ?? entry.hours), 0)
     : null;
-  const billed = matches.every(entry => entry.billed === 1) ? 1 : 0;
+  // the imported hours were never invoiced: an entry that grows is no longer
+  // billed, or those hours would vanish from Rendiconto (as in mergeBilled)
+  const billed = 0;
   db.prepare(`
     UPDATE entries
     SET hours = ?, billableHours = ?, slot = ?, billed = ?
@@ -436,8 +438,14 @@ function updateTodoistImport(todoistImport) {
     });
     if (!(next.hours > 0)) return { updated: false, error: 'invalid_hours' };
 
-    subtractImportedHours(previous.projectId, previous.date, previous.slot, previous.hours);
-    addImportedHours(next.projectId, next.date, next.slot, next.hours);
+    // editing only the title or the note moves no hours: leave the entry, and
+    // its billed state, alone
+    const movesHours = previous.projectId !== next.projectId || previous.date !== next.date
+      || previous.slot !== next.slot || Math.abs(previous.hours - next.hours) > 0.001;
+    if (movesHours) {
+      subtractImportedHours(previous.projectId, previous.date, previous.slot, previous.hours);
+      addImportedHours(next.projectId, next.date, next.slot, next.hours);
+    }
 
     db.prepare(`
       UPDATE todoist_imports
