@@ -187,7 +187,7 @@ program
 // ── status ─────────────────────────────────────────────────────────────────────
 program
   .command('status')
-  .description('Quick overview: today, current week, budget and limit alerts')
+  .description('Quick overview: today, current week, budget and limit alerts, gap on weekly area targets')
   .option('--json', 'Output JSON')
   .action((opts) => {
     run(() => {
@@ -203,6 +203,10 @@ program
       if (data.alerts.length > 0) {
         console.log('\nAlerts:');
         for (const a of data.alerts) console.log(`  ⚠  ${a.label}`);
+      }
+      if (data.gapAlerts.length > 0) {
+        console.log('\nWeek targets:');
+        for (const a of data.gapAlerts) console.log(`  ⚠  ${a.label}`);
       }
     });
   });

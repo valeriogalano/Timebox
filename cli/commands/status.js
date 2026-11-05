@@ -2,6 +2,7 @@
 
 const { getEntries, getProjects, getClients, getProjectTotals, getProjectBillableTotals } = require('../../db/queries');
 const { getMondayOfWeek, addDays, fmt, effBillable, isHourly, capUsage, fmtH } = require('../format');
+const { getWeekTargetsData, weekTargetAlerts } = require('./targets');
 
 const ALERT_THRESHOLD = 0.8;
 
@@ -85,7 +86,10 @@ function getStatusData(today) {
   }
   alerts.sort((a, b) => b.pct - a.pct);
 
-  return { today, todayTotal, weekTotal, todayBillable, weekBillable, alerts };
+  // Scarto sull'obiettivo per area e avvisi sull'obiettivo, come Andamento → Settimana.
+  const gapAlerts = weekTargetAlerts(getWeekTargetsData(fmt(monday), today));
+
+  return { today, todayTotal, weekTotal, todayBillable, weekBillable, alerts, gapAlerts };
 }
 
 module.exports = { getStatusData };

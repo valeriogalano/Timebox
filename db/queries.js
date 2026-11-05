@@ -40,6 +40,7 @@ function deleteClient(id) {
     }
     db.prepare('DELETE FROM recurring WHERE clientId=?').run(id);
     db.prepare('DELETE FROM week_area_status WHERE areaId=?').run(id);
+    db.prepare('DELETE FROM week_area_targets WHERE areaId=?').run(id);
     db.prepare('DELETE FROM projects WHERE clientId=?').run(id);
     db.prepare('DELETE FROM clients WHERE id=?').run(id);
   })();
@@ -560,6 +561,29 @@ function saveWeekAreaStatus({ weekKey, areaId, status }) {
   return { weekKey, areaId, status: normalized };
 }
 
+// ── Week Area Targets ─────────────────────────────────────────────────────────
+// Append-only: ogni modifica dell'obiettivo aggiunge una riga. La prima della settimana è
+// l'obiettivo del lunedì, l'ultima quello finale (weekTargets in lib/domain.js).
+function getWeekAreaTargets(weekKey) {
+  return db.prepare(
+    'SELECT weekKey, areaId, hours, createdAt FROM week_area_targets WHERE weekKey=? ORDER BY createdAt, rowid'
+  ).all(weekKey);
+}
+
+function addWeekAreaTarget({ weekKey, areaId, hours }) {
+  if (!weekKey || !areaId) throw new Error('weekKey and areaId are required');
+  if (typeof hours !== 'number' || !Number.isFinite(hours) || hours < 0) throw new Error('Invalid hours: must be a number >= 0');
+  const last = db.prepare(
+    'SELECT hours FROM week_area_targets WHERE weekKey=? AND areaId=? ORDER BY createdAt DESC, rowid DESC LIMIT 1'
+  ).get(weekKey, areaId);
+  const createdAt = new Date().toISOString();
+  // Riscrivere lo stesso numero non è un cambio di intenzione: nessuna riga nuova.
+  if (last && Math.abs(last.hours - hours) < 0.001) return { weekKey, areaId, hours, createdAt: null };
+  db.prepare('INSERT INTO week_area_targets (id,weekKey,areaId,hours,createdAt) VALUES (?,?,?,?,?)')
+    .run(randomUUID(), weekKey, areaId, hours, createdAt);
+  return { weekKey, areaId, hours, createdAt };
+}
+
 function toMonday(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
   const day = d.getDay();
@@ -712,6 +736,7 @@ function resetAllData() {
     DELETE FROM entries;
     DELETE FROM week_overrides;
     DELETE FROM week_area_status;
+    DELETE FROM week_area_targets;
     DELETE FROM todoist_imports;
     DELETE FROM recurring;
     DELETE FROM projects;
@@ -851,6 +876,7 @@ module.exports = {
   getTodoistImportIds, getTodoistImports, saveTodoistImport, updateTodoistImport, deleteTodoistImport, importCompletedTodoistTasks,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange, toMonday,
   getWeekAreaStatuses, getWeekAreaStatusMap, saveWeekAreaStatus,
+  getWeekAreaTargets, addWeekAreaTarget,
   getSetting, setSetting, ensureSlotsTrackedSince, getSlotsTrackedSince,
   getTodoistCache, setTodoistCache, getAllTodoistCache, getImportedTodoistTasks,
   importTodoistProjects,

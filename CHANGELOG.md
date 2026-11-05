@@ -11,8 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settimana: la cella del giorno mostra in che fascia stanno le ore (`M`, `P`, `S`, o `M·P` con più fasce). Scrivere `2h +pom` mette le ore nel pomeriggio, e `+pom` da solo sposta quelle che ci sono. Un clic sul tag, o su una cella con ore su più fasce, apre le fasce del giorno: una riga per fascia, con selettore, ore e "+", come in Giorno. Le celle con più fasce non sono più in sola lettura.
 - Quick log (⌘L): la fascia si scrive dopo il tempo, `Acme +1h +pom`. Senza, resta quella dell'ora corrente.
 - iPhone: una riga per fascia, con la fascia cambiabile (le ore si spostano) e un "+ fascia" per aggiungerne un'altra.
+- Obiettivo settimanale per area. In Andamento → Settimana la tabella per area mostra obiettivo, fatto, blocchi rimasti e scarto (obiettivo − fatto − blocchi rimasti). L'obiettivo parte dalle ore del template dell'area e si cambia scrivendo un numero nella tabella; l'app tiene il primo valore della settimana e l'ultimo, e lo scarto si misura sull'ultimo. Un ⚠ segnala un obiettivo sopra il limite settimanale dell'area o un'area chiusa con un obiettivo sopra lo zero, senza bloccare.
+- HTTP e MCP: `GET`/`POST /targets` e i tool `week_targets` e `set_week_target` leggono e scrivono obiettivo e scarto per area. `status` (HTTP, CLI e MCP) riporta in `gapAlerts` le aree con uno scarto e gli avvisi sull'obiettivo.
 
 ### Changed
+- Andamento → Settimana: il verdetto per area sul Previsto contro il piano è sostituito dallo scarto sull'obiettivo. Spostare un blocco non cambia più il numero, compensare lo chiude, e togliere il blocco di oggi dopo averci lavorato dice che mancano ancora ore invece di "sovraccarico". Il Carico della settimana mostra le ore fatte sull'obiettivo totale, con blocchi rimasti e scarto; percentuale, glifo e Δ sulla capacità escono. I Limiti della settimana restano sul Previsto (fatto + blocchi rimasti).
 - iPhone: i pulsanti −15m/+15m/+1h sono sostituiti da due menu nativi, fascia e ore, che su iPhone si aprono come ruota. Le ore vanno da 0h a 12h a passi di 15 minuti. Un giorno con ore su più fasce si modifica dalla pagina, senza più l'errore che rimandava a Giorno.
 
 ### Fixed

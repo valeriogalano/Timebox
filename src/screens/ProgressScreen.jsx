@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, isHourly, SLOTS } from '../utils';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, parseHHMM, effBillable, isHourly, SLOTS } from '../utils';
 import { getEffectiveBlocks } from '../dayPlanning';
-import { forecastTodayIndex, forecastUsage, weekForecast } from '../week-forecast';
+import { forecastTodayIndex, forecastUsage } from '../week-forecast';
+import { areaGaps, templateHoursByArea, targetWarnings, weekTargets, GAP_EPSILON } from '../area-targets';
+import { withAreaStatus } from './WeeklyView';
 import { areaMix } from '../area-colors';
 import { sumByProject, usageMaps, usageOf, kindNote, fmtUsage, loadProjectTotals } from '../cap-usage';
 import { actionLabel, areaPlanFitInsights, capRunway, distributionLabel, runwaySummary, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_ORDER, RUNWAY_WINDOW, TOLERANCE_LABEL } from '../progress-insights';
@@ -63,6 +65,8 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
   const [projectTotals, setProjectTotals] = useState({});
   const [overridesByWeek, setOverridesByWeek] = useState({});
   const [trendLens, setTrendLens] = useState(initialLens || 'settimana'); // settimana | trend | prospettiva
+  const [targetRows, setTargetRows] = useState([]);
+  const [areaStatuses, setAreaStatuses] = useState({});
 
   // Deep-link (es. dallo specchietto in Settimana → Andamento/Settimana): consuma
   // l'intento una volta, così le aperture successive tornano al default.
@@ -95,6 +99,20 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
       setOverridesByWeek(byWeek);
     });
   }, [screen, fetchRange.from, fetchRange.to]);
+
+  // Obiettivi e stato delle aree della settimana selezionata.
+  const loadTargets = () => window.api.getWeekAreaTargets(currentWeekKey).then(setTargetRows);
+  useEffect(() => {
+    if (screen !== 'progress') return;
+    loadTargets();
+    window.api.getWeekAreaStatuses(currentWeekKey)
+      .then(rows => setAreaStatuses(Object.fromEntries(rows.map(r => [r.areaId, r.status]))));
+  }, [screen, currentWeekKey]);
+
+  async function saveTarget(areaId, hours) {
+    await window.api.addWeekAreaTarget({ weekKey: currentWeekKey, areaId, hours });
+    await loadTargets();
+  }
 
   // Build a lookup: projectId → clientId
   const projectClientMap = useMemo(() => {
@@ -190,23 +208,28 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
       const day = doneByDay[forecastTodayIndex(startStr, e.date)];
       day[cid] = (day[cid] ?? 0) + e.hours;
     });
-    const forecast = weekForecast({ plannedByDay, doneByDay, todayIdx });
-    const forecastByClient = {}, remainingByClient = {};
-    clients.forEach(c => {
-      const a = forecast.byArea[c.id];
-      forecastByClient[c.id] = a?.forecast ?? 0;
-      remainingByClient[c.id] = a ? a.forecast - a.done : 0;
+    // Obiettivo e scarto per area (vedi ../area-targets): scarto = obiettivo − fatto −
+    // blocchi rimasti. I blocchi rimasti sono anche il piano che resta per il Previsto dei
+    // limiti settimanali: fatto + blocchi rimasti.
+    const targets = weekTargets({
+      areaIds: clients.map(c => c.id), rows: targetRows, templateByArea: templateHoursByArea(recurring),
     });
+    const gaps = areaGaps({
+      targets: Object.fromEntries(clients.map(c => [c.id, targets[c.id].target])),
+      plannedByDay, doneByDay, todayIdx,
+    });
+    const remainingByClient = {};
+    clients.forEach(c => { remainingByClient[c.id] = gaps.byArea[c.id].remaining; });
 
     // Fatturabile a consumo, stessa definizione: fatto fatturabile + piano che resta.
     const projectionEur = billable.reduce((s, c) => s + ((billableByClient[c.id] ?? 0) + remainingByClient[c.id]) * c.rate, 0);
 
     return {
-      actualByClient, plannedByClient, forecastByClient, remainingByClient, weekUsage,
-      capacity, totalDone, totalForecast: forecast.forecast, isOpen: todayIdx <= 6,
+      actualByClient, plannedByClient, remainingByClient, weekUsage, targets, gaps,
+      capacity, totalDone, isOpen: todayIdx <= 6,
       billedDoneEur, projectionEur, billableDoneHours,
     };
-  }, [entries, periodOffset, clients, projects, projectClientMap, plannedByClientEffective, recurring, overridesByWeek, currentWeekKey]);
+  }, [entries, periodOffset, clients, projects, projectClientMap, plannedByClientEffective, recurring, overridesByWeek, currentWeekKey, targetRows]);
 
   // Build trend data (weekly)
   const trendData = useMemo(() => {
@@ -329,10 +352,6 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     return rows.sort((a, b) => (RUNWAY_ORDER.indexOf(a.band) - RUNWAY_ORDER.indexOf(b.band)) || (b.ratio - a.ratio));
   }, [clients, projects, recurring, totalUsage, entries, periodOffset]);
 
-  // Verdetto sul Previsto: a metà settimana il fatto contro il piano dell'intera
-  // settimana direbbe sempre "sotto".
-  const status  = statusFor(stats.totalForecast, stats.capacity);
-  const deltaH  = stats.totalForecast - stats.capacity;
   const label   = periodLabel(periodOffset);
   const isToday = periodOffset === 0;
 
@@ -381,7 +400,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
         </div>
         <div className="tb-seg">
           {[
-            { key: 'settimana', label: 'Settimana', help: 'Dove arrivo a fine settimana, e se sto nei limiti.\n\nPrevisto = ore fatte fino a ieri + per oggi e i giorni successivi il piano, o le ore già registrate se sono di più.\n\nCarico: verdetto sul Previsto contro la capacità.\nFatturabile a consumo: ricavo delle ore fatturabili, e quello previsto completando il piano.\nPer area: piano, fatto e previsto.\nLimiti della settimana: i tetti settimanali di aree e progetti, con ⚠ quando il Previsto li supera.\n\nA settimana chiusa il Previsto coincide con il fatto. I budget totali stanno in In prospettiva.' },
+            { key: 'settimana', label: 'Settimana', help: 'Quante ore mancano all\'obiettivo di ogni area, e se sto nei limiti.\n\nScarto = obiettivo − fatto − blocchi rimasti.\nBlocchi rimasti = per oggi il piano meno le ore già fatte (mai sotto zero), per i giorni successivi il loro piano, weekend compreso.\n\nCarico: ore fatte sull\'obiettivo totale, con blocchi rimasti e scarto.\nFatturabile a consumo: ricavo delle ore fatturabili, e quello previsto completando il piano.\nPer area: obiettivo, fatto, blocchi rimasti e scarto.\nLimiti della settimana: i tetti settimanali di aree e progetti, con ⚠ quando fatto + blocchi rimasti li supera.\n\nI budget totali stanno in In prospettiva.' },
             { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane, per scoprire la deriva del ritmo.\n\nAggregato: pianificato, svolto e capacità settimana per settimana.\nPer area: il mini-trend di ogni area.\nDa decidere: le divergenze persistenti fra piano e svolto.' },
             { key: 'prospettiva', label: 'In prospettiva', help: `I budget cumulativi bastano? Quanto manca a esaurire i tetti cumulativi, proiettato sul ritmo misurato nelle ultime ${RUNWAY_WINDOW} settimane chiuse.\n\nBudget totale dei progetti.\nLimite globale delle aree.\n\nI tetti settimanali non stanno qui: si azzerano ogni settimana, il loro margine si legge in Settimana.` },
           ].map((o, idx) => (
@@ -402,8 +421,8 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
       {/* ── Lente "Settimana" ── dove arrivo a fine settimana, e sto nei limiti? ── */}
       {trendLens === 'settimana' && (
         <>
-          <RetroSummary stats={stats} status={status} deltaH={deltaH} />
-          <AreaConsuntivo clients={clients} stats={stats} />
+          <RetroSummary stats={stats} />
+          <AreaTargets clients={withAreaStatus(clients, areaStatuses)} stats={stats} onSave={saveTarget} />
           <LimitSection title="Limiti della settimana" subtitle="nella settimana selezionata · ⚠ sul previsto"
             help={'Il tetto di ore che si azzera ogni settimana, contro le ore lavorate nella settimana selezionata.\n\nVale per le aree con limite settimanale e per i progetti con ore settimanali.\n\n⚠ quando il Previsto supera il tetto: per un\'area sono le ore fatte più il piano che resta, per un progetto le ore fatte (il piano è per area). Il margine sul previsto è nell\'aiuto del ⚠.'}
             cards={weeklyLimits} />
@@ -450,41 +469,26 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-// Lente "Settimana" → "dove arrivo a fine settimana?": carico vs capacità e fatturabile a
-// consumo. Il numero grande resta il fatto; percentuale, glifo, stato e Δ sono sul Previsto,
-// che a settimana chiusa coincide con il fatto. Serve anche la chiusura settimanale.
-function RetroSummary({ stats, status, deltaH }) {
-  const pct = stats.capacity > 0 ? Math.round(stats.totalForecast / stats.capacity * 100) : 0;
+// Lente "Settimana" → carico della settimana sull'obiettivo e fatturabile a consumo. Il
+// numero grande è il fatto, la barra lo misura sull'obiettivo totale (la somma degli
+// obiettivi per area); sotto, blocchi rimasti e scarto totali. Il dettaglio per area, dove
+// si decide cosa spostare, è nella tabella qui sotto.
+function RetroSummary({ stats }) {
+  const { target, remaining, gap } = stats.gaps;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-      {/* Carico + Stato fusi, modellati sullo specchietto capacità della Settimana */}
       <Card>
-        <CardLabel help={`Ore fatte sulla capacità della settimana, con il verdetto sul Previsto.\n\nPrevisto = fatto fino a ieri + per oggi e i giorni successivi il piano, o le ore già registrate se sono di più\n% = previsto ÷ capacità\nΔ = previsto − capacità\nStato: in linea entro ${TOLERANCE_LABEL}; fuori da lì è sotto-carico o sovraccarico\n\nA settimana chiusa il Previsto è il fatto.`}>Carico della settimana</CardLabel>
-        {/* In alto il fatto, con la sua barra. Percentuale, glifo, stato e Δ stanno sulla riga
-            del previsto: accanto al numero grande sembravano dire del fatto, e non tornavano. */}
+        <CardLabel help={'Ore fatte sull\'obiettivo della settimana, la somma degli obiettivi per area.\n\nBlocchi rimasti = per oggi il piano meno le ore già fatte (mai sotto zero), per i giorni successivi il loro piano, weekend compreso\nScarto = obiettivo − fatto − blocchi rimasti: le ore che mancano, o quelle oltre l\'obiettivo\n\nIl totale somma le aree: uno scarto positivo in un\'area e uno negativo in un\'altra si compensano. Lo scarto di ogni area è nella tabella Per area.'}>Carico della settimana</CardLabel>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
           <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
             {fmtH(stats.totalDone)}
           </span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tb-text-muted)' }}>fatte su {fmtH(stats.capacity)}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tb-text-muted)' }}>fatte su {fmtH(target)} di obiettivo</span>
         </div>
-        <CapacityBar done={stats.totalDone} capacity={stats.capacity} />
-        <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--tb-border-soft)' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}
-            title={stats.isOpen ? 'fatto fino a ieri + piano di oggi e dei giorni successivi (o le ore già registrate, se sono di più)' : undefined}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', letterSpacing: '0.02em' }}>
-              {stats.isOpen ? 'Previsto a fine settimana' : 'Settimana chiusa'}
-            </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }}>{fmtH(stats.totalForecast)}</span>
-              <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1 }} title="previsto ÷ capacità">{pct}%</span>
-              <Glyph glyph={status.glyph} size={16} className="tb-glyph" title={status.label} />
-            </span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--tb-text-muted)', fontWeight: 600 }}>
-            <span>{status.label}</span>
-            <span>Δ {deltaH >= 0 ? '+' : ''}{fmtH(deltaH)} sulla capacità</span>
-          </div>
+        <CapacityBar done={stats.totalDone} capacity={target} />
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--tb-border-soft)', display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>
+          <span>Blocchi rimasti <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{fmtH(remaining)}</span></span>
+          <span>Scarto <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{gapLabel(gap)}</span></span>
         </div>
       </Card>
 
@@ -519,66 +523,103 @@ function RetroSummary({ stats, status, deltaH }) {
   );
 }
 
-// Lente "Settimana" → per area: piano, fatto e, finché la settimana è aperta, previsto. Il
-// glifo è il verdetto sul Previsto contro il piano, e il suo aiuto dice lo scarto. Niente
-// Extra (è lo scarto positivo) né colonna Limite: i tetti settimanali hanno la loro sezione.
-function AreaConsuntivo({ clients, stats }) {
+// Scarto a parole: il segno da solo non dice se mancano ore o se sono troppe.
+function gapLabel(gap) {
+  if (gap >= GAP_EPSILON) return `mancano ${fmtH(gap)}`;
+  if (gap <= -GAP_EPSILON) return `${fmtH(-gap)} oltre`;
+  return 'in pari';
+}
+
+function warningText(w) {
+  return w.kind === 'over-weekly-limit'
+    ? `Obiettivo sopra il limite settimanale (${fmtH(w.limit)})`
+    : 'Area chiusa questa settimana, con un obiettivo sopra lo zero';
+}
+
+// Campo dell'obiettivo: mostra il valore in fmtH, accetta quello che legge parseHHMM (un
+// numero nudo è in ore) e salva
+// a Invio o all'uscita, solo se il numero cambia. Esc annulla.
+function TargetInput({ value, fromTemplate, label, onSave }) {
+  const [draft, setDraft] = useState(fmtH(value));
+  const cancelled = useRef(false);
+  useEffect(() => { setDraft(fmtH(value)); }, [value]);
+  function commit() {
+    if (cancelled.current) { cancelled.current = false; setDraft(fmtH(value)); return; }
+    // Un obiettivo settimanale supera spesso le 9 ore: un numero nudo qui sono sempre ore,
+    // mai minuti come nelle celle del giorno.
+    const hours = parseHHMM(draft, Infinity);
+    if (!Number.isFinite(hours) || hours < 0) { setDraft(fmtH(value)); return; }
+    if (Math.abs(hours - value) >= 0.001) onSave(hours);
+    else setDraft(fmtH(value));
+  }
+  return (
+    <input
+      aria-label={label}
+      value={draft}
+      title={fromTemplate ? 'Dal template: le ore della ricorrenza' : undefined}
+      onChange={e => setDraft(e.target.value)}
+      onFocus={e => e.target.select()}
+      onBlur={commit}
+      onKeyDown={e => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+        if (e.key === 'Escape') { cancelled.current = true; e.currentTarget.blur(); }
+      }}
+      style={{
+        width: '100%', boxSizing: 'border-box', textAlign: 'right', fontSize: 12, fontWeight: 700,
+        fontFamily: 'inherit', padding: '2px 6px', borderRadius: 4,
+        border: '1px solid var(--tb-border-mid)', background: 'var(--tb-panel-bg)',
+        color: fromTemplate ? 'var(--tb-text-muted)' : 'var(--tb-text-primary)',
+      }}
+    />
+  );
+}
+
+// Lente "Settimana" → per area: obiettivo (modificabile, precompilato con il template),
+// fatto, blocchi rimasti e scarto. Solo i numeri: cosa spostare lo decido io. Il ⚠ accanto
+// all'obiettivo segnala un obiettivo sopra il limite settimanale o un'area chiusa con un
+// obiettivo; non blocca. Le aree chiuse a zero restano fuori.
+function AreaTargets({ clients, stats, onSave }) {
   const rows = clients
-    .map(c => ({
-      c,
-      planned: stats.plannedByClient[c.id] ?? 0,
-      done: stats.actualByClient[c.id] ?? 0,
-      forecast: stats.forecastByClient[c.id] ?? 0,
-    }))
-    .filter(r => r.planned > 0 || r.done > 0);
+    .map(c => ({ c, t: stats.targets[c.id], g: stats.gaps.byArea[c.id] }))
+    .filter(({ c, t, g }) => c.areaStatus !== 'closed' || t.target > 0 || g.done > 0 || g.remaining > 0);
   if (!rows.length) return null;
-  const open = stats.isOpen; // a settimana chiusa il Previsto è il fatto: colonna superflua
-  const COLS = `40px minmax(0,1fr)${' 64px'.repeat(open ? 3 : 2)}`;
+  const COLS = 'minmax(0,1fr) 18px 84px 64px 72px 120px';
   const numCell = { fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', textAlign: 'right' };
   const headCell = { fontSize: 11, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' };
   const topCell = { borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 };
-  // Larghezza massima solo su legenda e tabella: a tutto schermo fra nome e numeri restavano
-  // centinaia di pixel vuoti, e l'occhio perdeva la riga. L'intestazione resta a tutta
-  // larghezza come quella delle altre sezioni; le colonne dicono già Piano · Fatto · Previsto.
   return (
     <div>
-      <SectionHeader title="Per area · consuntivo"
-        help={'Per ogni area, nella settimana selezionata.\n\nPiano = ore pianificate\nFatto = ore registrate\nPrevisto = fatto fino a ieri + per oggi e i giorni successivi il piano, o le ore già registrate se sono di più (solo finché la settimana è aperta: dopo coincide con il fatto)\n\nIl glifo a sinistra è il verdetto sul Previsto contro il piano, con lo scarto nel suo aiuto: sotto mezz\'ora (o 10% del piano) di scarto si resta "in linea"; oltre, un glifo ▴/▾, e due glifi quando lo scarto supera 2h (o il 30% del piano).'} />
+      <SectionHeader title="Per area · obiettivo"
+        help={'Per ogni area, nella settimana selezionata.\n\nObiettivo = le ore che voglio fare sull\'area. Parte dalle ore del template (la ricorrenza, in grigio) e si cambia scrivendo un numero: l\'app tiene il primo valore della settimana e l\'ultimo, e lo scarto si misura sull\'ultimo.\nFatto = ore registrate fino a oggi\nBlocchi rimasti = per oggi il piano meno le ore già fatte (mai sotto zero), per i giorni successivi il loro piano, weekend compreso\nScarto = obiettivo − fatto − blocchi rimasti\n\nSpostare un blocco non cambia lo scarto; toglierne uno lo apre, aggiungerne uno lo chiude. ⚠ quando l\'obiettivo supera il limite settimanale dell\'area, o l\'area è chiusa e ha un obiettivo: è un avviso, non un blocco.'} />
       <div style={{ maxWidth: 640 }}>
-      {/* Legenda del verdetto: i glifi sostituiscono il colore, senza questa riga vanno indovinati. */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 14px', marginBottom: 8, fontSize: 11, color: 'var(--tb-text-muted)' }}>
-        {[['▾', 'sotto il piano'], ['▪', 'in linea'], ['▴', 'sopra il piano'], ['▾▾', 'scarto marcato (oltre 2h o il 30%)']].map(([glyph, label]) => (
-          <span key={glyph} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <Glyph glyph={glyph} size={10} className="tb-glyph" />{label}
-          </span>
-        ))}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: '2px 12px', alignItems: 'center' }}>
-        <span />
-        <span />
-        <span style={headCell}>Piano</span>
-        <span style={headCell}>Fatto</span>
-        {open && <span style={headCell}>Previsto</span>}
-        {rows.map(({ c, planned, done, forecast }) => {
-          const v = statusFor(forecast, planned);
-          const delta = forecast - planned;
-          const title = `${v.label} · Δ ${delta >= 0 ? '+' : ''}${fmtH(delta)}${open ? ' sul previsto' : ''}`;
-          return (
-            <React.Fragment key={c.id}>
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', ...topCell }}>
-                <Glyph glyph={v.glyph} size={13} className="tb-glyph" title={title} />
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, ...topCell }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-              </span>
-              <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-muted)' }}>{fmtH(planned)}</span>
-              <span style={{ ...numCell, ...topCell }}>{fmtH(done)}</span>
-              {open && <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-secondary)' }}>{fmtH(forecast)}</span>}
-            </React.Fragment>
-          );
-        })}
-      </div>
+        <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: '2px 12px', alignItems: 'center' }}>
+          <span />
+          <span />
+          <span style={headCell}>Obiettivo</span>
+          <span style={headCell}>Fatto</span>
+          <span style={headCell} title="Blocchi rimasti">Rimasti</span>
+          <span style={headCell}>Scarto</span>
+          {rows.map(({ c, t, g }) => {
+            const warnings = targetWarnings({ client: c, target: t.target, status: c.areaStatus });
+            return (
+              <React.Fragment key={c.id}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, ...topCell }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                </span>
+                <span style={{ ...topCell, fontSize: 12, textAlign: 'center' }}>
+                  {warnings.length > 0 && <span role="img" aria-label={warnings.map(warningText).join('. ')} title={warnings.map(warningText).join('\n')}>⚠</span>}
+                </span>
+                <span style={topCell}>
+                  <TargetInput value={t.target} fromTemplate={!t.set} label={`Obiettivo ${c.name}`} onSave={h => onSave(c.id, h)} />
+                </span>
+                <span style={{ ...numCell, ...topCell }}>{fmtH(g.done)}</span>
+                <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-secondary)' }}>{fmtH(g.remaining)}</span>
+                <span style={{ ...numCell, ...topCell, whiteSpace: 'nowrap' }}>{gapLabel(g.gap)}</span>
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

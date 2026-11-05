@@ -67,6 +67,7 @@ A new database starts empty: nothing is seeded automatically. To explore the int
 - **Projects:** work streams inside an area. Projects can have a total budget, a weekly limit, a description, an order, and an archived state.
 - **Recurring blocks:** the default weekly timeblocking template, defined Monday-Friday and split into AM (<13:00), PM (13:00–18:00) and Sera (from 18:00) slots.
 - **Week overrides:** per-week replacements for recurring blocks. Editing a block in the weekly view changes that week only.
+- **Weekly area targets:** how many hours each area should get in a week, prefilled with the area's template hours (the sum of its recurring blocks). Every change is kept: the first value of the week is the Monday target, the last one is the target the gap is measured on. Gap = target − done − blocks left, where blocks left are today's plan minus today's hours (never below zero) plus the whole plan of the following days, weekend included.
 - **Weekly area status:** per-week markers for areas: active, minimal, or closed. They make the weekly planning decision visible without changing the recurring template.
 - **Entries:** logged work, one record per project, date and slot, with hours, optional billable-hours override, and billed status. The slot is picked automatically and can be corrected afterwards.
 - **Todoist cache:** local task snapshots grouped by due date and used to overlay planned Todoist work onto Timebox blocks.
@@ -116,7 +117,7 @@ The Giorno screen surfaces daily operational diagnostics from the same logic use
 
 The Andamento screen compares planned capacity against logged work through three lenses:
 
-- **Settimana:** the selected week's workload against capacity, billable value, per-area planned/tracked/extra hours, weekly limits, and total budgets. On the current week it also projects the load to the end of the week.
+- **Settimana:** per area, the weekly target (editable in place), the hours done, the blocks left and the gap; the week's load against the total target; billable value; weekly limits, with a warning when the forecast (done plus blocks left) goes past them.
 - **Trend:** the last 8 weeks of planned, logged, and capacity hours, in aggregate and per area, with the persistent gaps between plan and logged work.
 - **In prospettiva:** how long the cumulative caps (project total budgets and global area limits) will last at the pace measured over the last closed weeks.
 
@@ -213,6 +214,7 @@ recurring      (id, clientId, slot, day, hours, position)
 entries        (id, projectId, date, hours, billableHours, slot, billed)
 week_overrides (id, weekKey, dayIndex, slot, blocksJson)
 week_area_status (id, weekKey, areaId, status)
+week_area_targets (id, weekKey, areaId, hours, createdAt)  -- append-only
 settings       (key, value)
 todoist_cache  (dateStr, tasksJson, syncedAt)
 ```
@@ -248,7 +250,9 @@ While the app is open, a local API is available at `http://127.0.0.1:37373`.
 | `GET` | `/entries?from=YYYY-MM-DD&to=&area=&project=` | Single logged entries in a date range (`to` defaults to today), with worked and billable totals by area and by project. |
 | `GET` | `/clients?search=` | Area/client list. |
 | `GET` | `/areas?search=` | Alias for `/clients`. |
-| `GET` | `/status` | Today, week, and alerts (project budget, project weekly limit, area limit). |
+| `GET` | `/status` | Today, week, alerts (project budget, project weekly limit, area limit) and `gapAlerts`: the current week's areas whose gap on the target is not zero, plus the target warnings. |
+| `GET` | `/targets?week=YYYY-MM-DD` | Per area for a Monday week key (default: current week): template hours, Monday and final target, done, blocks left, gap and warnings (target above the weekly limit, closed area with a target). |
+| `POST` | `/targets` | Set an area's weekly target: `{ weekKey, areaId, hours }`. Appends a row; the same value as the current target stores nothing. |
 | `POST` | `/log` | Log hours: `{ project, hours, slot, date, add, billableHours }`. `billableHours` is kept only for projects in hourly areas. Without `slot`, a project with hours in more than one slot that day is a 400. |
 | `PATCH` | `/entries/:id` | Correct an entry's slot: `{ slot }`. Merges with the project's entry already in that slot. |
 | `GET` | `/plan-vs-tracked?from=&to=` | Plan against the real day per day, slot and area. |
@@ -348,7 +352,9 @@ Exposed tools:
 | `projects` | List projects. |
 | `entries` | Single logged entries in a date range, filtered by area and project, with totals by area and by project. |
 | `areas` | List areas. |
-| `status` | Quick status and alerts. |
+| `status` | Quick status and alerts, including the gap on this week's area targets. |
+| `week_targets` | Weekly target, done, blocks left and gap per area, with target warnings. |
+| `set_week_target` | Set the weekly target of one area. |
 | `log_hours` | Log hours on a project. |
 | `set_entry_slot` | Correct the slot of one logged entry; merges with the project's entry already in that slot. |
 | `plan_vs_tracked` | Plan against the real day per day, slot and area over a date range, with totals. |
