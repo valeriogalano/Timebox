@@ -116,8 +116,11 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     fmt(addDays(getMondayOfWeek(getToday()), (i - PERSIST_WINDOW) * 7))), []);
   useEffect(() => {
     if (screen !== 'progress' || trendLens !== 'trend') return;
+    let live = true;
     Promise.all(calibWeeks.map(wk => window.api.getWeekAreaTargets(wk)))
-      .then(all => setCalibRows(Object.fromEntries(calibWeeks.map((wk, i) => [wk, all[i]]))));
+      .then(all => live && setCalibRows(Object.fromEntries(calibWeeks.map((wk, i) => [wk, all[i]]))))
+      .catch(err => console.error('Obiettivi delle settimane chiuse non letti', err));
+    return () => { live = false; };
   }, [screen, trendLens, calibWeeks]);
 
   // Restituisce se il salvataggio è riuscito: se no, il campo torna al valore di prima.
