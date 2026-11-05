@@ -118,7 +118,7 @@ The Giorno screen surfaces daily operational diagnostics from the same logic use
 The Andamento screen compares planned capacity against logged work through three lenses:
 
 - **Settimana:** per area, the weekly target (editable in place), the hours done, the blocks left and the gap; the week's load against the total target; billable value; weekly limits, with a warning when the forecast (done plus blocks left) goes past them.
-- **Trend:** the last 8 weeks of planned, logged, and capacity hours, in aggregate and per area, with the persistent gaps between plan and logged work.
+- **Trend:** the last 8 weeks of planned, logged, and capacity hours, in aggregate and per area, with a per-area template calibration: whether the Monday target or the logged hours keep drifting from the template in the same direction.
 - **In prospettiva:** how long the cumulative caps (project total budgets and global area limits) will last at the pace measured over the last closed weeks.
 
 ### Rendiconto (billing)
@@ -145,7 +145,7 @@ The Aree screen manages areas and their projects:
 
 ### Ricorrenza (recurring)
 
-The Ricorrenza screen edits the weekly template. Changes automatically freeze previous weeks that do not yet have overrides, preserving historical planning state.
+The Ricorrenza screen edits the weekly template and shows its hours per area. Changes automatically freeze previous weeks that do not yet have overrides, preserving historical planning state.
 
 ### Impostazioni (settings)
 

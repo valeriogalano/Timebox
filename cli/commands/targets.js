@@ -6,7 +6,7 @@ const {
 } = require('../../db/queries');
 const { fmt, addDays } = require('../format');
 const {
-  SLOTS, forecastTodayIndex, templateHoursByArea, weekTargets, areaGaps, targetWarnings, gapWithinTolerance,
+  SLOTS, forecastTodayIndex, referenceHoursByArea, weekTargets, areaGaps, targetWarnings, gapWithinTolerance,
 } = require('../../lib/domain');
 const { getEffectiveBlocks, buildOverrideMap } = require('./day-summary');
 
@@ -41,15 +41,16 @@ function getWeekTargetsData(weekKey, today) {
     day[id] = (day[id] ?? 0) + e.hours;
   }
 
+  const todayIdx = forecastTodayIndex(weekKey, today);
   const targets = weekTargets({
     areaIds: clients.map(c => c.id),
     rows: getWeekAreaTargets(weekKey),
-    templateByArea: templateHoursByArea(recurring),
+    templateByArea: referenceHoursByArea({ recurring, plannedByDay, todayIdx }),
   });
   const gaps = areaGaps({
     targets: Object.fromEntries(Object.entries(targets).map(([id, t]) => [id, t.target])),
     plannedByDay, doneByDay,
-    todayIdx: forecastTodayIndex(weekKey, today),
+    todayIdx,
   });
 
   const areas = clients.map(c => {

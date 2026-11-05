@@ -1,19 +1,23 @@
 import { fmtH } from './utils.js';
 
-// "Da decidere" (lente "Nel tempo"): la decisione che questa card alimenta è una sola —
-// "la RICORRENZA di quest'area è tarata male?". È strutturale, non riguarda la prossima
-// settimana (quella si legge in Settimana, e infatti la corrente è esclusa dal calcolo).
-//
-// Per quella domanda la misura giusta è la MEDIA: la ricorrenza è una media settimanale
-// per costruzione, quindi se pianifico 10h/sett e ne faccio 7 il piano è tarato 3h troppo
-// alto, e come si distribuiscono quelle 7h è irrilevante — sopra e sotto DEVONO compensarsi.
-// Contare le settimane fuori piano misurava un'altra cosa, la volatilità: un'area a 5h e
-// 15h alternate è fuori piano 8 volte su 8 ma la ricorrenza è tarata benissimo, e mandare
-// a toccarla peggiorerebbe le cose.
-export const PERSIST_WINDOW = 8;  // allineata alla finestra dei trend della lente
-// Sotto questo numero di settimane chiuse con piano non si cambia un template: due dati
-// non sono un ritmo.
+// Taratura del template (lente "Nel tempo"): la domanda è "la RICORRENZA di quest'area è
+// tarata male?". Strutturale, non riguarda la prossima settimana (la corrente è esclusa).
+// Due segnali sulle ultime PERSIST_WINDOW settimane chiuse, tenuti separati perché portano
+// a decisioni opposte:
+//  1. obiettivo del lunedì ≠ template, quasi ogni settimana nello stesso verso: è il template
+//     a essere sbagliato. Contano le sole settimane con un obiettivo salvato (senza, il
+//     lunedì coincide col template per costruzione e non dice niente). Un'urgenza cambia
+//     l'obiettivo finale, non quello del lunedì, quindi qui non pesa.
+//  2. fatto ≠ obiettivo finale, quasi ogni settimana nello stesso verso: è l'esecuzione a
+//     derivare, non il template. Senza obiettivo salvato il riferimento è il piano congelato
+//     di quella settimana (vedi referenceHoursByArea in area-targets.js).
+// Il totale è per area: come spalmarlo sui giorni lo decide chi apre Ricorrenza.
+export const PERSIST_WINDOW = 8;
+// Sotto questo numero di settimane utili un segnale non si dà: due dati non sono un ritmo.
 export const MIN_HISTORY = 4;
+// "Quasi ogni settimana": almeno tre su quattro delle settimane utili, nello stesso verso e
+// fuori tolleranza. Con 8 settimane sono 6, con 4 sono 3.
+export const MOST_RATIO = 0.75;
 
 // Verdetto piano↔consuntivo. Due soglie, ciascuna combinata in ore e in percentuale:
 // la percentuale da sola grida per le aree piccole (1h pianificata, 1h30 fatta = +50%
@@ -46,50 +50,47 @@ export function statusFor(done, planned) {
     : { kind: 'under', level, label: level === 2 ? 'Molto sottocarico' : 'Sottocarico', glyph: '▾'.repeat(level), color: 'var(--tb-text-muted)' };
 }
 
-// perAreaWeekly: [{ client, template, weeks: [{ done, planned, isCurrent }] }],
-// `template` = ore a settimana della ricorrenza di oggi (facoltativo),
-// weeks in ordine cronologico (la corrente è l'ultima).
-export function areaPlanFitInsights(perAreaWeekly, window = PERSIST_WINDOW, minHistory = MIN_HISTORY) {
+const quarter = h => Math.round(h * 4) / 4;
+
+// Verso (+1 / -1) in cui `value` esce dalla tolleranza di `ref`, 0 se ci sta dentro.
+const offBy = (value, ref) => Math.abs(value - ref) <= Math.max(TOL_HOURS, ref * TOL_PCT) ? 0 : Math.sign(value - ref);
+
+// pairs: [{ value, ref }] delle settimane utili. Il segnale c'è se almeno MOST_RATIO di
+// esse esce dalla tolleranza nello stesso verso. `suggested` è la media di `value`, al
+// quarto d'ora: è un numero da scrivere in un blocco, non una misura.
+function persistentSignal(pairs, minHistory) {
+  const n = pairs.length;
+  if (n < minHistory) return null;
+  const dirs = pairs.map(p => offBy(p.value, p.ref));
+  const up = dirs.filter(d => d > 0).length, down = dirs.filter(d => d < 0).length;
+  const off = Math.max(up, down);
+  if (off / n < MOST_RATIO) return null;
+  const avg = key => pairs.reduce((s, p) => s + p[key], 0) / n;
+  return { dir: up >= down ? 1 : -1, off, of: n, avgValue: avg('value'), avgRef: avg('ref'), suggested: quarter(avg('value')) };
+}
+
+// perArea: [{ client, template, weeks: [{ week, done, monday, target, set }] }], con
+// `template` = ore a settimana della ricorrenza di oggi, weeks in ordine cronologico. Le
+// settimane non chiuse vanno tolte a monte. `monday` e `target` sono l'obiettivo del lunedì
+// e quello finale (weekTargets), `set` dice se la settimana ha un obiettivo salvato.
+export function templateCalibration(perArea, window = PERSIST_WINDOW, minHistory = MIN_HISTORY) {
   const items = [];
-  for (const { client, template, weeks } of perAreaWeekly) {
-    // Le settimane senza piano non sono "sotto piano": l'area era chiusa o non
-    // pianificata, includerle nella media abbasserebbe il ritmo di riferimento.
-    const closed = weeks.filter(w => !w.isCurrent).slice(-window).filter(w => w.planned > 0);
-    if (closed.length < minHistory) continue;
-    const done    = closed.reduce((s, w) => s + (w.done || 0), 0);
-    const planned = closed.reduce((s, w) => s + w.planned, 0);
-    // statusFor sui TOTALI: la tolleranza si scala già sul pianificato, quindi applicata
-    // alla somma vale come applicata alla media, senza soglie nuove da tarare.
-    const { kind, level } = statusFor(done, planned);
-    if (kind === 'on' || kind === 'none') continue;
-    // La media dice SE il piano e' fuori taratura, non se lo e' per un ritmo o per un
-    // episodio: -9h possono essere -1,1h per otto settimane o una settimana sola saltata.
-    // Le due cose portano a decisioni opposte, quindi la distribuzione va mostrata.
-    const off  = closed.filter(w => statusFor(w.done, w.planned).kind === kind);
-    const peak = off.reduce((a, w) => Math.abs(w.done - w.planned) > Math.abs(a.done - a.planned) ? w : a, off[0]);
+  for (const { client, template, weeks } of perArea) {
+    const recent = weeks.slice(-window);
+    const templateSignal = persistentSignal(
+      recent.filter(w => w.set).map(w => ({ value: w.monday, ref: template })), minHistory);
+    // Una settimana senza obiettivo né piano non dice niente dell'esecuzione: l'area era
+    // chiusa o non pianificata.
+    const driftSignal = persistentSignal(
+      recent.filter(w => w.target > 0).map(w => ({ value: w.done, ref: w.target })), minHistory);
+    if (!templateSignal && !driftSignal) continue;
+    const sig = templateSignal ?? driftSignal;
     items.push({
-      color: client.color, area: client.name, kind, level,
-      label: `${level === 2 ? 'Molto ' : ''}${kind === 'under' ? 'sotto' : 'oltre'} il piano`.replace(/^./, c => c.toUpperCase()),
-      weeksOff: off.length,
-      peakDelta: peak ? (peak.done || 0) - peak.planned : 0,
-      peakWeek: peak?.week ?? null,
-      weeks: closed,
-      // Il numero utile è la media settimanale: è esattamente ciò che va scritto nella
-      // ricorrenza, non uno scarto da ricalcolare a mente.
-      avgDone: done / closed.length,
-      avgPlanned: planned / closed.length,
-      of: closed.length,
-      // Arrotondata al quarto d'ora: è un valore da scrivere in un blocco, non una misura.
-      suggested: Math.round((done / closed.length) * 4) / 4,
-      // La ricorrenza di oggi può essere diversa dal piano medio delle settimane chiuse
-      // (override, template cambiato nel frattempo): è lei che si va a modificare.
-      template: template ?? null,
-      severity: Math.abs(done - planned) / planned,
-      // Sotto o sopra, la taratura si corregge nel template.
-      to: 'Ricorrenza',
+      color: client.color, area: client.name, template,
+      templateSignal, driftSignal,
+      severity: Math.abs(sig.avgValue - sig.avgRef) / Math.max(sig.avgRef, TOL_HOURS),
     });
   }
-  // Scarto proporzionale più grande = piano più fuori taratura: in cima.
   return items.sort((a, b) => b.severity - a.severity);
 }
 
@@ -97,29 +98,10 @@ export function areaPlanFitInsights(perAreaWeekly, window = PERSIST_WINDOW, minH
 // dalla sua unità ("~18h" su una riga e "15m" sulla successiva).
 const hNb = h => fmtH(h).replace(/ /g, '\u00a0');
 
-// Riga di distribuzione della card. Lo scarto può stare dentro la tolleranza di ogni
-// singola settimana e sommarsi lo stesso: in quel caso non c'è né conteggio né picco da
-// mostrare, e "0 settimane sotto · picco 0h" contraddiceva il verdetto della card.
-export function distributionLabel({ weeksOff, of, kind, peakDelta, peakWeek }) {
-  if (!weeksOff) return 'nessuna settimana fuori soglia da sola';
-  const weeks = `${weeksOff} ${weeksOff === 1 ? 'settimana' : 'settimane'}${of ? ` su ${of}` : ''}`;
-  // Lo scarto porta il segno, che lo distingue da un totale, e la data: senza, un -21h
-  // su una media pianificata di 12h sembra impossibile.
-  const delta = `${peakDelta > 0 ? '+' : ''}${hNb(peakDelta)}`;
-  const when = peakWeek ? ` (${peakWeek.slice(8, 10)}/${peakWeek.slice(5, 7)})` : '';
-  return kind === 'under'
-    ? `${weeks} sotto · la peggiore ${delta}${when}`
-    : `${weeks} sopra · la più carica ${delta}${when}`;
-}
-
-// Cosa fare, con il numero già pronto. Se la ricorrenza di oggi è già al valore
-// suggerito lo scarto viene da settimane passate e non c'è niente da modificare.
-export function actionLabel({ suggested, template }) {
-  // Niente "~": il valore è già arrotondato al quarto d'ora, è quello da scrivere, e a 11px
-  // la tilde si leggeva come un segno meno ("da 16h a −4h").
-  // "Porta la ricorrenza a 0h" non è un'istruzione: a zero ore la scelta è togliere i blocchi.
-  if (!(suggested > 0)) return 'Nessuna ora svolta: valuta di togliere i blocchi dalla ricorrenza';
-  if (template == null) return `Porta la ricorrenza a ${hNb(suggested)}`;
+// Frase del segnale 1: cosa fare del template. Se è già al valore suggerito lo scarto viene
+// da settimane passate e non c'è niente da modificare.
+export function templateActionLabel({ suggested }, template) {
+  if (!(suggested > 0)) return 'Obiettivo del lunedì sempre a zero: valuta di togliere i blocchi dalla ricorrenza';
   if (Math.abs(template - suggested) < 0.25) return `Ricorrenza già a ${hNb(template)}: nessuna modifica`;
   return `Porta la ricorrenza da ${hNb(template)} a ${hNb(suggested)}`;
 }

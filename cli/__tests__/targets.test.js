@@ -140,6 +140,33 @@ describe('getWeekTargetsData', () => {
   });
 });
 
+describe('past week without a saved target', () => {
+  before(freshDb);
+
+  it('the reference is the frozen plan of that week, not today\'s template', () => {
+    // the week was frozen at 12h (Monday only); the template has since grown to 20h
+    q.saveWeekOverride({ weekKey: WEEK, dayIndex: 0, slot: 'am', blocks: [{ id: 'o1', clientId: 'a', hours: 4 }] });
+    for (let day = 1; day < 5; day++) q.saveWeekOverride({ weekKey: WEEK, dayIndex: day, slot: 'am', blocks: [{ id: `o${day + 1}`, clientId: 'a', hours: 2 }] });
+    const past = areaOf(getWeekTargetsData(WEEK, '2026-11-20'), 'a');
+    assert.equal(past.target, 12);
+    assert.equal(past.targetSet, false);
+    // the current week keeps reading the template
+    assert.equal(areaOf(getWeekTargetsData(WEEK, WED), 'a').target, 20);
+  });
+});
+
+describe('frozen plan housekeeping', () => {
+  before(freshDb);
+
+  it('deleting a week override and an area\'s recurring blocks leaves the rest of the plan', () => {
+    q.saveWeekOverride({ weekKey: WEEK, dayIndex: 0, slot: 'am', blocks: [{ id: 'o1', clientId: 'a', hours: 1 }] });
+    q.deleteWeekOverride(WEEK, 0, 'am');
+    assert.deepEqual(q.getWeekOverrides(WEEK), []);
+    q.deleteRecurringByClient('a');
+    assert.deepEqual(q.getRecurring().filter(r => r.clientId === 'a'), []);
+  });
+});
+
 describe('status and HTTP', () => {
   let server, port;
   before(() => new Promise(resolve => {

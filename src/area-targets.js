@@ -32,6 +32,19 @@ export function templateHoursByArea(recurring) {
   return out;
 }
 
+// Ore di riferimento per area di una settimana senza obiettivo salvato. Una settimana
+// passata si confronta col piano di quella settimana (lo snapshot congelato, cioè i blocchi
+// effettivi), non col template di oggi, che nel frattempo può essere cambiato. Per la
+// settimana in corso e le future vale il template: il piano si muove con gli override, e
+// misurare lo scarto su di lui lo farebbe sparire. todayIdx come in areaGaps (oltre 6 =
+// settimana passata); plannedByDay: 7 mappe { areaId: ore }.
+export function referenceHoursByArea({ recurring, plannedByDay, todayIdx }) {
+  if (todayIdx <= 6) return templateHoursByArea(recurring);
+  const out = {};
+  for (const day of plannedByDay) for (const [id, h] of Object.entries(day)) out[id] = (out[id] ?? 0) + h;
+  return out;
+}
+
 // rows: le righe append-only della settimana, in ordine di inserimento. Per ogni area:
 // `monday` è la prima riga (l'obiettivo del lunedì, per la taratura del template),
 // `target` l'ultima (l'obiettivo finale, su cui si misura lo scarto), `set` dice se c'è
