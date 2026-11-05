@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { doneCutoff, isDone } from '../week-done';
+import { billableTotals, hourlyRate } from '../billable-totals';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, effBillable, isHourly, SLOTS } from '../utils';
 import { getEffectiveBlocks } from '../dayPlanning';
 import { forecastTodayIndex, forecastUsage, weekForecast } from '../week-forecast';
@@ -27,10 +29,6 @@ function clientWeeklyCapacity(clientId, recurring) {
   return recurring
     .filter(r => r.clientId === clientId)
     .reduce((s, r) => s + r.hours, 0);
-}
-
-function isBillableClient(client) {
-  return client.billing === 'hourly' && client.rate > 0;
 }
 
 // Returns the monday and sunday (as fmt strings) for a week at offset from current
@@ -135,13 +133,11 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     const periodEntries = entries.filter(e => e.date >= startStr && e.date <= endStr);
 
     // Settimana in corso: il consuntivo è "fino al giorno corrente" (esclude
-    // eventuali entry datate in avanti). La proiezione fine settimana (vedi sotto)
-    // parte da questo consuntivo.
-    const isCurrentWeek = periodOffset === 0;
+    // eventuali entry datate in avanti), con la stessa regola del riepilogo di
+    // Settimana (../week-done). La proiezione fine settimana parte da qui.
     const todayStr = fmt(getToday());
-    const consuntivoEntries = isCurrentWeek
-      ? periodEntries.filter(e => e.date <= todayStr)
-      : periodEntries;
+    const cutoff = doneCutoff(startStr, endStr, todayStr);
+    const consuntivoEntries = periodEntries.filter(e => isDone(e.date, cutoff));
 
     const actualByClient = {};
     const billableByClient = {};
@@ -151,7 +147,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
       if (cid != null) {
         actualByClient[cid] = (actualByClient[cid] ?? 0) + e.hours;
         const cli = clients.find(c => c.id === cid);
-        if (cli && isBillableClient(cli)) {
+        if (cli && isHourly(cli)) {
           billableByClient[cid] = (billableByClient[cid] ?? 0) + effBillable(e);
         }
       }
@@ -162,9 +158,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     const capacity  = Object.values(plannedByClient).reduce((s, v) => s + v, 0);
     const totalDone = Object.values(actualByClient).reduce((s, v) => s + v, 0);
 
-    const billable = clients.filter(isBillableClient);
-    const billedDoneEur     = billable.reduce((s, c) => s + (billableByClient[c.id] ?? 0) * c.rate, 0);
-    const billableDoneHours = billable.reduce((s, c) => s + (billableByClient[c.id] ?? 0), 0);
+    const { eur: billedDoneEur, hours: billableDoneHours } = billableTotals(clients, billableByClient);
 
     // Uso dei tetti settimanali, su ore lavorate e ore fatturabili (vedi ../cap-usage).
     const weekUsage = usageMaps(sumByProject(consuntivoEntries), projects, clients);
@@ -199,7 +193,8 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     });
 
     // Fatturabile a consumo, stessa definizione: fatto fatturabile + piano che resta.
-    const projectionEur = billable.reduce((s, c) => s + ((billableByClient[c.id] ?? 0) + remainingByClient[c.id]) * c.rate, 0);
+    const projectionEur = billableTotals(clients,
+      Object.fromEntries(clients.map(c => [c.id, (billableByClient[c.id] ?? 0) + (remainingByClient[c.id] ?? 0)]))).eur;
 
     return {
       actualByClient, plannedByClient, forecastByClient, remainingByClient, weekUsage,
@@ -304,7 +299,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
       rows.push({
         key: `area-${c.id}`, kind: 'Area', name: c.name, color: c.color, count: usage.kind,
         template: clientWeeklyCapacity(c.id, recurring),
-        rate: isBillableClient(c) ? c.rate : 0, weeksCounted,
+        rate: hourlyRate(c), weeksCounted,
         ...capRunway({ cap: c.limitHours, consumed: usage.worst, rhythm }),
       });
     });
@@ -317,7 +312,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
         key: `proj-${p.id}`, kind: 'Progetto', name: p.name, subtitle: area?.name, count: usage.kind,
         color: area?.color ?? 'var(--tb-text-muted)',
         template: null,   // `recurring` mappa le aree, non i progetti: nessun ritmo template
-        rate: area && isBillableClient(area) ? area.rate : 0, weeksCounted,
+        rate: hourlyRate(area), weeksCounted,
         // Se l'area ha già un tetto cumulativo, questo budget è ANNIDATO dentro quello:
         // la riga si mostra comunque, ma nei totali va contata una volta sola o le ore
         // (e il valore) risulterebbero raddoppiate.
@@ -537,12 +532,14 @@ function AreaConsuntivo({ clients, stats }) {
   const numCell = { fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', textAlign: 'right' };
   const headCell = { fontSize: 11, fontWeight: 800, color: 'var(--tb-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' };
   const topCell = { borderTop: '1px solid var(--tb-border-soft)', paddingTop: 6 };
-  // Larghezza massima: a tutto schermo fra nome e numeri restavano centinaia di pixel vuoti,
-  // e l'occhio perdeva la riga. Vale per l'intestazione, così il sottotitolo resta sopra le colonne.
+  // Larghezza massima solo su legenda e tabella: a tutto schermo fra nome e numeri restavano
+  // centinaia di pixel vuoti, e l'occhio perdeva la riga. L'intestazione resta a tutta
+  // larghezza come quella delle altre sezioni; le colonne dicono già Piano · Fatto · Previsto.
   return (
-    <div style={{ maxWidth: 640 }}>
-      <SectionHeader title="Per area · consuntivo" subtitle={open ? 'piano · fatto · previsto' : 'piano · fatto'}
+    <div>
+      <SectionHeader title="Per area · consuntivo"
         help={'Per ogni area, nella settimana selezionata.\n\nPiano = ore pianificate\nFatto = ore registrate\nPrevisto = fatto fino a ieri + per oggi e i giorni successivi il piano, o le ore già registrate se sono di più (solo finché la settimana è aperta: dopo coincide con il fatto)\n\nIl glifo a sinistra è il verdetto sul Previsto contro il piano, con lo scarto nel suo aiuto: sotto mezz\'ora (o 10% del piano) di scarto si resta "in linea"; oltre, un glifo ▴/▾, e due glifi quando lo scarto supera 2h (o il 30% del piano).'} />
+      <div style={{ maxWidth: 640 }}>
       {/* Legenda del verdetto: i glifi sostituiscono il colore, senza questa riga vanno indovinati. */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 14px', marginBottom: 8, fontSize: 11, color: 'var(--tb-text-muted)' }}>
         {[['▾', 'sotto il piano'], ['▪', 'in linea'], ['▴', 'sopra il piano'], ['▾▾', 'scarto marcato (oltre 2h o il 30%)']].map(([glyph, label]) => (
@@ -576,6 +573,7 @@ function AreaConsuntivo({ clients, stats }) {
             </React.Fragment>
           );
         })}
+      </div>
       </div>
     </div>
   );

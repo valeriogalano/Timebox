@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, parseHHMM, effBillable, isHourly, SLOTS, SLOT_META, budgetAlertLevel } from '../utils';
 import { sumByProject, usageMaps, usageOf, fmtUsage, loadProjectTotals, projectsOverCap } from '../cap-usage';
+import { doneCutoff, weekDoneTotals } from '../week-done';
 import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
 import TimeCell from '../components/TimeCell';
@@ -491,7 +492,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const weekBillable = days.reduce((s, d) => s + d.dayBillable, 0);
   const weekDivergent = days.some(d => d.dayDivergent);
   const weekDelta    = weekActual - weekPlanned;
-  const weekExtra    = days.reduce((s, d) => s + Math.max(0, d.bilancioExtra), 0);
   const endSun = addDays(monday, 6);
   const weekLabel = `${monday.getDate()} ${MONTHS_IT[monday.getMonth()]} – ${endSun.getDate()} ${MONTHS_IT[endSun.getMonth()]} ${endSun.getFullYear()}`;
 
@@ -743,7 +743,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           </TodoistControlBar>
         </div>
         <CapacityMirror
-          actual={weekActual} planned={weekPlanned} billable={weekBillable} extra={weekExtra}
+          {...weekDoneTotals(days, doneCutoff(days[0].dateStr, days[6].dateStr, fmt(getToday())))}
+          planned={weekPlanned}
           onNavigate={onNavigateToAndamento}
         />
       </div>
@@ -1508,7 +1509,7 @@ function PlanningModeToggle({ value, onChange }) {
 // Specchietto capacità — sintesi settimana + link ad Andamento (README: "Lo specchietto
 // di Settimana apre Andamento"). Sostituisce le 4 pill separate con un'unica lettura
 // tracciato/pianificato + barra + breakdown fatturabili/non-fatt/extra.
-function CapacityMirror({ actual, planned, billable, extra, onNavigate }) {
+function CapacityMirror({ actual, planned, billable, extra, futureHours = 0, onNavigate }) {
   const pct = planned > 0 ? Math.round((actual / planned) * 100) : 0;
   const nonBillable = Math.max(0, actual - billable);
   return (
@@ -1521,7 +1522,7 @@ function CapacityMirror({ actual, planned, billable, extra, onNavigate }) {
           <span style={{ fontSize: 19, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em' }}>{fmtH(actual)}</span>{' '}
           <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>/ {fmtH(planned)}</span>
           <span
-            title={'Consuntivo dell\'intera settimana: ore effettivamente tracciate sul totale pianificato, e la percentuale di piano coperta.\n\nSotto:\nFatt. = quota fatturabile\nNF = quota non fatturabile\nExtra = ore fatte oltre il piano\n\nLa freccia apre l\'Andamento.'}
+            title={'Consuntivo della settimana fino a oggi (come in Andamento): ore tracciate sul totale pianificato, e la percentuale di piano coperta.\n\nSotto:\nFatt. = quota fatturabile\nNF = quota non fatturabile\nExtra = ore fatte oltre il piano\n\nLa freccia apre l\'Andamento.'}
             style={{ alignSelf: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: '1px solid var(--tb-border-mid)', color: 'var(--tb-text-muted)', fontSize: 11, cursor: 'help', letterSpacing: 0 }}
           >?</span>
         </span>
@@ -1544,6 +1545,12 @@ function CapacityMirror({ actual, planned, billable, extra, onNavigate }) {
         <span>NF {fmtH(nonBillable)}</span>
         {extra > 0 && <span>Extra {fmtH(extra)}</span>}
       </div>
+      {futureHours > 0 && (
+        <div style={{ marginTop: 3, fontSize: 11, color: 'var(--tb-text-muted)' }}
+          title="Ore registrate con una data successiva a oggi: non sono ancora fatte e non contano qui né in Andamento.">
+          + {fmtH(futureHours)} datate nei prossimi giorni
+        </div>
+      )}
     </div>
   );
 }
