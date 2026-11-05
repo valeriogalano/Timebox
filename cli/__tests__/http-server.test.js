@@ -664,7 +664,9 @@ describe('HTTP server', () => {
 
   it('POST /overrides with an unknown clientId (an area name) → 400, nothing stored', async () => {
     const area = getClients()[0];
-    const weekKey = currentWeekDate(0);
+    // not the current week: on Wednesdays the demo seed puts an override on
+    // day 2 AM, the very slot this test expects to stay empty
+    const weekKey = '2020-06-15';
     const { status, body } = await post(port, '/overrides', {
       weekKey, dayIndex: 2, slot: 'am', blocks: [{ clientId: area.name, hours: 2 }],
     });
