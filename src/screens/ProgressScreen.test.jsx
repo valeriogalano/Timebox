@@ -194,6 +194,17 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     expect(input).toHaveValue('6h');
     expect(input.closest('span').parentElement).toHaveTextContent('mancano 2h');
 
+    // un errore di salvataggio non lascia nel campo un valore che non c'è
+    const realAdd = window.api.addWeekAreaTarget;
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    window.api.addWeekAreaTarget = () => Promise.reject(new Error('db'));
+    fireEvent.change(input, { target: { value: '7' } });
+    fireEvent.blur(input);
+    await vi.waitFor(() => expect(err).toHaveBeenCalled());
+    await vi.waitFor(() => expect(input).toHaveValue('6h'));
+    err.mockRestore();
+    window.api.addWeekAreaTarget = realAdd;
+
     // un numero nudo sopra la soglia dei minuti resta in ore
     fireEvent.change(input, { target: { value: '12' } });
     fireEvent.blur(input);

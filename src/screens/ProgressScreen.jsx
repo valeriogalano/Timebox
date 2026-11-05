@@ -109,9 +109,16 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
       .then(rows => setAreaStatuses(Object.fromEntries(rows.map(r => [r.areaId, r.status]))));
   }, [screen, currentWeekKey]);
 
+  // Restituisce se il salvataggio è riuscito: se no, il campo torna al valore di prima.
   async function saveTarget(areaId, hours) {
-    await window.api.addWeekAreaTarget({ weekKey: currentWeekKey, areaId, hours });
+    try {
+      await window.api.addWeekAreaTarget({ weekKey: currentWeekKey, areaId, hours });
+    } catch (err) {
+      console.error('Obiettivo non salvato', err);
+      return false;
+    }
     await loadTargets();
+    return true;
   }
 
   // Build a lookup: projectId → clientId
@@ -204,7 +211,8 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     const doneByDay = Array.from({ length: PLANNING_DAYS }, () => ({}));
     consuntivoEntries.forEach(e => {
       const cid = projectClientMap[e.projectId];
-      if (!known.has(cid)) return;
+      // un'ora datata dopo oggi non è ancora fatta (anche in una settimana futura)
+      if (!known.has(cid) || e.date > todayStr) return;
       const day = doneByDay[forecastTodayIndex(startStr, e.date)];
       day[cid] = (day[cid] ?? 0) + e.hours;
     });
@@ -549,8 +557,8 @@ function TargetInput({ value, fromTemplate, label, onSave }) {
     // mai minuti come nelle celle del giorno.
     const hours = parseHHMM(draft, Infinity);
     if (!Number.isFinite(hours) || hours < 0) { setDraft(fmtH(value)); return; }
-    if (Math.abs(hours - value) >= 0.001) onSave(hours);
-    else setDraft(fmtH(value));
+    if (Math.abs(hours - value) < 0.001) { setDraft(fmtH(value)); return; }
+    onSave(hours).then(ok => { if (!ok) setDraft(fmtH(value)); });
   }
   return (
     <input
