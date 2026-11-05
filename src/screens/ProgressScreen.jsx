@@ -4,11 +4,11 @@ import { billableTotals, hourlyRate } from '../billable-totals';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, parseHHMM, effBillable, isHourly, SLOTS } from '../utils';
 import { getEffectiveBlocks } from '../dayPlanning';
 import { forecastTodayIndex, forecastUsage } from '../week-forecast';
-import { areaGaps, gapWithinTolerance, templateHoursByArea, targetWarnings, weekTargets } from '../area-targets';
+import { areaGaps, gapWithinTolerance, referenceHoursByArea, templateHoursByArea, targetWarnings, weekTargets } from '../area-targets';
 import { withAreaStatus } from './WeeklyView';
 import { areaMix } from '../area-colors';
 import { sumByProject, usageMaps, usageOf, kindNote, fmtUsage, loadProjectTotals } from '../cap-usage';
-import { actionLabel, areaPlanFitInsights, capRunway, distributionLabel, runwaySummary, statusFor, PERSIST_WINDOW, MIN_HISTORY, RUNWAY_ORDER, RUNWAY_WINDOW, TOLERANCE_LABEL } from '../progress-insights';
+import { capRunway, runwaySummary, statusFor, templateActionLabel, templateCalibration, PERSIST_WINDOW, MIN_HISTORY, MOST_RATIO, RUNWAY_ORDER, RUNWAY_WINDOW, TOLERANCE_LABEL } from '../progress-insights';
 import OverCapacityBar from '../components/OverCapacityBar';
 import Glyph from '../components/Glyph';
 import HelpDot from '../components/HelpDot';
@@ -65,6 +65,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
   const [trendLens, setTrendLens] = useState(initialLens || 'settimana'); // settimana | trend | prospettiva
   const [targetRows, setTargetRows] = useState([]);
   const [areaStatuses, setAreaStatuses] = useState({});
+  const [calibRows, setCalibRows] = useState(null);   // { weekKey: righe degli obiettivi }
 
   // Deep-link (es. dallo specchietto in Settimana → Andamento/Settimana): consuma
   // l'intento una volta, così le aperture successive tornano al default.
@@ -76,7 +77,10 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
   const fetchRange = useMemo(() => {
     const monday = addDays(getMondayOfWeek(getToday()), periodOffset * 7);
     const trendStart = addDays(getMondayOfWeek(getToday()), -(TREND_WEEKS - 1) * 7 + periodOffset * 7);
-    return { from: fmt(trendStart), to: fmt(addDays(monday, 6)) };
+    // La taratura del template guarda le ultime PERSIST_WINDOW settimane chiuse da oggi,
+    // qualunque sia la settimana scelta: il fetch deve arrivare fin lì.
+    const calibStart = addDays(getMondayOfWeek(getToday()), -PERSIST_WINDOW * 7);
+    return { from: fmt(calibStart < trendStart ? calibStart : trendStart), to: fmt(addDays(monday, 6)) };
   }, [periodOffset]);
 
   useEffect(() => {
@@ -106,6 +110,15 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     window.api.getWeekAreaStatuses(currentWeekKey)
       .then(rows => setAreaStatuses(Object.fromEntries(rows.map(r => [r.areaId, r.status]))));
   }, [screen, currentWeekKey]);
+
+  // Taratura del template: le settimane chiuse, dalla più vecchia, e i loro obiettivi salvati.
+  const calibWeeks = useMemo(() => Array.from({ length: PERSIST_WINDOW }, (_, i) =>
+    fmt(addDays(getMondayOfWeek(getToday()), (i - PERSIST_WINDOW) * 7))), []);
+  useEffect(() => {
+    if (screen !== 'progress' || trendLens !== 'trend') return;
+    Promise.all(calibWeeks.map(wk => window.api.getWeekAreaTargets(wk)))
+      .then(all => setCalibRows(Object.fromEntries(calibWeeks.map((wk, i) => [wk, all[i]]))));
+  }, [screen, trendLens, calibWeeks]);
 
   // Restituisce se il salvataggio è riuscito: se no, il campo torna al valore di prima.
   async function saveTarget(areaId, hours) {
@@ -214,7 +227,8 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
     // blocchi rimasti. I blocchi rimasti sono anche il piano che resta per il Previsto dei
     // limiti settimanali: fatto + blocchi rimasti.
     const targets = weekTargets({
-      areaIds: clients.map(c => c.id), rows: targetRows, templateByArea: templateHoursByArea(recurring),
+      areaIds: clients.map(c => c.id), rows: targetRows,
+      templateByArea: referenceHoursByArea({ recurring, plannedByDay, todayIdx }),
     });
     const gaps = areaGaps({
       targets: Object.fromEntries(clients.map(c => [c.id, targets[c.id].target])),
@@ -288,6 +302,42 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
       return { client: c, template, weeks };
     });
   }, [clients, recurring, entries, overridesByWeek, periodOffset, projectClientMap, currentWeekKey]);
+
+  // Obiettivo del lunedì, finale e fatto di ogni area nelle settimane chiuse (vedi
+  // templateCalibration). Senza obiettivo salvato il riferimento è il piano congelato.
+  const calibration = useMemo(() => {
+    if (!calibRows) return null;
+    const known = new Set(clients.map(c => c.id));
+    const template = templateHoursByArea(recurring);
+    const weeks = calibWeeks.map(wk => {
+      const plannedByDay = Array.from({ length: PLANNING_DAYS }, (_, d) => {
+        const day = {};
+        for (const slot of SLOTS) {
+          getEffectiveBlocks(recurring, overridesByWeek, wk, d, slot).forEach(b => {
+            if (known.has(b.clientId)) day[b.clientId] = (day[b.clientId] ?? 0) + b.hours;
+          });
+        }
+        return day;
+      });
+      const targets = weekTargets({
+        areaIds: [...known], rows: calibRows[wk] ?? [],
+        templateByArea: referenceHoursByArea({ recurring, plannedByDay, todayIdx: PLANNING_DAYS }),
+      });
+      const end = fmt(addDays(new Date(`${wk}T00:00:00`), 6));
+      const done = {};
+      entries.forEach(e => {
+        const cid = projectClientMap[e.projectId];
+        if (e.date >= wk && e.date <= end && known.has(cid)) done[cid] = (done[cid] ?? 0) + e.hours;
+      });
+      return { wk, targets, done };
+    });
+    return templateCalibration(clients.map(c => ({
+      client: c, template: template[c.id] ?? 0,
+      weeks: weeks.map(({ wk, targets, done }) => ({
+        week: wk, done: done[c.id] ?? 0, monday: targets[c.id].monday, target: targets[c.id].target, set: targets[c.id].set,
+      })),
+    })));
+  }, [calibRows, calibWeeks, clients, recurring, overridesByWeek, entries, projectClientMap]);
 
   const totalUsage = useMemo(() => usageMaps(projectTotals, projects, clients), [projectTotals, projects, clients]);
 
@@ -404,7 +454,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
         <div className="tb-seg">
           {[
             { key: 'settimana', label: 'Settimana', help: 'Quante ore mancano all\'obiettivo di ogni area, e se sto nei limiti.\n\nScarto = obiettivo − fatto − blocchi rimasti.\nBlocchi rimasti = per oggi il piano meno le ore già fatte (mai sotto zero), per i giorni successivi il loro piano, weekend compreso.\n\nCarico: ore fatte sull\'obiettivo totale, con blocchi rimasti e scarto.\nFatturabile a consumo: ricavo delle ore fatturabili, e quello previsto completando il piano.\nPer area: obiettivo, fatto, blocchi rimasti e scarto.\nLimiti della settimana: i tetti settimanali di aree e progetti, con ⚠ quando fatto + blocchi rimasti li supera.\n\nI budget totali stanno in In prospettiva.' },
-            { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane, per scoprire la deriva del ritmo.\n\nAggregato: pianificato, svolto e capacità settimana per settimana.\nPer area: il mini-trend di ogni area.\nDa decidere: le divergenze persistenti fra piano e svolto.' },
+            { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane, per scoprire la deriva del ritmo.\n\nAggregato: pianificato, svolto e capacità settimana per settimana.\nPer area: il mini-trend di ogni area.\nTaratura del template: per area, se l\'obiettivo del lunedì o il fatto si scostano di continuo dal template.' },
             { key: 'prospettiva', label: 'In prospettiva', help: `I budget cumulativi bastano? Quanto manca a esaurire i tetti cumulativi, proiettato sul ritmo misurato nelle ultime ${RUNWAY_WINDOW} settimane chiuse.\n\nBudget totale dei progetti.\nLimite globale delle aree.\n\nI tetti settimanali non stanno qui: si azzerano ogni settimana, il loro margine si legge in Settimana.` },
           ].map((o, idx) => (
             <span
@@ -432,7 +482,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
         </>
       )}
 
-      {/* ── Lente "Trend" ── 8 settimane: aggregato + per area + divergenze persistenti ── */}
+      {/* ── Lente "Trend" ── 8 settimane: aggregato + per area + taratura del template ── */}
       {trendLens === 'trend' && (
         <>
           <Card padding={0}>
@@ -459,8 +509,8 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
             </div>
           </div>
 
-          {/* Da decidere: divergenze area↔piano PERSISTENTI (non la settimana singola) */}
-          <DaDecidereInsights perAreaWeekly={perAreaWeekly} />
+          {/* Taratura del template: scarti PERSISTENTI per area (non la settimana singola) */}
+          <TemplateCalibration items={calibration} />
         </>
       )}
 
@@ -628,81 +678,37 @@ function AreaTargets({ clients, stats, onSave }) {
   );
 }
 
-// Lente "Trend" → "Da decidere": la domanda è "la ricorrenza di quest'area è tarata
-// male?". Media dello svolto contro media del pianificato sulle settimane chiuse — una
-// sopra e una sotto si compensano, perché la ricorrenza è una media per costruzione.
-// Logica pura in ../progress-insights. `to` è la vista dove si agisce, resa come
-// suggerimento testuale: non è un link, la navigazione resta al tab bar.
-// Tooltip di verifica: svolto contro pianificato settimana per settimana, così un -9h di
-// media si riconosce a colpo d'occhio come otto settimane fiacche o una sola saltata.
-// Il ▾/▴ marca le settimane che il verdetto conta come fuori piano.
-function weeklyBreakdownTitle({ weeks, kind }) {
-  const rows = weeks.map(w => {
-    const off = statusFor(w.done, w.planned).kind === kind;
-    return `${w.week.slice(8, 10)}/${w.week.slice(5, 7)}  ${fmtH(w.done)} / ${fmtH(w.planned)}${off ? (kind === 'under' ? '  ▾' : '  ▴') : ''}`;
-  });
-  return `Settimana per settimana (svolto / pianificato)\n${rows.join('\n')}`;
-}
-
-function DaDecidereInsights({ perAreaWeekly }) {
-  const items = areaPlanFitInsights(perAreaWeekly);
-  if (!items.length) return null;
+// Lente "Trend" → taratura del template: la domanda è "la ricorrenza di quest'area è
+// tarata male?". Due segnali separati (logica pura in ../progress-insights): l'obiettivo del
+// lunedì contro il template, e il fatto contro l'obiettivo finale. Si indica il totale per
+// area; come distribuirlo nei giorni e nelle fasce si decide in Ricorrenza.
+function TemplateCalibration({ items }) {
+  if (!items?.length) return null;
+  const when = sig => `${sig.off} settimane su ${sig.of}`;
+  const row = (title, text, action) => (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--tb-text-secondary)' }}>{title}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-primary)', marginTop: 2 }}>{text}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', marginTop: 2 }}>{action}</div>
+    </div>
+  );
   return (
     <div>
-      <SectionHeader title="Da decidere" subtitle={`media sulle settimane chiuse · fino a ${PERSIST_WINDOW}`}
-        help={`Un'area compare se la media dello svolto esce dalla tolleranza sul pianificato (${TOLERANCE_LABEL}).\n\nFinestra: le settimane chiuse con un piano tra le ${PERSIST_WINDOW} mostrate sopra. La settimana in corso è esclusa, quindi guardando quella corrente sono al massimo ${PERSIST_WINDOW - 1}; ogni card dice su quante è calcolata.\nStoria minima: almeno ${MIN_HISTORY} settimane.\nCompensazione: le settimane sopra e sotto si annullano, perché la domanda è se la ricorrenza è tarata male, non se una singola settimana è andata storta.\nOrdine: in cima le aree con lo scarto proporzionale più grande.\nBarrette: una per settimana chiusa, svolto sul piano di quella settimana; piene quelle fuori soglia.\nAzione: il valore proposto è la media svolta, arrotondata al quarto d'ora, da confrontare con la ricorrenza di oggi.`} />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
-        {items.map((it, i) => (
-          <div key={i} style={{
+      <SectionHeader title="Taratura del template" subtitle={`ultime ${PERSIST_WINDOW} settimane chiuse`}
+        help={`Per area, due segnali. Compaiono se in almeno ${Math.round(MOST_RATIO * 100)}% delle settimane utili (e non meno di ${MIN_HISTORY}) il numero esce dalla tolleranza (${TOLERANCE_LABEL}) sempre nello stesso verso.\n\nTemplate: l'obiettivo fissato il lunedì è diverso dalle ore di template. Il template è sbagliato. Contano le sole settimane con un obiettivo salvato; il valore proposto è la media degli obiettivi del lunedì, al quarto d'ora.\n\nEsecuzione: il fatto è diverso dall'obiettivo finale. Il template non c'entra, a derivare è come si lavora. Una settimana senza obiettivo salvato si confronta col piano di quella settimana, non col template di oggi.\n\nIl totale è per area: la distribuzione nei giorni si decide in Ricorrenza.`} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+        {items.map(it => (
+          <div key={it.area} style={{
             background: 'var(--tb-panel-bg)', border: '1px solid var(--tb-panel-border)',
             borderLeft: `3px solid ${it.color}`, borderRadius: 8, padding: '12px 14px',
           }}>
-            {/* Nome e, sotto, il verdetto scritto: il triangolo da solo si leggeva come
-                "espandi". Su due righe perché affiancati, in una card stretta, il verdetto
-                troncava il nome dell'area. Il bordo resta il colore dell'area, non lo stato. */}
-            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {it.area}
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--tb-text-secondary)', marginTop: 2, marginBottom: 8 }}>
-              {it.label}
-            </div>
-
-            {/* Le due medie a confronto, non lo scarto. Il numero è neutro: nel colore
-                dell'area un rosso sembrava un allarme e un verde un via libera. `of` =
-                settimane chiuse con piano realmente in archivio, non sempre PERSIST_WINDOW. */}
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>{fmtH(it.avgDone)}</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)', flex: 1, whiteSpace: 'nowrap' }}>di {fmtH(it.avgPlanned)}/sett</span>
-              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-secondary)' }}>{Math.round((it.avgDone / it.avgPlanned) * 100)}%</span>
-            </div>
-            <OverCapacityBar value={it.avgDone} cap={it.avgPlanned} color={it.color} height={6} overTitle="Oltre il piano" style={{ marginTop: 6 }} />
-
-            {/* Distribuzione: la media non distingue un ritmo da un episodio, e le due cose
-                portano a decisioni opposte. Una barretta per settimana (svolto sul piano di
-                quella settimana), piene quelle che il verdetto conta fuori piano; il
-                dettaglio con i numeri sta nell'aiuto accanto, che si apre anche da tastiera. */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-              <span aria-hidden="true" style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 16, flexShrink: 0 }}>
-                {it.weeks.map((w, wi) => {
-                  const off = statusFor(w.done, w.planned).kind === it.kind;
-                  return (
-                    <span key={wi} style={{
-                      width: 4, height: Math.max(2, Math.min(1, w.done / w.planned) * 16), borderRadius: 1,
-                      background: off ? it.color : areaMix(it.color, 45),
-                    }} />
-                  );
-                })}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>{distributionLabel(it)}</span>
-              <HelpDot text={weeklyBreakdownTitle(it)} />
-            </div>
-
-            {/* L'azione è il motivo della sezione: in evidenza, con il valore già pronto.
-                Nomina la ricorrenza, che è anche la voce di menu dove si agisce (`it.to`).
-                Non è un link: la navigazione resta alla barra laterale. */}
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)', marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--tb-border-soft)' }}>
-              {actionLabel(it)}
-            </div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.area}</div>
+            {it.templateSignal && row('Template',
+              `Obiettivo del lunedì ${it.templateSignal.dir > 0 ? 'sopra' : 'sotto'} il template: in media ${fmtH(it.templateSignal.avgValue)} contro ${fmtH(it.template)} · ${when(it.templateSignal)}`,
+              templateActionLabel(it.templateSignal, it.template))}
+            {it.driftSignal && row('Esecuzione',
+              `Fatto ${it.driftSignal.dir > 0 ? 'sopra' : 'sotto'} l'obiettivo: in media ${fmtH(it.driftSignal.avgValue)} su ${fmtH(it.driftSignal.avgRef)} · ${when(it.driftSignal)}`,
+              'Non è il template: nessuna modifica alla ricorrenza')}
           </div>
         ))}
       </div>

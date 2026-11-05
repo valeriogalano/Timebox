@@ -302,7 +302,7 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
   });
 });
 
-describe('ProgressScreen / Trend: Da decidere', () => {
+describe('ProgressScreen / Trend: taratura del template', () => {
   // 4h a settimana per l'area c3, mai svolte: ogni settimana chiusa è sotto il piano
   const recurring = [{ id: 'r1', clientId: 'c3', day: 0, slot: 'am', hours: 4, position: 0 }];
 
@@ -318,57 +318,52 @@ describe('ProgressScreen / Trend: Da decidere', () => {
     };
   });
 
-  test('la card dice il verdetto a parole, le due medie e cosa fare', async () => {
-    const { findByText, getByText } = render(
-      <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen="progress"
+  const open = async (recurringRows = recurring) => {
+    const view = render(
+      <ProgressScreen clients={clients} projects={projects} recurring={recurringRows} screen="progress"
         weekOffset={0} setWeekOffset={() => {}} />
     );
-    fireEvent.click(await findByText('Trend'));
-    const card = (await findByText('Molto sotto il piano')).parentElement;
+    fireEvent.click(await view.findByText('Trend'));
+    return view;
+  };
+  const pastMondays = n => Array.from({ length: n }, (_, k) => fmt(addDays(getMondayOfWeek(getToday()), -7 * (k + 1))));
+  const pastDone = (hours, n = 8) => pastMondays(n).map((date, k) => ({ id: `e${k}`, projectId: 'p3', date, hours, slot: 'am' }));
 
-    expect(getByText('media sulle settimane chiuse · fino a 8')).toBeInTheDocument();
-    expect(within(card).getByText('Libera')).toBeInTheDocument();
-    expect(within(card).getByText('di 4h/sett')).toBeInTheDocument();
-    expect(within(card).getByText('0%')).toBeInTheDocument();
-    expect(within(card).getByText(/^7 settimane su 7 sotto · la peggiore -4h/)).toBeInTheDocument();
-    expect(within(card).getByText('Nessuna ora svolta: valuta di togliere i blocchi dalla ricorrenza')).toBeInTheDocument();
-  });
-  test('oltre il piano: barra piena, percentuale sopra 100 e ricorrenza da alzare', async () => {
-    // 8h ogni lunedì delle sette settimane chiuse, su 4h di ricorrenza
-    const monday = getMondayOfWeek(getToday());
-    const past = Array.from({ length: 7 }, (_, k) => ({
-      id: `e${k}`, projectId: 'p3', date: fmt(addDays(monday, -7 * (k + 1))), hours: 8, slot: 'am',
-    }));
-    window.api.getEntries = () => Promise.resolve(past);
+  test('lunedì sempre sopra il template e fatto sotto: i due segnali, separati, con il valore da scrivere', async () => {
+    // obiettivo del lunedì 8h in ogni settimana chiusa, template 4h, mai svolte
+    window.api.getWeekAreaTargets = () => Promise.resolve([{ areaId: 'c3', hours: 8 }]);
+    const { findByText, getByText } = await open();
+    const card = (await findByText('Template')).parentElement.parentElement;
 
-    const { findByText } = render(
-      <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen="progress"
-        weekOffset={0} setWeekOffset={() => {}} />
-    );
-    fireEvent.click(await findByText('Trend'));
-    const card = (await findByText('Molto oltre il piano')).parentElement;
-
-    expect(within(card).getByText('8h')).toBeInTheDocument();
-    expect(within(card).getByText('200%')).toBeInTheDocument();
-    expect(within(card).getByTitle('Oltre il piano')).toBeInTheDocument();
-    expect(within(card).getByText(/^7 settimane su 7 sopra · la più carica \+4h/)).toBeInTheDocument();
+    expect(getByText('ultime 8 settimane chiuse')).toBeInTheDocument();
+    expect(within(card).getByText(/^Obiettivo del lunedì sopra il template: in media 8h contro 4h · 8 settimane su 8/)).toBeInTheDocument();
     expect(within(card).getByText('Porta la ricorrenza da 4h a 8h')).toBeInTheDocument();
+    expect(within(card).getByText(/^Fatto sotto l'obiettivo: in media .* su 8h · 8 settimane su 8/)).toBeInTheDocument();
+  });
+
+  test('solo esecuzione: senza obiettivi salvati il riferimento è il piano e il template non si tocca', async () => {
+    const { findByText, getByText, queryByText } = await open();
+    await findByText('Esecuzione');
+    expect(queryByText('Template')).not.toBeInTheDocument();
+    expect(getByText('Esecuzione')).toBeInTheDocument();
+    expect(getByText('Non è il template: nessuna modifica alla ricorrenza')).toBeInTheDocument();
+  });
+
+  test('settimane passate senza obiettivo: conta il piano congelato di quella settimana, non il template di oggi', async () => {
+    // 10h congelate ogni settimana, 10h svolte; il template di oggi è 4h (con 4h sarebbe "oltre")
+    window.api.getEntries = () => Promise.resolve(pastDone(10));
+    window.api.getWeekOverridesRange = () => Promise.resolve(pastMondays(8).map(weekKey => (
+      { weekKey, dayIndex: 0, slot: 'am', blocks: [{ id: 'b', clientId: 'c3', hours: 10 }] })));
+    const { findByText, queryByText } = await open();
+    await findByText('Per area');
+    expect(queryByText('Taratura del template')).not.toBeInTheDocument();
   });
 
   test('un\'area in linea con il piano non compare', async () => {
-    const monday = getMondayOfWeek(getToday());
-    const past = Array.from({ length: 7 }, (_, k) => ({
-      id: `e${k}`, projectId: 'p3', date: fmt(addDays(monday, -7 * (k + 1))), hours: 4, slot: 'am',
-    }));
-    window.api.getEntries = () => Promise.resolve(past);
-
-    const { findByText, queryByText } = render(
-      <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen="progress"
-        weekOffset={0} setWeekOffset={() => {}} />
-    );
-    fireEvent.click(await findByText('Trend'));
+    window.api.getEntries = () => Promise.resolve(pastDone(4));
+    const { findByText, queryByText } = await open();
     await findByText('Per area');
-    expect(queryByText('Da decidere')).not.toBeInTheDocument();
+    expect(queryByText('Taratura del template')).not.toBeInTheDocument();
   });
 
   test('mini-grafici: piano di ogni settimana, glifo sulle chiuse, settimane oltre il limite', async () => {

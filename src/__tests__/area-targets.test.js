@@ -108,6 +108,18 @@ for (const [name, impl] of [['src/area-targets.js', esm], ['lib/domain.js', cjs]
     });
   });
 
+  describe(`referenceHoursByArea (${name})`, () => {
+    const recurring = [{ clientId: 'a', day: 0, hours: 6 }];
+    const planned = week([[0, { a: 2 }], [5, { a: 1, b: 3 }]]);
+    test('settimana passata: il piano effettivo di quella settimana, non il template', () => {
+      assert.deepEqual(impl.referenceHoursByArea({ recurring, plannedByDay: planned, todayIdx: 7 }), { a: 3, b: 3 });
+    });
+    test('settimana in corso e futura: il template', () => {
+      assert.deepEqual(impl.referenceHoursByArea({ recurring, plannedByDay: planned, todayIdx: 6 }), { a: 6 });
+      assert.deepEqual(impl.referenceHoursByArea({ recurring, plannedByDay: planned, todayIdx: -1 }), { a: 6 });
+    });
+  });
+
   describe(`gapWithinTolerance (${name})`, () => {
     test('mezz\'ora sugli obiettivi piccoli, confine compreso', () => {
       assert.equal(impl.gapWithinTolerance(0.5, 4), true);
