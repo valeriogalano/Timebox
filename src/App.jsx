@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getToday, fmt, getMondayOfWeek, currentSlot } from './utils';
+import { getToday, fmt, getMondayOfWeek } from './utils';
 import { planQuickLogAdd } from './dayPlanning';
 import QuickLogModal from './components/QuickLogModal';
 import Glyph from './components/Glyph';
@@ -233,7 +233,7 @@ export default function App() {
     );
   }
 
-  function handleQuickLogSelect(projectId, addHours, slot) {
+  function handleQuickLogSelect(projectId, addHours) {
     setQuickLogOpen(false);
     if (addHours == null) {
       setScreen('weekly');
@@ -241,16 +241,14 @@ export default function App() {
       setAutoFocusProject(projectId);
       return;
     }
-    addHoursToToday(projectId, addHours, slot);
+    addHoursToToday(projectId, addHours);
   }
 
-  // Le ore vanno nella fascia scritta nel testo ("+1h +pom") o, senza, in quella dell'ora
-  // corrente; le entry del progetto in altre fasce restano. Si corregge poi da Giorno.
-  async function addHoursToToday(projectId, addHours, slot) {
+  async function addHoursToToday(projectId, addHours) {
     const today = fmt(getToday());
     const entries = await window.api.getEntries(today, today);
     await window.api.saveEntry(planQuickLogAdd({
-      entries, projectId, date: today, addHours, slot: slot ?? currentSlot(), newId: crypto.randomUUID(),
+      entries, projectId, date: today, addHours, newId: crypto.randomUUID(),
     }));
     setWeekRefreshTick(t => t + 1);
   }

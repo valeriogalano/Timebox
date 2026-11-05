@@ -6,7 +6,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { capUsage } from '../cap-usage.js';
-import { resolveEntrySlot, defaultEntrySlot, planDayEntrySave, fillPlannedBlocks } from '../dayPlanning.js';
+import { planDayEntrySave, fillPlannedBlocks } from '../dayPlanning.js';
 import { weekForecast, forecastTodayIndex } from '../week-forecast.js';
 import { gapWithinTolerance, templateHoursByArea, weekTargets, areaGaps, targetWarnings, GAP_EPSILON } from '../area-targets.js';
 import { TOL_HOURS, TOL_PCT } from '../progress-insights.js';
@@ -22,34 +22,15 @@ function same(name, esm, twin, cases) {
   });
 }
 
-const blocks = { am: [{ id: 'b1', clientId: 'c1', hours: 2 }], pm: [{ id: 'b2', clientId: 'c2', hours: 3 }], sera: [] };
-const blocksForSlot = slot => blocks[slot] ?? [];
 
 describe('src/ and lib/domain.js give the same answers', () => {
   same('capUsage', capUsage, cjs.capUsage, [[], [10], [10, 12], [10, 12, true], [12, 10, true], [0, 0, true]]);
 
-  same('resolveEntrySlot', resolveEntrySlot, cjs.resolveEntrySlot, [
-    [{ existingSlot: 'sera', clientId: 'c1', blocksForSlot }],
-    [{ existingSlot: null, clientId: 'c2', blocksForSlot }],
-    [{ existingSlot: null, clientId: 'c9', blocksForSlot }],
-    [{ existingSlot: null, clientId: 'c9', blocksForSlot, fallback: 'pm' }],
-  ]);
-
-  same('defaultEntrySlot', defaultEntrySlot, cjs.defaultEntrySlot, [
-    [{ isToday: false, clientId: 'c2', blocksForSlot }],
-    [{ isToday: false, clientId: 'c9', blocksForSlot }],
-    [{ isToday: true, clientId: 'c2', blocksForSlot }],
-  ]);
-
-  const existingList = [
-    { id: 'e1', projectId: 'p1', date: '2026-11-02', hours: 2, billableHours: null, slot: 'am', billed: true },
-    { id: 'e2', projectId: 'p1', date: '2026-11-02', hours: 1, billableHours: 1.5, slot: 'pm', billed: false },
-  ];
+  const existing = { id: 'e1', projectId: 'p1', date: '2026-11-02', hours: 2, billableHours: 1.5, billed: true };
   same('planDayEntrySave', planDayEntrySave, cjs.planDayEntrySave, [
-    [{ existingList, projectId: 'p1', date: '2026-11-02', hours: 3, slot: 'am', newId: 'n1' }],
-    [{ existingList, projectId: 'p1', date: '2026-11-02', hours: 0, slot: 'pm', newId: 'n1' }],
-    [{ existingList, projectId: 'p1', date: '2026-11-02', hours: 1, slot: 'sera', newId: 'n1' }],
-    [{ existingList: [], projectId: 'p2', date: '2026-11-02', hours: 2, billableHours: 1, slot: 'am', newId: 'n2' }],
+    [{ existing, projectId: 'p1', date: '2026-11-02', hours: 3, newId: 'n1' }],
+    [{ existing, projectId: 'p1', date: '2026-11-02', hours: 0, newId: 'n1' }],
+    [{ projectId: 'p2', date: '2026-11-02', hours: 2, billableHours: 1, newId: 'n2' }],
   ]);
 
   same('fillPlannedBlocks', fillPlannedBlocks, cjs.fillPlannedBlocks, [

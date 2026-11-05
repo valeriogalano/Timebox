@@ -5,7 +5,6 @@ import { doneCutoff, weekDoneTotals } from '../week-done';
 import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
 import TimeCell from '../components/TimeCell';
-import SlotPopover from '../components/SlotPopover';
 import DivergenceDot from '../components/DivergenceDot';
 import SlotCapacityBar from '../components/SlotCapacityBar';
 import AreaStatusGlyph from '../components/AreaStatusGlyph';
@@ -13,7 +12,7 @@ import Glyph from '../components/Glyph';
 import OverCapacityBar from '../components/OverCapacityBar';
 import { areaText } from '../area-colors';
 import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
-import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries, defaultEntrySlot, planDayEntrySave, planDayTotalSave } from '../dayPlanning';
+import { getEffectiveBlocks, computeDayPlanning, mergeProjectDayEntries, planDayEntrySave } from '../dayPlanning';
 import { forecastTodayIndex, weekForecast, weeklyLimitsAtRisk } from '../week-forecast';
 
 const PLANNING_MODES = ['full', 'compact', 'hidden'];
@@ -76,7 +75,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const [todoistTasks, setTodoistTasks] = useState({});
   const [todoistSync, setTodoistSync] = useState({});
   const [editingProject, setEditingProject] = useState(null);
-  const [slotPopover, setSlotPopover] = useState(null); // { projectId, dateStr, anchorRect }
   const [revealedProject, setRevealedProject] = useState(null);
   const [hideEmpty, setHideEmpty] = useState(() => localStorage.getItem('timebox-hide-empty-projects') === 'true');
   const [summaryOpen, setSummaryOpen] = useState(() => localStorage.getItem('timebox-week-summary-collapsed') !== 'true');
@@ -332,29 +330,16 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     }
   }
 
-  // `total`: la cella del totale del giorno (0 o 1 entry). Il suo `slot` è quello scritto
-  // come suffisso ("2h +pom"), e una fascia diversa da quella dell'entry la sposta.
-  // Senza `total` si scrive la sola entry di quella fascia (righe del popover).
-  async function saveEntry(projectId, dateStr, payload, slot, { total = false } = {}) {
-    const hours = typeof payload === 'object' ? payload.hours : payload;
-    const dateIndex = days.findIndex(d => d.dateStr === dateStr);
-    const defaultSlot = defaultEntrySlot({
-      isToday: !!days[dateIndex]?.isToday,
-      clientId: projects.find(p => p.id === projectId)?.clientId,
-      blocksForSlot: dateIndex >= 0 ? (s => effectiveBlocks(dateIndex, s)) : null,
+  async function saveEntry(projectId, dateStr, payload) {
+    const existing = weekEntries.find(e => e.projectId === projectId && e.date === dateStr);
+    const { save, deleteIds } = planDayEntrySave({
+      existing, projectId, date: dateStr, hours: payload.hours,
+      billableHours: payload.billableHours ?? null, newId: crypto.randomUUID(),
     });
-    const dayList = weekEntries.filter(e => e.projectId === projectId && e.date === dateStr);
-    const resolvedSlot = slot ?? defaultSlot;
-    const current = dayList.find(e => e.slot === resolvedSlot) ?? (total && dayList.length === 1 ? dayList[0] : null);
-    const billableHours = typeof payload === 'object' ? (payload.billableHours ?? null) : (current?.billableHours ?? null);
-    const args = { existingList: dayList, projectId, date: dateStr, hours, billableHours, newId: crypto.randomUUID() };
-    const { save, deleteIds } = total
-      ? planDayTotalSave({ ...args, slot, defaultSlot })
-      : planDayEntrySave({ ...args, slot: resolvedSlot });
     if (!save && deleteIds.length === 0) return;
 
     setWeekEntries(prev => [
-      ...prev.filter(e => !deleteIds.includes(e.id) && !(save && (e.id === save.id || (e.projectId === projectId && e.date === dateStr && e.slot === save.slot)))),
+      ...prev.filter(e => !deleteIds.includes(e.id) && !(save && e.projectId === projectId && e.date === dateStr)),
       ...(save ? [save] : []),
     ]);
     if (save) await window.api.saveEntry(save);
@@ -363,56 +348,13 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
     onEntryChange?.();
   }
 
-  // Sposta l'entry in un'altra fascia (si fonde con quella già presente, se c'è).
-  async function moveEntrySlot(id, slot) {
-    await window.api.moveEntrySlot(id, slot);
-    const [entries, totals] = await Promise.all([
-      window.api.getEntries(fmt(monday), fmt(addDays(monday, 6))),
-      loadProjectTotals(),
-    ]);
-    setWeekEntries(entries);
-    setProjectTotals(totals);
-    onEntryChange?.();
-  }
-
-  async function resetBillable(projectId, dateStr, slot) {
-    const matches = weekEntries.filter(e => (
-      e.projectId === projectId && e.date === dateStr && e.slot === slot
-    ));
-    const existing = matches[0] ?? displayWeekEntries.find(e => e.projectId === projectId && e.date === dateStr && e.slot === slot);
+  async function resetBillable(projectId, dateStr) {
+    const existing = weekEntries.find(e => e.projectId === projectId && e.date === dateStr);
     if (!existing) return;
     const entry = { ...existing, billableHours: null };
-    setWeekEntries(prev => [
-      ...prev.filter(e => !(e.projectId === projectId && e.date === dateStr && e.slot === slot)),
-      entry,
-    ]);
+    setWeekEntries(prev => prev.map(e => (e.id === entry.id ? entry : e)));
     await window.api.saveEntry(entry);
-    for (const match of matches) {
-      if (match.id === entry.id) continue;
-      await window.api.deleteEntry(match.id);
-    }
     onEntryChange?.();
-  }
-
-  async function toggleBilled(projectId, dateStr, slot) {
-    const project = projects.find(p => p.id === projectId);
-    const client = project ? clients.find(c => c.id === project.clientId) : null;
-    if (!isHourly(client)) return;
-    const matches = weekEntries.filter(e => (
-      e.projectId === projectId && e.date === dateStr && e.slot === slot
-    ));
-    const existing = matches[0] ?? displayWeekEntries.find(e => e.projectId === projectId && e.date === dateStr && e.slot === slot);
-    if (!existing) return;
-    const updated = { ...existing, billed: !existing.billed };
-    setWeekEntries(prev => [
-      ...prev.filter(e => !(e.projectId === projectId && e.date === dateStr && e.slot === slot)),
-      updated,
-    ]);
-    await window.api.saveEntry(updated);
-    for (const match of matches) {
-      if (match.id === updated.id) continue;
-      await window.api.deleteEntry(match.id);
-    }
   }
 
   const hasOverride = !!weekOverrides[weekKey] && Object.keys(weekOverrides[weekKey]).length > 0;
@@ -1000,10 +942,8 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                           colIndex={i}
                           projectId={project.id}
                           viewMode={viewMode}
-                          slots={entry?.slots ?? []}
-                          onOpenSlots={rect => setSlotPopover({ projectId: project.id, dateStr: d.dateStr, anchorRect: rect })}
-                          onSave={(payload, slot) => saveEntry(project.id, d.dateStr, payload, slot, { total: true })}
-                          onResetBillable={() => resetBillable(project.id, d.dateStr, entry?.slot)}
+                          onSave={payload => saveEntry(project.id, d.dateStr, payload)}
+                          onResetBillable={() => resetBillable(project.id, d.dateStr)}
                           onEditStart={() => startEditingProject(project.id)}
                           onEditEnd={() => setEditingProject(null)} />
                       </div>
@@ -1087,23 +1027,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
           </div>
         </div>
       </div>
-      {slotPopover && (() => {
-        const project = projects.find(p => p.id === slotPopover.projectId);
-        const client = project && clients.find(c => c.id === project.clientId);
-        const day = days.find(d => d.dateStr === slotPopover.dateStr);
-        if (!project || !client || !day) return null;
-        return (
-          <SlotPopover
-            project={project} client={client} dateStr={day.dateStr}
-            dateLabel={`${DAY_SHORT[days.indexOf(day)]} ${Number(day.dateStr.slice(8))}`}
-            entries={weekEntries.filter(e => e.projectId === project.id && e.date === day.dateStr)}
-            anchorRect={slotPopover.anchorRect} viewMode={viewMode}
-            isFuture={day.isFuture} isToday={day.isToday}
-            onSave={(slot, payload) => saveEntry(project.id, day.dateStr, payload, slot)}
-            onMove={moveEntrySlot}
-            onClose={() => setSlotPopover(null)} />
-        );
-      })()}
       {todoistImportDialog && (
         <TodoistImportDialog
           dialog={todoistImportDialog}
@@ -1118,7 +1041,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
                 hours: item.hours,
                 titleSnapshot: item.content || item.title || null,
                 importedAt: new Date().toISOString(),
-                slot: item.slot,
               })));
             const sunday = addDays(monday, 6);
             const [entries, totals] = await Promise.all([

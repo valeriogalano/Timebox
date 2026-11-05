@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { fmt, fmtH, getToday, addDays, getMondayOfWeek, SLOTS, SLOT_META, SLOT_LABELS, effBillable, isHourly, MONTHS_IT } from '../utils';
-import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks, defaultEntrySlot, planDayEntrySave, freeEntrySlots } from '../dayPlanning';
+import { computeDayPlanning, mergeProjectDayEntries, getEffectiveBlocks, planDayEntrySave } from '../dayPlanning';
 import { sumByProject, usageMaps, loadProjectTotals } from '../cap-usage';
 import PlanningCell from '../components/PlanningCell';
 import TimeCell from '../components/TimeCell';
-import { EntrySlotSelect, AddSlotSelect } from '../components/SlotSelects';
 import SlotCapacityBar from '../components/SlotCapacityBar';
 import ExtraCell from '../components/ExtraCell';
 import MarkdownText from '../components/MarkdownText';
@@ -142,21 +141,12 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
     setSlotOverride(slot, effectiveBlocks(slot).filter(b => b.id !== blockId));
   }
 
-  // Timesheet del giorno (tab "Ore"): una entry per progetto, giorno e fascia.
-  // `slot` è quello della riga; senza, la fascia è quella dell'entry esistente, o
-  // per un'entry nuova quella di defaultEntrySlot. Le entry delle altre fasce restano.
-  async function saveDayEntry(projectId, payload, slot) {
-    const hours = typeof payload === 'object' ? payload.hours : payload;
-    const existingList = rawEntries.filter(e => e.projectId === projectId);
-    const existing = existingList.find(e => e.slot === slot) ?? existingList[0] ?? null;
-    const project = projects.find(p => p.id === projectId);
-    const resolvedSlot = slot ?? existing?.slot
-      ?? defaultEntrySlot({ isToday, clientId: project?.clientId, blocksForSlot: effectiveBlocks });
-    const billableHours = typeof payload === 'object'
-      ? (payload.billableHours ?? null)
-      : (existing?.billableHours ?? null);
+  // Timesheet del giorno (tab "Ore"): una entry per progetto e giorno.
+  async function saveDayEntry(projectId, payload) {
+    const existing = rawEntries.find(e => e.projectId === projectId);
     const { save, deleteIds } = planDayEntrySave({
-      existingList, projectId, date: today, hours, billableHours, slot: resolvedSlot, newId: crypto.randomUUID(),
+      existing, projectId, date: today, hours: payload.hours,
+      billableHours: payload.billableHours ?? null, newId: crypto.randomUUID(),
     });
     if (save) await window.api.saveEntry(save);
     for (const id of deleteIds) await window.api.deleteEntry(id);
@@ -165,17 +155,11 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
     onEntryChange?.();
   }
 
-  function resetDayBillable(projectId, slot) {
-    const existing = rawEntries.find(e => e.projectId === projectId && (!slot || e.slot === slot));
-    if (existing) saveDayEntry(projectId, { hours: existing.hours, billableHours: null }, existing.slot);
+  function resetDayBillable(projectId) {
+    const existing = rawEntries.find(e => e.projectId === projectId);
+    if (existing) saveDayEntry(projectId, { hours: existing.hours, billableHours: null });
   }
 
-  // Correzione della fascia di un'entry: se il progetto ha già ore in quella fascia, si fondono.
-  async function moveDayEntrySlot(id, slot) {
-    await window.api.moveEntrySlot(id, slot);
-    await load();
-    onEntryChange?.();
-  }
   function handleDrop(toSlot) {
     if (!dragging) return;
     const { blockId, fromSlot, clientId, hours } = dragging;
@@ -262,8 +246,8 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
           addBlockToSlot={addBlockToSlot} updateBlockInSlot={updateBlockInSlot}
           removeBlockFromSlot={removeBlockFromSlot} setSlotOverride={setSlotOverride}
           dragging={dragging} setDragging={setDragging} handleDrop={handleDrop}
-          dayEntries={dayEntries} slotEntries={rawEntries} onSaveDayEntry={saveDayEntry} onResetBillable={resetDayBillable}
-          onMoveSlot={moveDayEntrySlot} dateKey={today}
+          dayEntries={dayEntries} onSaveDayEntry={saveDayEntry} onResetBillable={resetDayBillable}
+          dateKey={today}
         />
 
         <div style={{ flex: 1, minWidth: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -328,7 +312,6 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
               hours: item.hours,
               titleSnapshot: item.content || item.title || null,
               importedAt: new Date().toISOString(),
-              slot: item.slot,
             })));
             await load();
             loadProjectTotals().then(setProjectTotals);
@@ -346,7 +329,7 @@ function DayPlanningPanel({
   slotCapacity, hasTodoistSync, isToday, isFuture, isWeekend,
   addBlockToSlot, updateBlockInSlot, removeBlockFromSlot, setSlotOverride,
   dragging, setDragging, handleDrop,
-  dayEntries, slotEntries, onSaveDayEntry, onResetBillable, onMoveSlot, dateKey,
+  dayEntries, onSaveDayEntry, onResetBillable, dateKey,
 }) {
   const [tab, setTab] = useState('piano');
   const slots = SLOTS.map(key => ({
@@ -420,9 +403,9 @@ function DayPlanningPanel({
       ) : (
         <DayTimesheet
           key={dateKey}
-          loading={loading} dayEntries={dayEntries} slotEntries={slotEntries} clients={clients} projects={projects}
+          loading={loading} dayEntries={dayEntries} clients={clients} projects={projects}
           isToday={isToday} isFuture={isFuture}
-          onSaveDayEntry={onSaveDayEntry} onResetBillable={onResetBillable} onMoveSlot={onMoveSlot} />
+          onSaveDayEntry={onSaveDayEntry} onResetBillable={onResetBillable} />
       )}
     </section>
   );
@@ -440,16 +423,11 @@ function TabBtn({ active, onClick, children }) {
   );
 }
 
-// Timesheet del giorno: una riga per progetto e fascia, cella TimeCell
-// identica al timesheet settimanale. Per registrare su un progetto non ancora
-// presente si usa il QuickLog (⌘L), che poi lo fa comparire qui.
-// Una riga per fascia in cui il progetto ha ore: la fascia si corregge dal suo
-// selettore, e spostarla dove il progetto ha già ore fonde le due entry.
-function DayTimesheet({ loading, dayEntries, slotEntries = [], clients, projects, isToday, isFuture, onSaveDayEntry, onResetBillable, onMoveSlot }) {
+// Timesheet del giorno: una riga per progetto, cella TimeCell identica al
+// timesheet settimanale. Per registrare su un progetto non ancora presente si usa
+// il QuickLog (⌘L), che poi lo fa comparire qui.
+function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFuture, onSaveDayEntry, onResetBillable }) {
   const [viewMode, setViewMode] = useState('tracked');
-  // Righe vuote aggiunte con "+": un progetto che ha già ore in una fascia le registra
-  // anche in un'altra. Vivono solo qui finché non si salvano ore; `key` sul giorno le azzera.
-  const [addedRows, setAddedRows] = useState([]);
   // Stessa preferenza del timesheet settimanale: "Progetti lavorati" vs "Tutti i progetti"
   const [hideEmpty, setHideEmpty] = useState(() => localStorage.getItem('timebox-hide-empty-projects') === 'true');
 
@@ -478,20 +456,9 @@ function DayTimesheet({ loading, dayEntries, slotEntries = [], clients, projects
     .flatMap(project => {
       const client = clients.find(c => c.id === project.clientId);
       if (!client) return [];
-      const entries = slotEntries
-        .filter(e => e.projectId === project.id)
-        .sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
-      const added = addedRows
-        .filter(r => r.projectId === project.id && !entries.some(e => e.slot === r.slot))
-        .map(r => ({ projectId: project.id, slot: r.slot, hours: 0, billableHours: null, billed: false }));
-      const all = [...entries, ...added].sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
-      const lastReal = entries[entries.length - 1];
-      return (all.length ? all : [{ projectId: project.id, hours: 0, billableHours: null, billed: false }])
-        .map(entry => ({
-          entry, project, client,
-          // "+" sull'ultima riga reale del progetto, se resta una fascia libera
-          freeSlots: entry === lastReal ? freeEntrySlots([...entries, ...added], project.id) : [],
-        }));
+      const entry = (dayEntries || []).find(e => e.projectId === project.id)
+        ?? { projectId: project.id, hours: 0, billableHours: null, billed: false };
+      return [{ entry, project, client }];
     })
     .sort((a, b) =>
       (a.client.position ?? 0) - (b.client.position ?? 0)
@@ -524,25 +491,13 @@ function DayTimesheet({ loading, dayEntries, slotEntries = [], clients, projects
         </div>
       ) : (
         <div style={{ border: '1px solid var(--tb-border)', borderRadius: 6, overflow: 'hidden' }}>
-          {rows.map(({ entry, project, client, freeSlots }, i) => (
-            <div key={`${project.id}:${entry.slot ?? ''}`} style={{ display: 'grid', gridTemplateColumns: '1fr 72px', alignItems: 'stretch', borderTop: i ? '1px solid var(--tb-border-soft)' : 'none' }}>
+          {rows.map(({ entry, project, client }, i) => (
+            <div key={project.id} style={{ display: 'grid', gridTemplateColumns: '1fr 72px', alignItems: 'stretch', borderTop: i ? '1px solid var(--tb-border-soft)' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 10px', minWidth: 0 }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: client.color, flexShrink: 0 }} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.name}</div>
-                  {/* Fascia e "+" sulla riga dell'area: sulla prima toglievano spazio al nome,
-                      che nel pannello stretto si riduceva a poche lettere. */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, marginTop: 1 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{client.name}</span>
-                    {entry.id && <EntrySlotSelect entry={entry} projectName={project.name} onMove={onMoveSlot} />}
-                    {!entry.id && entry.slot && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', flexShrink: 0 }}>{SLOT_LABELS[entry.slot]}</span>
-                    )}
-                    {freeSlots.length > 0 && (
-                      <AddSlotSelect freeSlots={freeSlots} projectName={project.name}
-                        onAdd={slot => setAddedRows(rs => [...rs, { projectId: project.id, slot }])} />
-                    )}
-                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>{client.name}</div>
                 </div>
               </div>
               <TimeCell
@@ -555,9 +510,8 @@ function DayTimesheet({ loading, dayEntries, slotEntries = [], clients, projects
                 colIndex={0}
                 projectId={project.id}
                 viewMode={viewMode}
-                autoEdit={!entry.id && !!entry.slot} showHint={!entry.id && !!entry.slot}
-                onSave={payload => onSaveDayEntry(project.id, payload, entry.slot)}
-                onResetBillable={() => onResetBillable(project.id, entry.slot)} />
+                onSave={payload => onSaveDayEntry(project.id, payload)}
+                onResetBillable={() => onResetBillable(project.id)} />
             </div>
           ))}
         </div>

@@ -1,3 +1,4 @@
+const path = require('path');
 const Database = require('better-sqlite3');
 
 const INIT_CLIENTS = [
@@ -68,20 +69,19 @@ function getSeedEntries() {
   }
 
   return [
-    { id: 'e1',  projectId: 'p1', date: d(0),  hours: 3.5, billableHours: null, slot: 'am', billed: 1 },
-    { id: 'e2',  projectId: 'p3', date: d(0),  hours: 2,   billableHours: null, slot: 'pm', billed: 1 },
-    { id: 'e3',  projectId: 'p2', date: d(1),  hours: 4,   billableHours: 3.5,  slot: 'am', billed: 0 }, // arrotondamento contrattuale
-    { id: 'e4',  projectId: 'p3', date: d(1),  hours: 2,   billableHours: null, slot: 'pm', billed: 1 },
-    { id: 'e5',  projectId: 'p4', date: d(2),  hours: 2.5, billableHours: 2,    slot: 'am', billed: 0 }, // cap fisso raggiunto
-    { id: 'e11', projectId: 'p3', date: d(1),  hours: 2,   billableHours: 0,    slot: 'am', billed: 0 }, // lavoro interno
-    { id: 'e12', projectId: 'p6', date: d(2),  hours: 2,   billableHours: 1.5,  slot: 'pm', billed: 0 }, // sconto di cortesia
-    { id: 'e6',  projectId: 'p1', date: pd(0), hours: 3.5, billableHours: null, slot: 'am', billed: 1 },
-    { id: 'e7',  projectId: 'p6', date: pd(1), hours: 2,   billableHours: null, slot: 'pm', billed: 1 },
-    { id: 'e8',  projectId: 'p4', date: pd(2), hours: 3.5, billableHours: null, slot: 'am', billed: 0 },
-    { id: 'e9',  projectId: 'p5', date: pd(3), hours: 2,   billableHours: null, slot: 'pm', billed: 0 },
-    { id: 'e10', projectId: 'p3', date: pd(4), hours: 2.5, billableHours: null, slot: 'pm', billed: 1 },
-    { id: 'e13', projectId: 'p4', date: d(1),  hours: 1.5, billableHours: null, slot: 'sera', billed: 0 }, // sessione serale
-    { id: 'e14', projectId: 'p6', date: pd(3), hours: 1,   billableHours: null, slot: 'sera', billed: 1 },
+    { id: 'e1',  projectId: 'p1', date: d(0),  hours: 3.5, billableHours: null, billed: 1 },
+    { id: 'e2',  projectId: 'p3', date: d(0),  hours: 2,   billableHours: null, billed: 1 },
+    { id: 'e3',  projectId: 'p2', date: d(1),  hours: 4,   billableHours: 3.5, billed: 0 }, // arrotondamento contrattuale
+    { id: 'e4',  projectId: 'p3', date: d(1),  hours: 4,   billableHours: 2,    billed: 0 }, // 2h di lavoro interno non fatturabili
+    { id: 'e5',  projectId: 'p4', date: d(2),  hours: 2.5, billableHours: 2, billed: 0 }, // cap fisso raggiunto
+    { id: 'e12', projectId: 'p6', date: d(2),  hours: 2,   billableHours: 1.5, billed: 0 }, // sconto di cortesia
+    { id: 'e6',  projectId: 'p1', date: pd(0), hours: 3.5, billableHours: null, billed: 1 },
+    { id: 'e7',  projectId: 'p6', date: pd(1), hours: 2,   billableHours: null, billed: 1 },
+    { id: 'e8',  projectId: 'p4', date: pd(2), hours: 3.5, billableHours: null, billed: 0 },
+    { id: 'e9',  projectId: 'p5', date: pd(3), hours: 2,   billableHours: null, billed: 0 },
+    { id: 'e10', projectId: 'p3', date: pd(4), hours: 2.5, billableHours: null, billed: 1 },
+    { id: 'e13', projectId: 'p4', date: d(1),  hours: 1.5, billableHours: null, billed: 0 }, // sessione serale
+    { id: 'e14', projectId: 'p6', date: pd(3), hours: 1,   billableHours: null, billed: 1 },
   ];
 }
 
@@ -132,7 +132,7 @@ function initDb(dbPath) {
       date TEXT,
       hours REAL,
       billableHours REAL,
-      slot TEXT,
+      slot TEXT, -- unused since the entry slot was removed; kept for older versions
       billed INTEGER DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS week_overrides (
@@ -171,7 +171,7 @@ function initDb(dbPath) {
       projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       date TEXT NOT NULL,
       hours REAL NOT NULL,
-      slot TEXT NOT NULL DEFAULT 'am',
+      slot TEXT NOT NULL DEFAULT 'am', -- unused, like entries.slot
       titleSnapshot TEXT,
       note TEXT,
       importedAt TEXT NOT NULL
@@ -219,51 +219,13 @@ function initDb(dbPath) {
 
     DELETE FROM week_overrides WHERE strftime('%w', weekKey) = '0';
   `);
-  db.exec("UPDATE todoist_imports SET slot = 'am' WHERE slot IS NULL OR slot NOT IN ('am', 'pm', 'sera')");
+  // One entry per project and day: the entry slot is gone. The column stays, unused
+  // and NULL in new rows, so an older version can still open the file.
+  mergeSameDayEntries(db);
   db.exec(`
-    UPDATE entries
-    SET slot = 'am'
-    WHERE slot IS NULL OR slot NOT IN ('am', 'pm', 'sera');
-
-    CREATE TEMP TABLE entry_slot_dedupe AS
-    SELECT
-      MIN(rowid) AS keepRowid,
-      projectId,
-      date,
-      slot,
-      SUM(hours) AS hours,
-      CASE
-        WHEN SUM(CASE WHEN billableHours IS NOT NULL THEN 1 ELSE 0 END) > 0
-        THEN SUM(COALESCE(billableHours, hours))
-        ELSE NULL
-      END AS billableHours,
-      MIN(COALESCE(billed, 0)) AS billed
-    FROM entries
-    GROUP BY projectId, date, slot
-    HAVING COUNT(*) > 1;
-
-    UPDATE entries
-    SET
-      hours = (SELECT hours FROM entry_slot_dedupe WHERE keepRowid = entries.rowid),
-      billableHours = (SELECT billableHours FROM entry_slot_dedupe WHERE keepRowid = entries.rowid),
-      billed = (SELECT billed FROM entry_slot_dedupe WHERE keepRowid = entries.rowid)
-    WHERE rowid IN (SELECT keepRowid FROM entry_slot_dedupe);
-
-    DELETE FROM entries
-    WHERE rowid IN (
-      SELECT entries.rowid
-      FROM entries
-      JOIN entry_slot_dedupe
-        ON entries.projectId = entry_slot_dedupe.projectId
-       AND entries.date = entry_slot_dedupe.date
-       AND entries.slot = entry_slot_dedupe.slot
-       AND entries.rowid != entry_slot_dedupe.keepRowid
-    );
-
-    DROP TABLE entry_slot_dedupe;
-
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_project_date_slot
-      ON entries(projectId, date, slot);
+    DROP INDEX IF EXISTS idx_entries_project_date_slot;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_project_date ON entries(projectId, date);
+    DELETE FROM settings WHERE key = 'slotsTrackedSince';
   `);
 
   cleanupOrphans(db);
@@ -406,9 +368,50 @@ function ensureIndexes(db) {
     CREATE INDEX IF NOT EXISTS idx_week_area_targets_weekkey ON week_area_targets(weekKey);
     CREATE INDEX IF NOT EXISTS idx_todoist_imports_date ON todoist_imports(date);
     CREATE INDEX IF NOT EXISTS idx_todoist_imports_project_date ON todoist_imports(projectId, date);
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_project_date_slot
-      ON entries(projectId, date, slot);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_project_date ON entries(projectId, date);
   `);
 }
 
-module.exports = { initDb, INIT_CLIENTS, INIT_PROJECTS, INIT_RECURRING, getSeedEntries };
+// Entries of the same project on the same day (one per slot, before the entry slot
+// was removed) become one: hours and billable hours summed, billed only if all were.
+// Billable hours are summed as effective values (null = equal to hours) and stored as
+// null again when the sum equals the hours. The oldest row keeps its id. The database
+// is copied next to itself first, only when there is something to merge: once merged
+// there are no duplicates left, so later starts do nothing. Returns the copy's path.
+function mergeSameDayEntries(db) {
+  const groups = db.prepare(`
+    SELECT projectId, date FROM entries
+    WHERE projectId IS NOT NULL AND date IS NOT NULL
+    GROUP BY projectId, date HAVING COUNT(*) > 1
+  `).all();
+  if (groups.length === 0) return null;
+  const backupPath = backupDatabase(db, 'before-entry-merge');
+  const rowsOf = db.prepare('SELECT rowid AS rid, * FROM entries WHERE projectId = ? AND date = ? ORDER BY rowid');
+  const update = db.prepare('UPDATE entries SET hours = ?, billableHours = ?, billed = ? WHERE rowid = ?');
+  const remove = db.prepare('DELETE FROM entries WHERE rowid = ?');
+  db.transaction(() => {
+    for (const { projectId, date } of groups) {
+      const rows = rowsOf.all(projectId, date);
+      const hours = rows.reduce((sum, r) => sum + (r.hours ?? 0), 0);
+      const billable = rows.reduce((sum, r) => sum + (r.billableHours ?? r.hours ?? 0), 0);
+      const billed = rows.every(r => r.billed === 1) ? 1 : 0;
+      update.run(hours, Math.abs(billable - hours) < 0.001 ? null : billable, billed, rows[0].rid);
+      for (const r of rows.slice(1)) remove.run(r.rid);
+    }
+  })();
+  return backupPath;
+}
+
+// A consistent copy of an on-disk database (WAL content included) next to it, with
+// SQLite's VACUUM INTO: synchronous, unlike better-sqlite3's db.backup(), so initDb
+// can stay synchronous. Throws if the copy fails, so nothing is migrated without it.
+function backupDatabase(db, label) {
+  if (db.memory) return null;
+  const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
+  const { dir, name } = path.parse(db.name);
+  const target = path.join(dir, `${name}-${label}-${stamp}.db`);
+  db.prepare('VACUUM INTO ?').run(target);
+  return target;
+}
+
+module.exports = { initDb, mergeSameDayEntries, INIT_CLIENTS, INIT_PROJECTS, INIT_RECURRING, getSeedEntries };

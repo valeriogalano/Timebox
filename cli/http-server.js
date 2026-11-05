@@ -19,9 +19,8 @@ const { getWeekTargetsData, weekTargetAlerts } = require('./commands/targets');
 const { logHours }        = require('./commands/log');
 const { getPlanVsTrackedData, MAX_DAYS } = require('./commands/plan-vs-tracked');
 const { fmt, getToday }   = require('./format');
-const { SLOTS }           = require('../lib/domain');
 const {
-  getClients, saveClient, moveEntrySlot,
+  getClients, saveClient,
   getProjects, saveProject, deleteProject,
   hasProjectEntries, mergeProjectEntries,
   getRecurring, saveRecurring, replaceRecurringSlot, deleteRecurring,
@@ -153,16 +152,6 @@ function createHttpServer() {
         return json(res, 200, getPlanVsTrackedData({ from, to }));
       }
 
-      if (req.method === 'PATCH' && p.startsWith('/entries/') && p !== '/entries/') {
-        const id = decodeURIComponent(p.slice('/entries/'.length));
-        const { slot } = await readBody(req);
-        if (!SLOTS.includes(slot)) return json(res, 400, { error: 'slot must be am, pm or sera' });
-        const result = moveEntrySlot(id, slot);
-        if (!result) return json(res, 404, { error: `Entry not found: ${id}` });
-        emitter.emit('change', 'entries');
-        return json(res, 200, result);
-      }
-
       if (req.method === 'GET' && (p === '/clients' || p === '/areas')) {
         const nameFilter = q.get('search') || undefined;
         return json(res, 200, getClientsData({ nameFilter }));
@@ -174,13 +163,12 @@ function createHttpServer() {
 
       if (req.method === 'POST' && p === '/log') {
         const body = await readBody(req);
-        const { project, hours, slot, date, add, billableHours } = body;
+        const { project, hours, date, add, billableHours } = body;
         if (!project || hours == null) return json(res, 400, { error: 'project and hours are required' });
         const result = logHours({
           projectName: project,
           hoursStr: String(hours),
           billableHoursStr: billableHours != null ? String(billableHours) : undefined,
-          slot,
           date: date || fmt(getToday()),
           add: !!add,
         });

@@ -214,21 +214,20 @@
         return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
       }
       const ENTRIES = [
-        { id:'e1',  projectId:'p1', date:d(0),  hours:3.5, billableHours:null, slot:'am',   billed:true  },
-        { id:'e2',  projectId:'p3', date:d(0),  hours:2,   billableHours:null, slot:'pm',   billed:true  },
-        { id:'e3',  projectId:'p2', date:d(1),  hours:4,   billableHours:3.5,  slot:'am',   billed:false }, // arrotondamento contrattuale
-        { id:'e4',  projectId:'p3', date:d(1),  hours:2,   billableHours:null, slot:'pm',   billed:true  },
-        { id:'e5',  projectId:'p4', date:d(2),  hours:2.5, billableHours:2,    slot:'am',   billed:false }, // cap fisso raggiunto
-        { id:'e11', projectId:'p3', date:d(1),  hours:2,   billableHours:0,    slot:'am',   billed:false }, // lavoro interno non fatturabile
-        { id:'e12', projectId:'p6', date:d(2),  hours:2,   billableHours:1.5,  slot:'pm',   billed:false }, // sconto di cortesia
-        { id:'e13', projectId:'p4', date:d(1),  hours:1.5, billableHours:null, slot:'sera', billed:false }, // sessione serale
-        { id:'e15', projectId:'p7', date:d(3),  hours:1.5, billableHours:null, slot:'am',   billed:false }, // area personale (non fatturabile)
-        { id:'e6',  projectId:'p1', date:pd(0), hours:3.5, billableHours:null, slot:'am',   billed:true  },
-        { id:'e7',  projectId:'p6', date:pd(1), hours:2,   billableHours:null, slot:'pm',   billed:true  },
-        { id:'e8',  projectId:'p4', date:pd(2), hours:3.5, billableHours:null, slot:'am',   billed:false },
-        { id:'e9',  projectId:'p5', date:pd(3), hours:2,   billableHours:null, slot:'pm',   billed:false },
-        { id:'e10', projectId:'p3', date:pd(4), hours:2.5, billableHours:null, slot:'pm',   billed:true  },
-        { id:'e14', projectId:'p6', date:pd(3), hours:1,   billableHours:null, slot:'sera', billed:true  },
+        { id:'e1',  projectId:'p1', date:d(0),  hours:3.5, billableHours:null, billed:true  },
+        { id:'e2',  projectId:'p3', date:d(0),  hours:2,   billableHours:null, billed:true  },
+        { id:'e3',  projectId:'p2', date:d(1),  hours:4,   billableHours:3.5, billed:false }, // arrotondamento contrattuale
+        { id:'e4',  projectId:'p3', date:d(1),  hours:4,   billableHours:2,    billed:false }, // 2h di lavoro interno non fatturabili
+        { id:'e5',  projectId:'p4', date:d(2),  hours:2.5, billableHours:2,   billed:false }, // cap fisso raggiunto
+        { id:'e12', projectId:'p6', date:d(2),  hours:2,   billableHours:1.5, billed:false }, // sconto di cortesia
+        { id:'e13', projectId:'p4', date:d(1),  hours:1.5, billableHours:null, billed:false }, // sessione serale
+        { id:'e15', projectId:'p7', date:d(3),  hours:1.5, billableHours:null, billed:false }, // area personale (non fatturabile)
+        { id:'e6',  projectId:'p1', date:pd(0), hours:3.5, billableHours:null, billed:true  },
+        { id:'e7',  projectId:'p6', date:pd(1), hours:2,   billableHours:null, billed:true  },
+        { id:'e8',  projectId:'p4', date:pd(2), hours:3.5, billableHours:null, billed:false },
+        { id:'e9',  projectId:'p5', date:pd(3), hours:2,   billableHours:null, billed:false },
+        { id:'e10', projectId:'p3', date:pd(4), hours:2.5, billableHours:null, billed:true  },
+        { id:'e14', projectId:'p6', date:pd(3), hours:1,   billableHours:null, billed:true  },
       ];
       let entries = [...ENTRIES];
       const weekAreaStatuses = {};
@@ -236,19 +235,19 @@
       const settings = { slotCapacityHours: '4' };
       const mobileMock = { enabled: false, hasToken: false };
       let todoistImports = [
-        { todoistTaskId:'ti1', projectId:'p1', titleSnapshot:'Revisione mockup homepage',   date:pd(0), slot:'am', hours:2,   note:'Feedback cliente incluso', importedAt:new Date(Date.now()-6*864e5).toISOString() },
-        { todoistTaskId:'ti2', projectId:'p3', titleSnapshot:'Articolo newsletter maggio',   date:pd(0), slot:'pm', hours:2.5, note:'', importedAt:new Date(Date.now()-6*864e5).toISOString() },
-        { todoistTaskId:'ti3', projectId:'p2', titleSnapshot:'Setup endpoint autenticazione',date:pd(1), slot:'am', hours:3.5, note:'', importedAt:new Date(Date.now()-5*864e5).toISOString() },
-        { todoistTaskId:'ti4', projectId:'p6', titleSnapshot:'Palette colori brand',         date:pd(1), slot:'pm', hours:1,   note:'', importedAt:new Date(Date.now()-5*864e5).toISOString() },
-        { todoistTaskId:'ti5', projectId:'p4', titleSnapshot:'Grafici dashboard overview',   date:pd(3), slot:'am', hours:2,   note:'Iterazione 2', importedAt:new Date(Date.now()-3*864e5).toISOString() },
+        { todoistTaskId:'ti1', projectId:'p1', titleSnapshot:'Revisione mockup homepage',   date:pd(0), hours:2,   note:'Feedback cliente incluso', importedAt:new Date(Date.now()-6*864e5).toISOString() },
+        { todoistTaskId:'ti2', projectId:'p3', titleSnapshot:'Articolo newsletter maggio',   date:pd(0), hours:2.5, note:'', importedAt:new Date(Date.now()-6*864e5).toISOString() },
+        { todoistTaskId:'ti3', projectId:'p2', titleSnapshot:'Setup endpoint autenticazione',date:pd(1), hours:3.5, note:'', importedAt:new Date(Date.now()-5*864e5).toISOString() },
+        { todoistTaskId:'ti4', projectId:'p6', titleSnapshot:'Palette colori brand',         date:pd(1), hours:1,   note:'', importedAt:new Date(Date.now()-5*864e5).toISOString() },
+        { todoistTaskId:'ti5', projectId:'p4', titleSnapshot:'Grafici dashboard overview',   date:pd(3), hours:2,   note:'Iterazione 2', importedAt:new Date(Date.now()-3*864e5).toISOString() },
       ];
       const completedTodoistTasks = [
-        { id:'ct1', projectId:'p1', content:'Revisione finale homepage',        hours:2,    estimatedHours:2,    slot:'am', completedDate:localD(0), completed:true },
-        { id:'ct2', projectId:'p2', content:'Verifica errori autenticazione',   hours:null, estimatedHours:null, slot:'pm', completedDate:localD(0), completed:true },
-        { id:'ct3', projectId:'p3', content:'Correzioni articolo newsletter',   hours:0.5,  estimatedHours:0.5,  slot:'pm', completedDate:localD(1), completed:true },
-        { id:'ct4', projectId:'p4', content:'Integrazione API dati sensori',    hours:2,    estimatedHours:2,    slot:'am', completedDate:localD(1), completed:true },
-        { id:'ct5', projectId:'p6', content:'Bozze logo varianti',              hours:1.5,  estimatedHours:2,    slot:'pm', completedDate:localD(2), completed:true },
-        { id:'ct6', projectId:'p7', content:'Corso TypeScript avanzato',        hours:1,    estimatedHours:1,    slot:'am', completedDate:localD(2), completed:true },
+        { id:'ct1', projectId:'p1', content:'Revisione finale homepage',        hours:2,    estimatedHours:2,    completedDate:localD(0), completed:true },
+        { id:'ct2', projectId:'p2', content:'Verifica errori autenticazione',   hours:null, estimatedHours:null, completedDate:localD(0), completed:true },
+        { id:'ct3', projectId:'p3', content:'Correzioni articolo newsletter',   hours:0.5,  estimatedHours:0.5,  completedDate:localD(1), completed:true },
+        { id:'ct4', projectId:'p4', content:'Integrazione API dati sensori',    hours:2,    estimatedHours:2,    completedDate:localD(1), completed:true },
+        { id:'ct5', projectId:'p6', content:'Bozze logo varianti',              hours:1.5,  estimatedHours:2,    completedDate:localD(2), completed:true },
+        { id:'ct6', projectId:'p7', content:'Corso TypeScript avanzato',        hours:1,    estimatedHours:1,    completedDate:localD(2), completed:true },
       ];
       window.api = {
         getClients: async () => CLIENTS, saveClient: async () => {}, deleteClient: async () => {},
@@ -257,18 +256,18 @@
         getEntries: async (from, to) => entries.filter(e => e.date >= from && e.date <= to),
         getProjectTotals: async () => { const t = {}; entries.forEach(e => { t[e.projectId] = (t[e.projectId] || 0) + e.hours; }); return t; },
         getProjectBillableTotals: async () => { const t = {}; entries.forEach(e => { t[e.projectId] = (t[e.projectId] || 0) + (e.billableHours ?? e.hours); }); return t; },
-        saveEntry: async (e) => { const i = entries.findIndex(x => x.id === e.id); i >= 0 ? entries[i] = e : entries.push(e); },
-        deleteEntry: async (id) => { entries = entries.filter(e => e.id !== id); },
-        moveEntrySlot: async (id, slot) => {
-          const e = entries.find(x => x.id === id);
-          if (!e) return null;
-          const t = entries.find(x => x !== e && x.projectId === e.projectId && x.date === e.date && x.slot === slot);
-          if (!t) { e.slot = slot; return { entry: e, merged: false }; }
-          const bill = t.billableHours == null && e.billableHours == null ? null : (t.billableHours ?? t.hours) + (e.billableHours ?? e.hours);
-          Object.assign(t, { hours: t.hours + e.hours, billableHours: bill, billed: t.billed && e.billed });
-          entries = entries.filter(x => x !== e);
-          return { entry: t, merged: true };
+        saveEntry: async (e) => {
+          // one entry per project and day, like the unique index: a moved entry joins the one already there
+          const other = entries.find(x => x.id !== e.id && x.projectId === e.projectId && x.date === e.date);
+          const i = entries.findIndex(x => x.id === e.id);
+          if (other && i >= 0) {
+            const bill = other.billableHours == null && e.billableHours == null ? null : (other.billableHours ?? other.hours) + (e.billableHours ?? e.hours);
+            Object.assign(other, { hours: other.hours + e.hours, billableHours: bill, billed: other.billed && e.billed });
+            entries.splice(i, 1);
+          } else if (i >= 0) entries[i] = e;
+          else entries.push(e);
         },
+        deleteEntry: async (id) => { entries = entries.filter(e => e.id !== id); },
         getWeekOverrides: async (weekKey) => {
           if (weekKey !== localD(0)) return [];
           const todayIdx = (new Date().getDay() + 6) % 7; // Mon=0..Sun=6
@@ -333,7 +332,7 @@
         updateTodoistImport: async (item) => {
           const index = todoistImports.findIndex(existing => existing.todoistTaskId === item.todoistTaskId);
           if (index < 0) return { updated:false };
-          todoistImports[index] = { ...todoistImports[index], ...item, slot:item.slot === 'pm' ? 'pm' : 'am' };
+          todoistImports[index] = { ...todoistImports[index], ...item };
           return { updated:true };
         },
         deleteTodoistImport: async (todoistTaskId) => {
@@ -346,15 +345,13 @@
           let importedHours = 0;
           for (const item of items) {
             if (!(item.hours > 0) || todoistImports.some(existing => existing.todoistTaskId === item.todoistTaskId)) continue;
-            const slot = item.slot === 'pm' ? 'pm' : 'am';
-            todoistImports.push({ note:'', ...item, slot });
-            const matches = entries.filter(entry => entry.projectId === item.projectId && entry.date === item.date && entry.slot === slot);
-            const existing = matches[0];
+            todoistImports.push({ note:'', ...item });
+            const existing = entries.find(entry => entry.projectId === item.projectId && entry.date === item.date);
             if (existing) {
-              existing.hours = matches.reduce((sum, entry) => sum + entry.hours, 0) + item.hours;
-              entries = entries.filter(entry => entry === existing || !(entry.projectId === item.projectId && entry.date === item.date && entry.slot === slot));
+              existing.hours += item.hours;
+              existing.billed = false;
             } else {
-              entries.push({ id:crypto.randomUUID(), projectId:item.projectId, date:item.date, hours:item.hours, billableHours:null, slot, billed:false });
+              entries.push({ id:crypto.randomUUID(), projectId:item.projectId, date:item.date, hours:item.hours, billableHours:null, billed:false });
             }
             importedCount++;
             importedHours += item.hours;

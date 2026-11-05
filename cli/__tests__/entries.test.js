@@ -21,18 +21,19 @@ describe('getEntriesData', () => {
     saveClient({ ...b, billing: 'fixed' });
     hourly = getProjects().find(p => p.clientId === a.id);
     flat = getProjects().find(p => p.clientId === b.id);
-    saveEntry({ id: 'x-pm', projectId: hourly.id, date: '2031-03-04', hours: 2, billableHours: 3, slot: 'pm', billed: true });
-    saveEntry({ id: 'x-am', projectId: hourly.id, date: '2031-03-04', hours: 1, slot: 'am', billed: false });
-    saveEntry({ id: 'x-flat', projectId: flat.id, date: '2031-03-05', hours: 4, billableHours: 9, slot: 'am', billed: true });
+    const other = getProjects().find(p => p.clientId === a.id && p.id !== hourly.id);
+    saveEntry({ id: 'x-pm', projectId: hourly.id, date: '2031-03-04', hours: 2, billableHours: 3, billed: true });
+    saveEntry({ id: 'x-am', projectId: other.id, date: '2031-03-04', hours: 1, billed: false });
+    saveEntry({ id: 'x-flat', projectId: flat.id, date: '2031-03-05', hours: 4, billableHours: 9, billed: true });
   });
 
-  test('restituisce le entry del solo intervallo, per data e fascia, con la fascia', () => {
+  test('restituisce le entry del solo intervallo, per data, senza fascia', () => {
     const d = getEntriesData({ from: '2031-03-04', to: '2031-03-05' });
-    assert.deepEqual(d.entries.map(e => [e.id, e.slot]), [['x-am', 'am'], ['x-pm', 'pm'], ['x-flat', 'am']]);
+    assert.deepEqual(d.entries.map(e => e.id).sort(), ['x-am', 'x-flat', 'x-pm']);
     assert.deepEqual(d.entries.map(e => e.date), ['2031-03-04', '2031-03-04', '2031-03-05']);
-    assert.ok('slotsTrackedSince' in d);
+    assert.ok(d.entries.every(e => !('slot' in e)));
     assert.equal(d.total, 7);
-    assert.equal(d.entries[0].project, hourly.name);
+    assert.equal(d.entries.find(e => e.id === 'x-pm').project, hourly.name);
   });
 
   test('ore fatturabili e fatturato solo nelle aree a ore', () => {
@@ -53,7 +54,7 @@ describe('getEntriesData', () => {
     const areaOf = id => d.entries.find(e => e.id === id).area;
     assert.equal(byArea[areaOf('x-am')].billableHours, 4);
     assert.equal(byArea[areaOf('x-flat')].billableHours, null);
-    assert.equal(d.byProject.length, 2);
+    assert.equal(d.byProject.length, 3);
     assert.equal(sum(d.byProject, 'hours'), d.total);
   });
 

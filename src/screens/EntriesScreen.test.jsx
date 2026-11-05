@@ -13,9 +13,9 @@ const projects = [
 ];
 const today = fmt(getToday());
 const entries = [
-  { id: 'e1', projectId: 'p1', date: today, hours: 2, slot: 'am', billed: false, billableHours: null },
-  { id: 'e2', projectId: 'p2', date: today, hours: 2, slot: 'pm', billed: true, billableHours: 1 },
-  { id: 'e3', projectId: 'p2', date: today, hours: 1, slot: 'eve', billed: false, billableHours: null },
+  { id: 'e1', projectId: 'p1', date: today, hours: 2, billed: false, billableHours: null },
+  { id: 'e2', projectId: 'p2', date: today, hours: 2, billed: true, billableHours: 1 },
+  { id: 'e3', projectId: 'p2', date: today, hours: 1, billed: false, billableHours: null },
 ];
 
 const renderScreen = () => render(<EntriesScreen clients={clients} projects={projects} />);
@@ -29,7 +29,6 @@ describe('EntriesScreen', () => {
       getEntries: vi.fn(() => Promise.resolve(entries)),
       saveEntry: vi.fn(() => Promise.resolve()),
       deleteEntry: vi.fn(() => Promise.resolve()),
-      moveEntrySlot: vi.fn(() => Promise.resolve()),
     };
   });
 
@@ -115,19 +114,11 @@ describe('EntriesScreen', () => {
     expect(await findByText(/3 registrazioni ·/)).toBeInTheDocument();
   });
 
-  test('la fascia si corregge da Modifica e passa da moveEntrySlot; senza cambio non si sposta', async () => {
-    window.api.getEntries = vi.fn(() => Promise.resolve([entries[0]]));
-    const { findByText, getByLabelText, getByText } = renderScreen();
-    const row = rowOf(await findByText('Mattina', inTable));
-
+  test('niente colonna Fascia, e la modifica non ha un selettore di fascia', async () => {
+    const { findByText, queryByText, queryByLabelText } = renderScreen();
+    const row = rowOf(await findByText('Progetto fisso', inTable));
+    expect(queryByText('Fascia')).not.toBeInTheDocument();
     fireEvent.click(within(row).getByText('Modifica'));
-    fireEvent.click(getByText('Salva'));
-    await waitFor(() => expect(window.api.saveEntry).toHaveBeenCalledTimes(1));
-    expect(window.api.moveEntrySlot).not.toHaveBeenCalled();
-
-    fireEvent.click(within(rowOf(await findByText('Mattina', inTable))).getByText('Modifica'));
-    fireEvent.change(getByLabelText('Fascia'), { target: { value: 'pm' } });
-    fireEvent.click(getByText('Salva'));
-    await waitFor(() => expect(window.api.moveEntrySlot).toHaveBeenCalledWith('e1', 'pm'));
+    expect(queryByLabelText('Fascia')).not.toBeInTheDocument();
   });
 });

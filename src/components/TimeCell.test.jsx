@@ -25,7 +25,7 @@ describe('TimeCell — Enter saves and moves one row down', () => {
     fireEvent.change(input, { target: { value: '1:30' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    expect(onSave).toHaveBeenCalledWith({ hours: 1.5, billableHours: null }, null);
+    expect(onSave).toHaveBeenCalledWith({ hours: 1.5, billableHours: null });
     // focusCell clicks the target, which opens its editor
     expect(bottomCell.querySelector('input')).not.toBeNull();
   });
@@ -65,45 +65,38 @@ describe('TimeCell — da tastiera', () => {
     expect(cell.querySelector('input')).toBeNull();
   });
 
-  it('con ore su più fasce non si apre: apre le fasce e mostra il tag', () => {
-    const onOpenSlots = vi.fn();
-    const { container, getByText } = render(
-      <TimeCell hours={3} colIndex={0} projectId="a" slots={['am', 'pm']} onOpenSlots={onOpenSlots} onSave={() => {}} />
-    );
-    const cell = container.querySelector('[data-timecell]');
-    expect(getByText('M·P')).toBeTruthy();
-    fireEvent.click(cell);
-    expect(cell.querySelector('input')).toBeNull();
-    expect(onOpenSlots).toHaveBeenCalledTimes(1);
-  });
-
-  it('con una fascia mostra l\'iniziale e il clic sul tag apre le fasce', () => {
-    const onOpenSlots = vi.fn();
-    const { container, getByText } = render(
-      <TimeCell hours={2} colIndex={0} projectId="a" slots={['pm']} onOpenSlots={onOpenSlots} onSave={() => {}} />
-    );
-    fireEvent.click(getByText('P'));
-    expect(onOpenSlots).toHaveBeenCalledTimes(1);
-    expect(container.querySelector('input')).toBeNull();
-  });
-
-  it('un suffisso di fascia nel campo arriva a onSave', () => {
-    const onSave = vi.fn();
-    const { container } = render(<TimeCell hours={0} colIndex={0} projectId="a" onSave={onSave} />);
-    fireEvent.click(container.querySelector('[data-timecell]'));
-    const input = container.querySelector('input');
-    fireEvent.change(input, { target: { value: '2h +pom' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
-    expect(onSave).toHaveBeenCalledWith({ hours: 2, billableHours: null }, 'pm');
-  });
-
-  it('"+pom" da solo sposta le ore che ci sono senza cambiarle', () => {
+  it('le frecce su e giù cambiano il valore di un quarto d\'ora', () => {
     const onSave = vi.fn();
     const { container } = render(<TimeCell hours={2} colIndex={0} projectId="a" onSave={onSave} />);
     fireEvent.click(container.querySelector('[data-timecell]'));
     const input = container.querySelector('input');
-    fireEvent.change(input, { target: { value: '+pom' } });
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(input.value).toBe('2h 15m');
     fireEvent.keyDown(input, { key: 'Enter' });
-    expect(onSave).toHaveBeenCalledWith({ hours: 2, billableHours: null }, 'pm');
+    expect(onSave).toHaveBeenCalledWith({ hours: 2.25, billableHours: null });
+  });
+
+  it('nella vista fatturabile scrive le ore fatturabili, e il valore uguale al lavorato le azzera', () => {
+    const onSave = vi.fn();
+    const { container } = render(
+      <TimeCell hours={3} billableHours={null} isBillable colIndex={0} projectId="a" viewMode="billable" onSave={onSave} />
+    );
+    const open = () => { fireEvent.click(container.querySelector('[data-timecell]')); return container.querySelector('input'); };
+    let input = open();
+    fireEvent.change(input, { target: { value: '2' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSave).toHaveBeenLastCalledWith({ hours: 3, billableHours: 2 });
+    input = open();
+    fireEvent.change(input, { target: { value: '3' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSave).toHaveBeenLastCalledWith({ hours: 3, billableHours: null });
+  });
+
+  it('un suffisso di fascia non sposta più niente: la cella ha solo ore', () => {
+    const { container } = render(<TimeCell hours={2} colIndex={0} projectId="a" onSave={() => {}} />);
+    expect(container.textContent).toBe('2h');
+    expect(container.querySelector('[data-timecell]').getAttribute('aria-label')).toBe('Ore: 2h. Invio per modificare');
   });
 });

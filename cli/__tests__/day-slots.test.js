@@ -1,8 +1,7 @@
 'use strict';
 
-// Due misure distinte per fascia: il riempimento distribuisce le ore di un'area sui
-// suoi blocchi del giorno, qualunque fascia abbia l'entry; le ore lavorate per fascia
-// vengono invece dalla fascia delle entry.
+// Le ore registrate non hanno fascia: il riempimento distribuisce le ore di un'area
+// sui suoi blocchi del giorno, in ordine di fascia.
 
 const { test, describe, before } = require('node:test');
 const assert = require('node:assert/strict');
@@ -26,8 +25,8 @@ describe('ore registrate e fasce', () => {
     saveWeekOverride({ weekKey: WEEK, dayIndex: 1, slot: 'am', blocks: [{ id: 't-am', clientId: 'c1', hours: 2 }] });
     saveWeekOverride({ weekKey: WEEK, dayIndex: 1, slot: 'pm', blocks: [{ id: 't-pm', clientId: 'c1', hours: 3 }] });
     saveWeekOverride({ weekKey: WEEK, dayIndex: 1, slot: 'sera', blocks: [{ id: 't-se', clientId: 'c2', hours: 2 }] });
-    // Tutte le ore di c1 in un'unica entry, che il salvataggio mette al mattino.
-    saveEntry({ id: 't-entry', projectId: project.id, date: DATE, hours: 4, billableHours: null, slot: 'am', billed: false });
+    // Tutte le ore di c1 in un'unica entry.
+    saveEntry({ id: 't-entry', projectId: project.id, date: DATE, hours: 4, billableHours: null, billed: false });
   });
 
   test('il riepilogo distribuisce le ore sui blocchi dell\'area in ordine di fascia', () => {
@@ -40,28 +39,19 @@ describe('ore registrate e fasce', () => {
     assert.equal(d.extraHours, 0);
   });
 
-  test('le ore lavorate per fascia vengono dalla fascia delle entry, accanto al riempimento', () => {
+  test('le entry non hanno fascia e il riepilogo non ha ore lavorate per fascia', () => {
     const d = getDaySummaryData(DATE);
     assert.equal(d.trackedEntries.length, 1);
-    assert.equal(d.trackedEntries[0].slot, 'am');
-    // Il riempimento mette 2h al mattino e 2h al pomeriggio; il lavoro sta tutto al mattino.
-    assert.deepEqual([d.slots.am.actualByArea, d.slots.pm.actualByArea, d.slots.sera.actualByArea], [{ c1: 4 }, {}, {}]);
-    assert.deepEqual([d.slots.am.actualHours, d.slots.pm.actualHours, d.slots.sera.actualHours], [4, 0, 0]);
-
-    saveEntry({ id: 't-sera', projectId: project.id, date: DATE, hours: 1, billableHours: null, slot: 'sera', billed: false });
-    const after = getDaySummaryData(DATE);
-    assert.deepEqual(after.slots.sera.actualByArea, { c1: 1 });
-    assert.deepEqual(after.slots.am.trackedByArea, { c1: 2 });
-    assert.deepEqual(after.slots.pm.trackedByArea, { c1: 3 });
-    deleteEntry('t-sera');
+    assert.equal('slot' in d.trackedEntries[0], false);
+    assert.equal('actualByArea' in d.slots.am, false);
   });
 
   test('le ore oltre il piano dell\'area sono extra, non di una fascia', () => {
-    saveEntry({ id: 't-entry', projectId: project.id, date: DATE, hours: 6, billableHours: null, slot: 'am', billed: false });
+    saveEntry({ id: 't-entry', projectId: project.id, date: DATE, hours: 6, billableHours: null, billed: false });
     const d = getDaySummaryData(DATE);
     assert.deepEqual([d.slots.am.trackedHours, d.slots.pm.trackedHours], [2, 3]);
     assert.equal(d.extraHours, 1);
-    saveEntry({ id: 't-entry', projectId: project.id, date: DATE, hours: 4, billableHours: null, slot: 'am', billed: false });
+    saveEntry({ id: 't-entry', projectId: project.id, date: DATE, hours: 4, billableHours: null, billed: false });
   });
 
   test('capacità libera: il blocco del pomeriggio risulta coperto per le ore che gli spettano', () => {

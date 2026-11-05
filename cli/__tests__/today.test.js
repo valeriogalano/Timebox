@@ -18,13 +18,13 @@ describe('getTodayData', () => {
     assert.deepEqual(data.entries, []);
   });
 
-  test('lists the entries of the day in one list, in slot order, each with its slot and id', () => {
-    logHours({ projectName: 'brand', hoursStr: '2', slot: 'pm', date: TEST_DATE, add: false });
-    logHours({ projectName: 'website', hoursStr: '3', slot: 'am', date: TEST_DATE, add: false });
+  test('lists the entries of the day in one list, one per project, each with its id', () => {
+    logHours({ projectName: 'brand', hoursStr: '2', date: TEST_DATE, add: false });
+    logHours({ projectName: 'website', hoursStr: '3', date: TEST_DATE, add: false });
     const data = getTodayData(TEST_DATE);
     assert.equal(data.total, 5);
-    assert.deepEqual(data.entries.map(e => [e.slot, e.project]), [['am', 'Website Redesign'], ['pm', 'Brand Identity']]);
-    assert.ok(data.entries.every(e => e.id));
+    assert.deepEqual(data.entries.map(e => e.project).sort(), ['Brand Identity', 'Website Redesign']);
+    assert.ok(data.entries.every(e => e.id && !('slot' in e)));
   });
 
   test('resolves client name for each entry', () => {
@@ -45,7 +45,7 @@ describe('getTodayData', () => {
   test('billable override is reflected in totalBillable', () => {
     logHours({
       projectName: 'website', hoursStr: '4', billableHoursStr: '3',
-      slot: 'am', date: '2020-07-15', add: false,
+      date: '2020-07-15', add: false,
     });
     const data = getTodayData('2020-07-15');
     assert.equal(data.total, 4);

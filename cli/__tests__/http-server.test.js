@@ -393,25 +393,17 @@ describe('HTTP server', () => {
     assert.equal((await get(port, '/entries?from=2026-02-01&to=2026-01-01')).status, 400);
   });
 
-  it('PATCH /entries/:id → moves the slot; bad slot 400, unknown id 404', async () => {
-    await post(port, '/log', { project: 'website', hours: '2', slot: 'am', date: '2018-03-05' });
-    const [entry] = getEntries('2018-03-05', '2018-03-05');
-    const { status, body } = await request(port, 'PATCH', `/entries/${entry.id}`, { slot: 'sera' });
+  it('POST /log on a day the project already has → one entry; PATCH /entries/:id is gone', async () => {
+    await post(port, '/log', { project: 'website', hours: '2', date: '2018-03-05' });
+    const { status, body } = await post(port, '/log', { project: 'website', hours: '1', date: '2018-03-05', add: true, slot: 'pm' });
     assert.equal(status, 200);
-    assert.deepEqual([body.entry.id, body.entry.slot, body.merged], [entry.id, 'sera', false]);
-    assert.equal((await request(port, 'PATCH', `/entries/${entry.id}`, { slot: 'notte' })).status, 400);
-    assert.equal((await request(port, 'PATCH', '/entries/nope', { slot: 'am' })).status, 404);
+    assert.equal(body.hours, 3);
+    const entries = getEntries('2018-03-05', '2018-03-05');
+    assert.equal(entries.length, 1);
+    assert.equal((await request(port, 'PATCH', `/entries/${entries[0].id}`, { slot: 'sera' })).status, 404);
   });
 
-  it('POST /log without slot on a project with hours in two slots → 400 asking for the slot', async () => {
-    await post(port, '/log', { project: 'website', hours: '1', slot: 'pm', date: '2018-03-05' });
-    const { status, body } = await post(port, '/log', { project: 'website', hours: '1', date: '2018-03-05' });
-    assert.equal(status, 400);
-    assert.match(body.error, /Ambiguous slot/);
-    assert.equal((await post(port, '/log', { project: 'website', hours: '1', slot: 'x', date: '2018-03-05' })).status, 400);
-  });
-
-  it('GET /plan-vs-tracked → days with slots; invalid range 400', async () => {
+  it('GET /plan-vs-tracked → days with block slots; invalid range 400', async () => {
     const { status, body } = await get(port, '/plan-vs-tracked?from=2018-03-05');
     assert.equal(status, 200);
     assert.equal(body.to, '2018-03-05');
@@ -445,7 +437,6 @@ describe('HTTP server', () => {
     const { status, body } = await post(port, '/log', {
       project: 'website',
       hours: '1',
-      slot: 'am',
       date: '2025-06-15',
       add: false,
     });
@@ -459,7 +450,6 @@ describe('HTTP server', () => {
       project: 'website',
       hours: '4',
       billableHours: '3:30',
-      slot: 'am',
       date: '2025-09-10',
       add: false,
     });
@@ -473,7 +463,6 @@ describe('HTTP server', () => {
     await post(port, '/log', {
       project: 'website',
       hours: '2',
-      slot: 'am',
       date,
       add: false,
     });
@@ -481,7 +470,6 @@ describe('HTTP server', () => {
     const { status, body } = await post(port, '/log', {
       project: 'website',
       hours: 0,
-      slot: 'am',
       date,
       add: false,
     });
@@ -493,7 +481,7 @@ describe('HTTP server', () => {
 
   it('GET /today includes billableHours and totalBillable fields', async () => {
     await post(port, '/log', {
-      project: 'brand', hours: '2', billableHours: '1', slot: 'pm', date: '2025-09-11', add: false,
+      project: 'brand', hours: '2', billableHours: '1', date: '2025-09-11', add: false,
     });
     const { status, body } = await get(port, '/today?date=2025-09-11');
     assert.equal(status, 200);

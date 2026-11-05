@@ -112,7 +112,6 @@ function hasProjectEntries(id) {
 
 // Two entries merged into one are billed only if both were: hours that were
 // never invoiced must not disappear from Rendiconto under a billed flag.
-// Shared by mergeProjectEntries and moveEntrySlot.
 function mergeBilled(a, b) {
   return a === 1 && b === 1 ? 1 : 0;
 }
@@ -135,8 +134,8 @@ function mergeProjectEntries(fromId, toId, deleteSource = true) {
     count = sources.length;
     for (const e of sources) {
       const existing = db.prepare(
-        'SELECT * FROM entries WHERE projectId = ? AND date = ? AND slot = ?'
-      ).get(toId, e.date, e.slot);
+        'SELECT * FROM entries WHERE projectId = ? AND date = ?'
+      ).get(toId, e.date);
       if (existing) {
         const mergedBillable = mergeBillable(existing.billableHours, existing.hours, e.billableHours, e.hours);
         db.prepare('UPDATE entries SET hours = ?, billableHours = ?, billed = ? WHERE id = ?')
@@ -342,51 +341,38 @@ function getEntries(dateFrom, dateTo) {
   ).all(dateFrom, dateTo).map(normalizeEntry);
 }
 
+// One entry per project and day. An existing entry moved (Registro) onto a day where
+// its project already has one is merged into that one, like mergeProjectEntries.
 function saveEntry(entry) {
+  const other = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? AND id != ?')
+    .get(entry.projectId, entry.date, entry.id);
+  if (other && db.prepare('SELECT 1 FROM entries WHERE id = ?').get(entry.id)) {
+    db.transaction(() => {
+      const billed = entry.billed ? 1 : 0;
+      db.prepare('UPDATE entries SET hours = ?, billableHours = ?, billed = ? WHERE id = ?').run(
+        other.hours + entry.hours,
+        mergeBillable(other.billableHours, other.hours, entry.billableHours ?? null, entry.hours),
+        mergeBilled(other.billed, billed), other.id);
+      db.prepare('DELETE FROM entries WHERE id = ?').run(entry.id);
+    })();
+    return;
+  }
   db.prepare(`
-    INSERT INTO entries (id,projectId,date,hours,billableHours,slot,billed)
-    VALUES (@id,@projectId,@date,@hours,@billableHours,@slot,@billed)
+    INSERT INTO entries (id,projectId,date,hours,billableHours,billed)
+    VALUES (@id,@projectId,@date,@hours,@billableHours,@billed)
     ON CONFLICT(id) DO UPDATE SET
       projectId=excluded.projectId, date=excluded.date,
       hours=excluded.hours, billableHours=excluded.billableHours,
-      slot=excluded.slot, billed=excluded.billed
-    ON CONFLICT(projectId,date,slot) DO UPDATE SET
+      billed=excluded.billed
+    ON CONFLICT(projectId,date) DO UPDATE SET
       id=excluded.id, hours=excluded.hours,
       billableHours=excluded.billableHours, billed=excluded.billed
-  `).run({ billableHours: null, ...entry, billed: entry.billed ? 1 : 0 });
+  `).run({ id: entry.id, projectId: entry.projectId, date: entry.date, hours: entry.hours,
+    billableHours: entry.billableHours ?? null, billed: entry.billed ? 1 : 0 });
 }
 
 function deleteEntry(id) {
   db.prepare('DELETE FROM entries WHERE id=?').run(id);
-}
-
-// Corregge la fascia di un'entry. Se lo stesso progetto quel giorno ha già un'entry
-// in quella fascia, le due si fondono: ore e fatturabili sommate (mergeBillable),
-// fatturata solo se lo erano entrambe. Restituisce l'entry risultante, o null se
-// l'id non esiste.
-function moveEntrySlot(id, slot) {
-  if (!SLOTS.includes(slot)) throw new Error(`Invalid slot "${slot}": use am, pm or sera`);
-  return db.transaction(() => {
-    const entry = db.prepare('SELECT * FROM entries WHERE id = ?').get(id);
-    if (!entry) return null;
-    if (entry.slot === slot) return { entry: normalizeEntry(entry), merged: false };
-    const target = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? AND slot = ?')
-      .get(entry.projectId, entry.date, slot);
-    if (!target) {
-      db.prepare('UPDATE entries SET slot = ? WHERE id = ?').run(slot, id);
-      return { entry: normalizeEntry({ ...entry, slot }), merged: false };
-    }
-    const merged = {
-      ...target,
-      hours: target.hours + entry.hours,
-      billableHours: mergeBillable(target.billableHours, target.hours, entry.billableHours, entry.hours),
-      billed: mergeBilled(target.billed, entry.billed),
-    };
-    db.prepare('UPDATE entries SET hours = ?, billableHours = ?, billed = ? WHERE id = ?')
-      .run(merged.hours, merged.billableHours, merged.billed, target.id);
-    db.prepare('DELETE FROM entries WHERE id = ?').run(id);
-    return { entry: normalizeEntry(merged), merged: true };
-  })();
 }
 
 function normalizeEntry(row) {
@@ -412,37 +398,29 @@ function getTodoistImports(dateFrom, dateTo) {
 
 function saveTodoistImport(todoistImport) {
   db.prepare(`
-    INSERT INTO todoist_imports (todoistTaskId,projectId,date,hours,slot,titleSnapshot,note,importedAt)
-    VALUES (@todoistTaskId,@projectId,@date,@hours,@slot,@titleSnapshot,@note,@importedAt)
+    INSERT INTO todoist_imports (todoistTaskId,projectId,date,hours,titleSnapshot,note,importedAt)
+    VALUES (@todoistTaskId,@projectId,@date,@hours,@titleSnapshot,@note,@importedAt)
     ON CONFLICT(todoistTaskId) DO NOTHING
   `).run(normalizeTodoistImportInput(todoistImport));
 }
 
-function normalizeTodoistImport(row) {
-  return {
-    ...row,
-    slot: normalizeSlot(row.slot),
-    note: row.note ?? '',
-  };
+// todoist_imports.slot is unused (see entries.slot in db/schema.js): never read back.
+function normalizeTodoistImport({ slot, ...row }) {
+  return { ...row, note: row.note ?? '' };
 }
 
-function normalizeTodoistImportInput(todoistImport) {
-  return {
-    titleSnapshot: null,
-    note: null,
-    ...todoistImport,
-    slot: normalizeSlot(todoistImport.slot),
-  };
+function normalizeTodoistImportInput({ todoistTaskId, projectId, date, hours, titleSnapshot = null, note = null, importedAt }) {
+  return { todoistTaskId, projectId, date, hours, titleSnapshot, note, importedAt };
 }
 
-function addImportedHours(projectId, date, slot, hours) {
+function addImportedHours(projectId, date, hours) {
   if (!(hours > 0)) return;
-  const matches = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? AND slot = ? ORDER BY rowid').all(projectId, date, slot);
+  const matches = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? ORDER BY rowid').all(projectId, date);
   if (matches.length === 0) {
     db.prepare(`
-      INSERT INTO entries (id,projectId,date,hours,billableHours,slot,billed)
-      VALUES (?,?,?,?,?,?,?)
-    `).run(randomUUID(), projectId, date, hours, null, slot, 0);
+      INSERT INTO entries (id,projectId,date,hours,billableHours,billed)
+      VALUES (?,?,?,?,?,?)
+    `).run(randomUUID(), projectId, date, hours, null, 0);
     return;
   }
 
@@ -457,16 +435,16 @@ function addImportedHours(projectId, date, slot, hours) {
   const billed = 0;
   db.prepare(`
     UPDATE entries
-    SET hours = ?, billableHours = ?, slot = ?, billed = ?
+    SET hours = ?, billableHours = ?, billed = ?
     WHERE id = ?
-  `).run(existingHours + hours, existingBillable, first.slot ?? slot, billed, first.id);
+  `).run(existingHours + hours, existingBillable, billed, first.id);
   const deleteEntryStmt = db.prepare('DELETE FROM entries WHERE id = ?');
   for (const duplicate of matches.slice(1)) deleteEntryStmt.run(duplicate.id);
 }
 
-function subtractImportedHours(projectId, date, slot, hours) {
+function subtractImportedHours(projectId, date, hours) {
   if (!(hours > 0)) return;
-  const matches = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? AND slot = ? ORDER BY rowid').all(projectId, date, slot);
+  const matches = db.prepare('SELECT * FROM entries WHERE projectId = ? AND date = ? ORDER BY rowid').all(projectId, date);
   if (matches.length === 0) return;
 
   const first = matches[0];
@@ -515,10 +493,10 @@ function updateTodoistImport(todoistImport) {
     // editing only the title or the note moves no hours: leave the entry, and
     // its billed state, alone
     const movesHours = previous.projectId !== next.projectId || previous.date !== next.date
-      || previous.slot !== next.slot || Math.abs(previous.hours - next.hours) > 0.001;
+      || Math.abs(previous.hours - next.hours) > 0.001;
     if (movesHours) {
-      subtractImportedHours(previous.projectId, previous.date, previous.slot, previous.hours);
-      addImportedHours(next.projectId, next.date, next.slot, next.hours);
+      subtractImportedHours(previous.projectId, previous.date, previous.hours);
+      addImportedHours(next.projectId, next.date, next.hours);
     }
 
     db.prepare(`
@@ -526,7 +504,6 @@ function updateTodoistImport(todoistImport) {
       SET projectId = @projectId,
           date = @date,
           hours = @hours,
-          slot = @slot,
           titleSnapshot = @titleSnapshot,
           note = @note
       WHERE todoistTaskId = @todoistTaskId
@@ -541,7 +518,7 @@ function deleteTodoistImport(todoistTaskId) {
     const current = db.prepare('SELECT * FROM todoist_imports WHERE todoistTaskId = ?').get(id);
     if (!current) return { deleted: false };
     const previous = normalizeTodoistImport(current);
-    subtractImportedHours(previous.projectId, previous.date, previous.slot, previous.hours);
+    subtractImportedHours(previous.projectId, previous.date, previous.hours);
     db.prepare('DELETE FROM todoist_imports WHERE todoistTaskId = ?').run(id);
     return { deleted: true };
   })(todoistTaskId);
@@ -549,8 +526,8 @@ function deleteTodoistImport(todoistTaskId) {
 
 function importCompletedTodoistTasks(imports) {
   const insertImport = db.prepare(`
-    INSERT INTO todoist_imports (todoistTaskId,projectId,date,hours,slot,titleSnapshot,note,importedAt)
-    VALUES (@todoistTaskId,@projectId,@date,@hours,@slot,@titleSnapshot,@note,@importedAt)
+    INSERT INTO todoist_imports (todoistTaskId,projectId,date,hours,titleSnapshot,note,importedAt)
+    VALUES (@todoistTaskId,@projectId,@date,@hours,@titleSnapshot,@note,@importedAt)
     ON CONFLICT(todoistTaskId) DO NOTHING
   `);
 
@@ -564,7 +541,7 @@ function importCompletedTodoistTasks(imports) {
       const result = insertImport.run(normalized);
       if (result.changes === 0) continue;
 
-      addImportedHours(normalized.projectId, normalized.date, normalized.slot, normalized.hours);
+      addImportedHours(normalized.projectId, normalized.date, normalized.hours);
 
       importedCount++;
       importedHours += normalized.hours;
@@ -757,21 +734,6 @@ function setSetting(key, value) {
   db.prepare('INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)').run(key, value);
 }
 
-// Da quale giorno la fascia delle entry è un dato su cui confrontare il piano. Prima
-// di questa versione la fascia si sceglieva da sola e non diceva quando si era
-// lavorato. La prima apertura di un database con la nuova versione la fissa a oggi;
-// le aperture successive non la toccano.
-const SLOTS_TRACKED_SINCE = 'slotsTrackedSince';
-
-function ensureSlotsTrackedSince(date) {
-  db.prepare('INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)').run(SLOTS_TRACKED_SINCE, date);
-  return getSetting(SLOTS_TRACKED_SINCE);
-}
-
-function getSlotsTrackedSince() {
-  return getSetting(SLOTS_TRACKED_SINCE);
-}
-
 // ── Todoist cache ──────────────────────────────────────────────────────────────
 function getTodoistCache(dates) {
   if (!dates || dates.length === 0) return [];
@@ -843,7 +805,7 @@ function seedDemoData() {
   const insertClient    = db.prepare('INSERT INTO clients (id,name,color,billable,billing,rate,limitType,limitHours,position) VALUES (?,?,?,?,?,?,?,?,?)');
   const insertProject   = db.prepare('INSERT INTO projects (id,clientId,name,description,budgetHours,weeklyHours,position) VALUES (?,?,?,?,?,?,?)');
   const insertRecurring = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours,position) VALUES (?,?,?,?,?,?)');
-  const insertEntry     = db.prepare('INSERT INTO entries (id,projectId,date,hours,billableHours,slot,billed) VALUES (?,?,?,?,?,?,?)');
+  const insertEntry     = db.prepare('INSERT INTO entries (id,projectId,date,hours,billableHours,billed) VALUES (?,?,?,?,?,?)');
   const insertOverride  = db.prepare('INSERT OR REPLACE INTO week_overrides (id,weekKey,dayIndex,slot,blocksJson) VALUES (?,?,?,?,?)');
 
   const today = new Date();
@@ -911,8 +873,16 @@ function seedDemoData() {
     ]},
   ];
   const todayEntries = [
-    { id: 'e15', projectId: 'p4', date: todayStr, hours: 1, billableHours: null, slot: 'pm', billed: 0 },
+    { id: 'e15', projectId: 'p4', date: todayStr, hours: 1, billableHours: null, billed: 0 },
   ];
+  // One entry per project and day: when today is the day of a seed entry of the same
+  // project, today's hours join it.
+  const seedEntries = [];
+  for (const e of [...getSeedEntries(), ...todayEntries]) {
+    const same = seedEntries.find(x => x.projectId === e.projectId && x.date === e.date);
+    if (same) same.hours += e.hours;
+    else seedEntries.push({ ...e });
+  }
 
   // Storico divergenze: snapshot nelle ultime 8 settimane passate (w=1..8) con
   // pattern divergenti dal template attuale, così il drill-down "Override
@@ -952,8 +922,8 @@ function seedDemoData() {
       insertProject.run(p.id, p.clientId, p.name, p.description ?? null, p.budgetHours, p.weeklyHours ?? null, p.position ?? 0);
     for (const r of INIT_RECURRING)
       insertRecurring.run(r.id, r.clientId, r.slot, r.day, r.hours, r.position ?? 0);
-    for (const e of [...getSeedEntries(), ...todayEntries])
-      insertEntry.run(e.id, e.projectId, e.date, e.hours, e.billableHours ?? null, e.slot, e.billed);
+    for (const e of seedEntries)
+      insertEntry.run(e.id, e.projectId, e.date, e.hours, e.billableHours ?? null, e.billed);
     for (const { date, tasks } of todoistDays)
       db.prepare('INSERT OR REPLACE INTO todoist_cache (dateStr,tasksJson,syncedAt) VALUES (?,?,?)').run(date, JSON.stringify(tasks), now);
     for (const o of [...weekOverrides, ...historicDivergences])
@@ -966,12 +936,12 @@ module.exports = {
   getClients, saveClient, deleteClient,
   getProjects, saveProject, deleteProject, hasProjectEntries, mergeProjectEntries, HasEntriesError,
   getRecurring, saveRecurring, replaceRecurringSlot, deleteRecurring, deleteRecurringByClient,
-  getEntries, getProjectTotals, getProjectBillableTotals, saveEntry, deleteEntry, moveEntrySlot,
+  getEntries, getProjectTotals, getProjectBillableTotals, saveEntry, deleteEntry,
   getTodoistImportIds, getTodoistImports, saveTodoistImport, updateTodoistImport, deleteTodoistImport, importCompletedTodoistTasks,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange, toMonday,
   getWeekAreaStatuses, getWeekAreaStatusMap, saveWeekAreaStatus,
   getWeekAreaTargets, addWeekAreaTarget,
-  getSetting, setSetting, ensureSlotsTrackedSince, getSlotsTrackedSince,
+  getSetting, setSetting,
   getTodoistCache, setTodoistCache, getAllTodoistCache, getImportedTodoistTasks,
   importTodoistProjects,
   findProjectsMissingFromTodoist,
