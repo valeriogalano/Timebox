@@ -4,7 +4,7 @@ const { test, describe, before } = require('node:test');
 const assert = require('node:assert/strict');
 const { createTestDb } = require('./helpers');
 const { logHours, findProject } = require('../commands/log');
-const { getEntries, saveEntry } = require('../../db/queries');
+const { getEntries, saveEntry, deleteEntry } = require('../../db/queries');
 
 const TEST_DATE = '2020-06-15';
 
@@ -214,6 +214,10 @@ describe('logHours without a slot', () => {
 
   test('today a new entry goes to the current slot', () => {
     const today = fmt(getToday());
+    // a *new* entry: the demo seed may already have hours for this project today,
+    // in a slot of its own, and logHours would then reuse that slot
+    const { project } = findProject('brand');
+    getEntries(today, today).filter(e => e.projectId === project.id).forEach(e => deleteEntry(e.id));
     const result = logHours({ projectName: 'brand', hoursStr: '1', date: today, add: false });
     assert.equal(result.slot, currentSlot());
   });
