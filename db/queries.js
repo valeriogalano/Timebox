@@ -77,6 +77,13 @@ function hasProjectEntries(id) {
   return db.prepare('SELECT COUNT(*) as c FROM entries WHERE projectId = ?').get(id).c > 0;
 }
 
+// Two entries merged into one are billed only if both were: hours that were
+// never invoiced must not disappear from Rendiconto under a billed flag.
+// Shared by mergeProjectEntries and moveEntrySlot.
+function mergeBilled(a, b) {
+  return a === 1 && b === 1 ? 1 : 0;
+}
+
 function mergeBillable(aBillable, aHours, bBillable, bHours) {
   const aSet = aBillable != null;
   const bSet = bBillable != null;
@@ -99,7 +106,8 @@ function mergeProjectEntries(fromId, toId, deleteSource = true) {
       ).get(toId, e.date, e.slot);
       if (existing) {
         const mergedBillable = mergeBillable(existing.billableHours, existing.hours, e.billableHours, e.hours);
-        db.prepare('UPDATE entries SET hours = ?, billableHours = ? WHERE id = ?').run(existing.hours + e.hours, mergedBillable, existing.id);
+        db.prepare('UPDATE entries SET hours = ?, billableHours = ?, billed = ? WHERE id = ?')
+          .run(existing.hours + e.hours, mergedBillable, mergeBilled(existing.billed, e.billed), existing.id);
         db.prepare('DELETE FROM entries WHERE id = ?').run(e.id);
       } else {
         db.prepare('UPDATE entries SET projectId = ? WHERE id = ?').run(toId, e.id);
@@ -306,7 +314,7 @@ function moveEntrySlot(id, slot) {
       ...target,
       hours: target.hours + entry.hours,
       billableHours: mergeBillable(target.billableHours, target.hours, entry.billableHours, entry.hours),
-      billed: target.billed === 1 && entry.billed === 1 ? 1 : 0,
+      billed: mergeBilled(target.billed, entry.billed),
     };
     db.prepare('UPDATE entries SET hours = ?, billableHours = ?, billed = ? WHERE id = ?')
       .run(merged.hours, merged.billableHours, merged.billed, target.id);
@@ -378,7 +386,9 @@ function addImportedHours(projectId, date, slot, hours) {
   const existingBillable = hasBillableOverride
     ? matches.reduce((sum, entry) => sum + (entry.billableHours ?? entry.hours), 0)
     : null;
-  const billed = matches.every(entry => entry.billed === 1) ? 1 : 0;
+  // the imported hours were never invoiced: an entry that grows is no longer
+  // billed, or those hours would vanish from Rendiconto (as in mergeBilled)
+  const billed = 0;
   db.prepare(`
     UPDATE entries
     SET hours = ?, billableHours = ?, slot = ?, billed = ?
@@ -432,8 +442,14 @@ function updateTodoistImport(todoistImport) {
     });
     if (!(next.hours > 0)) return { updated: false, error: 'invalid_hours' };
 
-    subtractImportedHours(previous.projectId, previous.date, previous.slot, previous.hours);
-    addImportedHours(next.projectId, next.date, next.slot, next.hours);
+    // editing only the title or the note moves no hours: leave the entry, and
+    // its billed state, alone
+    const movesHours = previous.projectId !== next.projectId || previous.date !== next.date
+      || previous.slot !== next.slot || Math.abs(previous.hours - next.hours) > 0.001;
+    if (movesHours) {
+      subtractImportedHours(previous.projectId, previous.date, previous.slot, previous.hours);
+      addImportedHours(next.projectId, next.date, next.slot, next.hours);
+    }
 
     db.prepare(`
       UPDATE todoist_imports
@@ -764,7 +780,9 @@ function seedDemoData() {
   function pd(offset) {
     const dt = new Date(prevMonday);
     dt.setDate(dt.getDate() + offset);
-    return dt.toISOString().slice(0, 10);
+    // local date, like fmtLocal: toISOString() is UTC and, with prevMonday at local
+    // midnight, east of Greenwich it fell on the day before
+    return fmtLocal(dt);
   }
 
   const now = new Date().toISOString();
