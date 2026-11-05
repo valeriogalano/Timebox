@@ -16,7 +16,7 @@ export default function SlotCapacityBar({
   // Redesign: nessun colore di stato. Fill neutro + tratteggio oltre capacità.
   const fillBg = 'var(--tb-bar-tracked)';
   const label = overflow ? `>${fmtH(capacity)}` : `${fmtH(load)} / ${fmtH(capacity)}`;
-  const title = `Capacità slot: ${fmtH(load)} su ${fmtH(capacity)}. Pianificate ${fmtH(plannedHours)}, tracciate ${fmtH(loggedHours)}.`;
+  const title = `Capacità slot: ${fmtH(load)} su ${fmtH(capacity)}. Piano ${fmtH(plannedHours)}, lavorate ${fmtH(loggedHours)}.`;
 
   return (
     <div title={title} style={{ display: 'flex', alignItems: 'center', gap: compact ? 3 : 4, minHeight: compact ? 10 : 13 }}>

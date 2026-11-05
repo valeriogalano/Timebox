@@ -273,9 +273,9 @@ export default function BillingScreen({ clients, projects, screen }) {
                         <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', minWidth: 90 }}>{dateLabel}</span>
                         <span style={{ flex: 1 }} />
                         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-primary)', minWidth: 60, textAlign: 'right', position: 'relative' }}
-                          title={diverges ? `Tracciate: ${fmtH(entry.hours)}` : undefined}>
+                          title={diverges ? `Lavorate: ${fmtH(entry.hours)}` : undefined}>
                           {fmtH(eff)}
-                          {diverges && <span className="tb-divergent" style={{ marginLeft: 5 }} title={`Tracciate: ${fmtH(entry.hours)}`}>◇</span>}
+                          {diverges && <span className="tb-divergent" style={{ marginLeft: 5 }} title={`Lavorate: ${fmtH(entry.hours)}`}>◇</span>}
                         </span>
                         {hourlyRate && (
                           <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', minWidth: 45, textAlign: 'right' }}>

@@ -344,7 +344,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
 
   const totalUsage = useMemo(() => usageMaps(projectTotals, projects, clients), [projectTotals, projects, clients]);
 
-  // Ritmo MISURATO: media delle ore tracciate sulle ultime RUNWAY_WINDOW settimane
+  // Ritmo MISURATO: media delle ore lavorate sulle ultime RUNWAY_WINDOW settimane
   // CHIUSE (la corrente è in corso e leggerebbe sempre basso). Una settimana vuota conta
   // come zero solo se il soggetto era già attivo prima della finestra: per un progetto
   // appena nato le settimane precedenti alla prima entry sono "non ancora nato", non
@@ -456,9 +456,9 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
         </div>
         <div className="tb-seg">
           {[
-            { key: 'settimana', label: 'Settimana', help: 'Quante ore mancano all\'obiettivo di ogni area, e se sto nei limiti.\n\nScarto = obiettivo − fatto − blocchi rimasti.\nBlocchi rimasti = per oggi il piano meno le ore già fatte (mai sotto zero), per i giorni successivi il loro piano, weekend compreso.\n\nCarico: ore fatte sull\'obiettivo totale, con blocchi rimasti e scarto.\nFatturabile a consumo: ricavo delle ore fatturabili, e quello previsto completando il piano.\nPer area: obiettivo, fatto, blocchi rimasti e scarto.\nLimiti della settimana: i tetti settimanali di aree e progetti, con ⚠ quando fatto + blocchi rimasti li supera.\n\nI budget totali stanno in In prospettiva.' },
-            { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane, per scoprire la deriva del ritmo.\n\nAggregato: pianificato, svolto e capacità settimana per settimana.\nPer area: il mini-trend di ogni area.\nTaratura del template: per area, se l\'obiettivo del lunedì o il fatto si scostano di continuo dal template.' },
-            { key: 'prospettiva', label: 'In prospettiva', help: `I budget cumulativi bastano? Quanto manca a esaurire i tetti cumulativi, proiettato sul ritmo misurato nelle ultime ${RUNWAY_WINDOW} settimane chiuse.\n\nBudget totale dei progetti.\nLimite globale delle aree.\n\nI tetti settimanali non stanno qui: si azzerano ogni settimana, il loro margine si legge in Settimana.` },
+            { key: 'settimana', label: 'Settimana', help: 'Quante ore mancano all\'obiettivo di ogni area, e se sto nei limiti.\n\nScarto = obiettivo − fatto − blocchi rimasti.\nBlocchi rimasti = per oggi il piano meno le ore già fatte (mai sotto zero), per i giorni successivi il loro piano, weekend compreso.\n\nCarico: ore fatte sull\'obiettivo totale, con blocchi rimasti e scarto.\nFatturabile a consumo: ricavo delle ore fatturabili, e quello previsto completando il piano.\nPer area: obiettivo, fatto, blocchi rimasti e scarto.\nLimiti della settimana: i tetti settimanali di aree e progetti, con ⚠ quando fatto + blocchi rimasti li supera.\n\nI budget totali stanno in In prospettiva.\n\nVedi Guida → Scarto.' },
+            { key: 'trend', label: 'Trend', help: 'Le ultime 8 settimane, per scoprire la deriva.\n\nAggregato: piano e fatto settimana per settimana.\nPer area: il mini-trend di ogni area.\nTaratura del template: per area, se l\'obiettivo del lunedì o il fatto si scostano di continuo dal template.\n\nVedi Guida → Andamento.' },
+            { key: 'prospettiva', label: 'In prospettiva', help: `I budget cumulativi bastano? Quanto manca a esaurire i tetti cumulativi, proiettato sul ritmo misurato (media delle ore lavorate nelle ultime ${RUNWAY_WINDOW} settimane chiuse).\n\nBudget totale dei progetti.\nLimite globale delle aree.\n\nI tetti settimanali non stanno qui: si azzerano ogni settimana, il loro margine si legge in Settimana.\n\nVedi Guida → Limiti.` },
           ].map((o, idx) => (
             <span
               key={o.key}
@@ -480,7 +480,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
           <RetroSummary stats={stats} />
           <AreaTargets clients={withAreaStatus(clients, areaStatuses)} stats={stats} onSave={saveTarget} />
           <LimitSection title="Limiti della settimana" subtitle="nella settimana selezionata · ⚠ sul previsto"
-            help={'Il tetto di ore che si azzera ogni settimana, contro le ore lavorate nella settimana selezionata.\n\nVale per le aree con limite settimanale e per i progetti con ore settimanali.\n\n⚠ quando il Previsto supera il tetto: per un\'area sono le ore fatte più il piano che resta, per un progetto le ore fatte (il piano è per area). Il margine sul previsto è nell\'aiuto del ⚠.'}
+            help={'Il tetto di ore che si azzera ogni settimana, contro le ore lavorate nella settimana selezionata.\n\nVale per le aree con limite settimanale e per i progetti con ore settimanali.\n\n⚠ quando il Previsto supera il tetto: per un\'area sono le ore fatte più il piano che resta, per un progetto le ore fatte (il piano è per area). Il margine sul previsto è nell\'aiuto del ⚠.\n\nVedi Guida → Limiti.'}
             cards={weeklyLimits} />
         </>
       )}
@@ -491,7 +491,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
           <Card padding={0}>
             <div style={{ padding: '14px 18px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-                <CardLabel inline help={'Ogni coppia di barre è una settimana (ultime 8).\n\nBarre: totale pianificato e totale svolto su tutte le aree.\nLinea tratteggiata: capacità della settimana corrente.'}>Aggregato settimanale</CardLabel>
+                <CardLabel inline help={'Ogni coppia di barre è una settimana (ultime 8).\n\nBarre: piano e fatto su tutte le aree.\nLinea tratteggiata: piano della settimana selezionata.'}>Aggregato settimanale</CardLabel>
                 <Legend />
               </div>
             </div>
@@ -503,7 +503,7 @@ export default function ProgressScreen({ clients, projects, recurring, screen, i
           {/* Per-area: small-multiples, posizione vs linea-piano = segnale */}
           <div>
             <SectionHeader title="Per area" subtitle={`${SMALL_MULT_WEEKS} settimane · segno = piano di ogni settimana`}
-              help={`Mini-trend per area sulle ultime ${SMALL_MULT_WEEKS} settimane.\n\nBarre: ore svolte; la più piena è la settimana selezionata.\nSegno tratteggiato su ogni barra: il piano di quella settimana, con override.\nBarre tratteggiate: settimane oltre piano.\nLinea continua: il limite settimanale, nelle aree che ce l'hanno, con quante settimane chiuse ci sono finite oltre.\n\nIl glifo in alto è il verdetto sulle sole settimane chiuse, sommate: la settimana in corso non conta.`} />
+              help={`Mini-trend per area sulle ultime ${SMALL_MULT_WEEKS} settimane.\n\nBarre: ore fatte; la più piena è la settimana selezionata.\nSegno tratteggiato su ogni barra: il piano di quella settimana, con override.\nBarre tratteggiate: settimane oltre piano.\nLinea continua: il limite settimanale, nelle aree che ce l'hanno, con quante settimane chiuse ci sono finite oltre.\n\nIl glifo in alto è il verdetto sulle sole settimane chiuse, sommate: la settimana in corso non conta.`} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
               {perAreaWeekly.map(({ client, weeks }) => (
                 <AreaSparkCard key={client.id} client={client} weeks={weeks}
@@ -534,7 +534,7 @@ function RetroSummary({ stats }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
       <Card>
-        <CardLabel help={'Ore fatte sull\'obiettivo della settimana, la somma degli obiettivi per area.\n\nBlocchi rimasti = per oggi il piano meno le ore già fatte (mai sotto zero), per i giorni successivi il loro piano, weekend compreso\nScarto = obiettivo − fatto − blocchi rimasti: le ore che mancano, o quelle oltre l\'obiettivo\n\nIl totale somma le aree: uno scarto positivo in un\'area e uno negativo in un\'altra si compensano. Lo scarto di ogni area è nella tabella Per area.'}>Carico della settimana</CardLabel>
+        <CardLabel help={'Ore fatte sull\'obiettivo della settimana, la somma degli obiettivi per area.\n\nBlocchi rimasti = per oggi il piano meno le ore già fatte (mai sotto zero), per i giorni successivi il loro piano, weekend compreso\nScarto = obiettivo − fatto − blocchi rimasti: le ore che mancano, o quelle oltre l\'obiettivo\n\nIl totale somma le aree: uno scarto positivo in un\'area e uno negativo in un\'altra si compensano. Lo scarto di ogni area è nella tabella Per area.\n\nVedi Guida → Scarto.'}>Carico della settimana</CardLabel>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
           <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
             {fmtH(stats.totalDone)}
@@ -549,12 +549,12 @@ function RetroSummary({ stats }) {
       </Card>
 
       <Card>
-        <CardLabel help={'Ricavo delle ore fatturabili già svolte = ore fatturabili × tariffa dell\'area.\n\nProiezione fine settimana = ricavo delle ore fatturabili fatte + quello del piano che resta nelle aree a ore. Le aree non fatturabili (fisse) sono escluse.'}>Fatturabile a consumo</CardLabel>
+        <CardLabel help={'Ricavo delle ore fatturabili già fatte = ore fatturabili × tariffa dell\'area.\n\nProiezione fine settimana = ricavo delle ore fatturabili fatte + quello del piano che resta nelle aree a ore. Le aree non fatturabili (fisse) sono escluse.'}>Fatturabile a consumo</CardLabel>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
           <span style={{ fontSize: 34, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
             {fmtEur(stats.billedDoneEur)}
           </span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>svolto</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tb-text-muted)' }}>fatto</span>
         </div>
         <div style={{
           marginTop: 10, padding: '8px 10px', borderRadius: 6,
@@ -646,7 +646,7 @@ function AreaTargets({ clients, stats, onSave }) {
   return (
     <div>
       <SectionHeader title="Per area · obiettivo"
-        help={'Per ogni area, nella settimana selezionata.\n\nObiettivo = le ore che voglio fare sull\'area. Parte dalle ore del template (la ricorrenza, in grigio) e si cambia scrivendo un numero: l\'app tiene il primo valore della settimana e l\'ultimo, e lo scarto si misura sull\'ultimo.\nFatto = ore registrate fino a oggi\nBlocchi rimasti = per oggi il piano meno le ore già fatte (mai sotto zero), per i giorni successivi il loro piano, weekend compreso\nScarto = obiettivo − fatto − blocchi rimasti\n\nSpostare un blocco non cambia lo scarto; toglierne uno lo apre, aggiungerne uno lo chiude. ⚠ quando l\'obiettivo supera il limite settimanale dell\'area, o l\'area è chiusa e ha un obiettivo: è un avviso, non un blocco.'} />
+        help={'Per ogni area, nella settimana selezionata.\n\nObiettivo = le ore che voglio fare sull\'area. Parte dalle ore del template (la ricorrenza, in grigio) e si cambia scrivendo un numero: l\'app tiene il primo valore della settimana e l\'ultimo, e lo scarto si misura sull\'ultimo.\nFatto = ore registrate fino a oggi\nBlocchi rimasti = per oggi il piano meno le ore già fatte (mai sotto zero), per i giorni successivi il loro piano, weekend compreso\nScarto = obiettivo − fatto − blocchi rimasti\n\nSpostare un blocco non cambia lo scarto; toglierne uno lo apre, aggiungerne uno lo chiude. ⚠ quando l\'obiettivo supera il limite settimanale dell\'area, o l\'area è chiusa e ha un obiettivo: è un avviso, non un blocco.\n\nVedi Guida → Obiettivo.\nVedi Guida → Scarto.'} />
       <div style={{ maxWidth: 640 }}>
         <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: '2px 12px', alignItems: 'center' }}>
           <span />
@@ -698,7 +698,7 @@ function TemplateCalibration({ items }) {
   return (
     <div>
       <SectionHeader title="Taratura del template" subtitle={`ultime ${PERSIST_WINDOW} settimane chiuse`}
-        help={`Per area, due segnali. Compaiono se in almeno ${Math.round(MOST_RATIO * 100)}% delle settimane utili (e non meno di ${MIN_HISTORY}) il numero esce dalla tolleranza (${TOLERANCE_LABEL}) sempre nello stesso verso.\n\nTemplate: l'obiettivo fissato il lunedì è diverso dalle ore di template. Il template è sbagliato. Contano le sole settimane con un obiettivo salvato; il valore proposto è la media degli obiettivi del lunedì, al quarto d'ora.\n\nEsecuzione: il fatto è diverso dall'obiettivo finale. Il template non c'entra, a derivare è come si lavora. Una settimana senza obiettivo salvato si confronta col piano di quella settimana, non col template di oggi.\n\nIl totale è per area: la distribuzione nei giorni si decide in Ricorrenza.`} />
+        help={`Per area, due segnali. Compaiono se in almeno ${Math.round(MOST_RATIO * 100)}% delle settimane utili (e non meno di ${MIN_HISTORY}) il numero esce dalla tolleranza (${TOLERANCE_LABEL}) sempre nello stesso verso.\n\nTemplate: l'obiettivo fissato il lunedì è diverso dalle ore di template. Il template è sbagliato. Contano le sole settimane con un obiettivo salvato; il valore proposto è la media degli obiettivi del lunedì, al quarto d'ora.\n\nEsecuzione: il fatto è diverso dall'obiettivo finale. Il template non c'entra, a derivare è come si lavora. Una settimana senza obiettivo salvato si confronta col piano di quella settimana, non col template di oggi.\n\nIl totale è per area: la distribuzione nei giorni si decide in Ricorrenza.\n\nVedi Guida → Taratura del template.`} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
         {items.map(it => (
           <div key={it.area} style={{
@@ -750,7 +750,7 @@ function ProspettivaLens({ rows }) {
   return (
     <>
       <SectionHeader inline title="Tetti cumulativi" subtitle={`ritmo misurato · ultime ${RUNWAY_WINDOW} settimane chiuse`}
-        help={`Per ogni tetto cumulativo: consumato dall'inizio, ore residue e fra quante settimane lo esaurisci al ritmo misurato sulle ultime ${RUNWAY_WINDOW} settimane chiuse (la corrente è in corso e leggerebbe sempre basso).\n\nL'esito è una fascia — entro 1, 2, 4, 8 settimane, oltre — non un numero esatto: il ritmo misurato ha un'incertezza più larga della distanza fra 3 e 4 settimane.\n\nI tetti settimanali non compaiono qui: si azzerano ogni settimana, quindi non li si raggiunge mai. Il loro margine si legge in Settimana.`} />
+        help={`Per ogni tetto cumulativo: consumato dall'inizio, ore residue e fra quante settimane lo esaurisci al ritmo misurato sulle ultime ${RUNWAY_WINDOW} settimane chiuse (la corrente è in corso e leggerebbe sempre basso).\n\nL'esito è una fascia — entro 1, 2, 4, 8 settimane, oltre — non un numero esatto: il ritmo misurato ha un'incertezza più larga della distanza fra 3 e 4 settimane.\n\nI tetti settimanali non compaiono qui: si azzerano ogni settimana, quindi non li si raggiunge mai. Il loro margine si legge in Settimana.\n\nVedi Guida → Limiti.`} />
 
       <div style={{ display: 'grid', gridTemplateColumns: totalRemainingEur > 0 ? '1fr 1fr' : '1fr', gap: 14 }}>
         <Card>
@@ -777,7 +777,7 @@ function ProspettivaLens({ rows }) {
       </div>
 
       <SectionHeader title="Per tetto · consumo e residuo" subtitle="il più vicino al tetto in cima"
-        help={`Una riga per tetto cumulativo, aree e progetti insieme, ordinate per urgenza: prima le fasce più vicine all'esaurimento, e a pari fascia il tetto con la percentuale di consumo più alta.\n\nOgni riga mostra:\nore consumate dall'inizio sul tetto\nore residue\nritmo misurato, al netto della settimana in corso\nritmo del template, sulle aree dove esiste, per vedere se stai lavorando come avevi pianificato\n\nLa barra è normalizzata sul tetto: il bordo destro è il tetto, oltre si tratteggia.\n\nQuando la finestra di misura è incompleta la riga lo dichiara ("ritmo su N settimane"): succede se il tetto è nato di recente o se il lavoro è iniziato dentro le ultime ${RUNWAY_WINDOW} settimane.\n\nI verdetti:\nentro 1/2/4/8 settimane, oltre 8 = fascia di esaurimento\nTetto esaurito = già oltre il tetto\nFermo = nessuna ora nella finestra, quindi nessun esaurimento prevedibile (non un esaurimento lontano)\n\nUn budget di progetto la cui area ha già un limite globale compare qui ma non nei totali in testa, dove sarebbe contato due volte.`} />
+        help={`Una riga per tetto cumulativo, aree e progetti insieme, ordinate per urgenza: prima le fasce più vicine all'esaurimento, e a pari fascia il tetto con la percentuale di consumo più alta.\n\nOgni riga mostra:\nore consumate dall'inizio sul tetto\nore residue\nritmo misurato, al netto della settimana in corso\ntemplate: le ore di template a settimana, sulle aree dove esiste, per vedere se stai lavorando come avevi pianificato\n\nLa barra è normalizzata sul tetto: il bordo destro è il tetto, oltre si tratteggia.\n\nQuando la finestra di misura è incompleta la riga lo dichiara ("ritmo su N settimane"): succede se il tetto è nato di recente o se il lavoro è iniziato dentro le ultime ${RUNWAY_WINDOW} settimane.\n\nI verdetti:\nentro 1/2/4/8 settimane, oltre 8 = fascia di esaurimento\nTetto esaurito = già oltre il tetto\nFermo = nessuna ora nella finestra, quindi nessun esaurimento prevedibile (non un esaurimento lontano)\n\nUn budget di progetto la cui area ha già un limite globale compare qui ma non nei totali in testa, dove sarebbe contato due volte.\n\nVedi Guida → Limiti.`} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.map(r => (
           <Card key={r.key}>
@@ -1014,11 +1014,11 @@ function Legend() {
     <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
       <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <span style={{ width: 10, height: 8, borderRadius: 2, background: 'var(--tb-text-faint)', opacity: 0.4, display: 'inline-block' }} />
-        Pianificato
+        Piano
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <span style={{ width: 10, height: 8, borderRadius: 2, background: 'var(--tb-text-secondary)', display: 'inline-block' }} />
-        Svolto
+        Fatto
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <span style={{ width: 14, height: 0, borderTop: '2px dashed var(--tb-tick)', display: 'inline-block' }} />
@@ -1083,7 +1083,7 @@ function TrendChart({ data, capacity, mode }) {
             <span style={{
               position: 'absolute', right: -2, top: -16, fontSize: 11, fontWeight: 800,
               color: 'var(--tb-text-secondary)', background: 'var(--tb-panel-bg)', padding: '1px 4px', borderRadius: 3,
-            }}>Capacità {Math.round(capLine)}h</span>
+            }}>Piano {Math.round(capLine)}h</span>
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', height: '100%', position: 'relative' }}>

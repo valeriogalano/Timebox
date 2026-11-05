@@ -253,7 +253,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
         <div style={{ flex: 1, minWidth: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Panel
             title="Blocchi pianificati senza azioni"
-            help={'Blocchi che hai pianificato per oggi ma che nessun task Todoist copre ancora: ore riservate senza niente di concreto da farci. Oggi non compaiono le fasce già finite (mattina fino alle 13, pomeriggio fino alle 18).\n\nOgni riga è area · slot. Il numero a destra sono le ore scoperte del blocco (disponibili − stimate dai task); sotto, quanto Todoist copre e su quanto.'}
+            help={'Blocchi che hai pianificato per oggi ma che nessun task Todoist copre ancora: ore riservate senza niente di concreto da farci. Oggi non compaiono le fasce già finite (mattina fino alle 13, pomeriggio fino alle 18).\n\nOgni riga è area · slot. Il numero a destra sono le ore scoperte del blocco (disponibili − stimate dai task); sotto, quanto Todoist copre e su quanto.\n\nVedi Guida → Giorno.'}
             empty={!loading && readyGroups.length === 0 ? 'Coperti' : null}
             meta={!loading ? fmtH(totals.reservedWithoutTasksHours || 0) : null}
           >
@@ -271,7 +271,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
 
           <Panel
             title="Mismatch dopo sync"
-            help={'Task Todoist di oggi che non tornano col piano. Il numero a destra di ogni riga sono le ore: stimate del task, o lo sforo dove c\'è.\n\nNON MAPPATI · task senza un progetto Timebox corrispondente: non sai su cosa andrebbero a finire le ore.\n\nFUORI PIANIFICAZIONE · task di un\'area per cui oggi non hai pianificato nessun blocco in quello slot.\n\nOLTRE BLOCCO · task che stima più ore di quante ne restino libere nel suo blocco.\n\nCAPACITÀ OLTRE RESIDUO · la somma delle stime di oggi supera la capacità che resta nella giornata.'}
+            help={'Task Todoist di oggi che non tornano col piano. Il numero a destra di ogni riga sono le ore: stimate del task, o lo sforo dove c\'è.\n\nNON MAPPATI · task senza un progetto Timebox corrispondente: non sai su cosa andrebbero a finire le ore.\n\nFUORI PIANIFICAZIONE · task di un\'area per cui oggi non hai pianificato nessun blocco in quello slot.\n\nOLTRE BLOCCO · task che stima più ore di quante ne restino libere nel suo blocco.\n\nSTIME OLTRE IL PIANO RIMASTO · la somma delle stime di oggi supera il piano che resta nella giornata (blocchi meno ore già fatte).\n\nVedi Guida → Giorno.'}
             empty={!loading && totalMismatches === 0 ? 'Pulito' : null}
             meta={!loading ? `${totalMismatches} · ${fmtH(totals.estimatedHours || 0)} stimate` : null}
           >
@@ -289,7 +289,7 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
                   itemLabel={item => item.title}
                   itemMeta={item => metaLine(slotLabel(item), item.project, `${fmtH(item.estimatedHours || 0)} su ${fmtH(item.availableBeforeTask || 0)} disponibili`)}
                   itemValue={item => `+${fmtH(item.overflowHours || 0)}`} />
-                <MismatchGroup label="Capacità oltre residuo" count={counts.estimatedBeyondResidualCapacity} items={mismatches.estimatedBeyondResidualCapacity ? [mismatches.estimatedBeyondResidualCapacity] : []}
+                <MismatchGroup label="Stime oltre il piano rimasto" count={counts.estimatedBeyondResidualCapacity} items={mismatches.estimatedBeyondResidualCapacity ? [mismatches.estimatedBeyondResidualCapacity] : []}
                   itemLabel={() => 'Stime oltre il residuo del giorno'}
                   itemMeta={item => `${fmtH(item.estimatedHours || 0)} stimate su ${fmtH(item.residualCapacity || 0)} residue`}
                   itemValue={item => `+${fmtH(item.overflowHours || 0)}`} />
@@ -351,7 +351,7 @@ function DayPlanningPanel({
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-faint)' }}>
           {tab === 'piano'
             ? 'trascina tra Mattina, Pomeriggio e Sera · override solo per oggi'
-            : 'registra le ore del giorno · una riga per progetto e fascia'}
+            : 'registra le ore del giorno · una riga per progetto'}
         </span>
       </div>
       {tab === 'piano' ? (
@@ -482,12 +482,12 @@ function DayTimesheet({ loading, dayEntries, clients, projects, isToday, isFutur
             localStorage.setItem('timebox-hide-empty-projects', String(nextHideEmpty));
           }} />
         <SegToggle
-          opts={[{ k: 'tracked', l: 'Tracciate' }, { k: 'billable', l: 'Fatturabili' }]}
+          opts={[{ k: 'tracked', l: 'Lavorate' }, { k: 'billable', l: 'Fatturabili' }]}
           value={viewMode} onChange={setViewMode} />
       </div>
       {rows.length === 0 ? (
         <div style={{ padding: '28px 8px', textAlign: 'center', color: 'var(--tb-text-muted)', fontSize: 11, fontWeight: 700, lineHeight: 1.6 }}>
-          Nessuna ora tracciata oggi.<br />Usa <kbd style={{ fontFamily: 'monospace', fontSize: 11, border: '1px solid var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }}>⌘L</kbd> per aggiungere un progetto.
+          Nessuna ora lavorata oggi.<br />Usa <kbd style={{ fontFamily: 'monospace', fontSize: 11, border: '1px solid var(--tb-border-mid)', borderRadius: 3, padding: '0 4px' }}>Q</kbd> per aggiungere un progetto.
         </div>
       ) : (
         <div style={{ border: '1px solid var(--tb-border)', borderRadius: 6, overflow: 'hidden' }}>

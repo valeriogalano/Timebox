@@ -72,8 +72,8 @@ describe('EntriesScreen', () => {
     expect(within(table).getAllByText('✓')).toHaveLength(1);
     expect(within(table).getAllByText('○')).toHaveLength(1);
     // ore fatturabili diverse dalle lavorate: si mostra il fatturabile, le lavorate nel title
-    expect(rowOf(within(table).getByText('✓'))).toContainElement(within(table).getByTitle('Tracciate: 2h'));
-    expect(within(table).getByTitle('Tracciate: 2h')).toHaveTextContent('1h');
+    expect(rowOf(within(table).getByText('✓'))).toContainElement(within(table).getByTitle('Lavorate: 2h'));
+    expect(within(table).getByTitle('Lavorate: 2h')).toHaveTextContent('1h');
   });
 
   test('il filtro per area restringe elenco e conteggio', async () => {

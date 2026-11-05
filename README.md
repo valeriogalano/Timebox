@@ -15,6 +15,7 @@ Timebox is a local-first desktop app for personal capacity planning. It is macOS
 - [Install and Run](#install-and-run)
 - [Core Concepts](#core-concepts)
 - [Main Screens](#main-screens)
+- [In-app Guide](#in-app-guide)
 - [Todoist Integration](#todoist-integration)
 - [Local Data and Privacy](#local-data-and-privacy)
 - [Database Schema](#database-schema)
@@ -111,14 +112,14 @@ The primary screen combines planning and tracking:
 
 ### Giorno (day)
 
-The Giorno screen surfaces daily operational diagnostics from the same logic used by the MCP tools: free capacity after tracked work and Todoist estimates, planned blocks still missing ready Todoist work, and sync mismatches. It opens on today and can move to other days.
+The Giorno screen shows one day: the plan by slot and the hours worked (one row per project), plus two diagnostics from the same logic as the MCP tools: planned blocks still missing ready Todoist work, and sync mismatches. It opens on today and can move to other days.
 
 ### Andamento (progress)
 
 The Andamento screen compares planned capacity against logged work through three lenses:
 
 - **Settimana:** per area, the weekly target (editable in place), the hours done, the blocks left and the gap; the week's load against the total target; billable value; weekly limits, with a warning when the forecast (done plus blocks left) goes past them.
-- **Trend:** the last 8 weeks of planned, logged, and capacity hours, in aggregate and per area, with a per-area template calibration: whether the Monday target or the logged hours keep drifting from the template in the same direction.
+- **Trend:** the last 8 weeks of planned and worked hours, in aggregate and per area, with a per-area template calibration: whether the Monday target or the logged hours keep drifting from the template in the same direction.
 - **In prospettiva:** how long the cumulative caps (project total budgets and global area limits) will last at the pace measured over the last closed weeks.
 
 ### Rendiconto (billing)
@@ -131,7 +132,7 @@ The Registro screen is a tabular log of tracked work. It supports date, area, an
 
 ### Import Todoist
 
-The Import Todoist screen shows cached Todoist tasks grouped by date, including matched Timebox project, estimated hours, completion state, and the latest sync timestamp.
+The Import Todoist screen lists the completed Todoist tasks imported into the timesheet, grouped by date. A row can be corrected (date, project, hours, note), which moves its hours, or deleted, which removes them.
 
 ### Aree (areas)
 
@@ -147,6 +148,10 @@ The Aree screen manages areas and their projects:
 
 The Ricorrenza screen edits the weekly template and shows its hours per area. Changes automatically freeze previous weeks that do not yet have overrides, preserving historical planning state.
 
+### Guida (guide)
+
+The in-app Guide, the last item of the sidebar. It explains the concepts and how the numbers are computed, each screen, and holds the glossary. Its source is `docs/guida.md`, bundled into the app; see [In-app Guide](#in-app-guide).
+
 ### Impostazioni (settings)
 
 Impostazioni covers:
@@ -157,6 +162,12 @@ Impostazioni covers:
 - Database path, selecting an existing `.db`, creating a new database, and saving a database copy.
 - Data reset and demo-data seeding.
 - Update status and update installation in packaged builds.
+
+---
+
+## In-app Guide
+
+`docs/guida.md` is the Italian guide shown by the **Guida** screen: concepts (template, override, plan, target, done, blocks left, gap, limits, area state, template calibration, freeze, capacity), one section per screen, and a glossary that is the single source of the words used in the interface. It describes Timebox only, not the planning routines. A pull request that changes a screen, a panel or a calculation updates it, like the changelog.
 
 ---
 
