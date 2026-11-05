@@ -7,7 +7,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createTestDb } = require('./helpers');
 const { createHttpServer } = require('../http-server');
-const { setTodoistCache, saveEntry, saveWeekOverride } = require('../../db/queries');
+const { setTodoistCache, saveEntry, saveWeekOverride, getClients, getRecurring } = require('../../db/queries');
+
+// The demo seed writes local dates: the fixtures must too. toISOString() is UTC,
+// and in Italy just after midnight it is still the day before.
+function localDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 
 const MCP_SERVER = path.join(__dirname, '..', 'mcp-server.js');
 
@@ -165,7 +172,7 @@ describe('MCP server', () => {
     const monday = new Date(today);
     const dow = monday.getDay();
     monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1) - 7 + 1);
-    const seededDate = monday.toISOString().slice(0, 10);
+    const seededDate = localDate(monday);
 
     const res = await rpc(mcp, msg('tools/call', {
       name: 'todoist_imported_tasks',
@@ -184,7 +191,7 @@ describe('MCP server', () => {
     const monday = new Date(today);
     const dow = monday.getDay();
     monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1) - 7 + 1);
-    const seededDate = monday.toISOString().slice(0, 10);
+    const seededDate = localDate(monday);
 
     const res = await rpc(mcp, msg('tools/call', {
       name: 'day_mismatches',
@@ -361,6 +368,17 @@ describe('MCP server', () => {
     saveWeekOverride({ weekKey: '2020-01-06', dayIndex: 0, slot: 'am', blocks: [{ id: 'b1', clientId: 'Personale', hours: 2 }] });
     const ov = await rpc(mcp, msg('tools/call', { name: 'get_week_overrides', arguments: { weekKey: '2020-01-06' } }));
     assert.match(ov.result.content[0].text, /\? \(Personale\) 2h/);
+  });
+
+  it('set_recurring_slot with a bad area id fails and leaves the slot untouched', async () => {
+    const areaId = getClients()[0].id;
+    const call = args => rpc(mcp, msg('tools/call', { name: 'set_recurring_slot', arguments: args }));
+    const ok = await call({ day: 5, slot: 'sera', blocks: [{ clientId: areaId, hours: 2 }] });
+    assert.ok(!ok.result.isError);
+    const bad = await call({ day: 5, slot: 'sera', blocks: [{ clientId: 'nope', hours: 1 }] });
+    assert.ok(bad.result.isError);
+    assert.match(bad.result.content[0].text, /Area not found/);
+    assert.ok(getRecurring().some(r => r.day === 5 && r.slot === 'sera' && r.hours === 2));
   });
 
   it('unknown method → error -32601', async () => {

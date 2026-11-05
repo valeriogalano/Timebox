@@ -18,6 +18,8 @@ const {
   saveClient,
   deleteClient,
   deleteProject,
+  deleteEntry,
+  HasEntriesError,
   hasProjectEntries,
   getSetting,
   setSetting,
@@ -26,16 +28,25 @@ const {
 describe('deleteProject', () => {
   before(() => createTestDb());
 
-  test('removes the project entries instead of leaving them orphaned', () => {
+  test('refuses a project with logged entries and keeps them', () => {
     const [project] = getProjects();
-    assert.ok(hasProjectEntries(project.id), 'seed data should give this project entries to delete');
+    assert.ok(hasProjectEntries(project.id), 'seed data should give this project entries');
+
+    assert.throws(() => deleteProject(project.id), HasEntriesError);
+
+    assert.equal(getProjects().some(p => p.id === project.id), true);
+    assert.ok(hasProjectEntries(project.id));
+  });
+
+  test('deletes a project once it has no entries', () => {
+    const [project] = getProjects();
+    getEntries('2000-01-01', '2999-12-31')
+      .filter(e => e.projectId === project.id)
+      .forEach(e => deleteEntry(e.id));
 
     deleteProject(project.id);
 
     assert.equal(getProjects().some(p => p.id === project.id), false);
-    const remainingEntries = getEntries('2000-01-01', '2999-12-31')
-      .filter(e => e.projectId === project.id);
-    assert.equal(remainingEntries.length, 0);
   });
 });
 
@@ -58,6 +69,13 @@ describe('referential integrity', () => {
     assert.ok(projectIds.length > 0, 'seed data should give this client projects to delete');
 
     saveWeekAreaStatus({ weekKey: '2026-06-22', areaId: client.id, status: 'minimal' });
+    // with hours on its projects the area is refused, and nothing is removed
+    assert.throws(() => deleteClient(client.id), HasEntriesError);
+    assert.equal(getClients().some(row => row.id === client.id), true);
+
+    getEntries('2000-01-01', '2999-12-31')
+      .filter(e => projectIds.includes(e.projectId))
+      .forEach(e => deleteEntry(e.id));
     deleteClient(client.id);
 
     assert.equal(getClients().some(row => row.id === client.id), false);

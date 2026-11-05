@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { createTestDb } = require('./helpers');
 const { getStatusData } = require('../commands/status');
 const { logHours } = require('../commands/log');
-const { saveProject, getProjects, getClients, saveClient } = require('../../db/queries');
+const { saveProject, getProjects, getClients, saveClient, saveEntry } = require('../../db/queries');
 
 const TEST_DATE = '2020-09-01';
 
@@ -56,7 +56,8 @@ describe('getStatusData', () => {
     const target = projects.find(p => p.budgetHours && !p.archived);
     assert.ok(target, 'Need a project with budget for this test');
     const hoursToLog = target.budgetHours * 0.85;
-    logHours({ projectName: target.name, hoursStr: String(hoursToLog), slot: 'am', date: '2020-09-15', add: false });
+    // more than one day can hold: saved directly, logHours refuses over 24h
+    saveEntry({ id: 'budget-fixture', projectId: target.id, date: '2020-09-15', hours: hoursToLog, slot: 'am', billed: false });
     const data = getStatusData('2020-09-15');
     assert.ok(data.alerts.some(a => a.project === target.name && a.kind === 'project-budget'));
     assert.ok(data.alerts.every(a => a.pct >= 0.8));
@@ -128,7 +129,7 @@ describe('getStatusData', () => {
     const area = getClients().find(c => c.limitType === 'weekly' && c.limitHours > 0);
     saveClient({ ...area, limitType: 'none', limitHours: null });
     const project = getProjects().find(p => p.clientId === area.id && !p.archived);
-    logHours({ projectName: project.name, hoursStr: '40', slot: 'am', date: '2020-09-15', add: false });
+    saveEntry({ id: 'no-limit-fixture', projectId: project.id, date: '2020-09-15', hours: 40, slot: 'am', billed: false });
 
     const data = getStatusData('2020-09-15');
     assert.equal(data.alerts.some(a => a.area === area.name && a.kind.startsWith('area-')), false);
