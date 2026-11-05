@@ -1,5 +1,6 @@
 const { INIT_CLIENTS, INIT_PROJECTS, INIT_RECURRING, getSeedEntries } = require('./schema');
 const { SLOTS, normalizeSlot } = require('../lib/domain');
+const { isSlot, isDayIndex, isPositiveHours, MAX_BLOCK_HOURS } = require('../lib/validate');
 const { randomUUID } = require('crypto');
 
 let db;
@@ -262,14 +263,17 @@ function saveRecurring(r) {
 // Single entry point for "replace one day+slot of the template": validate every
 // block, freeze, then replace, all in one transaction (nothing is deleted if a block is invalid).
 function replaceRecurringSlot(day, slot, blocks) {
-  if (!Number.isInteger(day) || day < 0 || day > 6) throw new Error(`Invalid day "${day}": use 0 (Mon) to 6 (Sun)`);
-  if (!SLOTS.includes(slot)) throw new Error(`Invalid slot "${slot}": use am, pm or sera`);
+  // the same checks as POST /recurring (lib/validate.js)
+  if (!isDayIndex(day)) throw new Error(`Invalid day "${day}": use 0 (Mon) to 6 (Sun)`);
+  if (!isSlot(slot)) throw new Error(`Invalid slot "${slot}": use am, pm or sera`);
   if (!Array.isArray(blocks)) throw new Error('Invalid blocks: expected an array');
   return db.transaction(() => {
     const areas = new Set(db.prepare('SELECT id FROM clients').all().map(c => c.id));
     for (const b of blocks) {
       if (!areas.has(b?.clientId)) throw new Error(`Area not found: ${b?.clientId}`);
-      if (!(Number(b.hours) > 0)) throw new Error(`Invalid hours "${b.hours}": must be greater than 0`);
+      if (!isPositiveHours(Number(b.hours))) {
+        throw new Error(`Invalid hours "${b?.hours}": must be above 0 and up to ${MAX_BLOCK_HOURS}`);
+      }
     }
     const current = getRecurring();
     freezeWeeksBeforeRecurringChange(current);

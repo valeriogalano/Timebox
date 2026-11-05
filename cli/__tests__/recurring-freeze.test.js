@@ -190,6 +190,7 @@ describe('recurring freeze', () => {
       ['am', [{ clientId: 'c2', hours: 1 }, { clientId: 'Area 2', hours: 1 }]],
       ['am', [{ clientId: 'c2', hours: -1 }]],
       ['am', [{ clientId: 'c2', hours: 0 }]],
+      ['am', [{ clientId: 'c2', hours: 25 }]],
       ['night', [{ clientId: 'c2', hours: 1 }]],
     ]) {
       assert.throws(() => replaceRecurringSlot(0, slot, blocks));
