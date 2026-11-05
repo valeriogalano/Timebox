@@ -30,6 +30,22 @@ function saveClient(client) {
   });
 }
 
+// week_overrides keeps its blocks as JSON, with no foreign key to the area:
+// without this the blocks of a deleted area stayed in every override, hidden
+// by the UI and shown as area "?" (and counted) by the CLI and MCP. A slot left
+// without blocks stays an explicit empty override: the area was what filled it.
+function removeAreaFromOverrides(areaId) {
+  const rows = db.prepare('SELECT id, blocksJson FROM week_overrides').all();
+  const update = db.prepare('UPDATE week_overrides SET blocksJson = ? WHERE id = ?');
+  for (const row of rows) {
+    let blocks;
+    try { blocks = JSON.parse(row.blocksJson); } catch (_) { continue; }
+    if (!Array.isArray(blocks)) continue;
+    const kept = blocks.filter(b => b?.clientId !== areaId);
+    if (kept.length !== blocks.length) update.run(JSON.stringify(kept), row.id);
+  }
+}
+
 // Hours are never deleted along with their project or area: archive instead.
 // The UI asks first (src/delete-guard.js), HTTP and MCP answer 409; this is
 // the rule that holds for every path.
@@ -53,6 +69,7 @@ function deleteClient(id) {
       deleteImports.run(projectId);
     }
     db.prepare('DELETE FROM recurring WHERE clientId=?').run(id);
+    removeAreaFromOverrides(id);
     db.prepare('DELETE FROM week_area_status WHERE areaId=?').run(id);
     db.prepare('DELETE FROM projects WHERE clientId=?').run(id);
     db.prepare('DELETE FROM clients WHERE id=?').run(id);

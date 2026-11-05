@@ -350,6 +350,8 @@ Block filling stays a separate measure of how much of the plan is covered: `fill
 
 When the last block is removed from a slot, the code deletes the `week_overrides` row instead of saving an empty array. Missing row means "use the recurring template".
 
+One exception: deleting an area (`deleteClient` → `removeAreaFromOverrides`) drops its blocks from every override, and a slot left without blocks stays an explicit `[]`. Most of those rows are frozen past weeks, and falling back to today's template would rewrite a plan that already happened.
+
 ### Extra Blocks
 
 Extra blocks are computed from entries whose project area is not present in planned AM or PM blocks for that day. They are not edited directly.
