@@ -23,7 +23,7 @@ const {
   getClients, saveClient, moveEntrySlot,
   getProjects, saveProject, deleteProject,
   hasProjectEntries, mergeProjectEntries,
-  getRecurring, saveRecurring, deleteRecurring,
+  getRecurring, saveRecurring, replaceRecurringSlot, deleteRecurring,
   getWeekOverrides, saveWeekOverride, deleteWeekOverride, toMonday,
   getWeekAreaStatuses, saveWeekAreaStatus,
   resolveTodoistColor, TODOIST_COLORS,
@@ -268,6 +268,13 @@ function createHttpServer() {
         return json(res, 200, getRecurring());
       }
 
+      if (req.method === 'PUT' && p === '/recurring/slot') {
+        const { day, slot, blocks } = await readBody(req);
+        const result = replaceRecurringSlot(day, slot, blocks);
+        emitter.emit('change', 'structure');
+        return json(res, 200, result);
+      }
+
       if (req.method === 'POST' && p === '/recurring') {
         const { id, clientId, slot, day, hours, position } = await readBody(req);
         if (!clientId || !slot || day == null || !hours) return json(res, 400, { error: 'clientId, slot, day and hours are required' });
@@ -349,7 +356,7 @@ function createHttpServer() {
 
       json(res, 404, { error: 'Not found' });
     } catch (err) {
-      const clientError = ['No project', 'Ambiguous', 'Invalid slot', 'Invalid hours', 'Invalid date']
+      const clientError = ['No project', 'Ambiguous', 'Invalid slot', 'Invalid day', 'Invalid hours', 'Invalid blocks', 'Invalid date', 'Area not found']
         .some(text => err.message?.includes(text));
       json(res, clientError ? 400 : 500, { error: err.message });
     }

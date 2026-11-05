@@ -712,4 +712,17 @@ describe('HTTP server', () => {
     const { status } = await post(port, '/projects/merge', { fromId: 'nonexistent', toId: dst.id });
     assert.equal(status, 400);
   });
+
+  it('PUT /recurring/slot replaces the slot; an invalid block answers 400 and keeps the old blocks', async () => {
+    const area = getClients()[0];
+    const ok = await request(port, 'PUT', '/recurring/slot', { day: 4, slot: 'sera', blocks: [{ clientId: area.id, hours: 1.5 }] });
+    assert.equal(ok.status, 200);
+    assert.equal(ok.body.created.length, 1);
+    const bad = await request(port, 'PUT', '/recurring/slot', { day: 4, slot: 'sera', blocks: [{ clientId: area.name, hours: 1 }] });
+    assert.equal(bad.status, 400);
+    const rec = (await get(port, '/recurring')).body.filter(b => b.day === 4 && b.slot === 'sera');
+    assert.deepEqual(rec.map(b => b.hours), [1.5]);
+    const neg = await request(port, 'POST', '/recurring', { clientId: area.id, slot: 'am', day: 0, hours: -2 });
+    assert.equal(neg.status, 400);
+  });
 });
