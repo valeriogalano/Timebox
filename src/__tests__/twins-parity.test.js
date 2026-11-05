@@ -80,13 +80,13 @@ describe('src/ and lib/domain.js give the same answers', () => {
   ]);
 });
 
-// The one known divergence (audit I4 / 1.2 / 3.1): the CLI reads "1h 30m" as 1
-// and has no minutes threshold. Kept visible as a todo until one parser serves
-// both: it reports the mismatch without failing the suite.
-test('hours parser: the CLI reads the display format like the renderer', {
-  todo: 'known divergence, see audit I4: lib/domain.js parseHours lacks "1h 30m" and the minutes threshold',
-}, () => {
-  for (const text of ['2', '2.5', '2:30', '1h 30m', '45m', '90']) {
-    assert.equal(cjs.parseHours(text), parseHHMM(text, 9), text);
+// The CLI/MCP parser (parseHoursStrict) reads the same forms as the renderer.
+// One difference is deliberate: a bare number above the minutes threshold ("90")
+// is minutes in the UI and hours for an agent, where it is then out of range.
+test('hours parser: the CLI reads the forms the renderer reads', () => {
+  for (const text of ['', '2', '2.5', '2,5', '2:30', '1h 30m', '2h', '45m', '9']) {
+    assert.equal(cjs.parseHoursStrict(text), parseHHMM(text, 9), text);
   }
+  assert.equal(cjs.parseHoursStrict('90'), 90);
+  assert.equal(parseHHMM('90', 9), 1.5);
 });
