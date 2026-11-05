@@ -18,6 +18,7 @@ export const MIN_HISTORY = 4;
 // Verdetto piano↔consuntivo. Due soglie, ciascuna combinata in ore e in percentuale:
 // la percentuale da sola grida per le aree piccole (1h pianificata, 1h30 fatta = +50%
 // ma è mezz'ora), le ore da sole tacciono per quelle grandi. Vince la più larga delle due.
+// Gemello CommonJS di TOL_HOURS e TOL_PCT in lib/domain.js (tolleranza dello scarto per CLI e MCP).
 export const TOL_HOURS = 0.5;     // mezz'ora: rumore di tracciamento, non un segnale
 export const TOL_PCT = 0.10;
 export const STRONG_HOURS = 2;    // oltre: scarto marcato → glifo doppio

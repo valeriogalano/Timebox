@@ -204,6 +204,10 @@ async function cmdStatus(flags) {
     console.log('\nAlerts:');
     for (const a of d.alerts) console.log(`  ⚠  ${a.label ?? a}`);
   }
+  if (d.gapAlerts && d.gapAlerts.length) {
+    console.log('\nWeek targets:');
+    for (const a of d.gapAlerts) console.log(`  ⚠  ${a.label}`);
+  }
   console.log('');
 }
 

@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { render, within, fireEvent } from '@testing-library/react';
 import ProgressScreen from './ProgressScreen.jsx';
 import { getToday, fmt, getMondayOfWeek, addDays } from '../utils';
@@ -35,6 +35,9 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
       getProjectTotals: () => Promise.resolve({ p1: 12, p2: 30, p4: 20, p5: 31 }),
       getProjectBillableTotals: () => Promise.resolve({ p1: 12, p2: 30, p4: 20, p5: 26 }),
       getWeekOverridesRange: () => Promise.resolve([]),
+      getWeekAreaTargets: () => Promise.resolve([]),
+      getWeekAreaStatuses: () => Promise.resolve([]),
+      addWeekAreaTarget: () => Promise.resolve({}),
     };
   });
 
@@ -57,14 +60,50 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     expect(queryByText('Archiviato')).not.toBeInTheDocument();
   });
 
-  test('Per area · consuntivo: le colonne dicono Piano, Fatto e Previsto, il titolo non le ripete', async () => {
+  test('Per area · obiettivo: colonne Obiettivo, Fatto, Rimasti e Scarto, niente verdetto sul piano', async () => {
     const { findByText } = renderPanoramica();
 
-    const section = (await findByText('Per area · consuntivo')).closest('div').parentElement;
-    expect(within(section).getByText('Piano')).toBeInTheDocument();
-    expect(within(section).getByText('Fatto')).toBeInTheDocument();
-    expect(within(section).getByText('Previsto')).toBeInTheDocument();
-    expect(within(section).queryByText(/piano · fatto/i)).not.toBeInTheDocument();
+    const section = (await findByText('Per area · obiettivo')).closest('div').parentElement;
+    for (const h of ['Obiettivo', 'Fatto', 'Rimasti', 'Scarto']) expect(within(section).getByText(h)).toBeInTheDocument();
+    expect(within(section).queryByText('Previsto')).not.toBeInTheDocument();
+    expect(within(section).queryByText('Piano')).not.toBeInTheDocument();
+  });
+
+  test('lavoro non pianificato: il fatto supera l\'obiettivo; un\'area chiusa a zero resta fuori', async () => {
+    window.api.getWeekAreaStatuses = () => Promise.resolve([{ areaId: 'c3', status: 'closed' }]);
+    const { findByLabelText, queryByLabelText, getByText } = renderPanoramica();
+
+    // Settimanale: nessun template, 12h fatte oggi
+    const input = await findByLabelText('Obiettivo Settimanale');
+    await vi.waitFor(() => expect(input.closest('span').parentElement).toHaveTextContent('12h oltre'));
+    expect(queryByLabelText('Obiettivo Libera')).not.toBeInTheDocument();
+    // Carico: 15h fatte su 0h di obiettivo, scarto totale oltre
+    expect(getByText('fatte su 0h di obiettivo')).toBeInTheDocument();
+    expect(getByText('15h oltre')).toBeInTheDocument();
+  });
+
+  test('uno scarto entro la tolleranza dei verdetti si legge "in pari", oltre no', async () => {
+    // Libera: 4h di template su una settimana chiusa
+    const lastWeek = fmt(addDays(getMondayOfWeek(getToday()), -7));
+    const recurring = [{ id: 'r1', clientId: 'c3', day: 0, slot: 'am', hours: 4, position: 0 }];
+    const rowWith = async hours => {
+      window.api.getEntries = () => Promise.resolve([{ id: 'e1', projectId: 'p3', date: lastWeek, hours, slot: 'am' }]);
+      const view = render(
+        <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen="progress"
+          weekOffset={-1} setWeekOffset={() => {}} />
+      );
+      const row = (await view.findByLabelText('Obiettivo Libera')).closest('span').parentElement;
+      return { row, view };
+    };
+
+    // 3h30m fatte: manca mezz'ora, sul confine della tolleranza
+    const inside = await rowWith(3.5);
+    await vi.waitFor(() => expect(inside.row).toHaveTextContent('in pari'));
+    inside.view.unmount();
+
+    // 3h fatte: manca 1h, oltre
+    const outside = await rowWith(3);
+    await vi.waitFor(() => expect(outside.row).toHaveTextContent('mancano 1h'));
   });
 
   test('ogni card mostra il residuo, o di quanto il tetto è superato', async () => {
@@ -98,45 +137,107 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     expect(card).toHaveTextContent('80%');
   });
 
-  test('settimana futura: il previsto è il piano, e il ⚠ scatta quando supera il limite', async () => {
+  test('settimana futura: obiettivo dal template, tutti i blocchi rimasti, il ⚠ dei limiti sul previsto', async () => {
     // 2h al giorno su Settimanale (limite 10h): la settimana prossima arriva a 14h
     const recurring = Array.from({ length: 7 }, (_, day) => ({ id: `r${day}`, clientId: 'c1', day, slot: 'am', hours: 2, position: 0 }));
     window.api.getEntries = () => Promise.resolve([]);
-    const { findByText, getByText, getAllByTitle } = render(
+    const { findByText, getByLabelText, getAllByTitle, getByRole } = render(
       <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen="progress"
         weekOffset={1} setWeekOffset={() => {}} />
     );
 
     const weekly = (await findByText('Limiti della settimana')).closest('div').parentElement;
     const card = within(weekly).getByText('Settimanale').closest('div').parentElement.parentElement;
-    // ancora nessuna ora fatta, ma il piano porta a 14h
     expect(card).toHaveTextContent('mancano10h');
     expect(card).toHaveTextContent('previsto 14h');
     expect(getAllByTitle('Previsto 14h su 10h · Limite − Previsto -4h').length).toBeGreaterThanOrEqual(1);
 
-    // per area: piano, fatto e previsto; in linea perché il previsto è il piano
-    expect(getByText('Previsto')).toBeInTheDocument();
-    expect(getAllByTitle('In linea · Δ +0h sul previsto')).toHaveLength(1);
-    // carico: 14h previste su 14h di capacità
-    expect(getByText('100%')).toBeInTheDocument();
-    expect(getByText('Previsto a fine settimana')).toBeInTheDocument();
+    // obiettivo precompilato con il template (14h), sopra il limite: avviso, non blocco
+    const input = getByLabelText('Obiettivo Settimanale');
+    expect(input).toHaveValue('14h');
+    expect(input).toHaveAttribute('title', 'Dal template: le ore della ricorrenza');
+    expect(getByRole('img', { name: 'Obiettivo sopra il limite settimanale (10h)' })).toBeInTheDocument();
+    const row = input.closest('span').parentElement;
+    expect(row).toHaveTextContent('in pari');
+    // carico: 0h fatte su 14h di obiettivo, 14h di blocchi rimasti
+    expect(await findByText('fatte su 14h di obiettivo')).toBeInTheDocument();
   });
 
-  test('settimana chiusa: niente colonna Previsto, il verdetto è sul fatto', async () => {
+  test('settimana chiusa: nessun blocco rimasto, lo scarto sono le ore mancate', async () => {
     const monday = getMondayOfWeek(getToday());
     const lastWeek = fmt(addDays(monday, -7));
     const recurring = [{ id: 'r1', clientId: 'c3', day: 0, slot: 'am', hours: 4, position: 0 }];
     window.api.getEntries = () => Promise.resolve([{ id: 'e1', projectId: 'p3', date: lastWeek, hours: 1, slot: 'am' }]);
-    const { findByText, queryByText, getAllByTitle } = render(
+    const { findByLabelText, getAllByText } = render(
       <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen="progress"
         weekOffset={-1} setWeekOffset={() => {}} />
     );
 
-    expect(await findByText('Per area · consuntivo')).toBeInTheDocument();
-    expect(queryByText('Previsto')).not.toBeInTheDocument();
-    expect(queryByText('Previsto a fine settimana')).not.toBeInTheDocument();
-    // 1h su 4h: molto sotto, scarto di 3h
-    expect(getAllByTitle('Molto sottocarico · Δ -3h')).toHaveLength(1);
+    const input = await findByLabelText('Obiettivo Libera');
+    expect(input).toHaveValue('4h');
+    // 1h su 4h, nessun blocco rimasto: mancano 3h
+    expect(input.closest('span').parentElement).toHaveTextContent('mancano 3h');
+    expect(getAllByText('mancano 3h').length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('l\'obiettivo si cambia scrivendo un numero: salva solo se cambia, Esc annulla', async () => {
+    const recurring = [{ id: 'r1', clientId: 'c3', day: 0, slot: 'am', hours: 4, position: 0 }];
+    const saved = [];
+    let rows = [];
+    window.api.getEntries = () => Promise.resolve([]);
+    window.api.getWeekAreaTargets = () => Promise.resolve(rows);
+    window.api.addWeekAreaTarget = t => { saved.push(t); rows = [...rows, t]; return Promise.resolve(t); };
+    window.api.getWeekAreaStatuses = () => Promise.resolve([{ areaId: 'c3', status: 'closed' }]);
+    const { findByLabelText, findByRole } = render(
+      <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen="progress"
+        weekOffset={1} setWeekOffset={() => {}} />
+    );
+
+    const input = await findByLabelText('Obiettivo Libera');
+    // area chiusa con un obiettivo dal template: ⚠
+    expect(await findByRole('img', { name: 'Area chiusa questa settimana, con un obiettivo sopra lo zero' })).toBeInTheDocument();
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '4h' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    fireEvent.blur(input);
+    expect(saved).toHaveLength(0);
+
+    fireEvent.change(input, { target: { value: '9' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    fireEvent.blur(input);
+    expect(saved).toHaveLength(0);
+    expect(input).toHaveValue('4h');
+
+    fireEvent.change(input, { target: { value: '6' } });
+    fireEvent.blur(input);
+    expect(saved).toEqual([{ weekKey: fmt(addDays(getMondayOfWeek(getToday()), 7)), areaId: 'c3', hours: 6 }]);
+    // dopo il salvataggio l'obiettivo non viene più dal template, e lo scarto lo segue
+    await findByLabelText('Obiettivo Libera');
+    await vi.waitFor(() => expect(input).not.toHaveAttribute('title'));
+    expect(input).toHaveValue('6h');
+    expect(input.closest('span').parentElement).toHaveTextContent('mancano 2h');
+
+    // un errore di salvataggio non lascia nel campo un valore che non c'è
+    const realAdd = window.api.addWeekAreaTarget;
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    window.api.addWeekAreaTarget = () => Promise.reject(new Error('db'));
+    fireEvent.change(input, { target: { value: '7' } });
+    fireEvent.blur(input);
+    await vi.waitFor(() => expect(err).toHaveBeenCalled());
+    await vi.waitFor(() => expect(input).toHaveValue('6h'));
+    err.mockRestore();
+    window.api.addWeekAreaTarget = realAdd;
+
+    // un numero nudo sopra la soglia dei minuti resta in ore
+    fireEvent.change(input, { target: { value: '12' } });
+    fireEvent.blur(input);
+    expect(saved[1].hours).toBe(12);
+
+    // un valore illeggibile torna al precedente
+    fireEvent.change(input, { target: { value: '-3' } });
+    fireEvent.blur(input);
+    expect(saved).toHaveLength(2);
   });
 
   test('le frecce spostano la settimana e Oggi torna a quella corrente', async () => {
@@ -211,6 +312,9 @@ describe('ProgressScreen / Trend: Da decidere', () => {
       getProjectTotals: () => Promise.resolve({}),
       getProjectBillableTotals: () => Promise.resolve({}),
       getWeekOverridesRange: () => Promise.resolve([]),
+      getWeekAreaTargets: () => Promise.resolve([]),
+      getWeekAreaStatuses: () => Promise.resolve([]),
+      addWeekAreaTarget: () => Promise.resolve({}),
     };
   });
 

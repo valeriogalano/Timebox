@@ -86,13 +86,14 @@ describe('MCP server', () => {
     const res = await rpc(mcp, msg('tools/list', {}));
     const { tools } = res.result;
     assert.ok(Array.isArray(tools));
-    assert.equal(tools.length, 29);
+    assert.equal(tools.length, 31);
     const names = tools.map(t => t.name);
     for (const n of ['today', 'day_summary', 'day_free_capacity', 'day_ready_blocks', 'todoist_imported_tasks', 'day_mismatches', 'week', 'projects', 'entries', 'areas', 'status', 'log_hours',
       'set_entry_slot', 'plan_vs_tracked',
       'find_area', 'find_project', 'rename_area', 'update_area', 'rename_project', 'update_project',
       'move_project', 'create_project', 'delete_project', 'merge_project_entries',
-      'get_recurring', 'set_recurring_slot', 'get_week_overrides', 'set_week_override', 'clear_week_override']) {
+      'get_recurring', 'set_recurring_slot', 'get_week_overrides', 'set_week_override', 'clear_week_override',
+      'week_targets', 'set_week_target']) {
       assert.ok(names.includes(n), `missing tool: ${n}`);
     }
     for (const t of tools) {
@@ -368,6 +369,38 @@ describe('MCP server', () => {
     saveWeekOverride({ weekKey: '2020-01-06', dayIndex: 0, slot: 'am', blocks: [{ id: 'b1', clientId: 'Personale', hours: 2 }] });
     const ov = await rpc(mcp, msg('tools/call', { name: 'get_week_overrides', arguments: { weekKey: '2020-01-06' } }));
     assert.match(ov.result.content[0].text, /\? \(Personale\) 2h/);
+  });
+
+  it('week_targets and set_week_target read and set an area target with its gap', async () => {
+    const before = await rpc(mcp, msg('tools/call', { name: 'week_targets', arguments: { weekKey: '2020-01-06' } }));
+    const text = before.result.content[0].text;
+    assert.match(text, /^Week 2020-01-06 targets/);
+    // c1 (Acme Corp): template only
+    assert.match(text, /\[c1\] [^(]+ \(active\): target [\d.]+h \(template\)/);
+
+    const set = await rpc(mcp, msg('tools/call', { name: 'set_week_target', arguments: { areaId: 'c1', hours: 30, weekKey: '2020-01-06' } }));
+    const out = set.result.content[0].text;
+    assert.ok(!set.result.isError, out);
+    assert.match(out, /^Target set to 30h for week 2020-01-06\./);
+    assert.match(out, /\[c1\] [^(]+ \(active\): target 30h \(set\)/);
+    // Acme ha un limite settimanale di 20h: l'avviso c'è, il salvataggio pure
+    assert.match(out, /: target 30h is above the weekly limit \(20h\)/);
+
+    const again = await rpc(mcp, msg('tools/call', { name: 'set_week_target', arguments: { areaId: 'c1', hours: 25, weekKey: '2020-01-06' } }));
+    assert.match(again.result.content[0].text, /target 25h \(set, Monday 30h\)/);
+    const same = await rpc(mcp, msg('tools/call', { name: 'set_week_target', arguments: { areaId: 'c1', hours: 25, weekKey: '2020-01-06' } }));
+    assert.match(same.result.content[0].text, /^Target already 25h for week 2020-01-06: nothing stored\./);
+
+    // senza weekKey vale la settimana in corso
+    const current = await rpc(mcp, msg('tools/call', { name: 'set_week_target', arguments: { areaId: 'c2', hours: 1 } }));
+    assert.match(current.result.content[0].text, /^Target set to 1h for week \d{4}-\d{2}-\d{2}\./);
+    const status = await rpc(mcp, msg('tools/call', { name: 'status', arguments: {} }));
+    assert.match(status.result.content[0].text, /Week targets \(gap = target − done − blocks left\):/);
+    const read = await rpc(mcp, msg('tools/call', { name: 'week_targets', arguments: {} }));
+    assert.match(read.result.content[0].text, /\[c2\] The Blog \(active\): target 1h \(set\)/);
+
+    const bad = await rpc(mcp, msg('tools/call', { name: 'set_week_target', arguments: { areaId: 'Acme Corp', hours: 3, weekKey: '2020-01-06' } }));
+    assert.ok(bad.result.isError);
   });
 
   it('set_recurring_slot with a bad area id fails and leaves the slot untouched', async () => {

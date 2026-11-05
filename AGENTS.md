@@ -70,7 +70,7 @@ when Electron cannot be launched (an agent session, CI, a machine without a disp
   small proxy in front of Vite that adds a `<script>` just before `</body>`. That script
   replaces the read methods of the mock (`getClients`, `getProjects`, `getRecurring`,
   `getEntries`, `getProjectTotals`, `getProjectBillableTotals`, `getSetting`,
-  `getWeekAreaStatuses`, `getWeekOverrides`, `getWeekOverridesRange`, `getTodoistCache`,
+  `getWeekAreaStatuses`, `getWeekAreaTargets`, `getWeekOverrides`, `getWeekOverridesRange`, `getTodoistCache`,
   `getAllTodoistCache`, `getTodoistImports`) with ones that answer from the dump. A
   classic script placed there runs before the module entry, so the app only ever sees
   the patched API. Writes still go to the mock and never reach the database. Delete the
@@ -137,6 +137,7 @@ TimeBox/
       entries.js
       clients.js
       status.js
+      targets.js     weekly area targets and gap (GET /targets, status, MCP)
       log.js
     __tests__/
       *.test.js     node:test coverage for commands, HTTP, MCP, and Todoist ordering
@@ -224,7 +225,9 @@ In development, wrappers point at repository files. In packaged builds, they poi
 | `GET` | `/entries?from=&to=&area=&project=` | `getEntriesData(...)`: single entries in a date range plus totals by area and project. `from` is required, `to` defaults to today; a malformed date is a 400. |
 | `GET` | `/clients?search=` | `getClientsData(...)`. |
 | `GET` | `/areas?search=` | Alias for clients/areas. |
-| `GET` | `/status` | `getStatusData(today)`. |
+| `GET` | `/status` | `getStatusData(today)`: cap `alerts`, plus `gapAlerts` from `weekTargetAlerts` (areas whose gap is beyond the tolerance, target warnings) for the current week. |
+| `GET` | `/targets?week=` | `getWeekTargetsData(week, today)` plus its `alerts`; `week` is a Monday, default the current week (a non-Monday is a 400). |
+| `POST` | `/targets` | `{ weekKey, areaId, hours }` through `addWeekAreaTarget`. 400 on a non-Monday or hours that are not a number ≥ 0, 404 on an unknown area id. |
 | `POST` | `/log` | `logHours(...)`; supports `billableHours` and `slot`. Without `slot`, a project with hours in more than one slot that day is an error. |
 | `PATCH` | `/entries/:id` | Correct an entry's slot: `{ slot }`, through `moveEntrySlot`. Merges with the project's entry already in that slot. |
 | `GET` | `/plan-vs-tracked?from=&to=` | `getPlanVsTrackedData(...)`: planned, covered and worked-in-slot hours per day, slot and area, extra hours and totals. Days before `slotsTrackedSince` are flagged and left out of the totals. |
@@ -256,7 +259,7 @@ A second listener, off by default, macOS only. It exists so hours can be logged 
 
 `cli/mcp-server.js` implements MCP spec `2024-11-05` with JSON-RPC over stdio.
 
-Tools: `today`, `week`, `projects`, `entries`, `areas`, `status`, `log_hours`, `set_entry_slot`, `plan_vs_tracked`, `find_area`, `find_project`, `rename_area`, `update_area`, `rename_project`, `update_project`, `move_project`, `create_project`, `delete_project`, `merge_project_entries`. `entries`, `today` and `week` show each entry's slot and id; `day_summary` shows the hours worked in each slot next to the block filling.
+Tools: `today`, `day_summary`, `day_free_capacity`, `day_ready_blocks`, `todoist_imported_tasks`, `day_mismatches`, `week`, `projects`, `entries`, `areas`, `status`, `log_hours`, `set_entry_slot`, `plan_vs_tracked`, `find_area`, `find_project`, `rename_area`, `update_area`, `rename_project`, `update_project`, `move_project`, `create_project`, `delete_project`, `merge_project_entries`, `get_recurring`, `set_recurring_slot`, `get_week_overrides`, `set_week_override`, `clear_week_override`, `week_targets`, `set_week_target`. `week_targets` reads target, Monday target, done, blocks left, gap and warnings per area; `set_week_target` appends a target; `status` lists the gap alerts of the current week. `entries`, `today` and `week` show each entry's slot and id; `day_summary` shows the hours worked in each slot next to the block filling.
 
 Codex manual configuration:
 
@@ -275,6 +278,7 @@ recurring      (id, clientId, slot, day, hours, position)
 entries        (id, projectId, date, hours, billableHours, slot, billed)
 week_overrides (id, weekKey, dayIndex, slot, blocksJson)
 week_area_status (id, weekKey, areaId, status)
+week_area_targets (id, weekKey, areaId, hours, createdAt)   -- append-only, see Weekly Area Targets and the Gap
 settings       (key, value)
 todoist_cache  (dateStr, tasksJson, syncedAt)
 ```
@@ -380,12 +384,23 @@ The logic lives in `src/cap-usage.js` for the renderer and in `capUsage` in `lib
 
 In UI text, tracked hours are "ore lavorate" (never "ore reali") and billable hours are "ore fatturabili", abbreviated "fatt.".
 
-### Weekly Verdicts Are on the Forecast (Previsto)
+### Weekly Area Targets and the Gap
 
-Andamento → Settimana and the weekly-limit warnings judge the **Previsto**, not the hours done so far: mid-week, done hours against the whole week's plan always read "under". `weekForecast` (`src/week-forecast.js`, CommonJS twin in `lib/domain.js`) counts the hours done before today and, from today on, each day's plan or what is already logged if more. Today therefore includes its remaining plan. Once the week is closed the Previsto equals the done hours, so closed weeks read as before.
+Each area has a weekly target: how many hours it should get that week. Andamento → Settimana shows, per area, the target (editable in place), the hours done, the blocks left and the gap. It only shows: it never suggests what to move.
 
-- The load card, the per-area table and the ⚠ on weekly limits use it. A project has no plan (`recurring` maps areas), so its Previsto is its done hours.
-- `forecastUsage` adds the remaining plan to both counts of a cap (worked and billable); `weeklyLimitsAtRisk` is the warning in Settimana while planning, for areas whose Previsto exceeds the weekly limit while the done hours still fit.
+- **Storage is append-only.** `week_area_targets (id, weekKey, areaId, hours, createdAt)`: every change adds a row (`addWeekAreaTarget`; writing the current value again adds nothing). The first row of the week is the **Monday target**, the last one the **final target**. With no rows both are the area's template hours, the sum of its `recurring` blocks (weekend included), read from the current template. The gap is measured on the final target, so an urgent change of plan does not read as drift; the Monday target is kept for the template calibration (not built yet).
+- **The formula.** `gap = target − done − blocks left`. Blocks left: for today `max(0, plan today − done today)`, for the following days their whole plan, weekend included; none for past days. Done counts entries up to today (an entry dated in the future is not done yet). Positive gap = hours still missing, negative = hours beyond the target.
+- **State, never gestures.** The numbers depend only on target, entries and effective blocks (template + overrides), never on how the board was edited: moving a block leaves the gap unchanged, compensating closes it, and removing today's block after logging hours on it leaves those hours as missing (the old per-area verdict, Previsto against plan, flipped to "over" there).
+- **Where the logic lives.** `src/area-targets.js` (`templateHoursByArea`, `weekTargets`, `areaGaps`, `targetWarnings`), CommonJS twin in `lib/domain.js`; the two must stay in step and are tested together in `src/__tests__/area-targets.test.js`. The CLI side is `cli/commands/targets.js` (`getWeekTargetsData`, `weekTargetAlerts`), used by `GET /targets`, `status` and the MCP tools.
+- **Warnings, not blocks.** A target above the area's weekly limit, and a target above zero on an area whose effective status that week is `closed`. Area status stays a manual label otherwise: no calculation uses it.
+- **Tolerance.** A gap within `TOL_HOURS` (0.5h) or `TOL_PCT` (10%) of the target, whichever is larger, is "in pari": the GUI writes it so and `status` does not list the area. Both go through `gapWithinTolerance`; the constants live in `src/progress-insights.js` (the Andamento verdicts) with their CommonJS twin in `lib/domain.js`.
+- **The load card** (*Carico della settimana*) shows done hours against the total target, with total blocks left and total gap. The total sums the areas, so opposite gaps cancel out; the per-area table is where decisions are made.
+
+### Weekly Limits Are on the Forecast (Previsto)
+
+The weekly-limit warnings judge the **Previsto**: done hours plus blocks left (the same blocks left as the gap). `weekForecast` (`src/week-forecast.js`, CommonJS twin in `lib/domain.js`) computes it for Settimana; Andamento uses the blocks left from `areaGaps`, which is the same number. A project has no plan (`recurring` maps areas), so its Previsto is its done hours.
+
+- `forecastUsage` adds the blocks left to both counts of a cap (worked and billable); `weeklyLimitsAtRisk` is the warning in Settimana while planning, for areas whose Previsto exceeds the weekly limit while the done hours still fit.
 - The Trend mini charts judge the closed weeks only.
 
 ### Reset to Template

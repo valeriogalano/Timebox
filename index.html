@@ -232,6 +232,7 @@
       ];
       let entries = [...ENTRIES];
       const weekAreaStatuses = {};
+      const weekAreaTargets = []; // append-only, come la tabella week_area_targets
       const settings = { slotCapacityHours: '4' };
       const mobileMock = { enabled: false, hasToken: false };
       let todoistImports = [
@@ -290,6 +291,14 @@
           if (status === 'active') delete weekAreaStatuses[weekKey][areaId];
           else weekAreaStatuses[weekKey][areaId] = status;
           return { weekKey, areaId, status: status || 'active' };
+        },
+        getWeekAreaTargets: async (weekKey) => weekAreaTargets.filter(t => t.weekKey === weekKey),
+        addWeekAreaTarget: async ({ weekKey, areaId, hours }) => {
+          const last = weekAreaTargets.filter(t => t.weekKey === weekKey && t.areaId === areaId).pop();
+          if (last && Math.abs(last.hours - hours) < 0.001) return { weekKey, areaId, hours, createdAt: null };
+          const row = { weekKey, areaId, hours, createdAt: new Date().toISOString() };
+          weekAreaTargets.push(row);
+          return row;
         },
         freezeWeeksBeforeRecurringChange: async () => {},
         resetAllData: async () => {}, seedDemoData: async () => {},

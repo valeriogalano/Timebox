@@ -175,4 +175,4 @@ function getDaySummaryData(date) {
   };
 }
 
-module.exports = { getDaySummaryData };
+module.exports = { getDaySummaryData, getEffectiveBlocks, buildOverrideMap };

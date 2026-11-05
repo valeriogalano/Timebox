@@ -394,6 +394,8 @@ function setupIpc() {
   ipcMain.handle('db:deleteWeekOverride',  (_, wk, di, sl) => q.deleteWeekOverride(wk, di, sl));
   ipcMain.handle('db:getWeekAreaStatuses', (_, wk)         => q.getWeekAreaStatuses(wk));
   ipcMain.handle('db:saveWeekAreaStatus',  (_, s)          => q.saveWeekAreaStatus(s));
+  ipcMain.handle('db:getWeekAreaTargets',  (_, wk)         => q.getWeekAreaTargets(wk));
+  ipcMain.handle('db:addWeekAreaTarget',   (_, t)          => q.addWeekAreaTarget(t));
   ipcMain.handle('db:freezeWeeksBeforeRecurringChange', (_, r) => q.freezeWeeksBeforeRecurringChange(r));
 
   ipcMain.handle('db:resetAllData',        ()              => q.resetAllData());

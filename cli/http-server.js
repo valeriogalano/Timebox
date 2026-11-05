@@ -15,6 +15,7 @@ const { getProjectsData } = require('./commands/projects');
 const { getEntriesData } = require('./commands/entries');
 const { getClientsData }  = require('./commands/clients');
 const { getStatusData }   = require('./commands/status');
+const { getWeekTargetsData, weekTargetAlerts } = require('./commands/targets');
 const { logHours }        = require('./commands/log');
 const { getPlanVsTrackedData, MAX_DAYS } = require('./commands/plan-vs-tracked');
 const { fmt, getToday }   = require('./format');
@@ -25,7 +26,7 @@ const {
   hasProjectEntries, mergeProjectEntries,
   getRecurring, saveRecurring, replaceRecurringSlot, deleteRecurring,
   getWeekOverrides, saveWeekOverride, deleteWeekOverride, toMonday,
-  getWeekAreaStatuses, saveWeekAreaStatus,
+  getWeekAreaStatuses, saveWeekAreaStatus, addWeekAreaTarget,
   resolveTodoistColor, TODOIST_COLORS,
 } = require('../db/queries');
 
@@ -350,6 +351,29 @@ function createHttpServer() {
         const existing = getClients().find(c => c.id === areaId);
         if (!existing) return json(res, 404, { error: `Area not found: ${areaId}` });
         const result = saveWeekAreaStatus({ weekKey, areaId, status });
+        emitter.emit('change', 'structure');
+        return json(res, 200, result);
+      }
+
+      // ── Week area targets ──────────────────────────────────────────────────
+      if (req.method === 'GET' && p === '/targets') {
+        const today = fmt(getToday());
+        const week = q.get('week') || toMonday(today);
+        if (!isDateParam(week) || toMonday(week) !== week)
+          return json(res, 400, { error: 'week must be the Monday (YYYY-MM-DD) of the target week' });
+        const data = getWeekTargetsData(week, today);
+        return json(res, 200, { ...data, alerts: weekTargetAlerts(data) });
+      }
+
+      if (req.method === 'POST' && p === '/targets') {
+        const { weekKey, areaId, hours } = await readBody(req);
+        if (!isDateParam(weekKey) || toMonday(weekKey) !== weekKey)
+          return json(res, 400, { error: 'weekKey must be the Monday (YYYY-MM-DD) of the target week' });
+        if (typeof hours !== 'number' || !Number.isFinite(hours) || hours < 0)
+          return json(res, 400, { error: 'hours must be a number >= 0' });
+        if (!getClients().some(c => c.id === areaId))
+          return json(res, 404, { error: `Area not found: ${areaId}. areaId must be an area id (see find_area).` });
+        const result = addWeekAreaTarget({ weekKey, areaId, hours });
         emitter.emit('change', 'structure');
         return json(res, 200, result);
       }

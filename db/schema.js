@@ -148,6 +148,15 @@ function initDb(dbPath) {
       areaId TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
       status TEXT NOT NULL CHECK(status IN ('active', 'minimal', 'closed'))
     );
+    -- Obiettivi settimanali per area, append-only: la prima riga della settimana è
+    -- l'obiettivo del lunedì, l'ultima quello finale. Senza righe vale il template.
+    CREATE TABLE IF NOT EXISTS week_area_targets (
+      id TEXT PRIMARY KEY,
+      weekKey TEXT NOT NULL,
+      areaId TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+      hours REAL NOT NULL,
+      createdAt TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT
@@ -171,6 +180,7 @@ function initDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_overrides_weekkey ON week_overrides(weekKey);
     CREATE INDEX IF NOT EXISTS idx_week_area_status_weekkey ON week_area_status(weekKey);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_week_area_status_unique ON week_area_status(weekKey, areaId);
+    CREATE INDEX IF NOT EXISTS idx_week_area_targets_weekkey ON week_area_targets(weekKey);
     CREATE INDEX IF NOT EXISTS idx_todoist_imports_date ON todoist_imports(date);
     CREATE INDEX IF NOT EXISTS idx_todoist_imports_project_date ON todoist_imports(projectId, date);
   `);
@@ -278,6 +288,9 @@ function cleanupOrphans(db) {
       AND clientId NOT IN (SELECT id FROM clients);
 
     DELETE FROM week_area_status
+    WHERE areaId NOT IN (SELECT id FROM clients);
+
+    DELETE FROM week_area_targets
     WHERE areaId NOT IN (SELECT id FROM clients);
 
     DELETE FROM projects
@@ -390,6 +403,7 @@ function ensureIndexes(db) {
     CREATE INDEX IF NOT EXISTS idx_overrides_weekkey ON week_overrides(weekKey);
     CREATE INDEX IF NOT EXISTS idx_week_area_status_weekkey ON week_area_status(weekKey);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_week_area_status_unique ON week_area_status(weekKey, areaId);
+    CREATE INDEX IF NOT EXISTS idx_week_area_targets_weekkey ON week_area_targets(weekKey);
     CREATE INDEX IF NOT EXISTS idx_todoist_imports_date ON todoist_imports(date);
     CREATE INDEX IF NOT EXISTS idx_todoist_imports_project_date ON todoist_imports(projectId, date);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_project_date_slot

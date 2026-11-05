@@ -171,7 +171,7 @@ const TOOLS = [
   },
   {
     name: 'status',
-    description: 'Get a quick overview: hours logged today and this week, plus any alerts on project budgets, project weekly limits and area limits.',
+    description: 'Get a quick overview: hours logged today and this week, alerts on project budgets, project weekly limits and area limits, and the current week\'s area targets: every area whose gap (target − done − blocks left) is beyond 0.5h or 10% of its target, whichever is larger, an area whose target is above its weekly limit, and a closed area with a target above zero.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -420,9 +420,50 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'week_targets',
+    description: 'Weekly target per area and the gap on it, for one week. For each area: target (the last one set this week; the area\'s template hours, i.e. the sum of its recurring blocks, when none was set), the Monday target (the first one set), hours done up to today, blocks left (today: planned minus done, never below zero; later days: their whole plan, weekend included) and gap = target − done − blocks left. A positive gap means hours still missing, a negative one hours beyond the target. Also warns when a target is above the area\'s weekly limit and when a closed area has a target above zero. It only reports: it does not suggest what to move.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        weekKey: { type: 'string', description: 'Monday date of the week, e.g. 2026-11-02 (default: the current week)' },
+      },
+    },
+  },
+  {
+    name: 'set_week_target',
+    description: 'Set the weekly target of one area, in hours. Targets are append-only: every change is kept, the first one of the week is the Monday target and the last one is the target the gap is measured on. Setting the same number as the current target stores nothing. A target above the area\'s weekly limit is accepted and reported as a warning.',
+    inputSchema: {
+      type: 'object',
+      required: ['areaId', 'hours'],
+      properties: {
+        areaId:  { type: 'string', description: 'Area id (from areas or find_area), not the area name' },
+        hours:   { type: 'number', minimum: 0, description: 'Target hours for the week' },
+        weekKey: { type: 'string', description: 'Monday date of the week, e.g. 2026-11-02 (default: the current week)' },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers ─────────────────────────────────────────────────────────────
+
+const r2 = h => Math.round(h * 100) / 100;
+
+function formatWeekTargets(d) {
+  const lines = [`Week ${d.weekKey} targets (today ${d.today}); gap = target − done − blocks left`];
+  for (const a of d.areas) {
+    const source = a.targetSet ? (Math.abs(a.mondayTarget - a.target) > 0.001 ? `set, Monday ${r2(a.mondayTarget)}h` : 'set') : 'template';
+    lines.push(`  [${a.areaId}] ${a.area} (${a.status}): target ${r2(a.target)}h (${source}), done ${r2(a.done)}h, blocks left ${r2(a.remaining)}h, gap ${a.gap > 0 ? '+' : ''}${r2(a.gap)}h`);
+  }
+  const t = d.totals;
+  lines.push(`Total: target ${r2(t.target)}h, done ${r2(t.done)}h, blocks left ${r2(t.remaining)}h, gap ${t.gap > 0 ? '+' : ''}${r2(t.gap)}h`);
+  const warnings = (d.alerts || []).filter(a => a.kind !== 'area-gap');
+  if (warnings.length) {
+    lines.push('', 'Warnings:');
+    for (const w of warnings) lines.push(`  ⚠ ${w.label}`);
+  }
+  return lines.join('\n');
+}
 
 async function callTool(name, args) {
   if (name === 'today') {
@@ -764,6 +805,10 @@ async function callTool(name, args) {
     } else {
       lines.push('\nNo alerts.');
     }
+    if (d.gapAlerts?.length) {
+      lines.push('\nWeek targets (gap = target − done − blocks left):');
+      for (const a of d.gapAlerts) lines.push(`  ⚠ ${a.label}`);
+    }
     return lines.join('\n');
   }
 
@@ -965,6 +1010,18 @@ async function callTool(name, args) {
     await httpRequest(`/overrides?week=${encodeURIComponent(weekKey)}&day=${dayIndex}&slot=${slot}`, 'DELETE');
     const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return `Override removed for week ${weekKey}, ${DAYS[dayIndex]} ${slot.toUpperCase()}. Now using recurring template.`;
+  }
+
+  if (name === 'week_targets') {
+    const qs = args.weekKey ? `?week=${encodeURIComponent(args.weekKey)}` : '';
+    return formatWeekTargets(await httpRequest(`/targets${qs}`));
+  }
+
+  if (name === 'set_week_target') {
+    const weekKey = args.weekKey || (await httpRequest('/targets')).weekKey;
+    const r = await httpRequest('/targets', 'POST', { weekKey, areaId: args.areaId, hours: Number(args.hours) });
+    const head = r.createdAt ? `Target set to ${r.hours}h for week ${weekKey}.` : `Target already ${r.hours}h for week ${weekKey}: nothing stored.`;
+    return `${head}\n\n${formatWeekTargets(await httpRequest(`/targets?week=${encodeURIComponent(weekKey)}`))}`;
   }
 
   throw new Error(`Unknown tool: ${name}`);
