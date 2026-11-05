@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - iPhone: una riga per fascia, con la fascia cambiabile (le ore si spostano) e un "+ fascia" per aggiungerne un'altra.
 
 ### Changed
+- Giorno: tolti il gauge "Carico di oggi" e la card "Capacità libera della giornata". La capacità delle Impostazioni resta per le barre delle fasce.
+- Giorno e MCP: nei "Blocchi pianificati senza azioni" di oggi non compaiono più le fasce già finite (mattina fino alle 13, pomeriggio fino alle 18). Giorni passati e futuri restano come prima.
 - iPhone: i pulsanti −15m/+15m/+1h sono sostituiti da due menu nativi, fascia e ore, che su iPhone si aprono come ruota. Le ore vanno da 0h a 12h a passi di 15 minuti. Un giorno con ore su più fasce si modifica dalla pagina, senza più l'errore che rimandava a Giorno.
 
 ### Removed
