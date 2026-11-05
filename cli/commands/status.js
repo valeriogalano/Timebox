@@ -72,6 +72,7 @@ function getStatusData(today) {
     });
   };
 
+  // Solo progetti attivi: stessa regola di projectsOverCap in src/cap-usage.js.
   for (const p of projects.filter(p => !p.archived)) {
     const area = clientMap[p.clientId]?.name || '?';
     addAlert({ kind: 'project-budget', area, project: p.name, usage: projectUsage(totals, billableTotals, p), limit: p.budgetHours, scope: 'budget' });

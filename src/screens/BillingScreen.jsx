@@ -1,5 +1,6 @@
+import { hourlyRate as rateOf } from '../billable-totals';
 import React, { useState, useEffect } from 'react';
-import { getToday, MONTHS_IT, fmtH, fmt, effBillable } from '../utils';
+import { getToday, MONTHS_IT, fmtH, fmt, effBillable, isHourly } from '../utils';
 
 const QUARTER_LABELS = ['Q1 (Gen–Mar)', 'Q2 (Apr–Giu)', 'Q3 (Lug–Set)', 'Q4 (Ott–Dic)'];
 
@@ -78,7 +79,7 @@ export default function BillingScreen({ clients, projects, screen }) {
 
   // Solo le aree a ore: sono le uniche in cui le ore si fatturano. Le aree a corpo non hanno
   // ore "da fatturare", quindi qui compaiono soltanto come riga di riepilogo in fondo.
-  const billableClients = clients.filter(c => c.billing === 'hourly');
+  const billableClients = clients.filter(isHourly);
   const fixedTotals = clients.filter(c => c.billing === 'fixed').map(c => {
     const pids = new Set(projects.filter(p => p.clientId === c.id).map(p => p.id));
     return { id: c.id, name: c.name, color: c.color, hours: entries.filter(e => pids.has(e.projectId)).reduce((s, e) => s + e.hours, 0) };
@@ -185,7 +186,7 @@ export default function BillingScreen({ clients, projects, screen }) {
         const totalH    = clientEntries.reduce((s, e) => s + effBillable(e), 0);
         const billedH   = clientEntries.filter(e => e.billed).reduce((s, e) => s + effBillable(e), 0);
         const unbilledH = totalH - billedH;
-        const hourlyRate = client.billing === 'hourly' && client.rate ? client.rate : null;
+        const hourlyRate = rateOf(client) || null;
         const unbilledEntries = clientEntries.filter(e => !e.billed);
 
         return (

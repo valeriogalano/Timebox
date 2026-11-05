@@ -100,7 +100,7 @@ const TOOLS = [
   },
   {
     name: 'day_ready_blocks',
-    description: 'List today\'s operational Timebox blocks that still lack enough ready Todoist intention, grouped by area and Timebox project to help turn reserved capacity into next actions.',
+    description: 'List the operational Timebox blocks of a day (today by default) that still lack enough ready Todoist intention, grouped by area and Timebox project to help turn reserved capacity into next actions.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -182,8 +182,8 @@ const TOOLS = [
       required: ['project', 'hours'],
       properties: {
         project: { type: 'string', description: 'Project name (partial match, must be unambiguous)' },
-        hours: { type: 'string', description: 'Hours to log — "2", "2.5", or "2:30"' },
-        billable_hours: { type: 'string', description: 'Billable hours override (optional). Same format as hours. Defaults to identical to hours.' },
+        hours: { type: 'string', description: 'Hours to log, 0 to 24 — "2", "2.5", "2:30" or "2h 30m". "0" deletes the entry; any other text is an error.' },
+        billable_hours: { type: 'string', description: 'Billable hours override (optional, hourly areas only: ignored elsewhere). Same format as hours. When omitted, the billable hours already stored on that entry are kept; on a new entry they equal the hours.' },
         slot: { type: 'string', enum: ['am', 'pm', 'sera'], description: 'Time slot. Default: today with add=true, the current slot; otherwise the slot the project already has that day; for a new entry the current slot today and the area\'s first planned slot (else am) on other days.' },
         date: { type: 'string', description: 'Date in YYYY-MM-DD format (default: today)' },
         add: { type: 'boolean', description: 'Add to existing hours instead of replacing (default: false)' },
@@ -331,7 +331,7 @@ const TOOLS = [
   },
   {
     name: 'merge_project_entries',
-    description: 'Move all logged entries from one project into another (summing hours on the same day+slot). By default the source project is then DELETED and this is not reversible. Pass deleteSource: false to keep the source project (left at 0h) when you want to preserve a record of it — archive it afterwards with update_project.',
+    description: 'Move all logged entries from one project into another (summing hours and billable hours on the same day+slot; a merged entry is billed only if both were). Their Todoist import records move along. By default the source project is then DELETED and this is not reversible. Pass deleteSource: false to keep the source project (left at 0h) when you want to preserve a record of it — archive it afterwards with update_project.',
     inputSchema: {
       type: 'object',
       required: ['fromId', 'toId'],
@@ -344,7 +344,7 @@ const TOOLS = [
   },
   {
     name: 'get_recurring',
-    description: 'Return all recurring template blocks (the weekly planning base). Each block has id, clientId, slot (am|pm), day (0=Mon…6=Sun), hours, position.',
+    description: 'Return all recurring template blocks (the weekly planning base). Each block has id, clientId, slot (am|pm|sera), day (0=Mon…6=Sun), hours, position.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -977,17 +977,9 @@ async function callTool(name, args) {
 
   if (name === 'set_recurring_slot') {
     const { day, slot, blocks } = args;
-    const existing = await httpRequest('/recurring');
-    const toDelete = existing.filter(b => b.day === day && b.slot === slot);
-    for (const b of toDelete) await httpRequest(`/recurring/${b.id}`, 'DELETE');
-    const created = [];
-    for (let i = 0; i < blocks.length; i++) {
-      const b = blocks[i];
-      const result = await httpRequest('/recurring', 'POST', { clientId: b.clientId, slot, day, hours: b.hours, position: i });
-      created.push(result);
-    }
+    const { removed, created } = await httpRequest('/recurring/slot', 'PUT', { day, slot, blocks });
     const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return `${DAYS[day]} ${slot.toUpperCase()} template updated: ${created.length} block(s) set (${toDelete.length} removed).`;
+    return `${DAYS[day]} ${slot.toUpperCase()} template updated: ${created.length} block(s) set (${removed} removed).`;
   }
 
   if (name === 'get_week_overrides') {

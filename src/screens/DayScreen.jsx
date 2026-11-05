@@ -6,10 +6,8 @@ import PlanningCell from '../components/PlanningCell';
 import TimeCell from '../components/TimeCell';
 import { EntrySlotSelect, AddSlotSelect } from '../components/SlotSelects';
 import SlotCapacityBar from '../components/SlotCapacityBar';
-import { dayCapacityHours } from '../slot-capacity';
 import ExtraCell from '../components/ExtraCell';
 import MarkdownText from '../components/MarkdownText';
-import Glyph from '../components/Glyph';
 import HelpDot from '../components/HelpDot';
 import { TodoistControlBar, TodoistSyncButton, TodoistImportButton, TodoistImportDialog } from '../components/TodoistControls';
 import { withAreaStatus } from './WeeklyView';
@@ -23,7 +21,7 @@ function formatSyncDate(value) {
 
 // "Mismatch" = lavoro fuori posto o in eccesso rispetto al piano.
 // Capacità libera senza task pronti (blocksWithoutReadyTasks) non è un mismatch:
-// è slack, ha già la sua card/pannello dedicati ("Blocchi senza azione").
+// è slack, ha già il suo pannello dedicato ("Blocchi pianificati senza azioni").
 function mismatchTotal(counts = {}) {
   return (counts.tasksWithoutTimeboxProject || 0)
     + (counts.tasksOutsidePlannedArea || 0)
@@ -269,18 +267,9 @@ export default function DayScreen({ externalRefreshTick, projects, onSynced, cli
         />
 
         <div style={{ flex: 1, minWidth: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {!loading && (
-            <TodayGauge
-              planned={SLOTS.reduce((s, slot) => s + (slotPlannedTotals[slot] || 0), 0)}
-              traced={rawEntries.reduce((s, e) => s + e.hours, 0)}
-              capacity={dayCapacityHours(slotCapacity)}
-            />
-          )}
-          <FreeCapacityCard loading={loading} totals={totals} capacity={dayCapacityHours(slotCapacity)} />
-
           <Panel
             title="Blocchi pianificati senza azioni"
-            help={'Blocchi che hai pianificato per oggi ma che nessun task Todoist copre ancora: ore riservate senza niente di concreto da farci.\n\nOgni riga è area · slot. Il numero a destra sono le ore scoperte del blocco (disponibili − stimate dai task); sotto, quanto Todoist copre e su quanto.'}
+            help={'Blocchi che hai pianificato per oggi ma che nessun task Todoist copre ancora: ore riservate senza niente di concreto da farci. Oggi non compaiono le fasce già finite (mattina fino alle 13, pomeriggio fino alle 18).\n\nOgni riga è area · slot. Il numero a destra sono le ore scoperte del blocco (disponibili − stimate dai task); sotto, quanto Todoist copre e su quanto.'}
             empty={!loading && readyGroups.length === 0 ? 'Coperti' : null}
             meta={!loading ? fmtH(totals.reservedWithoutTasksHours || 0) : null}
           >
@@ -594,109 +583,6 @@ function SegToggle({ opts, value, onChange, title }) {
           fontFamily: "'Open Sans', sans-serif",
         }}>{o.l}</button>
       ))}
-    </div>
-  );
-}
-
-// Capacità libera = quanto tempo della giornata resta ancora disponibile.
-// Si parte dalla capacità totale del giorno (non dal piano) e si tolgono le
-// ore già tracciate e le stime dei task Todoist ancora da fare. Il "quanto
-// del piano è scoperto" vive invece nel blocco "Blocchi senza prossima azione".
-function FreeCapacityCard({ loading, totals, capacity }) {
-  const tracked = totals.trackedHours || 0;
-  const todoist = totals.estimatedHours || 0;
-  const free = Math.max(0, (capacity || 0) - tracked - todoist);
-  const help = 'Quanto tempo della tua giornata resta ancora libero. Si parte dalla capacità totale del giorno e si tolgono le ore già tracciate (anche quelle fuori piano) e le ore stimate dei task Todoist ancora da fare.\n\nÈ rispetto alla giornata intera, non al piano: quanto del piano è ancora scoperto lo trovi nel blocco qui sotto.';
-  const Term = ({ label, value, op }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      {op && <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--tb-text-faint)' }}>{op}</span>}
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-secondary)', lineHeight: 1.1 }}>{loading ? '...' : fmtH(value)}</div>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-faint)', marginTop: 2 }}>{label}</div>
-      </div>
-    </div>
-  );
-  return (
-    <div style={{ border: '1px solid var(--tb-border)', borderRadius: 9, background: 'var(--tb-panel-bg)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 850, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
-          Capacità libera della giornata
-          <HelpDot text={help} />
-        </div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)', marginTop: 8, whiteSpace: 'nowrap' }}>Tempo della giornata ancora disponibile</div>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <Term label="Giornata" value={capacity || 0} />
-        <Term label="Tracciate" value={tracked} op="−" />
-        <Term label="Todoist" value={todoist} op="−" />
-        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--tb-text-faint)' }}>=</span>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 34, fontWeight: 850, color: 'var(--tb-text-primary)', lineHeight: 1.05 }}>{loading ? '...' : fmtH(free)}</div>
-          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tb-text-muted)', marginTop: 2 }}>Libera</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Live gauge "Carico di oggi · adesso": barra neutra con tre marcatori.
-//  - fill neutro       = ore tracciate
-//  - hatch             = oltre capacità
-//  - tick bianco pieno = ritmo atteso ora (time-of-day)
-//  - tick grigio       = piano del giorno
-//  - tick tratteggiato = capacità
-// Verdetto via glyph ▴/▾/▪ (sopra/sotto/in pari col ritmo).
-function TodayGauge({ planned, traced, capacity }) {
-  const scale = Math.max(capacity, planned, traced, 0.001);
-  const pct = v => `${Math.max(0, Math.min(100, (v / scale) * 100))}%`;
-  const over = traced > capacity;
-  const now = new Date();
-  // workday window 9:00–18:00 → fraction elapsed
-  const dayStart = 9 * 60, dayEnd = 18 * 60;
-  const mins = now.getHours() * 60 + now.getMinutes();
-  const frac = Math.max(0, Math.min(1, (mins - dayStart) / (dayEnd - dayStart)));
-  const pace = planned * frac; // dove dovresti essere ora
-  const diff = traced - pace;
-  const verdict = Math.abs(diff) < 0.25
-    ? { glyph: '▪', label: 'In pari col ritmo', sub: `${fmtH(Math.abs(diff))} di scarto` }
-    : diff > 0
-      ? { glyph: '▴', label: 'Sopra il ritmo', sub: `${fmtH(diff)} in avanti` }
-      : { glyph: '▾', label: 'Sotto il ritmo', sub: `${fmtH(-diff)} indietro` };
-  return (
-    <div style={{ border: '1px solid var(--tb-border)', borderRadius: 10, background: 'var(--tb-panel-bg)', padding: '16px 18px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--tb-text-faint)' }}>
-            Carico di oggi · adesso
-            <HelpDot text={'Il piano di oggi viene distribuito in modo uniforme sulla giornata lavorativa (9:00–18:00). In base all\'ora attuale si calcola quante ore dovresti aver già tracciato a questo punto: quello è il ritmo atteso.\n\nIl verdetto confronta le ore che hai davvero tracciato con quel ritmo: più avanti = sopra il ritmo, meno = sotto.'} />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
-            <span style={{ fontSize: 30, fontWeight: 800, color: 'var(--tb-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtH(traced)}</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tb-text-muted)' }}>tracciate su {fmtH(planned)} piano</span>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 7, border: '1px solid var(--tb-border-mid)', background: 'var(--tb-panel-bg-soft)' }}>
-          <Glyph glyph={verdict.glyph} size={15} className="tb-glyph" title={verdict.label} />
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--tb-text-primary)', lineHeight: 1.1 }}>{verdict.label}</div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)', marginTop: 1 }}>{verdict.sub}</div>
-          </div>
-        </div>
-      </div>
-      <div style={{ position: 'relative', height: 16, borderRadius: 8, background: 'var(--tb-bar-track)', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct(traced), background: 'var(--tb-bar-tracked)' }} />
-        {over && <span className="tb-hatch" style={{ position: 'absolute', top: 0, bottom: 0, left: pct(capacity), width: `calc(${pct(traced)} - ${pct(capacity)})` }} />}
-        <span title="Dove dovresti essere ora" style={{ position: 'absolute', left: pct(pace), top: -2, bottom: -2, width: 2, background: 'var(--tb-text-primary)' }} />
-        <span className="tb-tick" title="Piano del giorno" style={{ left: pct(planned) }} />
-        <span title="Capacità" style={{ position: 'absolute', left: pct(capacity), top: -2, bottom: -2, width: 0, borderLeft: '2px dashed var(--tb-tick)' }} />
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 10, fontSize: 11, fontWeight: 600, color: 'var(--tb-text-muted)' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 2, height: 10, background: 'var(--tb-text-primary)', display: 'inline-block' }} />ritmo atteso ora</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 2, height: 10, background: 'var(--tb-tick)', display: 'inline-block' }} />piano {fmtH(planned)}</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 0, height: 10, borderLeft: '2px dashed var(--tb-tick)', display: 'inline-block' }} />capacità {fmtH(capacity)}</span>
-        <span style={{ flex: 1 }} />
-        <span style={{ color: 'var(--tb-text-secondary)' }}>restano <strong style={{ color: 'var(--tb-text-primary)' }}>{fmtH(Math.max(0, planned - traced))}</strong> a piano</span>
-      </div>
     </div>
   );
 }

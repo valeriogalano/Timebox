@@ -38,9 +38,9 @@ npx c8 --reporter=text-summary node --test cli/__tests__/*.test.js src/__tests__
 npm run coverage:components
 ```
 
-As of October 2026 the Node half is at about 95% of lines and the UI half at about
-35% of statements, 38% of branches and 33% of functions. Those UI figures are the
-ones Vitest 5 reports: it maps V8 coverage through the AST. When the move was made,
+As of November 2026 the Node half is at about 97% of lines (88% of branches) and the
+UI half at about 51% of statements, 54% of branches and 51% of functions. Those UI
+figures are the ones Vitest 5 reports: it maps V8 coverage through the AST. When the move was made,
 the same code and tests read 44%, 74% and 41% under Vitest 2 and 32%, 33% and 30%
 under Vitest 5, so numbers taken before the move are not comparable with the ones
 after it. The UI half is still low, but it is measured, so a pull request
@@ -352,7 +352,11 @@ Block filling stays a separate measure of how much of the plan is covered: `fill
 
 ### Empty Week Overrides
 
-When the last block is removed from a slot, the code deletes the `week_overrides` row instead of saving an empty array. Missing row means "use the recurring template".
+When the last block is removed from a slot in Settimana, the code saves an explicit empty override (`blocks: []`) instead of deleting the row: that is the only way to empty a slot that the recurring template fills, and a deleted row would bring the template back. The MCP `set_week_override` documents the same (`[]` marks the slot as explicitly empty).
+
+A missing row still means "use the recurring template". Rows are deleted only on purpose: "Ripristina template" (`resetWeekToTemplate`), `DELETE /overrides` and the MCP `clear_week_override`.
+
+Deleting an area follows the same rule: `deleteClient` → `removeAreaFromOverrides` drops its blocks from every override, and a slot left without blocks stays an explicit `[]`. Most of those rows are frozen past weeks, and falling back to today's template would rewrite a plan that already happened.
 
 ### Extra Blocks
 
@@ -414,7 +418,13 @@ The weekly-limit warnings judge the **Previsto**: done hours plus blocks left (t
 
 ### Recurring Freeze
 
-Recurring template edits call `freezeWeeksBeforeRecurringChange` first. Past weeks without explicit overrides are materialized as overrides before the template changes.
+Recurring template edits call `freezeWeeksBeforeRecurringChange` first. Weeks without explicit overrides are materialized as overrides before the template changes, from the first week with entries or overrides up to now:
+
+- weeks before the current Monday are frozen whole;
+- in the current week only the days before today are frozen (today and later follow the new template);
+- future weeks are never frozen, and `todoist_cache` does not count as a sign that a week was used.
+
+`replaceRecurringSlot(day, slot, blocks)` is the single operation for replacing a day+slot of the template: in one transaction it validates every block (area exists, slot am|pm|sera, day 0-6, hours > 0), freezes, then replaces. An invalid block throws before anything is deleted. It backs `PUT /recurring/slot` (body `{day, slot, blocks:[{clientId, hours}]}`) and therefore the MCP `set_recurring_slot`, which calls it once.
 
 ---
 

@@ -3,7 +3,7 @@
 const { getDaySummaryData } = require('./day-summary');
 const { getImportedTodoistTasksData } = require('./todoist-imported');
 
-const { SLOTS, normalizeSlot } = require('../../lib/domain');
+const { SLOTS, normalizeSlot, isSlotOver } = require('../../lib/domain');
 
 function roundHours(hours) {
   return Math.round((hours + Number.EPSILON) * 100) / 100;
@@ -21,7 +21,7 @@ function taskLabel(task) {
   return task.title || task.todoistProject || task.id || '(untitled)';
 }
 
-function getDayFreeCapacityData(date) {
+function getDayFreeCapacityData(date, now = new Date()) {
   const summary = getDaySummaryData(date);
   const imported = getImportedTodoistTasksData(date);
   const tasks = imported.tasks || [];
@@ -129,6 +129,7 @@ function getDayFreeCapacityData(date) {
   const reservedWithoutTasks = [];
   let reservedWithoutTasksHours = 0;
   for (const [key, planned] of plannedByAreaSlot.entries()) {
+    if (isSlotOver(planned.slot, date, now)) continue;
     const remainingHours = roundHours(remainingByAreaSlot.get(key) || 0);
     if (remainingHours <= 0) continue;
 

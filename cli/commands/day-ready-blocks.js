@@ -23,8 +23,8 @@ function sortProjects(a, b) {
   return a.project.localeCompare(b.project, 'it');
 }
 
-function getDayReadyBlocksData(date) {
-  const mismatches = getDayMismatchesData(date);
+function getDayReadyBlocksData(date, now = new Date()) {
+  const mismatches = getDayMismatchesData(date, now);
   const imported = getImportedTodoistTasksData(date);
   const areaProjects = new Map();
   const taskGroups = new Map();
