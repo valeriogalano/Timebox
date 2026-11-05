@@ -20,7 +20,7 @@ describe('removing an imported task from an entry with billable hours', () => {
     }]);
   });
 
-  test('billable hours never stay above the hours still worked', () => {
+  test('an override below the worked hours never ends up above the hours still worked', () => {
     const [entry] = entryOf();
     saveEntry({ ...entry, hours: 4, billableHours: 3.5 });
     deleteTodoistImport('t1');
@@ -37,6 +37,25 @@ describe('removing an imported task from an entry with billable hours', () => {
     const [after] = entryOf();
     assert.equal(after.hours, 3);
     assert.equal(after.billableHours, 2.5);
+  });
+
+  test('an override above the worked hours is deliberate (a minimum) and stays', () => {
+    const [entry] = entryOf();
+    saveEntry({ ...entry, hours: 2, billableHours: 3 });
+    deleteTodoistImport('t1');
+    const [after] = entryOf();
+    assert.equal(after.hours, 1);
+    assert.equal(after.billableHours, 3);
+  });
+
+  test('an override equal to the worked hours stays: it was a minimum before the import', () => {
+    // 1h worked billed as 2h, then a 1h import brings the worked hours to 2h
+    const [entry] = entryOf();
+    saveEntry({ ...entry, hours: 2, billableHours: 2 });
+    deleteTodoistImport('t1');
+    const [after] = entryOf();
+    assert.equal(after.hours, 1);
+    assert.equal(after.billableHours, 2);
   });
 
   test('without an override nothing changes but the hours', () => {
