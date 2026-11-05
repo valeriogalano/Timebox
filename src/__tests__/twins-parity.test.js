@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { capUsage } from '../cap-usage.js';
 import { resolveEntrySlot, defaultEntrySlot, planDayEntrySave, fillPlannedBlocks } from '../dayPlanning.js';
 import { weekForecast, forecastTodayIndex } from '../week-forecast.js';
-import { gapWithinTolerance, templateHoursByArea, weekTargets, areaGaps, targetWarnings, GAP_EPSILON } from '../area-targets.js';
+import { gapWithinTolerance, templateHoursByArea, referenceHoursByArea, weekTargets, areaGaps, targetWarnings, GAP_EPSILON } from '../area-targets.js';
 import { TOL_HOURS, TOL_PCT } from '../progress-insights.js';
 import { fmtH, isHourly, effBillable, slotForDate, getMondayOfWeek, addDays, fmt, parseHHMM } from '../utils.js';
 
@@ -75,6 +75,11 @@ describe('src/ and lib/domain.js give the same answers', () => {
   same('templateHoursByArea', templateHoursByArea, cjs.templateHoursByArea, [
     [[{ clientId: 'c1', day: 0, hours: 2 }, { clientId: 'c1', day: 6, hours: 1 }, { clientId: 'c2', day: 3, hours: 4 }, { clientId: 'c2', day: 7, hours: 9 }]],
     [[]],
+  ]);
+  same('referenceHoursByArea', referenceHoursByArea, cjs.referenceHoursByArea, [
+    [{ recurring: [{ clientId: 'c1', day: 0, hours: 2 }], plannedByDay: [{ c1: 5 }, { c1: 1, c2: 3 }, {}, {}, {}, {}, {}], todayIdx: 7 }],
+    [{ recurring: [{ clientId: 'c1', day: 0, hours: 2 }], plannedByDay: [{ c1: 5 }, {}, {}, {}, {}, {}, {}], todayIdx: 6 }],
+    [{ recurring: [{ clientId: 'c1', day: 0, hours: 2 }], plannedByDay: [{ c1: 5 }, {}, {}, {}, {}, {}, {}], todayIdx: -1 }],
   ]);
   same('weekTargets', weekTargets, cjs.weekTargets, [
     [{ areaIds: ['c1', 'c2'], templateByArea: { c1: 10 } }],
