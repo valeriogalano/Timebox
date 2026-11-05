@@ -349,7 +349,8 @@ function createHttpServer() {
 
       json(res, 404, { error: 'Not found' });
     } catch (err) {
-      const clientError = ['No project', 'Ambiguous', 'Invalid slot'].some(text => err.message?.includes(text));
+      const clientError = ['No project', 'Ambiguous', 'Invalid slot', 'Invalid hours', 'Invalid date']
+        .some(text => err.message?.includes(text));
       json(res, clientError ? 400 : 500, { error: err.message });
     }
   });
