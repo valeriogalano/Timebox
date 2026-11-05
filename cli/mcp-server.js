@@ -932,17 +932,9 @@ async function callTool(name, args) {
 
   if (name === 'set_recurring_slot') {
     const { day, slot, blocks } = args;
-    const existing = await httpRequest('/recurring');
-    const toDelete = existing.filter(b => b.day === day && b.slot === slot);
-    for (const b of toDelete) await httpRequest(`/recurring/${b.id}`, 'DELETE');
-    const created = [];
-    for (let i = 0; i < blocks.length; i++) {
-      const b = blocks[i];
-      const result = await httpRequest('/recurring', 'POST', { clientId: b.clientId, slot, day, hours: b.hours, position: i });
-      created.push(result);
-    }
+    const { removed, created } = await httpRequest('/recurring/slot', 'PUT', { day, slot, blocks });
     const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return `${DAYS[day]} ${slot.toUpperCase()} template updated: ${created.length} block(s) set (${toDelete.length} removed).`;
+    return `${DAYS[day]} ${slot.toUpperCase()} template updated: ${created.length} block(s) set (${removed} removed).`;
   }
 
   if (name === 'get_week_overrides') {

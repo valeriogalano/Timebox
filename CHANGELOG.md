@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - iPhone: i pulsanti −15m/+15m/+1h sono sostituiti da due menu nativi, fascia e ore, che su iPhone si aprono come ruota. Le ore vanno da 0h a 12h a passi di 15 minuti. Un giorno con ore su più fasce si modifica dalla pagina, senza più l'errore che rimandava a Giorno.
 
 ### Fixed
+- Ricorrenza: la modifica del template non congela più la settimana in corso intera né le settimane future. Si congelano le settimane passate e, nella settimana in corso, solo i giorni prima di oggi. La cache Todoist non conta più come segno che una settimana è stata usata.
+- `set_recurring_slot` e l'API `/recurring` congelano le settimane passate come la schermata Ricorrenza, e `set_recurring_slot` sostituisce la fascia in una sola operazione: se un blocco non è valido (area inesistente, fascia o giorno errati, ore non positive) non cancella più niente.
 - Andamento → Per area: il titolo della sezione torna a tutta larghezza come quello delle altre, e non ripete più "piano · fatto" sopra le colonne che lo dicono già.
 
 ## [0.13.1] - 2026-10-24

@@ -237,6 +237,31 @@ function saveRecurring(r) {
   `).run({ position: 0, ...r });
 }
 
+// Single entry point for "replace one day+slot of the template": validate every
+// block, freeze, then replace, all in one transaction (nothing is deleted if a block is invalid).
+function replaceRecurringSlot(day, slot, blocks) {
+  if (!Number.isInteger(day) || day < 0 || day > 6) throw new Error(`Invalid day "${day}": use 0 (Mon) to 6 (Sun)`);
+  if (!SLOTS.includes(slot)) throw new Error(`Invalid slot "${slot}": use am, pm or sera`);
+  if (!Array.isArray(blocks)) throw new Error('Invalid blocks: expected an array');
+  return db.transaction(() => {
+    const areas = new Set(db.prepare('SELECT id FROM clients').all().map(c => c.id));
+    for (const b of blocks) {
+      if (!areas.has(b?.clientId)) throw new Error(`Area not found: ${b?.clientId}`);
+      if (!(Number(b.hours) > 0)) throw new Error(`Invalid hours "${b.hours}": must be greater than 0`);
+    }
+    const current = getRecurring();
+    freezeWeeksBeforeRecurringChange(current);
+    db.prepare('DELETE FROM recurring WHERE day=? AND slot=?').run(day, slot);
+    const insert = db.prepare('INSERT INTO recurring (id,clientId,slot,day,hours,position) VALUES (?,?,?,?,?,?)');
+    const created = blocks.map((b, i) => {
+      const id = randomUUID();
+      insert.run(id, b.clientId, slot, day, Number(b.hours), i);
+      return { id, clientId: b.clientId, slot, day, hours: Number(b.hours), position: i };
+    });
+    return { removed: current.filter(r => r.day === day && r.slot === slot).length, created };
+  })();
+}
+
 function deleteRecurring(id) {
   freezeWeeksBeforeRecurringChange(getRecurring());
   db.prepare('DELETE FROM recurring WHERE id=?').run(id);
@@ -592,21 +617,23 @@ function getPastWeekKeysFrom(firstWeekKey) {
   return weekKeys;
 }
 
+// Weeks to freeze: every past week from the first one with data, plus the current
+// week (frozen only up to yesterday, see below). Future weeks are never included, and
+// todoist_cache is not a signal: the sync writes it for today and future days.
 function getUsedWeekKeys() {
-  const dates = [
-    ...db.prepare('SELECT DISTINCT date FROM entries').all().map(r => r.date),
-    ...db.prepare('SELECT DISTINCT dateStr FROM todoist_cache').all().map(r => r.dateStr),
-  ];
+  const currentWeekKey = toMonday(fmtDate(new Date()));
+  const dates = db.prepare('SELECT DISTINCT date FROM entries').all().map(r => r.date);
   const explicitWeeks = db.prepare('SELECT DISTINCT weekKey FROM week_overrides').all()
     .map(r => r.weekKey)
     .filter(weekKey => toMonday(weekKey) === weekKey); // ignora chiavi non-lunedì: non devono propagarsi nel freeze
-  const seedWeeks = [...new Set([...dates.map(toMonday), ...explicitWeeks])].sort();
+  const seedWeeks = [...new Set([...dates.map(toMonday), ...explicitWeeks])].filter(w => w <= currentWeekKey).sort();
   if (!seedWeeks.length) return [];
-  return [...new Set([...getPastWeekKeysFrom(seedWeeks[0]), ...seedWeeks])].sort();
+  return [...getPastWeekKeysFrom(seedWeeks[0]), currentWeekKey];
 }
 
 function freezeWeeksBeforeRecurringChange(currentRecurring) {
-  const RECURRING_DAYS = 7;
+  const currentWeekKey = toMonday(fmtDate(new Date()));
+  const todayIndex = (new Date().getDay() + 6) % 7; // Mon=0; the current week freezes days < today
   const weekKeys = getUsedWeekKeys();
   if (!weekKeys.length) return;
 
@@ -617,7 +644,8 @@ function freezeWeeksBeforeRecurringChange(currentRecurring) {
 
   db.transaction(() => {
     for (const weekKey of weekKeys) {
-      for (let dayIndex = 0; dayIndex < RECURRING_DAYS; dayIndex++) {
+      const days = weekKey === currentWeekKey ? todayIndex : 7;
+      for (let dayIndex = 0; dayIndex < days; dayIndex++) {
         for (const slot of SLOTS) {
           const id = `${weekKey}-${dayIndex}-${slot}`;
           const blocks = currentRecurring
@@ -846,7 +874,7 @@ module.exports = {
   init,
   getClients, saveClient, deleteClient,
   getProjects, saveProject, deleteProject, hasProjectEntries, mergeProjectEntries,
-  getRecurring, saveRecurring, deleteRecurring, deleteRecurringByClient,
+  getRecurring, saveRecurring, replaceRecurringSlot, deleteRecurring, deleteRecurringByClient,
   getEntries, getProjectTotals, getProjectBillableTotals, saveEntry, deleteEntry, moveEntrySlot,
   getTodoistImportIds, getTodoistImports, saveTodoistImport, updateTodoistImport, deleteTodoistImport, importCompletedTodoistTasks,
   getWeekOverrides, getWeekOverridesRange, saveWeekOverride, deleteWeekOverride, freezeWeeksBeforeRecurringChange, toMonday,
