@@ -331,7 +331,7 @@ const TOOLS = [
   },
   {
     name: 'merge_project_entries',
-    description: 'Move all logged entries from one project into another (summing hours and billable hours on the same day+slot). By default the source project is then DELETED and this is not reversible. Pass deleteSource: false to keep the source project (left at 0h) when you want to preserve a record of it — archive it afterwards with update_project.',
+    description: 'Move all logged entries from one project into another (summing hours and billable hours on the same day+slot; a merged entry is billed only if both were). Their Todoist import records move along. By default the source project is then DELETED and this is not reversible. Pass deleteSource: false to keep the source project (left at 0h) when you want to preserve a record of it — archive it afterwards with update_project.',
     inputSchema: {
       type: 'object',
       required: ['fromId', 'toId'],
