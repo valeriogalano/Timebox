@@ -2,7 +2,7 @@
 
 const {
   DAYS, MONTHS,
-  fmtH, parseHours, fmt, getToday, getMondayOfWeek, addDays,
+  fmtH, fmt, getToday, getMondayOfWeek, addDays,
   isHourly, effBillable, capUsage, isDivergent, fmtHoursWithBillable,
 } = require('../lib/domain');
 
@@ -41,7 +41,7 @@ function padLeft(str, len) {
 
 module.exports = {
   DAYS, MONTHS,
-  fmtH, parseHours, fmt, getToday, getMondayOfWeek, addDays,
+  fmtH, fmt, getToday, getMondayOfWeek, addDays,
   fmtDay, fmtDayShort, fmtWeekRange, pad, padLeft,
   isHourly, effBillable, capUsage, isDivergent, fmtHoursWithBillable,
 };

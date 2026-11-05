@@ -41,6 +41,11 @@ export function usageMaps({ worked = {}, billable = {} } = {}, projects, clients
 const NONE = capUsage();
 export const usageOf = (map, id) => (map || {})[id] ?? NONE;
 
+// Progetti attivi oltre un tetto (`budgetHours` o `weeklyHours`). Un progetto archiviato è
+// chiuso: il suo budget è storia e non genera avvisi. Stessa regola nella CLI (cli/commands/status.js).
+export const projectsOverCap = (projects, usageMap, field) =>
+  projects.filter(p => !p.archived && p[field] > 0 && usageOf(usageMap, p.id).worst > p[field]);
+
 // "30h" quando i conteggi coincidono, "30h lavorate" / "26h fatt." quando divergono.
 export const fmtUsage = u => `${fmtH(u.worst)}${u.kind ? ` ${u.kind}` : ''}`;
 // Coda per i titoli degli avvisi: dice su quale conteggio è scattato.

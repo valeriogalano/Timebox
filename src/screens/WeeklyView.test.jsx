@@ -86,3 +86,36 @@ describe('WeeklyView / fasce nella cella del giorno', () => {
     expect(calls.saved[0]).toMatchObject({ id: 'e1', slot: 'pm', hours: 2 });
   });
 });
+
+describe('WeeklyView / avvisi dei progetti: gli archiviati non ne generano', () => {
+  const client = { id: 'c1', name: 'Area uno', color: '#4073ff', billing: 'none', limitType: 'none' };
+  const monday = fmt(getMondayOfWeek(addDays(getToday(), 7)));
+  const prj = (id, name, extra = {}) => ({ id, clientId: 'c1', name, budgetHours: 10, weeklyHours: 5, ...extra });
+  const entry = (id, projectId) => ({ id, projectId, date: monday, hours: 6, billableHours: null, slot: 'am', billed: false });
+
+  beforeEach(() => {
+    window.api = {
+      getEntries: () => Promise.resolve([entry('e1', 'p1'), entry('e2', 'p2')]),
+      getWeekOverrides: () => Promise.resolve([]),
+      getWeekAreaStatuses: () => Promise.resolve([]),
+      getTodoistCache: () => Promise.resolve([]),
+      getProjectTotals: () => Promise.resolve({ p1: 12, p2: 12 }),
+      getProjectBillableTotals: () => Promise.resolve({ p1: 12, p2: 12 }),
+      syncTodoist: () => Promise.resolve({ byDate: {} }),
+    };
+  });
+
+  test('budget e limite settimanale superati: compare solo il progetto attivo', async () => {
+    const projects = [prj('p1', 'Attivo'), prj('p2', 'Archiviato', { archived: true })];
+    const { findByText } = render(
+      <WeeklyView clients={[client]} projects={projects} recurring={[]}
+        weekOffset={1} setWeekOffset={() => {}} slotCapacity={{ am: 5, pm: 4, sera: 2 }} />
+    );
+    const budget = (await findByText('Budget totale superato:')).parentElement;
+    expect(budget).toHaveTextContent('Attivo (12h / 10h)');
+    expect(budget).not.toHaveTextContent('Archiviato');
+    const weekly = (await findByText('Limite settimanale superato:')).parentElement;
+    expect(weekly).toHaveTextContent('Attivo (6h / 5h)');
+    expect(weekly).not.toHaveTextContent('Archiviato');
+  });
+});
