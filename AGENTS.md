@@ -352,6 +352,8 @@ When the last block is removed from a slot in Settimana, the code saves an expli
 
 A missing row still means "use the recurring template". Rows are deleted only on purpose: "Ripristina template" (`resetWeekToTemplate`), `DELETE /overrides` and the MCP `clear_week_override`.
 
+One exception: deleting an area (`deleteClient` → `removeAreaFromOverrides`) drops its blocks from every override, and a slot left without blocks stays an explicit `[]`. Most of those rows are frozen past weeks, and falling back to today's template would rewrite a plan that already happened.
+
 ### Extra Blocks
 
 Extra blocks are computed from entries whose project area is not present in planned AM or PM blocks for that day. They are not edited directly.
@@ -401,7 +403,13 @@ Andamento → Settimana and the weekly-limit warnings judge the **Previsto**, no
 
 ### Recurring Freeze
 
-Recurring template edits call `freezeWeeksBeforeRecurringChange` first. Past weeks without explicit overrides are materialized as overrides before the template changes.
+Recurring template edits call `freezeWeeksBeforeRecurringChange` first. Weeks without explicit overrides are materialized as overrides before the template changes, from the first week with entries or overrides up to now:
+
+- weeks before the current Monday are frozen whole;
+- in the current week only the days before today are frozen (today and later follow the new template);
+- future weeks are never frozen, and `todoist_cache` does not count as a sign that a week was used.
+
+`replaceRecurringSlot(day, slot, blocks)` is the single operation for replacing a day+slot of the template: in one transaction it validates every block (area exists, slot am|pm|sera, day 0-6, hours > 0), freezes, then replaces. An invalid block throws before anything is deleted. It backs `PUT /recurring/slot` (body `{day, slot, blocks:[{clientId, hours}]}`) and therefore the MCP `set_recurring_slot`, which calls it once.
 
 ---
 
