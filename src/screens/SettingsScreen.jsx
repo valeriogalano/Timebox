@@ -113,15 +113,6 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
     }
   }
 
-  async function handleSaveDbCopy() {
-    setBusy(true);
-    const copyPath = await window.api.saveDbCopy();
-    setBusy(false);
-    if (copyPath) {
-      window.alert(`Copia salvata in:\n${copyPath}`);
-    }
-  }
-
   async function handleCreateNewDb() {
     setBusy(true);
     const newPath = await window.api.createNewDb();
@@ -499,7 +490,6 @@ export default function SettingsScreen({ theme, setTheme, onDataChange, slotCapa
           <div style={{ display: 'flex', gap: 8 }}>
             <ActionButton onClick={handleSelectDbFile} disabled={busy}>Seleziona file…</ActionButton>
             <ActionButton onClick={handleCreateNewDb} disabled={busy}>Nuovo database…</ActionButton>
-            <ActionButton onClick={handleSaveDbCopy} disabled={busy}>Salva copia…</ActionButton>
           </div>
         </div>
       </Section>
