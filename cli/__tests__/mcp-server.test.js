@@ -9,6 +9,13 @@ const { createTestDb } = require('./helpers');
 const { createHttpServer } = require('../http-server');
 const { setTodoistCache, saveEntry, saveWeekOverride } = require('../../db/queries');
 
+// The demo seed writes local dates: the fixtures must too. toISOString() is UTC,
+// and in Italy just after midnight it is still the day before.
+function localDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+
 const MCP_SERVER = path.join(__dirname, '..', 'mcp-server.js');
 
 function startMcp(port) {
@@ -165,7 +172,7 @@ describe('MCP server', () => {
     const monday = new Date(today);
     const dow = monday.getDay();
     monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1) - 7 + 1);
-    const seededDate = monday.toISOString().slice(0, 10);
+    const seededDate = localDate(monday);
 
     const res = await rpc(mcp, msg('tools/call', {
       name: 'todoist_imported_tasks',
@@ -184,7 +191,7 @@ describe('MCP server', () => {
     const monday = new Date(today);
     const dow = monday.getDay();
     monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1) - 7 + 1);
-    const seededDate = monday.toISOString().slice(0, 10);
+    const seededDate = localDate(monday);
 
     const res = await rpc(mcp, msg('tools/call', {
       name: 'day_mismatches',
