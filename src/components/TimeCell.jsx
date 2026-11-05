@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { areaText } from '../area-colors';
-import { fmtH, parseHHMM, splitSlotSuffix, SLOT_LABELS } from '../utils';
+import { fmtH, parseHHMM } from '../utils';
 import DivergenceDot from './DivergenceDot';
 
 function focusCell(target) {
@@ -23,12 +23,6 @@ export default function TimeCell({
   hours, billableHours, billed, isBillable,
   isFuture, isToday, clientColor, colIndex, projectId,
   viewMode = 'tracked',
-  // slots: fasce su cui stanno le ore (il tag nella cella); con più di una la cella non si
-  // modifica, apre le fasce (onOpenSlots). standalone: cella nel popover, fuori dalla griglia.
-  slots = [], onOpenSlots, standalone = false,
-  // autoEdit: la cella si apre già in modifica (riga appena aggiunta in Giorno → Ore);
-  // showHint: "ore" resta visibile anche senza passarci sopra, per dire dove scrivere.
-  autoEdit = false, showHint = false,
   onSave, onResetBillable, onEditStart, onEditEnd,
 }) {
   const [editing, setEditing] = useState(false);
@@ -41,25 +35,17 @@ export default function TimeCell({
     if (editing && inputRef.current) inputRef.current.select();
   }, [editing]);
 
-  useEffect(() => { if (autoEdit) startEdit(); }, []);
-
   const hasEntry = hours > 0;
   const billable = (billableHours ?? hours);
   const divergent = isBillable && hasEntry && billableHours !== null && billableHours !== undefined && Math.abs(billableHours - hours) > 0.001;
   const inBillableView = viewMode === 'billable';
   const lockedInBillable = inBillableView && !isBillable;
-  const multiSlot = slots.length > 1 && !!onOpenSlots;
   const locked = lockedInBillable;
   const displayValue = inBillableView ? billable : hours;
   const showDash = inBillableView && hasEntry && billableHours === 0;
 
-  function openSlots() {
-    onOpenSlots?.(cellRef.current?.getBoundingClientRect());
-  }
-
   function startEdit() {
     if (locked) return;
-    if (multiSlot) { openSlots(); return; }
     const base = inBillableView ? (hasEntry ? billable : 0) : hours;
     setDraft(base > 0 ? fmtH(base) : '');
     setEditing(true);
@@ -67,9 +53,7 @@ export default function TimeCell({
   }
 
   function commit() {
-    // "2h +pom" sposta la fascia; "+pom" da solo sposta le ore che ci sono, senza toccarle.
-    const { rest, slot } = splitSlotSuffix(draft);
-    const parsed = rest === '' && slot && hasEntry && !inBillableView ? hours : parseHHMM(rest);
+    const parsed = parseHHMM(draft);
     if (inBillableView) {
       if (!hasEntry) {
         if (parsed > 0) onSave({ hours: parsed, billableHours: null });
@@ -78,19 +62,13 @@ export default function TimeCell({
         onSave({ hours, billableHours: matchesTracked ? null : parsed });
       }
     } else {
-      onSave({ hours: parsed, billableHours: hasEntry && parsed > 0 ? (billableHours ?? null) : null }, slot);
+      onSave({ hours: parsed, billableHours: hasEntry && parsed > 0 ? (billableHours ?? null) : null });
     }
     setEditing(false);
     onEditEnd?.();
   }
 
   function onKeyDown(e) {
-    if (standalone) {
-      // Nel popover non c'è la griglia: Invio salva, Tab lascia al blur il salvataggio.
-      if (e.key === 'Enter') { e.preventDefault(); commit(); }
-      else if (e.key === 'Escape') { e.stopPropagation(); setEditing(false); onEditEnd?.(); }
-      return;
-    }
     if (e.key === 'Enter') {
       e.preventDefault();
       commit();
@@ -139,7 +117,7 @@ export default function TimeCell({
     }
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
-      const current = parseHHMM(splitSlotSuffix(draft).rest);
+      const current = parseHHMM(draft);
       const next = Math.max(0, current + (e.key === 'ArrowUp' ? 0.25 : -0.25));
       setDraft(next > 0 ? fmtH(next) : '');
     }
@@ -153,11 +131,11 @@ export default function TimeCell({
   return (
     <div
       ref={cellRef}
-      data-timecell={standalone ? undefined : ''}
+      data-timecell=""
       // In modifica il controllo è il campo: la cella esce dal giro di Tab e non è più un pulsante.
       role={editing ? undefined : 'button'}
       tabIndex={locked || editing ? -1 : 0}
-      aria-label={editing ? undefined : `Ore: ${hasEntry ? fmtH(displayValue) : 'nessuna'}${multiSlot ? ` su ${slots.length} fasce` : ''}. ${multiSlot ? 'Invio per aprire le fasce' : 'Invio per modificare'}`}
+      aria-label={editing ? undefined : `Ore: ${hasEntry ? fmtH(displayValue) : 'nessuna'}. Invio per modificare`}
       onKeyDown={e => {
         // Solo sulla cella: i tasti premuti nel campo arrivano qui per bubbling.
         if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); startEdit(); }
@@ -187,7 +165,6 @@ export default function TimeCell({
           onBlur={commit}
           onKeyDown={onKeyDown}
           placeholder="1h 30m"
-          title={inBillableView ? undefined : 'Aggiungi +mat, +pom o +sera per scegliere la fascia'}
           style={{
             width: '100%', height: '100%', textAlign: 'center', border: 'none', outline: 'none',
             fontFamily: "'Open Sans', sans-serif", fontSize: 13, fontWeight: 700,
@@ -205,16 +182,6 @@ export default function TimeCell({
               {fmtH(displayValue)}
             </span>
           )}
-          {slots.length > 0 && onOpenSlots && (
-            <button type="button"
-              title={slots.map(sl => SLOT_LABELS[sl]).join(' + ') + ' · clic per le fasce'}
-              aria-label={`Fasce: ${slots.map(sl => SLOT_LABELS[sl]).join(', ')}`}
-              onClick={e => { e.stopPropagation(); onOpenSlots(e.currentTarget.getBoundingClientRect()); }}
-              style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', fontFamily: "'Open Sans', sans-serif",
-                fontSize: 11, fontWeight: 700, lineHeight: 1.2, color: 'var(--tb-text-muted)', minWidth: 0, minHeight: 0 }}>
-              {slots.map(sl => SLOT_LABELS[sl][0]).join('·')}
-            </button>
-          )}
           {isBillable && billed && (
             <span title="Fatturato" style={{ fontSize: 11, fontWeight: 800, color: 'var(--tb-text-secondary)',
               border: '1px solid var(--tb-border-mid)', padding: '0 3px', borderRadius: 2, lineHeight: 1.5 }}>
@@ -224,7 +191,7 @@ export default function TimeCell({
         </div>
       ) : (
         <span style={{
-          fontSize: 12, color: hover || showHint ? 'var(--tb-text-faint)' : 'transparent',
+          fontSize: 12, color: hover ? 'var(--tb-text-faint)' : 'transparent',
           fontWeight: 600, transition: 'color 0.1s', letterSpacing: '0.02em',
         }}>
           ore

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { parseHHMM, fmtH, SLOTS, SLOT_LABELS, normalizeSlot } from '../utils';
+import { parseHHMM, fmtH } from '../utils';
 import { areaMix } from '../area-colors';
 
 const DAY_LONG = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
@@ -21,7 +21,6 @@ function formatDateShort(dateStr) {
 function normalizeDraft(row) {
   return {
     ...row,
-    slot: normalizeSlot(row.slot),
     note: row.note ?? '',
     draftHours: fmtH(row.hours),
   };
@@ -172,7 +171,7 @@ export default function TodoistImportScreen({ clients, projects }) {
                 return (
                   <div key={row.todoistTaskId} style={{
                     display: 'grid',
-                    gridTemplateColumns: isEditing ? '84px 76px minmax(150px, 1fr) 82px 72px' : '34px minmax(180px, 1fr) 150px 68px 70px',
+                    gridTemplateColumns: isEditing ? '84px minmax(150px, 1fr) 82px 72px' : 'minmax(180px, 1fr) 150px 68px 70px',
                     gap: 8,
                     alignItems: 'start',
                     padding: '7px 8px',
@@ -188,9 +187,6 @@ export default function TodoistImportScreen({ clients, projects }) {
                           onChange={event => updateDraft('date', event.target.value)}
                           style={inputStyle}
                         />
-                        <select value={current.slot} onChange={event => updateDraft('slot', event.target.value)} style={inputStyle}>
-                          {SLOTS.map(slot => <option key={slot} value={slot}>{SLOT_LABELS[slot]}</option>)}
-                        </select>
                         <select value={current.projectId} onChange={event => updateDraft('projectId', event.target.value)} style={inputStyle}>
                           {optionsFor(current.projectId).map(option => {
                             const optionClient = clients.find(client => client.id === option.clientId);
@@ -220,13 +216,6 @@ export default function TodoistImportScreen({ clients, projects }) {
                       </>
                     ) : (
                       <>
-                        <span style={{
-                          fontSize: 11, fontWeight: 800, letterSpacing: '0.08em',
-                          color: client ? client.color : 'var(--tb-text-faint)',
-                          textTransform: 'uppercase', marginTop: 4,
-                        }}>
-                          {SLOT_LABELS[normalizeSlot(row.slot)]}
-                        </span>
                         <div style={{ minWidth: 0 }}>
                           <div style={{
                             fontSize: 11, fontWeight: 700, color: 'var(--tb-text-primary)',

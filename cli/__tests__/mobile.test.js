@@ -3,7 +3,7 @@
 const { test, describe, before } = require('node:test');
 const assert = require('node:assert/strict');
 const { createTestDb } = require('./helpers');
-const { getMobileDayData, saveMobileHours, moveMobileSlot, parseClock, isDate } = require('../commands/mobile');
+const { getMobileDayData, saveMobileHours, parseClock, isDate } = require('../commands/mobile');
 const { getEntries, getProjects, saveEntry, saveProject, saveWeekOverride } = require('../../db/queries');
 
 // Un martedì lontano dai dati demo.
@@ -59,17 +59,18 @@ describe('pagina mobile: giornata e salvataggio', () => {
     saveProject(archived);
     const has = () => getMobileDayData(DATE).areas.flatMap(a => a.projects).some(p => p.id === archived.id);
     assert.ok(!has());
-    saveEntry({ id: 'm-arch', projectId: archived.id, date: DATE, hours: 1, billableHours: null, slot: 'am', billed: false });
+    saveEntry({ id: 'm-arch', projectId: archived.id, date: DATE, hours: 1, billableHours: null, billed: false });
     assert.ok(has());
   });
 
-  test('nuova registrazione: finisce nella fascia in cui l\'area è pianificata', () => {
-    const r = saveMobileHours({ projectId: c2Project.id, date: DATE, clock: '1:30', today: '2000-01-01' });
+  test('nuova registrazione: una entry del progetto per quel giorno', () => {
+    const r = saveMobileHours({ projectId: c2Project.id, date: DATE, clock: '1:30' });
     assert.deepEqual(r, { projectId: c2Project.id, date: DATE, hours: 1.5, clock: '1:30' });
     const [entry] = entriesOf(c2Project.id);
     assert.equal(entry.hours, 1.5);
-    assert.equal(entry.slot, 'pm');
     assert.equal(entry.billed, false);
+    const project = getMobileDayData(DATE).areas.flatMap(a => a.projects).find(p => p.id === c2Project.id);
+    assert.deepEqual(project, { id: c2Project.id, name: c2Project.name, hours: 1.5, clock: '1:30' });
     assert.equal(getMobileDayData(DATE).trackedHours >= 1.5, true);
   });
 
@@ -85,15 +86,15 @@ describe('pagina mobile: giornata e salvataggio', () => {
     assert.ok(block.area && block.color);
   });
 
-  test('senza blocchi dell\'area: mattina sui giorni passati', () => {
-    saveMobileHours({ projectId: c1Project.id, date: DATE, clock: '0:45', today: '2000-01-01' });
-    assert.equal(entriesOf(c1Project.id)[0].slot, 'am');
+  test('un\'area senza blocchi registra lo stesso', () => {
+    saveMobileHours({ projectId: c1Project.id, date: DATE, clock: '0:45' });
+    assert.equal(entriesOf(c1Project.id)[0].hours, 0.75);
   });
 
   test('si modificano solo le ore lavorate: fatturabili e fatturato restano', () => {
     const [existing] = entriesOf(c1Project.id);
     saveEntry({ ...existing, billableHours: 0.5, billed: true });
-    saveMobileHours({ projectId: c1Project.id, date: DATE, clock: '2:00', today: '2000-01-01' });
+    saveMobileHours({ projectId: c1Project.id, date: DATE, clock: '2:00' });
     const [after] = entriesOf(c1Project.id);
     assert.equal(after.id, existing.id);
     assert.equal(after.hours, 2);
@@ -101,28 +102,17 @@ describe('pagina mobile: giornata e salvataggio', () => {
     assert.equal(after.billed, true);
   });
 
-  test('ore su più fasce: il totale non si riscrive, risponde 409 e non tocca niente', () => {
-    saveEntry({ id: 'm-extra', projectId: c1Project.id, date: DATE, hours: 1, billableHours: null, slot: 'sera', billed: false });
-    const before = entriesOf(c1Project.id);
-    assert.equal(before.length, 2);
-    assert.deepEqual(
-      saveMobileHours({ projectId: c1Project.id, date: DATE, clock: '3:00', today: '2000-01-01' }),
-      { error: 'hours on more than one slot', status: 409 },
-    );
-    assert.deepEqual(entriesOf(c1Project.id), before);
+  test('un\'altra scrittura riscrive le ore della stessa entry', () => {
+    const [before] = entriesOf(c1Project.id);
+    saveMobileHours({ projectId: c1Project.id, date: DATE, clock: '3:00', extra: 'ignored' });
+    assert.deepEqual(entriesOf(c1Project.id).map(e => [e.id, e.hours]), [[before.id, 3]]);
   });
 
   test('zero ore cancella la registrazione', () => {
-    saveEntry({ id: 'm-solo', projectId: c2Project.id, date: '2031-03-05', hours: 1, billableHours: null, slot: 'sera', billed: false });
-    const r = saveMobileHours({ projectId: c2Project.id, date: '2031-03-05', clock: '', today: '2000-01-01' });
+    saveEntry({ id: 'm-solo', projectId: c2Project.id, date: '2031-03-05', hours: 1, billableHours: null, billed: false });
+    const r = saveMobileHours({ projectId: c2Project.id, date: '2031-03-05', clock: '' });
     assert.equal(r.hours, 0);
     assert.deepEqual(getEntries('2031-03-05', '2031-03-05').filter(e => e.projectId === c2Project.id), []);
-  });
-
-  test('oggi una registrazione nuova va nella fascia dell\'ora corrente', () => {
-    const { currentSlot } = require('../../lib/domain');
-    saveMobileHours({ projectId: c2Project.id, date: '2031-03-06', clock: '1:00', today: '2031-03-06' });
-    assert.equal(getEntries('2031-03-06', '2031-03-06').find(e => e.projectId === c2Project.id).slot, currentSlot());
   });
 
   test('rifiuta ciò che non capisce, senza scrivere', () => {
@@ -131,80 +121,5 @@ describe('pagina mobile: giornata e salvataggio', () => {
     assert.match(saveMobileHours({ projectId: c1Project.id, date: DATE, clock: '25:00' }).error, /H:MM/);
     assert.deepEqual(saveMobileHours({ projectId: 'nope', date: DATE, clock: '1:00' }), { error: 'unknown project', status: 404 });
     assert.equal(getEntries(DATE, DATE).length, before);
-  });
-});
-
-describe('pagina mobile: una riga per fascia', () => {
-  const DAY = '2031-03-07';
-  let c1Project;
-  const rows = () => getEntries(DAY, DAY).filter(e => e.projectId === c1Project.id);
-  const entry = (id, slot, hours, extra = {}) => ({ id, projectId: c1Project.id, date: DAY, hours, billableHours: null, slot, billed: false, ...extra });
-
-  before(() => {
-    createTestDb();
-    c1Project = getProjects().find(p => p.clientId === 'c1');
-    saveEntry(entry('f-am', 'am', 1.5, { billableHours: 1, billed: true }));
-    saveEntry(entry('f-pm', 'pm', 2));
-  });
-
-  test('ogni progetto elenca le ore per fascia, in ordine, e la fascia di default', () => {
-    const p = getMobileDayData(DAY, '2000-01-01').areas.flatMap(a => a.projects).find(x => x.id === c1Project.id);
-    assert.deepEqual(p.entries, [{ id: 'f-am', slot: 'am', hours: 1.5 }, { id: 'f-pm', slot: 'pm', hours: 2 }]);
-    assert.equal(p.hours, 3.5);
-    assert.equal(p.defaultSlot, 'am');
-    const other = getMobileDayData(DAY, '2000-01-01').areas.flatMap(a => a.projects).find(x => x.id !== c1Project.id);
-    assert.deepEqual(other.entries, []);
-  });
-
-  test('oggi la fascia di default è quella dell\'ora corrente', () => {
-    const { currentSlot } = require('../../lib/domain');
-    const p = getMobileDayData(DAY, DAY).areas.flatMap(a => a.projects).find(x => x.id === c1Project.id);
-    assert.equal(p.defaultSlot, currentSlot());
-  });
-
-  test('con la fascia si scrive solo quella: le altre e il fatturato restano', () => {
-    const r = saveMobileHours({ projectId: c1Project.id, date: DAY, clock: '2:30', slot: 'am' });
-    assert.deepEqual(r, { projectId: c1Project.id, date: DAY, slot: 'am', hours: 2.5, clock: '2:30' });
-    const byId = Object.fromEntries(rows().map(e => [e.id, e]));
-    assert.equal(byId['f-am'].hours, 2.5);
-    assert.equal(byId['f-am'].billableHours, 1);
-    assert.equal(byId['f-am'].billed, true);
-    assert.equal(byId['f-pm'].hours, 2);
-  });
-
-  test('con la fascia, ore su più fasce non danno 409; fascia libera crea, zero cancella', () => {
-    assert.equal(saveMobileHours({ projectId: c1Project.id, date: DAY, clock: '0:45', slot: 'sera' }).error, undefined);
-    assert.equal(rows().find(e => e.slot === 'sera').hours, 0.75);
-    saveMobileHours({ projectId: c1Project.id, date: DAY, clock: '', slot: 'sera' });
-    assert.equal(rows().some(e => e.slot === 'sera'), false);
-  });
-
-  test('una fascia che non esiste è un errore e non scrive', () => {
-    const before = rows();
-    assert.deepEqual(saveMobileHours({ projectId: c1Project.id, date: DAY, clock: '1:00', slot: 'notte' }), { error: 'slot must be am, pm or sera' });
-    assert.deepEqual(rows(), before);
-  });
-
-  test('spostare in una fascia libera cambia la fascia della stessa entry', () => {
-    assert.deepEqual(moveMobileSlot({ projectId: c1Project.id, date: DAY, from: 'pm', to: 'sera' }), { projectId: c1Project.id, date: DAY, from: 'pm', to: 'sera' });
-    const moved = rows().find(e => e.id === 'f-pm');
-    assert.equal(moved.slot, 'sera');
-    assert.equal(moved.hours, 2);
-  });
-
-  test('spostare in una fascia con ore le somma e tiene il fatturato dell\'altra', () => {
-    moveMobileSlot({ projectId: c1Project.id, date: DAY, from: 'sera', to: 'am' });
-    const left = rows();
-    assert.equal(left.length, 1);
-    assert.equal(left[0].slot, 'am');
-    assert.equal(left[0].hours, 4.5);
-    assert.equal(left[0].billed, false);
-  });
-
-  test('spostare ciò che non c\'è o con fasce sbagliate è un errore', () => {
-    assert.deepEqual(moveMobileSlot({ projectId: c1Project.id, date: DAY, from: 'sera', to: 'pm' }), { error: 'no hours in that slot', status: 404 });
-    assert.equal(moveMobileSlot({ projectId: c1Project.id, date: DAY, from: 'am', to: 'x' }).error, 'slot must be am, pm or sera');
-    assert.equal(moveMobileSlot({ projectId: c1Project.id, date: 'ieri', from: 'am', to: 'pm' }).error, 'date must be YYYY-MM-DD');
-    assert.equal(rows().length, 1);
   });
 });

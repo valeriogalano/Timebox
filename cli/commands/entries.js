@@ -1,7 +1,7 @@
 'use strict';
 
-const { getEntries, getProjects, getClients, getSlotsTrackedSince } = require('../../db/queries');
-const { isHourly, effBillable, SLOTS } = require('../../lib/domain');
+const { getEntries, getProjects, getClients } = require('../../db/queries');
+const { isHourly, effBillable } = require('../../lib/domain');
 
 // Somma ore lavorate e fatturabili per chiave. Le fatturabili restano null fuori
 // dalle aree a ore, dove non c'è niente da fatturare a ore.
@@ -18,10 +18,7 @@ function totalsBy(rows, keyOf, labelOf) {
 }
 
 // Le singole entry del Registro in un intervallo di date, con filtro per area e
-// progetto (parziale, senza distinguere maiuscole). Ogni entry porta la sua fascia:
-// si assegna in automatico alla registrazione e si corregge dopo (moveEntrySlot).
-// Prima di slotsTrackedSince la fascia era scelta dal codice e non dice quando si
-// è lavorato.
+// progetto (parziale, senza distinguere maiuscole).
 function getEntriesData({ from, to, areaFilter, projectFilter } = {}) {
   const projects = Object.fromEntries(getProjects().map(p => [p.id, p]));
   const clients = Object.fromEntries(getClients().map(c => [c.id, c]));
@@ -36,7 +33,6 @@ function getEntriesData({ from, to, areaFilter, projectFilter } = {}) {
       return {
         id: e.id,
         date: e.date,
-        slot: e.slot,
         project: p?.name || '?',
         projectId: e.projectId,
         area: c?.name || '?',
@@ -47,12 +43,11 @@ function getEntriesData({ from, to, areaFilter, projectFilter } = {}) {
       };
     })
     .filter(e => (!area || e.area.toLowerCase().includes(area)) && (!project || e.project.toLowerCase().includes(project)))
-    .sort((a, b) => a.date.localeCompare(b.date) || SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   return {
     from,
     to,
-    slotsTrackedSince: getSlotsTrackedSince(),
     entries,
     byArea: totalsBy(entries, e => e.areaId, e => ({ area: e.area })),
     byProject: totalsBy(entries, e => e.projectId, e => ({ project: e.project, area: e.area })),

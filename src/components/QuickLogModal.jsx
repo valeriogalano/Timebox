@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { fmtH, splitSlotSuffix, SLOT_LABELS } from '../utils';
+import { fmtH } from '../utils';
 import { getMinutesThreshold } from '../hours-threshold';
 
 function parseTimeSpec(s) {
@@ -23,12 +23,9 @@ function parseTimeSpec(s) {
 export function parseQuickLogQuery(q) {
   const trimmed = q.trim();
   const m = trimmed.match(/^(.*?)\s*\+(.*)$/);
-  if (!m) return { search: trimmed, addHours: null, slot: null };
-  // "Acme +1h +pom": la fascia è un secondo suffisso dopo il tempo.
-  const { rest, slot } = splitSlotSuffix(m[2]);
-  const hours = parseTimeSpec(rest);
-  const ok = hours != null && hours > 0;
-  return { search: m[1].trim(), addHours: ok ? hours : null, slot: ok ? slot : null };
+  if (!m) return { search: trimmed, addHours: null };
+  const hours = parseTimeSpec(m[2]);
+  return { search: m[1].trim(), addHours: hours != null && hours > 0 ? hours : null };
 }
 
 export default function QuickLogModal({ projects, clients, onSelect, onClose }) {
@@ -37,7 +34,7 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
   const inputRef = useRef();
   const listRef = useRef();
 
-  const { search, addHours, slot } = parseQuickLogQuery(query);
+  const { search, addHours } = parseQuickLogQuery(query);
   const addMode = addHours != null;
 
   const active = projects.filter(p => !p.archived);
@@ -76,7 +73,7 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
 
   function commit() {
     if (!filtered[selectedIdx]) return;
-    onSelect(filtered[selectedIdx].id, addMode ? addHours : null, addMode ? slot : null);
+    onSelect(filtered[selectedIdx].id, addMode ? addHours : null);
   }
 
   function handleKeyDown(e) {
@@ -117,7 +114,7 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Cerca progetto… (es. Acme +1h, +30m, +1h +pom)"
+            placeholder="Cerca progetto… (es. Acme +1h, +30m)"
             style={{
               flex: 1, border: 'none', outline: 'none', background: 'transparent',
               fontFamily: "'Open Sans', sans-serif", fontSize: 14, fontWeight: 600,
@@ -129,7 +126,7 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
               fontSize: 11, fontWeight: 700, color: 'var(--tb-panel-bg)',
               background: 'var(--tb-text-primary)', borderRadius: 4,
               padding: '3px 6px', flexShrink: 0, fontFamily: 'monospace',
-            }}>+{fmtH(addHours)} oggi{slot ? ` · ${SLOT_LABELS[slot]}` : ''}</span>
+            }}>+{fmtH(addHours)} oggi</span>
           ) : (
             <span style={{ fontSize: 11, color: 'var(--tb-text-faint)', flexShrink: 0, fontFamily: 'monospace' }}>⌘L</span>
           )}
@@ -145,7 +142,7 @@ export default function QuickLogModal({ projects, clients, onSelect, onClose }) 
             return (
               <div
                 key={project.id}
-                onClick={() => onSelect(project.id, addMode ? addHours : null, addMode ? slot : null)}
+                onClick={() => onSelect(project.id, addMode ? addHours : null)}
                 onMouseEnter={() => setSelectedIdx(i)}
                 style={{
                   padding: '10px 16px', cursor: 'pointer',

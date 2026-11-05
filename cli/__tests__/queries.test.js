@@ -2,7 +2,7 @@
 
 const { test, describe, before } = require('node:test');
 const assert = require('node:assert/strict');
-const { mkdtempSync, rmSync } = require('node:fs');
+const { mkdtempSync, rmSync, readdirSync } = require('node:fs');
 const { join } = require('node:path');
 const { tmpdir } = require('node:os');
 const Database = require('better-sqlite3');
@@ -114,8 +114,8 @@ describe('settings', () => {
   });
 });
 
-describe('entry slot invariant migration', () => {
-  test('deduplicates existing project date slot rows before creating the unique index', () => {
+describe('one entry per project and day, on a legacy database', () => {
+  test('merges the rows of a project on the same day, whatever their slot, before creating the unique index', () => {
     const dir = mkdtempSync(join(tmpdir(), 'timebox-entry-slot-'));
     const dbPath = join(dir, 'timebox.db');
     try {
@@ -150,16 +150,15 @@ describe('entry slot invariant migration', () => {
       dirty.close();
 
       const migrated = initDb(dbPath);
-      const entries = migrated.prepare('SELECT * FROM entries ORDER BY slot, id').all();
+      const entries = migrated.prepare('SELECT * FROM entries ORDER BY id').all();
       const indexes = migrated.prepare("PRAGMA index_list('entries')").all();
       migrated.close();
 
-      assert.equal(entries.length, 2);
-      assert.deepEqual(entries.map(entry => [entry.slot, entry.hours, entry.billableHours, entry.billed]), [
-        ['am', 3, 2.5, 0],
-        ['pm', 3, null, 1],
+      assert.deepEqual(entries.map(entry => [entry.id, entry.hours, entry.billableHours, entry.billed]), [
+        ['same-slot-1', 6, 5.5, 0],
       ]);
-      assert.equal(indexes.some(index => index.name === 'idx_entries_project_date_slot' && index.unique === 1), true);
+      assert.equal(indexes.some(index => index.name === 'idx_entries_project_date' && index.unique === 1), true);
+      assert.equal(readdirSync(dir).filter(f => f.startsWith('timebox-before-entry-merge-')).length, 1);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -171,9 +170,31 @@ describe('project totals: worked and billable', () => {
     createTestDb();
     const q = require('../../db/queries');
     const before = { worked: q.getProjectTotals().p1 ?? 0, billable: q.getProjectBillableTotals().p1 ?? 0 };
-    q.saveEntry({ id: 'cap-1', projectId: 'p1', date: '2019-01-07', hours: 5, billableHours: 3, slot: 'am', billed: false });
-    q.saveEntry({ id: 'cap-2', projectId: 'p1', date: '2019-01-08', hours: 2, billableHours: null, slot: 'am', billed: false });
+    q.saveEntry({ id: 'cap-1', projectId: 'p1', date: '2019-01-07', hours: 5, billableHours: 3, billed: false });
+    q.saveEntry({ id: 'cap-2', projectId: 'p1', date: '2019-01-08', hours: 2, billableHours: null, billed: false });
     assert.equal(q.getProjectTotals().p1 - before.worked, 7);
     assert.equal(q.getProjectBillableTotals().p1 - before.billable, 5);
+  });
+});
+
+describe('Todoist cache, week overrides and template by area', () => {
+  test('cache rows are read by date and all together', () => {
+    createTestDb();
+    const q = require('../../db/queries');
+    assert.deepEqual(q.getTodoistCache([]), []);
+    q.setTodoistCache('2031-02-03', [{ id: 't' }], '2031-02-03T08:00:00Z');
+    assert.deepEqual(q.getTodoistCache(['2031-02-03', '2031-02-04']), [{ dateStr: '2031-02-03', tasks: [{ id: 't' }], syncedAt: '2031-02-03T08:00:00Z' }]);
+    assert.ok(q.getAllTodoistCache().some(row => row.dateStr === '2031-02-03'));
+  });
+
+  test('deleteWeekOverride removes one day and slot; deleteRecurringByClient removes an area from the template', () => {
+    createTestDb();
+    const q = require('../../db/queries');
+    q.saveWeekOverride({ weekKey: '2031-02-03', dayIndex: 1, slot: 'pm', blocks: [] });
+    q.deleteWeekOverride('2031-02-03', 1, 'pm');
+    assert.deepEqual(q.getWeekOverrides('2031-02-03'), []);
+    assert.ok(q.getRecurring().some(r => r.clientId === 'c1'));
+    q.deleteRecurringByClient('c1');
+    assert.ok(!q.getRecurring().some(r => r.clientId === 'c1'));
   });
 });

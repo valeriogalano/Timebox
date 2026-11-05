@@ -228,9 +228,8 @@ In development, wrappers point at repository files. In packaged builds, they poi
 | `GET` | `/status` | `getStatusData(today)`: cap `alerts`, plus `gapAlerts` from `weekTargetAlerts` (areas whose gap is beyond the tolerance, target warnings) for the current week. |
 | `GET` | `/targets?week=` | `getWeekTargetsData(week, today)` plus its `alerts`; `week` is a Monday, default the current week (a non-Monday is a 400). |
 | `POST` | `/targets` | `{ weekKey, areaId, hours }` through `addWeekAreaTarget`. 400 on a non-Monday or hours that are not a number ≥ 0, 404 on an unknown area id. |
-| `POST` | `/log` | `logHours(...)`; supports `billableHours` and `slot`. Without `slot`, a project with hours in more than one slot that day is an error. |
-| `PATCH` | `/entries/:id` | Correct an entry's slot: `{ slot }`, through `moveEntrySlot`. Merges with the project's entry already in that slot. |
-| `GET` | `/plan-vs-tracked?from=&to=` | `getPlanVsTrackedData(...)`: planned, covered and worked-in-slot hours per day, slot and area, extra hours and totals. Days before `slotsTrackedSince` are flagged and left out of the totals. |
+| `POST` | `/log` | `logHours(...)`; supports `billableHours`. One entry per project and day: replaces its hours, or adds to them with `add`. A `slot` field is ignored. |
+| `GET` | `/plan-vs-tracked?from=&to=` | `getPlanVsTrackedData(...)`: planned and covered hours per day, block slot and area; worked and extra hours per day; totals. |
 | `POST` | `/projects` | Create a project. |
 | `PATCH` | `/projects/:id` | Update project fields or move area. |
 | `DELETE` | `/projects/:id` | Delete a project with no entries. |
@@ -246,11 +245,11 @@ iPhone (Safari / Home screen) ── HTTP <LAN address>:37374 ── lib/mobile-
 
 A second listener, off by default, macOS only. It exists so hours can be logged from a phone; analysis and planning stay on the Mac. It is deliberately not the loopback API on another address: that one has no authentication and exposes deletes and merges, so it stays on `127.0.0.1`.
 
-- `lib/mobile-server.js` serves the files under `mobile/` (page, script, style, manifest and `apple-touch-icon.png`, the Home screen icon: a full-bleed opaque square, because iOS paints transparency black) and three routes, all behind a bearer token: `GET /api/day?date=`, `PUT /api/hours` (`{ projectId, date, clock: "H:MM", slot }`) and `PUT /api/slot` (`{ projectId, date, from, to }`). Do not add routes here without a reason that belongs to the phone; anything added is reachable from the network.
+- `lib/mobile-server.js` serves the files under `mobile/` (page, script, style, manifest and `apple-touch-icon.png`, the Home screen icon: a full-bleed opaque square, because iOS paints transparency black) and two routes, both behind a bearer token: `GET /api/day?date=` and `PUT /api/hours` (`{ projectId, date, clock: "H:MM" }`). Do not add routes here without a reason that belongs to the phone; anything added is reachable from the network.
 - `lib/mobile-access.js` decides when it is open: switched on, a token exists, and the computer is on a local network. It does **not** recognise the home network: while on, the page is reachable on any network. This was a deliberate step back from "home only". On macOS an app cannot read the router's MAC address (`arp` returns "no entry" when a non-Apple program is in the process chain) nor the Wi-Fi name, and the router's UPnP id and TLS certificate were not usable either. Do not reintroduce `arp`-based detection: it works from a terminal and fails inside the app.
 - `lib/home-network.js` only finds where to listen: the computer's addresses in the router's subnet, from `route -n get default`. Never `0.0.0.0`.
 - Because nothing closes the page automatically, its switch is in the top bar (`src/components/MobileSwitch.jsx`), visible from every screen, filled when on. Settings -> iPhone has the same switch plus the link and the token. The two stay in step through the `MOBILE_CHANGED` window event.
-- The page works by project id and shows one row per slot, like Giorno → Ore: a native slot menu and a native hours menu (0h to 12h in 15-minute steps; an off-step stored value is added to the list, never rounded). There are no stepper buttons: on iOS both menus open as a wheel. It changes worked hours only: `saveMobileHours` keeps the stored `billableHours` and `billed`, and writes through `planDayEntrySave`, the same rule `DayScreen` uses. With `slot` it writes only that slot's entry and leaves the others, so there is no 409; a bad slot is a 400. Without `slot` (a page cached on the Home screen by an older version) it rewrites the day total on the single entry, and a project with hours in more than one slot answers 409. `PUT /api/slot` moves a project's hours between slots through `moveEntrySlot` (merging into a slot that already has some); it answers 404 when the source slot has no hours. `getMobileDayData(date, today)` gives each project `entries` (`id`, `slot`, `hours`) and `defaultSlot`, the slot new hours would land in.
+- The page works by project id and shows one row per project, like Giorno → Ore: the name and a native hours menu (0h to 12h in 15-minute steps; an off-step stored value is added to the list, never rounded). There are no stepper buttons: on iOS the menu opens as a wheel. It changes worked hours only: `saveMobileHours` keeps the stored `billableHours` and `billed`, and writes through `planDayEntrySave`, the same rule `DayScreen` uses. A `slot` sent by a page cached on the Home screen by an older version is ignored. `getMobileDayData(date)` gives each project its `hours` and `clock`, plus the day's plan per block slot (read-only).
 - `mobile/` is plain files with no bundler, under a CSP that forbids inline script and style. Colours are set through the CSSOM (`el.style`), text through `textContent`.
 - Settings keys: `mobile_enabled`, `mobile_token_enc` (encrypted with `safeStorage`, like the Todoist token).
 - The accepted risks (plain HTTP, reachable on any network while on) are written in `SECURITY.md`. Read it before changing any of this.
@@ -259,7 +258,7 @@ A second listener, off by default, macOS only. It exists so hours can be logged 
 
 `cli/mcp-server.js` implements MCP spec `2024-11-05` with JSON-RPC over stdio.
 
-Tools: `today`, `day_summary`, `day_free_capacity`, `day_ready_blocks`, `todoist_imported_tasks`, `day_mismatches`, `week`, `projects`, `entries`, `areas`, `status`, `log_hours`, `set_entry_slot`, `plan_vs_tracked`, `find_area`, `find_project`, `rename_area`, `update_area`, `rename_project`, `update_project`, `move_project`, `create_project`, `delete_project`, `merge_project_entries`, `get_recurring`, `set_recurring_slot`, `get_week_overrides`, `set_week_override`, `clear_week_override`, `week_targets`, `set_week_target`. `week_targets` reads target, Monday target, done, blocks left, gap and warnings per area; `set_week_target` appends a target; `status` lists the gap alerts of the current week. `entries`, `today` and `week` show each entry's slot and id; `day_summary` shows the hours worked in each slot next to the block filling.
+Tools: `today`, `day_summary`, `day_free_capacity`, `day_ready_blocks`, `todoist_imported_tasks`, `day_mismatches`, `week`, `projects`, `entries`, `areas`, `status`, `log_hours`, `plan_vs_tracked`, `find_area`, `find_project`, `rename_area`, `update_area`, `rename_project`, `update_project`, `move_project`, `create_project`, `delete_project`, `merge_project_entries`, `get_recurring`, `set_recurring_slot`, `get_week_overrides`, `set_week_override`, `clear_week_override`, `week_targets`, `set_week_target`. `week_targets` reads target, Monday target, done, blocks left, gap and warnings per area; `set_week_target` appends a target; `status` lists the gap alerts of the current week. `entries`, `today` and `week` show each entry's id; entries have no slot.
 
 Codex manual configuration:
 
@@ -275,7 +274,7 @@ codex mcp add timebox -- timebox-mcp
 clients        (id, name, color, billable, billing, rate, limitType, limitHours, position, defaultStatus)
 projects       (id, clientId, name, description, budgetHours, weeklyHours, fixedPrice, position, archived)
 recurring      (id, clientId, slot, day, hours, position)
-entries        (id, projectId, date, hours, billableHours, slot, billed)
+entries        (id, projectId, date, hours, billableHours, slot, billed)   -- one per projectId + date; slot unused, see One Entry per Project and Day
 week_overrides (id, weekKey, dayIndex, slot, blocksJson)
 week_area_status (id, weekKey, areaId, status)
 week_area_targets (id, weekKey, areaId, hours, createdAt)   -- append-only, see Weekly Area Targets and the Gap
@@ -339,16 +338,15 @@ A `timebox.db` sitting in the repository root is **not** the app's database — 
 
 Editing the weekly view must not mutate the `recurring` table.
 
-### Entry Slots and Block Filling Are Two Different Numbers
+### One Entry per Project and Day
 
-An entry's `slot` (AM, PM, Sera) says in which part of the day the work happened. There is one entry per project, day and slot (unique index on `projectId + date + slot`), so a project can have hours in more than one slot on the same day.
+Logged hours have no slot. There is one entry per project and day (unique index `idx_entries_project_date` on `entries(projectId, date)`); slots (AM, PM, Sera) belong to planned blocks only (`recurring`, `week_overrides`), which also give Todoist tasks their time of day.
 
-- **Assigned automatically, corrected afterwards.** Logging never asks for the slot. `defaultEntrySlot` (`src/dayPlanning.js`, twin in `lib/domain.js`) picks the current slot for today; for other days `resolveEntrySlot` picks the area's first planned slot, else `am`. Saving hours on a project that already has one entry that day reuses its slot. Todoist imports use the due time when there is one, the plan for a date-only due, and the real slot thresholds for a task completed without a due date. A wrong slot is corrected afterwards through `moveEntrySlot` (`db/queries.js`): from the Fascia column in Registro (Modifica) or the slot selector of each row in Giorno → Ore, with `set_entry_slot` or with `PATCH /entries/:id`. Moving into a slot where the project already has an entry merges the two (hours and billable hours summed, billed only if both were).
-- **Ambiguity is an error, not a guess.** `log_hours` without a slot on a project that has hours in more than one slot that day fails and asks for the slot; `PUT /api/hours` without `slot` answers 409.
-- **The slot can be chosen where hours are written, and moved from every screen that shows them.** Giorno and Registro as above. Settimana: the cell shows a tag with the slots (`M`, `P`, `S`, `M·P`); typing `2h +pom` (`splitSlotSuffix`, `src/utils.js`) puts the day's hours in that slot, moving the single entry (same id, `billed` kept) through `planDayTotalSave`, and `+pom` alone moves the hours without changing them. Clicking the tag, or a cell with more than one slot, opens `SlotPopover`: one row per slot with `EntrySlotSelect`, the hours and `AddSlotSelect`, the same controls as Giorno (`src/components/SlotSelects.jsx`). Quick log (⌘L): `Acme +1h +pom`, default the current slot. iPhone: see *Mobile Page*.
-- **Slots count from `slotsTrackedSince`.** Before this version slots were picked by the code and say nothing. `ensureSlotsTrackedSince` stores the date in `settings` the first time a database is opened by this version and never moves it. `plan_vs_tracked` flags the earlier days and leaves them out of its totals.
-
-Block filling stays a separate measure of how much of the plan is covered: `fillPlannedBlocks` (`src/dayPlanning.js`, twin in `lib/domain.js`) spreads an area's hours for the day over its blocks in slot order, ignoring the entry slot. `slotLogged` in `computeDayPlanning`, `slots[slot].trackedByArea` and `trackedHours` in `getDaySummaryData`, remaining capacity, extra blocks and the `day_*` diagnostics all come from that fill. The hours actually worked in a slot are `slots[slot].actualByArea` and `actualHours` in `getDaySummaryData`, and `trackedHours` per slot and area in `plan_vs_tracked` (`cli/commands/plan-vs-tracked.js`), where the fill appears as `coveredHours`. Never mix the two, and in the UI only the fill is shown.
+- **Where hours are written.** Settimana (the day cell), Giorno → Ore (one row per project), Registro, quick log (⌘L, `Acme +1h`), the iPhone page, `log_hours` / `POST /log` / `timebox log`, and the Todoist completed-task import. All of them read and write the project's single entry for that day: `planDayEntrySave` (`src/dayPlanning.js`, twin in `lib/domain.js`) for the screens and the phone, `logHours` for the CLI and MCP, `addImportedHours` / `subtractImportedHours` for imports (matched on project and date).
+- **Moving an entry onto a day the project already has.** `saveEntry` (`db/queries.js`) merges the two, like `mergeProjectEntries`: hours summed, billable hours summed as effective values (`mergeBillable`), billed only if both were (`mergeBilled`). This happens when the date or the project of an entry is changed in Registro.
+- **Block filling** is how logged hours relate to slots: `fillPlannedBlocks` (`src/dayPlanning.js`, twin in `lib/domain.js`) spreads an area's hours for the day over its blocks in slot order. `slotLogged` in `computeDayPlanning`, `slots[slot].trackedByArea` and `trackedHours` in `getDaySummaryData`, `coveredHours` in `plan_vs_tracked`, remaining capacity, extra blocks and the `day_*` diagnostics all come from that fill. It says how much of the plan is covered, not when the work happened.
+- **The migration** (`mergeSameDayEntries` in `db/schema.js`, run by `initDb` at every start). Entries of the same project on the same day are merged into the oldest row: hours summed, billable hours summed as effective values (`billableHours ?? hours`) and stored as `null` when the sum equals the hours, billed only if all were. Then `idx_entries_project_date_slot` is dropped and `idx_entries_project_date` created, and the `slotsTrackedSince` setting is deleted. When there is something to merge, the database is first copied next to its file as `<name>-before-entry-merge-<UTC timestamp>.db` with `VACUUM INTO` (a consistent copy that includes the `-wal` content; better-sqlite3's `db.backup()` is asynchronous and `initDb` is not); if the copy fails, nothing is merged. A merged database has no duplicates, so later starts neither copy nor change anything. The import ledger (`todoist_imports`) points at entries by project and date, so it needs no change.
+- **The `slot` columns stay.** `entries.slot` and `todoist_imports.slot` are no longer read or written (new rows get `NULL` and the column default). SQLite could drop them (`DROP COLUMN`, 3.35+), but an older app version writes and normalises `entries.slot` at startup and would fail to open a file without it; kept, a downgrade still opens the database. Do not read them.
 
 ### Empty Week Overrides
 
@@ -364,13 +362,13 @@ Extra blocks are computed from entries whose project area is not present in plan
 
 ### saveEntry and deleteEntry
 
-`saveEntry` in `WeeklyView.jsx` handles upsert behavior:
+`saveEntry` in `WeeklyView.jsx` handles upsert behavior through `planDayEntrySave`:
 
 - `hours === 0` deletes the entry.
-- Existing `projectId + date + slot` updates the row.
+- An existing entry for `projectId + date` is updated (same id, `billed` kept).
 - New rows use `crypto.randomUUID()`.
 
-There is one entry per `projectId + date + slot`; the database enforces this with a unique index on `entries(projectId, date, slot)`. A project can have entries in more than one slot on the same day; the cell shows their total and is read-only when there is more than one (see *Entry Slots and Block Filling Are Two Different Numbers*).
+There is one entry per `projectId + date`; the database enforces this with a unique index on `entries(projectId, date)` (see *One Entry per Project and Day*).
 
 ### Billable Hours and Billed State
 
@@ -445,7 +443,6 @@ Recurring template edits call `freezeWeeksBeforeRecurringChange` first. Weeks wi
 |---|---|
 | `fmtH(h)` | `2.5 -> "2h 30m"`, `3 -> "3h"`, `0 -> "0h"`, negative values keep a leading `-`. The only format hours are written in, on every screen and in the value a field opens on. |
 | `parseHHMM(str, threshold?)` | Reads what a hours field can contain: the display format (`1h 30m`, `2h`, `45m`) and the typing shortcuts `2:30`, `2.5`, `2,5`; empty string is 0. A bare number greater than the threshold is read as minutes (`90` -> `1.5`); the threshold defaults to the configured one (`src/hours-threshold.js`, setting `hoursMinutesThreshold`, default 9) and is passed explicitly in tests. A value containing `:`, `h` or `m` is explicit and never converted. |
-| `splitSlotSuffix(str)` | Reads a slot written at the end of an hours field: `2h +pom` -> `{ rest: '2h', slot: 'pm' }`. Accepts `am/mat/mattina`, `pm/pom/pomeriggio`, `sera`, case-insensitive, after a space or `+`; without a separator (`30m`) or with an unknown name there is no slot and `rest` is the whole text. |
 | `getMondayOfWeek(date)` | Monday for the containing ISO-style week. |
 | `addDays(date, n)` | Returns a new date. |
 | `fmt(date)` | Returns `YYYY-MM-DD`. |
@@ -468,9 +465,7 @@ Inline hours editor (shows and opens on `fmtH`, accepts what `parseHHMM` reads):
 - click starts editing;
 - `Tab`/`Enter` commits;
 - `Escape` cancels;
-- saving `0` deletes the entry;
-- a slot suffix (`2h +pom`) goes to `onSave(payload, slot)`; in the billable view it is ignored;
-- `slots` + `onOpenSlots` draw the slot tag and, with more than one slot, make the click open the popover instead of editing; `standalone` is the cell inside `SlotPopover`, out of the grid's Tab/Enter navigation.
+- saving `0` deletes the entry.
 
 ### MultiSlotCell
 

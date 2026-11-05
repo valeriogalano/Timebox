@@ -69,7 +69,7 @@ A new database starts empty: nothing is seeded automatically. To explore the int
 - **Week overrides:** per-week replacements for recurring blocks. Editing a block in the weekly view changes that week only.
 - **Weekly area targets:** how many hours each area should get in a week, prefilled with the area's template hours (the sum of its recurring blocks). Every change is kept: the first value of the week is the Monday target, the last one is the target the gap is measured on. Gap = target − done − blocks left, where blocks left are today's plan minus today's hours (never below zero) plus the whole plan of the following days, weekend included.
 - **Weekly area status:** per-week markers for areas: active, minimal, or closed. They make the weekly planning decision visible without changing the recurring template.
-- **Entries:** logged work, one record per project, date and slot, with hours, optional billable-hours override, and billed status. The slot is picked automatically and can be corrected afterwards.
+- **Entries:** logged work, one record per project and date, with hours, optional billable-hours override, and billed status. Entries have no slot: only planned blocks do.
 - **Todoist cache:** local task snapshots grouped by due date and used to overlay planned Todoist work onto Timebox blocks.
 
 ### Product decision: prepaid hour packages via one project per package
@@ -131,7 +131,7 @@ The Registro screen is a tabular log of tracked work. It supports date, area, an
 
 ### Import Todoist
 
-The Import Todoist screen shows cached Todoist tasks grouped by date, including matched Timebox project, slot, estimated hours, completion state, and the latest sync timestamp.
+The Import Todoist screen shows cached Todoist tasks grouped by date, including matched Timebox project, estimated hours, completion state, and the latest sync timestamp.
 
 ### Aree (areas)
 
@@ -211,7 +211,7 @@ Do not publish personal databases, exports, screenshots, Todoist tokens, or real
 clients        (id, name, color, billable, billing, rate, limitType, limitHours, position, defaultStatus)
 projects       (id, clientId, name, description, budgetHours, weeklyHours, fixedPrice, position, archived)
 recurring      (id, clientId, slot, day, hours, position)
-entries        (id, projectId, date, hours, billableHours, slot, billed)
+entries        (id, projectId, date, hours, billableHours, billed)   -- one per project and date
 week_overrides (id, weekKey, dayIndex, slot, blocksJson)
 week_area_status (id, weekKey, areaId, status)
 week_area_targets (id, weekKey, areaId, hours, createdAt)  -- append-only
@@ -253,9 +253,8 @@ While the app is open, a local API is available at `http://127.0.0.1:37373`.
 | `GET` | `/status` | Today, week, alerts (project budget, project weekly limit, area limit) and `gapAlerts`: the current week's areas whose gap on the target is beyond the Andamento tolerance (0.5h or 10% of the target, whichever is larger), plus the target warnings. |
 | `GET` | `/targets?week=YYYY-MM-DD` | Per area for a Monday week key (default: current week): template hours, Monday and final target, done, blocks left, gap and warnings (target above the weekly limit, closed area with a target). |
 | `POST` | `/targets` | Set an area's weekly target: `{ weekKey, areaId, hours }`. Appends a row; the same value as the current target stores nothing. |
-| `POST` | `/log` | Log hours: `{ project, hours, slot, date, add, billableHours }`. `billableHours` is kept only for projects in hourly areas. Without `slot`, a project with hours in more than one slot that day is a 400. |
-| `PATCH` | `/entries/:id` | Correct an entry's slot: `{ slot }`. Merges with the project's entry already in that slot. |
-| `GET` | `/plan-vs-tracked?from=&to=` | Plan against the real day per day, slot and area. |
+| `POST` | `/log` | Log hours: `{ project, hours, date, add, billableHours }`. One entry per project and day: it replaces that day's hours unless `add`. `billableHours` is kept only for projects in hourly areas. |
+| `GET` | `/plan-vs-tracked?from=&to=` | Plan against the real day: planned and covered hours per day, block slot and area, worked and extra hours per day. |
 | `POST` | `/projects` | Create a project in an area. |
 | `PATCH` | `/projects/:id` | Update project name, area, description, budget, or weekly limit. |
 | `DELETE` | `/projects/:id` | Delete a project with no entries. |
@@ -268,7 +267,7 @@ curl http://127.0.0.1:37373/ping
 curl http://127.0.0.1:37373/week?offset=-1
 curl -X POST http://127.0.0.1:37373/log \
   -H 'Content-Type: application/json' \
-  -d '{"project":"website","hours":"2:30","slot":"pm","billableHours":"2"}'
+  -d '{"project":"website","hours":"2:30","billableHours":"2"}'
 ```
 
 ---
@@ -299,12 +298,12 @@ Add that directory to `PATH` if your shell cannot find `timebox` after installat
 | `timebox status` | Today, week, and alerts. |
 | `timebox log <project> <hours>` | Log or replace hours. |
 
-All commands support `--json`. `timebox log` also supports `--slot`, `--date`, `--add`, and `--billable`.
+All commands support `--json`. `timebox log` also supports `--date`, `--add`, and `--billable`.
 
 ```bash
 timebox today
 timebox week --offset -1
-timebox log "website" 2:30 --slot pm
+timebox log "website" 2:30
 timebox log "website" 1 --add
 timebox projects --json
 ```
@@ -356,8 +355,7 @@ Exposed tools:
 | `week_targets` | Weekly target, done, blocks left and gap per area, with target warnings. |
 | `set_week_target` | Set the weekly target of one area. |
 | `log_hours` | Log hours on a project. |
-| `set_entry_slot` | Correct the slot of one logged entry; merges with the project's entry already in that slot. |
-| `plan_vs_tracked` | Plan against the real day per day, slot and area over a date range, with totals. |
+| `plan_vs_tracked` | Plan against the real day over a date range: planned and covered hours per day, block slot and area, with totals. |
 | `find_area` | Search areas by name. |
 | `find_project` | Search projects by name or description. |
 | `rename_area` | Rename an area. |
@@ -376,14 +374,13 @@ Exposed tools:
 
 ### Daily planning tools
 
-These tools are the MCP-oriented daily layer on top of the weekly board and Todoist cache. They are read-only diagnostics except for `log_hours` and `set_entry_slot`.
+These tools are the MCP-oriented daily layer on top of the weekly board and Todoist cache. They are read-only diagnostics except for `log_hours`.
 
 | Tool | Input | Output |
 |---|---|---|
-| `today` | `{ date? }` | Logged entries for one day in a single list, each with slot and id, with total tracked and billable hours. |
-| `day_summary` | `{ date? }` | Planned capacity, tracked hours, residual capacity, per-slot block source (`template` or `override`) with the hours of each slot's blocks that tracked work covers and the hours worked in that slot, the day's tracked entries, and extra work by area. |
-| `set_entry_slot` | `{ entryId, slot }` | Moves the entry to another slot, merging with the project's entry already there. |
-| `plan_vs_tracked` | `{ from, to? }` | Per day, slot and area: planned, covered and worked-in-slot hours, extra hours, and totals over the days with reliable slots. |
+| `today` | `{ date? }` | Logged entries for one day, one per project, each with its id, with total tracked and billable hours. |
+| `day_summary` | `{ date? }` | Planned capacity, tracked hours, residual capacity, per-slot block source (`template` or `override`) with the hours of each slot's blocks that tracked work covers, the day's tracked entries, and extra work by area. |
+| `plan_vs_tracked` | `{ from, to? }` | Per day, block slot and area: planned and covered hours. Per day: worked and extra hours. Totals over the range. |
 | `day_free_capacity` | `{ date? }` | Split between capacity still reserved to planned areas and capacity that is truly free after tracked work and imported Todoist tasks. |
 | `day_ready_blocks` | `{ date? }` | AM/PM blocks that still lack enough ready Todoist work, grouped by area and then by Timebox project. |
 | `todoist_imported_tasks` | `{ date? }` | Imported tasks with Todoist project, matched Timebox project, area, slot, due date, estimate, and match status. |
@@ -394,9 +391,8 @@ All `date` inputs use `YYYY-MM-DD` and default to today when omitted.
 ### Output semantics
 
 - `day_summary` reports each slot as `AM [template]` or `PM [override]` to show whether the plan came from the recurring template or from a week-specific override.
-- Each entry has a slot (AM, PM, Sera). There is one entry per project, day and slot. Logging picks the slot automatically: the current one today, otherwise the slot the project already has that day or the area's first planned slot. A wrong slot is corrected afterwards, from Giorno or with `set_entry_slot`.
-- Two per-slot figures, never summed: *covered* spreads an area's hours for the whole day over its planned blocks in slot order (what exceeds the plan is extra), and measures how much of the plan is covered; *worked in slot* counts the entries logged in that slot, and measures when the work happened.
-- Entry slots count from the date the app first opened a database with this version (setting `slotsTrackedSince`). Earlier slots were picked by the app; `plan_vs_tracked` flags those days and leaves them out of its totals.
+- There is one entry per project and day, and entries have no slot. Slots (AM, PM, Sera) belong to planned blocks only.
+- *Covered* spreads an area's hours for the whole day over its planned blocks in slot order (what exceeds the plan is extra): it measures how much of the plan is covered, not when the work happened.
 - `todoist_imported_tasks` and the Todoist-related sections of `day_free_capacity` / `day_mismatches` work from the cached tasks imported into Timebox for that date, not directly from a live Todoist call.
 - `Residual` means planned capacity minus tracked hours for the day.
 - `Available after tracked + tasks` subtracts both tracked work and imported Todoist estimates from planned capacity.
@@ -412,7 +408,7 @@ day_free_capacity({ "date": "2026-06-17" })
 day_ready_blocks({ "date": "2026-06-17" })
 todoist_imported_tasks({ "date": "2026-06-17" })
 day_mismatches({ "date": "2026-06-17" })
-log_hours({ "project": "website", "hours": "2:30", "slot": "pm", "date": "2026-06-17" })
+log_hours({ "project": "website", "hours": "2:30", "date": "2026-06-17" })
 ```
 
 ### Example workflows

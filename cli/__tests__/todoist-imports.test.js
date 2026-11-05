@@ -23,7 +23,6 @@ describe('Todoist import ledger', () => {
       projectId: 'p1',
       date: '2025-05-12',
       hours: 2,
-      slot: 'pm',
       titleSnapshot: 'Task completato',
       note: 'Verificato in revisione',
       importedAt: '2025-05-12T09:00:00.000Z',
@@ -35,7 +34,6 @@ describe('Todoist import ledger', () => {
       projectId: 'p1',
       date: '2025-05-12',
       hours: 2,
-      slot: 'pm',
       titleSnapshot: 'Task completato',
       note: 'Verificato in revisione',
       importedAt: '2025-05-12T09:00:00.000Z',
@@ -64,7 +62,6 @@ describe('Todoist import ledger', () => {
       date: '2025-05-13',
       hours: 1,
       billableHours: null,
-      slot: 'am',
       billed: false,
     });
 
@@ -76,7 +73,6 @@ describe('Todoist import ledger', () => {
         hours: 2,
         titleSnapshot: 'Prima attività',
         importedAt: '2025-05-13T09:00:00.000Z',
-        slot: 'am',
       },
     ]);
     const second = importCompletedTodoistTasks([
@@ -87,7 +83,6 @@ describe('Todoist import ledger', () => {
         hours: 2,
         titleSnapshot: 'Prima attività',
         importedAt: '2025-05-13T09:00:00.000Z',
-        slot: 'am',
       },
       {
         todoistTaskId: 'todoist-3',
@@ -96,17 +91,13 @@ describe('Todoist import ledger', () => {
         hours: 2,
         titleSnapshot: 'Seconda attività',
         importedAt: '2025-05-13T15:00:00.000Z',
-        slot: 'pm',
       },
     ]);
 
     assert.deepEqual(first, { importedCount: 1, importedHours: 2 });
     assert.deepEqual(second, { importedCount: 1, importedHours: 2 });
     const entries = getEntries('2025-05-13', '2025-05-13').filter(entry => entry.projectId === 'p2');
-    assert.equal(entries.length, 2);
-    const bySlot = Object.fromEntries(entries.map(entry => [entry.slot, entry]));
-    assert.equal(bySlot.am.hours, 3);
-    assert.equal(bySlot.pm.hours, 2);
+    assert.deepEqual(entries.map(entry => [entry.id, entry.hours]), [['manual-entry', 5]]);
   });
 
   test('updates an imported task and realigns aggregated entries', () => {
@@ -115,7 +106,6 @@ describe('Todoist import ledger', () => {
       projectId: 'p1',
       date: '2025-05-14',
       hours: 1.5,
-      slot: 'pm',
       titleSnapshot: 'Prima attività corretta',
       note: 'Spostata dopo review',
     });
@@ -124,14 +114,13 @@ describe('Todoist import ledger', () => {
     const updated = getTodoistImports('2025-05-14', '2025-05-14')[0];
     assert.equal(updated.projectId, 'p1');
     assert.equal(updated.hours, 1.5);
-    assert.equal(updated.slot, 'pm');
+    assert.equal('slot' in updated, false);
     assert.equal(updated.note, 'Spostata dopo review');
 
-    const oldEntries = getEntries('2025-05-13', '2025-05-13').filter(entry => entry.projectId === 'p2');
-    const oldAm = oldEntries.find(entry => entry.slot === 'am');
-    assert.equal(oldAm.hours, 1);
+    const oldEntry = getEntries('2025-05-13', '2025-05-13').find(entry => entry.projectId === 'p2');
+    assert.equal(oldEntry.hours, 3);
 
-    const newEntry = getEntries('2025-05-14', '2025-05-14').find(entry => entry.projectId === 'p1' && entry.slot === 'pm');
+    const newEntry = getEntries('2025-05-14', '2025-05-14').find(entry => entry.projectId === 'p1');
     assert.equal(newEntry.hours, 1.5);
   });
 
@@ -141,7 +130,7 @@ describe('Todoist import ledger', () => {
     assert.deepEqual(result, { deleted: true });
     assert.deepEqual(getTodoistImportIds(['todoist-3']), []);
     const entries = getEntries('2025-05-13', '2025-05-13').filter(entry => entry.projectId === 'p2');
-    assert.equal(entries.some(entry => entry.slot === 'pm'), false);
+    assert.deepEqual(entries.map(entry => [entry.id, entry.hours]), [['manual-entry', 1]]);
   });
 
   test('preserves billable override when imported hours are removed', () => {
@@ -151,7 +140,6 @@ describe('Todoist import ledger', () => {
       date: '2025-05-15',
       hours: 3,
       billableHours: 1.5,
-      slot: 'am',
       billed: false,
     });
 
@@ -162,15 +150,14 @@ describe('Todoist import ledger', () => {
       hours: 2,
       titleSnapshot: 'Import con override',
       importedAt: '2025-05-15T09:00:00.000Z',
-      slot: 'am',
     }]);
 
-    let entry = getEntries('2025-05-15', '2025-05-15').find(item => item.projectId === 'p4' && item.slot === 'am');
+    let entry = getEntries('2025-05-15', '2025-05-15').find(item => item.projectId === 'p4');
     assert.equal(entry.hours, 5);
     assert.equal(entry.billableHours, 1.5);
 
     deleteTodoistImport('todoist-4');
-    entry = getEntries('2025-05-15', '2025-05-15').find(item => item.projectId === 'p4' && item.slot === 'am');
+    entry = getEntries('2025-05-15', '2025-05-15').find(item => item.projectId === 'p4');
     assert.equal(entry.hours, 3);
     assert.equal(entry.billableHours, 1.5);
   });

@@ -2,8 +2,7 @@
 
 const { randomUUID } = require('crypto');
 const { getProjects, getClients, getEntries, saveEntry, deleteEntry } = require('../../db/queries');
-const { SLOTS, currentSlot, defaultEntrySlot, fmt, getToday, parseHoursStrict, isDateString } = require('../../lib/domain');
-const { getDaySummaryData } = require('./day-summary');
+const { parseHoursStrict, isDateString } = require('../../lib/domain');
 const { isHourly } = require('../format');
 
 const MAX_DAY_HOURS = 24;
@@ -42,43 +41,23 @@ function findProject(name) {
   return { project, client: clientMap[project.clientId], area: clientMap[project.clientId] };
 }
 
-// Fascia di una registrazione senza fascia indicata. Se il progetto quel giorno ha
-// ore su più fasce non si indovina: si chiede. Oggi, aggiungendo ore, vale la fascia
-// dell'ora corrente; altrimenti quella dell'entry che c'è già, e per un'entry nuova
-// la regola di defaultEntrySlot.
-function resolveLogSlot({ project, dayEntries, date, add }) {
-  const slots = [...new Set(dayEntries.map(e => e.slot))];
-  if (slots.length > 1) {
-    throw new Error(`Ambiguous slot: "${project.name}" has hours in ${slots.join(', ')} on ${date}. Pass slot (am, pm or sera).`);
-  }
-  const isToday = date === fmt(getToday());
-  if (add && isToday) return currentSlot();
-  if (slots.length === 1) return slots[0];
-  const summary = getDaySummaryData(date);
-  return defaultEntrySlot({ isToday, clientId: project.clientId, blocksForSlot: s => summary.slots[s].plannedBlocks });
-}
-
-function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) {
+function logHours({ projectName, hoursStr, billableHoursStr, date, add }) {
   if (!isDateString(date)) throw new Error(`Invalid date "${date}": use YYYY-MM-DD`);
   const { project, client, area } = findProject(projectName);
-  if (slot && !SLOTS.includes(slot)) throw new Error(`Invalid slot "${slot}": use am, pm or sera`);
   const parsed = readHours(hoursStr, 'hours');
   const parsedBillable = billableHoursStr != null ? readHours(billableHoursStr, 'billable hours') : null;
   const isBillable = isHourly(client);
-  const dayEntries = getEntries(date, date).filter(e => e.projectId === project.id);
-  const resolvedSlot = slot || resolveLogSlot({ project, dayEntries, date, add });
-
-  // Una entry per progetto, giorno e fascia: le altre fasce non si toccano.
-  const existing = dayEntries.find(e => e.slot === resolvedSlot) ?? null;
+  // Una entry per progetto e giorno.
+  const existing = getEntries(date, date).find(e => e.projectId === project.id) ?? null;
   const newHours = add && existing ? existing.hours + parsed : parsed;
   if (newHours > MAX_DAY_HOURS) {
-    throw new Error(`Invalid hours: ${newHours}h in one slot is more than ${MAX_DAY_HOURS}h`);
+    throw new Error(`Invalid hours: ${newHours}h in one day is more than ${MAX_DAY_HOURS}h`);
   }
 
   if (newHours === 0) {
     if (existing) {
       deleteEntry(existing.id);
-      return { action: 'deleted', client: client.name, area: area.name, project: project.name, date, slot: resolvedSlot };
+      return { action: 'deleted', client: client.name, area: area.name, project: project.name, date };
     }
     return { action: 'noop', client: client.name, area: area.name, project: project.name, date };
   }
@@ -97,7 +76,6 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
     date,
     hours: newHours,
     billableHours,
-    slot: resolvedSlot,
     billed: existing?.billed || false,
   };
   saveEntry(nextEntry);
@@ -110,7 +88,6 @@ function logHours({ projectName, hoursStr, billableHoursStr, slot, date, add }) 
     hours: newHours,
     billableHours,
     date,
-    slot: resolvedSlot,
   };
 }
 

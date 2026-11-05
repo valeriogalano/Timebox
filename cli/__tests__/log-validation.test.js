@@ -9,8 +9,8 @@ const { parseHoursStrict, isDateString } = require('../../lib/domain');
 
 const DATE = '2020-06-15';
 const log = (hoursStr, extra = {}) =>
-  logHours({ projectName: 'website', hoursStr, slot: 'am', date: DATE, add: false, ...extra });
-const websiteHours = () => getEntries(DATE, DATE).filter(e => e.slot === 'am').map(e => e.hours);
+  logHours({ projectName: 'website', hoursStr, date: DATE, add: false, ...extra });
+const websiteHours = () => getEntries(DATE, DATE).filter(e => e.projectId === 'p1').map(e => e.hours);
 
 describe('parseHoursStrict', () => {
   test('reads every form the app writes or accepts', () => {

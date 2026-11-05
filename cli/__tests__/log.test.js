@@ -36,16 +36,15 @@ describe('logHours', () => {
   before(() => createTestDb());
 
   test('creates a new entry', () => {
-    const result = logHours({ projectName: 'website', hoursStr: '2:30', slot: 'am', date: TEST_DATE, add: false });
+    const result = logHours({ projectName: 'website', hoursStr: '2:30', date: TEST_DATE, add: false });
     assert.equal(result.action, 'created');
     assert.equal(result.hours, 2.5);
-    assert.equal(result.slot, 'am');
     assert.equal(result.project, 'Website Redesign');
   });
 
   test('replaces an existing entry by default', () => {
     // entry for TEST_DATE already exists from previous test
-    const result = logHours({ projectName: 'website', hoursStr: '4', slot: 'am', date: TEST_DATE, add: false });
+    const result = logHours({ projectName: 'website', hoursStr: '4', date: TEST_DATE, add: false });
     assert.equal(result.action, 'updated');
     assert.equal(result.hours, 4);
     const entries = getEntries(TEST_DATE, TEST_DATE);
@@ -55,13 +54,13 @@ describe('logHours', () => {
 
   test('adds to existing hours with --add', () => {
     // existing entry has 4h from previous test
-    const result = logHours({ projectName: 'website', hoursStr: '1', slot: 'am', date: TEST_DATE, add: true });
+    const result = logHours({ projectName: 'website', hoursStr: '1', date: TEST_DATE, add: true });
     assert.equal(result.action, 'updated');
     assert.equal(result.hours, 5);
   });
 
   test('deletes entry when hours === 0', () => {
-    const result = logHours({ projectName: 'website', hoursStr: '0', slot: 'am', date: TEST_DATE, add: false });
+    const result = logHours({ projectName: 'website', hoursStr: '0', date: TEST_DATE, add: false });
     assert.equal(result.action, 'deleted');
     const entries = getEntries(TEST_DATE, TEST_DATE);
     const found = entries.find(e => e.projectId === result.projectId);
@@ -69,24 +68,23 @@ describe('logHours', () => {
   });
 
   test('noop when 0h on non-existing entry', () => {
-    const result = logHours({ projectName: 'website', hoursStr: '0', slot: 'am', date: TEST_DATE, add: false });
+    const result = logHours({ projectName: 'website', hoursStr: '0', date: TEST_DATE, add: false });
     assert.equal(result.action, 'noop');
   });
 
   test('parses decimal hours', () => {
-    const result = logHours({ projectName: 'brand', hoursStr: '1.5', slot: 'pm', date: TEST_DATE, add: false });
+    const result = logHours({ projectName: 'brand', hoursStr: '1.5', date: TEST_DATE, add: false });
     assert.equal(result.hours, 1.5);
   });
 
   test('parses hh:mm hours', () => {
-    const result = logHours({ projectName: 'brand', hoursStr: '1:30', slot: 'pm', date: TEST_DATE, add: false });
+    const result = logHours({ projectName: 'brand', hoursStr: '1:30', date: TEST_DATE, add: false });
     assert.equal(result.hours, 1.5);
   });
 
   test('billableHours override is persisted when provided', () => {
     const result = logHours({
-      projectName: 'website', hoursStr: '4', billableHoursStr: '3:30',
-      slot: 'am', date: '2020-07-01', add: false,
+      projectName: 'website', hoursStr: '4', billableHoursStr: '3:30', date: '2020-07-01', add: false,
     });
     assert.equal(result.hours, 4);
     assert.equal(result.billableHours, 3.5);
@@ -97,20 +95,17 @@ describe('logHours', () => {
 
   test('billableHours override is cleared (=null) when equal to tracked', () => {
     const result = logHours({
-      projectName: 'website', hoursStr: '2', billableHoursStr: '2',
-      slot: 'am', date: '2020-07-02', add: false,
+      projectName: 'website', hoursStr: '2', billableHoursStr: '2', date: '2020-07-02', add: false,
     });
     assert.equal(result.billableHours, null);
   });
 
   test('preserves existing billableHours when not provided', () => {
     logHours({
-      projectName: 'website', hoursStr: '4', billableHoursStr: '3',
-      slot: 'am', date: '2020-07-03', add: false,
+      projectName: 'website', hoursStr: '4', billableHoursStr: '3', date: '2020-07-03', add: false,
     });
     const result = logHours({
-      projectName: 'website', hoursStr: '5',
-      slot: 'am', date: '2020-07-03', add: false,
+      projectName: 'website', hoursStr: '5', date: '2020-07-03', add: false,
     });
     assert.equal(result.hours, 5);
     assert.equal(result.billableHours, 3);
@@ -122,8 +117,7 @@ describe('logHours', () => {
     // entry only via the isBillable branch — covered indirectly by the override case.
     // This is a placeholder for future non-billable seed.
     const result = logHours({
-      projectName: 'website', hoursStr: '3',
-      slot: 'am', date: '2020-07-04', add: false,
+      projectName: 'website', hoursStr: '3', date: '2020-07-04', add: false,
     });
     assert.equal(result.billableHours, null);
   });
@@ -135,8 +129,7 @@ describe('logHours', () => {
     const project = getProjects().find(p => p.clientId === area.id && !p.archived);
 
     const result = logHours({
-      projectName: project.name, hoursStr: '3', billableHoursStr: '2',
-      slot: 'am', date: '2020-07-06', add: false,
+      projectName: project.name, hoursStr: '3', billableHoursStr: '2', date: '2020-07-06', add: false,
     });
     // a fixed-fee area has a fee but no hours to invoice: the override is dropped
     assert.equal(result.billableHours, null);
@@ -146,107 +139,28 @@ describe('logHours', () => {
     const { getClients, getProjects } = require('../../db/queries');
     const area = getClients().find(c => c.billing === 'fixed');
     const project = getProjects().find(p => p.clientId === area.id && !p.archived);
-    saveEntry({ id: 'hidden-billing', projectId: project.id, date: '2020-07-07', hours: 5, billableHours: 3, slot: 'am', billed: true });
+    saveEntry({ id: 'hidden-billing', projectId: project.id, date: '2020-07-07', hours: 5, billableHours: 3, billed: true });
 
-    const result = logHours({ projectName: project.name, hoursStr: '4', slot: 'am', date: '2020-07-07', add: false });
+    const result = logHours({ projectName: project.name, hoursStr: '4', date: '2020-07-07', add: false });
     assert.equal(result.hours, 4);
     assert.equal(result.billableHours, 3);
     const stored = getEntries('2020-07-07', '2020-07-07').find(e => e.id === 'hidden-billing');
     assert.equal(stored.billed, true);
   });
 
-  test('updates only the selected slot when another slot exists', () => {
-    saveEntry({ id: 'slot-am', projectId: 'p1', date: '2020-07-05', hours: 1, billableHours: null, slot: 'am', billed: true });
-
-    const result = logHours({
-      projectName: 'website',
-      hoursStr: '4',
-      billableHoursStr: '3:30',
-      slot: 'pm',
-      date: '2020-07-05',
-      add: false,
-    });
-
-    assert.equal(result.action, 'created');
+  test('one entry per project and day: logging again replaces it, with --add sums', () => {
+    saveEntry({ id: 'day-entry', projectId: 'p1', date: '2020-07-05', hours: 1, billableHours: null, billed: true });
+    const replaced = logHours({ projectName: 'website', hoursStr: '4', date: '2020-07-05', add: false });
+    assert.equal(replaced.action, 'updated');
+    const added = logHours({ projectName: 'website', hoursStr: '1', date: '2020-07-05', add: true });
+    assert.equal(added.hours, 5);
     const entries = getEntries('2020-07-05', '2020-07-05').filter(entry => entry.projectId === 'p1');
-    assert.equal(entries.length, 2);
-    assert.deepEqual(entries.map(entry => [entry.slot, entry.hours, entry.billableHours, entry.billed]).sort(), [
-      ['am', 1, null, true],
-      ['pm', 4, 3.5, false],
-    ]);
-  });
-});
-
-describe('logHours without a slot', () => {
-  const { getProjects, saveWeekOverride } = require('../../db/queries');
-  const { fmt, getToday, currentSlot } = require('../../lib/domain');
-  // Mercoledì 17/6/2020: settimana del 15, giorno 2. L'area di "website" ha un solo
-  // blocco quel giorno, di pomeriggio.
-  const PAST = '2020-06-17';
-  let clientId;
-
-  before(() => {
-    createTestDb();
-    clientId = getProjects().find(p => p.id === 'p1').clientId;
-    for (const slot of ['am', 'pm', 'sera']) {
-      saveWeekOverride({ weekKey: '2020-06-15', dayIndex: 2, slot, blocks: slot === 'pm' ? [{ id: 'b1', clientId, hours: 3 }] : [] });
-    }
+    assert.deepEqual(entries.map(entry => [entry.id, entry.hours, entry.billed]), [['day-entry', 5, true]]);
+    assert.equal('slot' in replaced, false);
   });
 
-  test('a past day goes to the first planned slot of the area, not to the current hour (regression)', () => {
-    const result = logHours({ projectName: 'website', hoursStr: '2', date: PAST, add: false });
-    assert.equal(result.slot, 'pm');
-  });
-
-  test('a past day without a plan for the area goes to am', () => {
-    const result = logHours({ projectName: 'website', hoursStr: '2', date: '2020-06-20', add: false });
-    assert.equal(result.slot, 'am');
-  });
-
-  test('replacing keeps the slot the project already has that day, without a second entry (regression)', () => {
-    saveEntry({ id: 'only-sera', projectId: 'p1', date: '2020-06-18', hours: 1, billableHours: null, slot: 'sera', billed: false });
-    const result = logHours({ projectName: 'website', hoursStr: '3', date: '2020-06-18', add: false });
-    assert.equal(result.action, 'updated');
-    assert.equal(result.slot, 'sera');
-    const entries = getEntries('2020-06-18', '2020-06-18').filter(e => e.projectId === 'p1');
-    assert.deepEqual(entries.map(e => [e.id, e.hours]), [['only-sera', 3]]);
-  });
-
-  test('today a new entry goes to the current slot', () => {
-    const today = fmt(getToday());
-    // a *new* entry: the demo seed may already have hours for this project today,
-    // in a slot of its own, and logHours would then reuse that slot
-    const { project } = findProject('brand');
-    getEntries(today, today).filter(e => e.projectId === project.id).forEach(e => deleteEntry(e.id));
-    const result = logHours({ projectName: 'brand', hoursStr: '1', date: today, add: false });
-    assert.equal(result.slot, currentSlot());
-  });
-
-  test('today, adding hours goes to the current slot even if the project has another one', () => {
-    const today = fmt(getToday());
-    const other = currentSlot() === 'am' ? 'sera' : 'am';
-    saveEntry({ id: 'other-slot', projectId: 'p1', date: today, hours: 1, billableHours: null, slot: other, billed: false });
-    const result = logHours({ projectName: 'website', hoursStr: '0.5', date: today, add: true });
-    assert.equal(result.slot, currentSlot());
-    assert.equal(result.hours, 0.5);
-    const entries = getEntries(today, today).filter(e => e.projectId === 'p1');
-    assert.equal(entries.length, 2);
-  });
-
-  test('a project with hours in more than one slot asks for the slot', () => {
-    saveEntry({ id: 'multi-am', projectId: 'p1', date: '2020-06-19', hours: 1, billableHours: null, slot: 'am', billed: false });
-    saveEntry({ id: 'multi-pm', projectId: 'p1', date: '2020-06-19', hours: 2, billableHours: null, slot: 'pm', billed: false });
-    assert.throws(
-      () => logHours({ projectName: 'website', hoursStr: '1', date: '2020-06-19', add: false }),
-      /Ambiguous slot: .* am, pm .*Pass slot/,
-    );
-    assert.throws(() => logHours({ projectName: 'website', hoursStr: '1', date: '2020-06-19', add: true }), /Ambiguous slot/);
-    const result = logHours({ projectName: 'website', hoursStr: '0', slot: 'pm', date: '2020-06-19', add: false });
-    assert.equal(result.action, 'deleted');
-    assert.equal(getEntries('2020-06-19', '2020-06-19').filter(e => e.projectId === 'p1').length, 1);
-  });
-
-  test('rejects an unknown slot', () => {
-    assert.throws(() => logHours({ projectName: 'website', hoursStr: '1', slot: 'night', date: PAST, add: false }), /Invalid slot/);
+  test('more than 24h in one day is an error and writes nothing', () => {
+    assert.throws(() => logHours({ projectName: 'website', hoursStr: '20', date: '2020-07-05', add: true }), /more than 24h/);
+    assert.equal(getEntries('2020-07-05', '2020-07-05').find(e => e.id === 'day-entry').hours, 5);
   });
 });

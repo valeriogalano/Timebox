@@ -36,19 +36,18 @@ program
 program
   .command('log <project> <hours>')
   .description('Log hours to a project')
-  .option('--slot <slot>', 'Time slot: am, pm or sera (default: current slot today, else the slot already used or the first planned one)')
   .option('--date <date>', 'Date YYYY-MM-DD (default: today)')
   .option('--add', 'Add to existing hours instead of replacing')
   .option('--json', 'Output JSON')
   .action((project, hours, opts) => {
     run(() => {
       const date = opts.date || fmt(getToday());
-      const result = logHours({ projectName: project, hoursStr: hours, slot: opts.slot, date, add: opts.add });
+      const result = logHours({ projectName: project, hoursStr: hours, date, add: opts.add });
       if (opts.json) {
         process.stdout.write(JSON.stringify(result) + '\n');
         return;
       }
-      const { action, area, client, project: proj, hours: h, slot } = result;
+      const { action, area, client, project: proj, hours: h } = result;
       const areaLabel = area || client;
       if (action === 'deleted') {
         console.log(`✓ Deleted entry for ${areaLabel} › ${proj} on ${date}`);
@@ -56,7 +55,7 @@ program
         console.log(`Nothing to do (0h on a non-existing entry).`);
       } else {
         const verb = action === 'created' ? 'Logged' : 'Updated';
-        console.log(`✓ ${verb} ${fmtH(h)} on ${areaLabel} › ${proj} [${slot}] ${date}`);
+        console.log(`✓ ${verb} ${fmtH(h)} on ${areaLabel} › ${proj} ${date}`);
       }
     });
   });

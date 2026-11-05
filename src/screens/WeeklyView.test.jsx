@@ -40,13 +40,13 @@ describe('WeeklyView / avviso sul limite settimanale previsto', () => {
   });
 });
 
-describe('WeeklyView / fasce nella cella del giorno', () => {
-  const client = { id: 'c1', name: 'Area uno', color: '#4073ff', billing: 'none', limitType: 'none' };
+describe('WeeklyView / la cella del giorno ha solo ore', () => {
+  const client = { id: 'c1', name: 'Area uno', color: '#4073ff', billing: 'hourly', limitType: 'none' };
   const monday = fmt(getMondayOfWeek(addDays(getToday(), 7)));
-  const entry = (id, slot, hours) => ({ id, projectId: 'p1', date: monday, hours, billableHours: null, slot, billed: false });
+  const entry = (id, hours, extra = {}) => ({ id, projectId: 'p1', date: monday, hours, billableHours: null, billed: false, ...extra });
 
   function setup(entries) {
-    const calls = { saved: [], moved: [] };
+    const calls = { saved: [], deleted: [] };
     window.api = {
       getEntries: () => Promise.resolve(entries),
       getWeekOverrides: () => Promise.resolve([]),
@@ -56,34 +56,46 @@ describe('WeeklyView / fasce nella cella del giorno', () => {
       getProjectBillableTotals: () => Promise.resolve({}),
       syncTodoist: () => Promise.resolve({ byDate: {} }),
       saveEntry: e => { calls.saved.push(e); return Promise.resolve(); },
-      deleteEntry: () => Promise.resolve(),
-      moveEntrySlot: (id, slot) => { calls.moved.push([id, slot]); return Promise.resolve({}); },
+      deleteEntry: id => { calls.deleted.push(id); return Promise.resolve(); },
     };
     return calls;
   }
 
-  test('una cella con ore su due fasce mostra M·P e apre il popover; cambiare fascia sposta', async () => {
-    const calls = setup([entry('e1', 'am', 1), entry('e2', 'pm', 2)]);
-    const { findByText, findByRole, findAllByLabelText } = renderWeek(client);
-    fireEvent.click(await findByText('M·P'));
-    await findByRole('dialog');
-    const selects = await findAllByLabelText('Fascia di Progetto uno');
-    expect(selects.map(s => s.value)).toEqual(['am', 'pm']);
-    fireEvent.change(selects[1], { target: { value: 'sera' } });
-    await waitFor(() => expect(calls.moved).toEqual([['e2', 'sera']]));
-  });
-
-  test('"+pom" in una cella con una sola entry la sposta: stesso id, nuova fascia', async () => {
-    const calls = setup([entry('e1', 'am', 2)]);
-    const { findByText, container } = renderWeek(client);
-    await findByText('M');
-    const cell = [...container.querySelectorAll('[data-timecell]')].find(c => c.textContent.includes('2h'));
+  const cellWith = (container, text) => [...container.querySelectorAll('[data-timecell]')].find(c => c.textContent.includes(text));
+  const type = (cell, value) => {
     fireEvent.click(cell);
     const input = cell.querySelector('input');
-    fireEvent.change(input, { target: { value: '+pom' } });
+    fireEvent.change(input, { target: { value } });
     fireEvent.keyDown(input, { key: 'Enter' });
+  };
+
+  test('scrivere ore aggiorna l\'entry del giorno: stesso id, fatturato conservato, nessuna fascia', async () => {
+    const calls = setup([entry('e1', 2, { billed: true })]);
+    const { container } = renderWeek(client);
+    const cell = await waitFor(() => cellWith(container, '2h') ?? Promise.reject(new Error('cell')));
+    type(cell, '3h');
     await waitFor(() => expect(calls.saved).toHaveLength(1));
-    expect(calls.saved[0]).toMatchObject({ id: 'e1', slot: 'pm', hours: 2 });
+    expect(calls.saved[0]).toEqual({ id: 'e1', projectId: 'p1', date: monday, hours: 3, billableHours: null, billed: true });
+  });
+
+  test('zero ore cancella l\'entry', async () => {
+    const calls = setup([entry('e1', 2)]);
+    const { container } = renderWeek(client);
+    const cell = await waitFor(() => cellWith(container, '2h') ?? Promise.reject(new Error('cell')));
+    type(cell, '0');
+    await waitFor(() => expect(calls.deleted).toEqual(['e1']));
+  });
+
+  test('il reset delle ore fatturabili riporta l\'override al lavorato', async () => {
+    localStorage.setItem('timebox-timesheet-view', 'billable');
+    const calls = setup([entry('e1', 2, { billableHours: 1 })]);
+    const { findByTitle, container } = renderWeek(client);
+    const cell = await waitFor(() => cellWith(container, '1h') ?? Promise.reject(new Error('cell')));
+    fireEvent.mouseEnter(cell);
+    fireEvent.click(await findByTitle('Resetta override · usa il valore tracciato'));
+    await waitFor(() => expect(calls.saved).toHaveLength(1));
+    expect(calls.saved[0]).toMatchObject({ id: 'e1', hours: 2, billableHours: null });
+    localStorage.removeItem('timebox-timesheet-view');
   });
 });
 
@@ -91,7 +103,7 @@ describe('WeeklyView / avvisi dei progetti: gli archiviati non ne generano', () 
   const client = { id: 'c1', name: 'Area uno', color: '#4073ff', billing: 'none', limitType: 'none' };
   const monday = fmt(getMondayOfWeek(addDays(getToday(), 7)));
   const prj = (id, name, extra = {}) => ({ id, clientId: 'c1', name, budgetHours: 10, weeklyHours: 5, ...extra });
-  const entry = (id, projectId) => ({ id, projectId, date: monday, hours: 6, billableHours: null, slot: 'am', billed: false });
+  const entry = (id, projectId) => ({ id, projectId, date: monday, hours: 6, billableHours: null, billed: false });
 
   beforeEach(() => {
     window.api = {

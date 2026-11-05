@@ -34,7 +34,6 @@ function getWeekData(today, offset = 0) {
         const isBillable = isHourly(client);
         return {
           id: e.id,
-          slot: e.slot,
           hours: e.hours,
           billableHours: e.billableHours ?? null,
           project: project?.name || e.projectId,

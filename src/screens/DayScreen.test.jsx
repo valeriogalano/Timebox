@@ -62,47 +62,48 @@ describe('DayScreen / Blocchi pianificati senza azioni', () => {
   });
 });
 
-describe('DayScreen / Ore per fascia', () => {
+describe('DayScreen / Ore', () => {
   const clients = [{ id: 'c1', name: 'Area', color: '#888', billing: 'none' }];
-  const projects = [{ id: 'p1', clientId: 'c1', name: 'Progetto' }];
+  const projects = [{ id: 'p1', clientId: 'c1', name: 'Progetto' }, { id: 'p2', clientId: 'c1', name: 'Altro' }];
 
-  test('una riga per fascia, e cambiare la fascia sposta l\'entry', async () => {
+  test('una riga per progetto, senza fascia; scrivere ore aggiorna l\'entry del giorno', async () => {
     mockApi(0);
-    const entries = [
-      { id: 'e2', projectId: 'p1', date: 'x', hours: 1, billableHours: null, slot: 'pm', billed: false },
-      { id: 'e1', projectId: 'p1', date: 'x', hours: 2, billableHours: null, slot: 'am', billed: false },
-    ];
-    const moves = [];
-    window.api.getEntries = () => Promise.resolve(entries);
-    window.api.moveEntrySlot = (id, slot) => { moves.push([id, slot]); return Promise.resolve({}); };
-    const { findByText, findAllByLabelText } = render(
-      <DayScreen projects={projects} clients={clients} slotCapacity={{ am: 5, pm: 4, sera: 2 }} />
-    );
-    fireEvent.click(await findByText('Ore'));
-    const selects = await findAllByLabelText('Fascia di Progetto');
-    expect(selects.map(s => s.value)).toEqual(['am', 'pm']);
-    fireEvent.change(selects[1], { target: { value: 'sera' } });
-    await waitFor(() => expect(moves).toEqual([['e2', 'sera']]));
-  });
-  test('il + aggiunge una riga in una fascia nuova e salva lì le ore', async () => {
-    mockApi(0);
-    const entries = [{ id: 'e1', projectId: 'p1', date: 'x', hours: 2, billableHours: null, slot: 'am', billed: false }];
+    const entries = [{ id: 'e1', projectId: 'p1', date: 'x', hours: 2, billableHours: null, billed: true }];
     const saved = [];
     window.api.getEntries = () => Promise.resolve(entries);
     window.api.saveEntry = e => { saved.push(e); return Promise.resolve({}); };
-    const { findByText, findByLabelText, findAllByLabelText, getByLabelText, findByPlaceholderText } = render(
+    const { findByText, container, queryByLabelText } = render(
       <DayScreen projects={projects} clients={clients} slotCapacity={{ am: 5, pm: 4, sera: 2 }} />
     );
     fireEvent.click(await findByText('Ore'));
-    const plus = await findByLabelText(/Aggiungi ore di Progetto/);
-    expect([...plus.options].map(o => o.value)).toEqual(['', 'pm', 'sera']);
-    fireEvent.change(plus, { target: { value: 'pm' } });
-    // la riga nuova mostra la sua fascia e una cella vuota; la riga di Mattina resta com'è
-    expect(await findByText('Pomeriggio', { selector: 'span' })).toBeInTheDocument();
-    // la riga nuova si apre già in modifica, con il campo pronto per le ore
-    expect(await findByPlaceholderText('1h 30m')).toBeInTheDocument();
-    expect((await findAllByLabelText('Fascia di Progetto')).map(s => s.value)).toEqual(['am']);
-    // il + ora offre solo Sera
-    expect([...getByLabelText(/Aggiungi ore di Progetto/).options].map(o => o.value)).toEqual(['', 'sera']);
+    await findByText('Altro');
+    expect(queryByLabelText('Fascia di Progetto')).not.toBeInTheDocument();
+    const cells = container.querySelectorAll('[data-timecell]');
+    expect(cells).toHaveLength(2);
+    const cell = [...cells].find(c => c.textContent.includes('2h'));
+    fireEvent.click(cell);
+    const input = cell.querySelector('input');
+    fireEvent.change(input, { target: { value: '3' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(saved[0]).toEqual({ ...entries[0], hours: 3 });
+  });
+
+  test('a zero ore l\'entry si cancella', async () => {
+    mockApi(0);
+    const deleted = [];
+    window.api.getEntries = () => Promise.resolve([{ id: 'e1', projectId: 'p1', date: 'x', hours: 2, billableHours: null, billed: false }]);
+    window.api.deleteEntry = id => { deleted.push(id); return Promise.resolve(); };
+    const { findByText, container } = render(
+      <DayScreen projects={projects} clients={clients} slotCapacity={{ am: 5, pm: 4, sera: 2 }} />
+    );
+    fireEvent.click(await findByText('Ore'));
+    await findByText('Altro');
+    const cell = [...container.querySelectorAll('[data-timecell]')].find(c => c.textContent.includes('2h'));
+    fireEvent.click(cell);
+    const input = cell.querySelector('input');
+    fireEvent.change(input, { target: { value: '0' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(deleted).toEqual(['e1']));
   });
 });

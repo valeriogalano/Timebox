@@ -70,7 +70,7 @@ function respondError(id, code, message) {
 const TOOLS = [
   {
     name: 'today',
-    description: 'Get hours logged in Timebox for a given day, one line per entry with its slot, project, area and entry id (use the id with set_entry_slot).',
+    description: 'Get hours logged in Timebox for a given day, one line per project with its area and entry id.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -80,7 +80,7 @@ const TOOLS = [
   },
   {
     name: 'day_summary',
-    description: 'Get the daily Timebox summary for a day: planned blocks per slot from template/override, two tracked figures per slot, the tracked entries of the day with their slot, residual capacity and extra work. "Covered" spreads the area\'s hours of the whole day over its blocks in order (how much of the plan is covered, whatever slot the work happened in); "worked in slot" counts the entries logged in that slot (when the work happened). The two are separate measures and are not summed.',
+    description: 'Get the daily Timebox summary for a day: planned blocks per slot from template/override, the hours covering each slot, the tracked entries of the day (one per project), residual capacity and extra work. Logged hours have no slot: "covered" spreads the area\'s hours of the whole day over its blocks in order (how much of the plan is covered).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -130,7 +130,7 @@ const TOOLS = [
   },
   {
     name: 'week',
-    description: 'Get the weekly summary of logged hours in Timebox, day by day, with each day\'s entries and their slot.',
+    description: 'Get the weekly summary of logged hours in Timebox, day by day, with each day\'s entries.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -152,7 +152,7 @@ const TOOLS = [
   },
   {
     name: 'entries',
-    description: 'List the single logged entries (the Registro screen) in a date range, with optional area and project filters, plus worked and billable totals by area and by project. Each entry shows its slot and id (use the id with set_entry_slot). Slots of entries before the slot tracking start date were picked automatically and do not say when the work happened. Use it to review several weeks in one call.',
+    description: 'List the single logged entries (the Registro screen) in a date range, with optional area and project filters, plus worked and billable totals by area and by project. Each entry shows its id. Use it to review several weeks in one call.',
     inputSchema: {
       type: 'object',
       required: ['from'],
@@ -176,7 +176,7 @@ const TOOLS = [
   },
   {
     name: 'log_hours',
-    description: 'Log hours on a Timebox project. There is one entry per project, day and slot: it replaces the hours of that slot unless add=true, and leaves the other slots alone. Without slot, a project that already has hours in more than one slot that day is an error asking for the slot.',
+    description: 'Log hours on a Timebox project. There is one entry per project and day: it replaces that day\'s hours unless add=true.',
     inputSchema: {
       type: 'object',
       required: ['project', 'hours'],
@@ -184,27 +184,14 @@ const TOOLS = [
         project: { type: 'string', description: 'Project name (partial match, must be unambiguous)' },
         hours: { type: 'string', description: 'Hours to log, 0 to 24 — "2", "2.5", "2:30" or "2h 30m". "0" deletes the entry; any other text is an error.' },
         billable_hours: { type: 'string', description: 'Billable hours override (optional, hourly areas only: ignored elsewhere). Same format as hours. When omitted, the billable hours already stored on that entry are kept; on a new entry they equal the hours.' },
-        slot: { type: 'string', enum: ['am', 'pm', 'sera'], description: 'Time slot. Default: today with add=true, the current slot; otherwise the slot the project already has that day; for a new entry the current slot today and the area\'s first planned slot (else am) on other days.' },
         date: { type: 'string', description: 'Date in YYYY-MM-DD format (default: today)' },
         add: { type: 'boolean', description: 'Add to existing hours instead of replacing (default: false)' },
       },
     },
   },
   {
-    name: 'set_entry_slot',
-    description: 'Correct the slot (am, pm, sera) of one logged entry, when the hours were logged in a slot other than the one the work happened in. If the same project already has an entry in the target slot that day, the two merge: hours and billable hours are summed, billed only if both were.',
-    inputSchema: {
-      type: 'object',
-      required: ['entryId', 'slot'],
-      properties: {
-        entryId: { type: 'string', description: 'Entry id, as shown by entries, today or week' },
-        slot: { type: 'string', enum: ['am', 'pm', 'sera'], description: 'Slot the work happened in' },
-      },
-    },
-  },
-  {
     name: 'plan_vs_tracked',
-    description: 'Compare the plan with the real day, per day, slot and area, over a date range: planned hours (template + overrides), hours covered by block filling (how much of the plan is covered, whatever slot), hours worked in that slot (from the entries\' slot), extra hours outside the plan, and range totals. Days before the slot tracking start date are flagged as unreliable and left out of the totals.',
+    description: 'Compare the plan with the real day, per day, slot and area, over a date range: planned hours (template + overrides) and hours covered by block filling (how much of the plan is covered). Per day: hours worked and extra hours outside the plan. Plus range totals.',
     inputSchema: {
       type: 'object',
       required: ['from'],
@@ -331,7 +318,7 @@ const TOOLS = [
   },
   {
     name: 'merge_project_entries',
-    description: 'Move all logged entries from one project into another (summing hours and billable hours on the same day+slot; a merged entry is billed only if both were). Their Todoist import records move along. By default the source project is then DELETED and this is not reversible. Pass deleteSource: false to keep the source project (left at 0h) when you want to preserve a record of it — archive it afterwards with update_project.',
+    description: 'Move all logged entries from one project into another (summing hours and billable hours on the same day; a merged entry is billed only if both were). Their Todoist import records move along. By default the source project is then DELETED and this is not reversible. Pass deleteSource: false to keep the source project (left at 0h) when you want to preserve a record of it — archive it afterwards with update_project.',
     inputSchema: {
       type: 'object',
       required: ['fromId', 'toId'],
@@ -470,7 +457,7 @@ async function callTool(name, args) {
     const qs = args.date ? `?date=${encodeURIComponent(args.date)}` : '';
     const d = await httpRequest(`/today${qs}`);
     const lines = [`Date: ${d.date}\n`];
-    for (const e of d.entries) lines.push(`  ${e.slot} ${e.project} [${e.area}]: ${fmtBillable(e.hours, e.isBillable ? e.billableHours : null)} (id ${e.id})`);
+    for (const e of d.entries) lines.push(`  ${e.project} [${e.area}]: ${fmtBillable(e.hours, e.isBillable ? e.billableHours : null)} (id ${e.id})`);
     const total = d.total || 0;
     const totalBillable = d.totalBillable ?? null;
     lines.push(`\nTotal: ${fmtBillable(total, totalBillable !== null && Math.abs(totalBillable - total) > 0.001 ? totalBillable : null)}`);
@@ -491,17 +478,13 @@ async function callTool(name, args) {
 
     for (const slot of SLOTS) {
       const slotData = d.slots[slot];
-      lines.push(`${slot.toUpperCase()} [${slotData.source}]: planned ${slotData.plannedCapacity}h, covered by tracked hours ${slotData.trackedHours}h, worked in slot ${slotData.actualHours ?? 0}h`);
+      lines.push(`${slot.toUpperCase()} [${slotData.source}]: planned ${slotData.plannedCapacity}h, covered by tracked hours ${slotData.trackedHours}h`);
       if (slotData.plannedBlocks.length) {
         for (const block of slotData.plannedBlocks) {
           lines.push(`  plan ${block.area}: ${block.hours}h`);
         }
       } else {
         lines.push('  plan none');
-      }
-      const areaOf = Object.fromEntries(d.trackedEntries.map(e => [e.clientId, e.area]));
-      for (const [clientId, hours] of Object.entries(slotData.actualByArea || {})) {
-        lines.push(`  worked ${areaOf[clientId] || '?'}: ${hours}h`);
       }
 
       lines.push('');
@@ -510,7 +493,7 @@ async function callTool(name, args) {
     lines.push('Tracked entries:');
     if (d.trackedEntries.length) {
       for (const entry of d.trackedEntries) {
-        lines.push(`  ${entry.slot} ${entry.project} [${entry.area}]: ${fmtBillable(entry.hours, entry.billableHours)} (id ${entry.id})`);
+        lines.push(`  ${entry.project} [${entry.area}]: ${fmtBillable(entry.hours, entry.billableHours)} (id ${entry.id})`);
       }
     } else {
       lines.push('  none');
@@ -726,7 +709,7 @@ async function callTool(name, args) {
         ? ` (${totalBill}h fatt.)`
         : '';
       lines.push(`  ${label}: ${total}h${billLabel}`);
-      for (const e of day.entries || []) lines.push(`    ${e.slot} ${e.project} [${e.area}]: ${e.hours}h (id ${e.id})`);
+      for (const e of day.entries || []) lines.push(`    ${e.project} [${e.area}]: ${e.hours}h (id ${e.id})`);
     }
     const total = d.total || 0;
     const totBill = d.totalBillable ?? null;
@@ -760,11 +743,9 @@ async function callTool(name, args) {
     for (const key of ['from', 'to', 'area', 'project']) if (args[key]) params.set(key, args[key]);
     const d = await httpRequest(`/entries?${params}`);
     if (!d.entries.length) return `No entries from ${d.from} to ${d.to}.`;
-    const since = d.slotsTrackedSince;
     return [
       `Entries from ${d.from} to ${d.to}:`,
-      since ? `Slots are real data from ${since}; earlier ones were picked automatically.` : 'Slot tracking start date not set: slots were picked automatically.',
-      ...d.entries.map(e => `${e.date} ${e.slot}  ${e.project} [${e.area}]: ${fmtBillable(e.hours, e.billableHours)} (id ${e.id})`),
+      ...d.entries.map(e => `${e.date}  ${e.project} [${e.area}]: ${fmtBillable(e.hours, e.billableHours)} (id ${e.id})`),
       '',
       'By area:',
       ...d.byArea.map(a => `  ${a.area}: ${fmtBillable(a.hours, a.billableHours)}`),
@@ -816,7 +797,6 @@ async function callTool(name, args) {
     const body = {
       project: args.project,
       hours: String(args.hours),
-      slot: args.slot || undefined,
       date: args.date || undefined,
       add: !!args.add,
     };
@@ -825,41 +805,31 @@ async function callTool(name, args) {
     const billPart = d.billableHours != null && Math.abs(d.billableHours - d.hours) > 0.001
       ? ` (${d.billableHours}h fatt.)` : '';
     if (d.action === 'noop') return `noop: no entry to delete on "${d.project}" (${d.date})`;
-    if (d.action === 'deleted') return `deleted: entry of "${d.project}" (${d.date}, ${d.slot})`;
-    return `${d.action}: ${d.hours}h${billPart} on "${d.project}" (${d.date}, ${d.slot})`;
-  }
-
-  if (name === 'set_entry_slot') {
-    const d = await httpRequest(`/entries/${encodeURIComponent(args.entryId)}`, 'PATCH', { slot: args.slot });
-    const e = d.entry;
-    return d.merged
-      ? `Moved to ${e.slot} and merged with the entry already there: now ${fmtBillable(e.hours, e.billableHours)} (${e.date}, id ${e.id}).`
-      : `Entry ${e.id} (${e.date}, ${e.hours}h) is now in ${e.slot}.`;
+    if (d.action === 'deleted') return `deleted: entry of "${d.project}" (${d.date})`;
+    return `${d.action}: ${d.hours}h${billPart} on "${d.project}" (${d.date})`;
   }
 
   if (name === 'plan_vs_tracked') {
     const params = new URLSearchParams({ from: args.from });
     if (args.to) params.set('to', args.to);
     const d = await httpRequest(`/plan-vs-tracked?${params}`);
-    const lines = [`Plan vs tracked from ${d.from} to ${d.to}`];
-    if (d.warning) lines.push(`Warning: ${d.warning}`);
-    lines.push('');
+    const lines = [`Plan vs tracked from ${d.from} to ${d.to}`, ''];
     for (const day of d.days) {
-      lines.push(`${day.date}${day.slotReliable ? '' : ' (slots not reliable)'}: planned ${day.plannedHours}h, covered ${day.coveredHours}h, worked ${day.trackedHours}h, extra ${day.extraHours}h`);
+      lines.push(`${day.date}: planned ${day.plannedHours}h, covered ${day.coveredHours}h, worked ${day.trackedHours}h, extra ${day.extraHours}h`);
       for (const s of day.slots) {
         if (!s.areas.length) continue;
-        lines.push(`  ${s.slot.toUpperCase()}: planned ${s.plannedHours}h, covered ${s.coveredHours}h, worked in slot ${s.trackedHours}h`);
+        lines.push(`  ${s.slot.toUpperCase()}: planned ${s.plannedHours}h, covered ${s.coveredHours}h`);
         for (const a of s.areas) {
-          lines.push(`    ${a.area}: planned ${a.plannedHours}h, covered ${a.coveredHours}h, worked in slot ${a.trackedHours}h (${a.deltaHours >= 0 ? '+' : ''}${a.deltaHours}h)`);
+          lines.push(`    ${a.area}: planned ${a.plannedHours}h, covered ${a.coveredHours}h`);
         }
       }
       for (const x of day.extra) lines.push(`  extra ${x.area}: ${x.hours}h`);
     }
     const t = d.totals;
-    lines.push('', `Totals (reliable days only): planned ${t.plannedHours}h, covered ${t.coveredHours}h, worked ${t.trackedHours}h, extra ${t.extraHours}h`);
+    lines.push('', `Totals: planned ${t.plannedHours}h, covered ${t.coveredHours}h, worked ${t.trackedHours}h, extra ${t.extraHours}h`);
     for (const slot of SLOTS) {
       const s = t.bySlot[slot];
-      lines.push(`  ${slot.toUpperCase()}: planned ${s.plannedHours}h, covered ${s.coveredHours}h, worked in slot ${s.trackedHours}h`);
+      lines.push(`  ${slot.toUpperCase()}: planned ${s.plannedHours}h, covered ${s.coveredHours}h`);
     }
     return lines.join('\n');
   }

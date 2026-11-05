@@ -1,13 +1,12 @@
 'use strict';
 
-// Pagina mobile di Timebox: le ore lavorate di una giornata, per progetto e per fascia.
-// Parla solo con il Mac che la serve (tre rotte, token nell'intestazione).
+// Pagina mobile di Timebox: le ore lavorate di una giornata, per progetto.
+// Parla solo con il Mac che la serve (due rotte, token nell'intestazione).
 // Tutto il testo passa da textContent: niente HTML costruito da dati.
-// Fascia e ore sono menu nativi: su iPhone si aprono come ruota, senza pulsanti.
+// Le ore sono un menu nativo: su iPhone si apre come ruota, senza pulsanti.
 
 const STEP = 0.25;                 // la ruota delle ore va a passi di 15 minuti
-const MAX_HOURS = 12;              // per fascia; un valore già salvato oltre il limite resta
-const SLOTS = { am: 'Mattina', pm: 'Pomeriggio', sera: 'Sera' };
+const MAX_HOURS = 12;              // un valore già salvato oltre il limite resta
 
 // Il token arriva nel frammento del link (#...), che il browser non manda al server.
 // Resta nell'indirizzo di proposito: "Aggiungi a Home" su iOS salva l'indirizzo
@@ -58,43 +57,22 @@ async function api(path, options = {}) {
 }
 
 function renderTotals() {
-  const tracked = data.areas.reduce((s, a) => s + a.projects.reduce((t, p) => t + p.rows.reduce((u, r) => u + r.hours, 0), 0), 0);
+  const tracked = data.areas.reduce((s, a) => s + a.projects.reduce((t, p) => t + p.hours, 0), 0);
   $('totals').textContent = `${fmtH(tracked)} lavorate · ${fmtH(data.plannedHours)} pianificate`;
 }
 
 const option = (value, text) => Object.assign(document.createElement('option'), { value, textContent: text });
 
-// Una riga per fascia con ore. Un progetto senza ore ne ha una vuota, nella fascia in cui
-// finirebbero ore nuove; `saved` dice se la riga esiste sul Mac.
-function buildRows(project) {
-  project.rows = project.entries.length
-    ? project.entries.map(e => ({ slot: e.slot, hours: e.hours, saved: true }))
-    : [{ slot: project.defaultSlot, hours: 0, saved: false }];
-}
-
-function hoursSelect(project, row, onChange) {
+function hoursSelect(project, onChange) {
   const select = document.createElement('select');
-  select.className = row.hours ? 'hours' : 'hours zero';
-  select.setAttribute('aria-label', `Ore di ${project.name}, ${SLOTS[row.slot]}`);
+  select.className = project.hours ? 'hours' : 'hours zero';
+  select.setAttribute('aria-label', `Ore di ${project.name}`);
   const values = Array.from({ length: MAX_HOURS / STEP + 1 }, (_, i) => i * STEP);
   // Un valore fuori passo (20 minuti da Todoist) compare comunque: non si arrotonda in silenzio.
-  if (!values.some(v => Math.abs(v - row.hours) < 0.001)) values.push(row.hours);
+  if (!values.some(v => Math.abs(v - project.hours) < 0.001)) values.push(project.hours);
   for (const v of values.sort((a, b) => a - b)) select.append(option(String(v), fmtH(v)));
-  select.value = String(row.hours);
+  select.value = String(project.hours);
   select.addEventListener('change', () => onChange(Number(select.value)));
-  return select;
-}
-
-function slotSelect(project, row, onChange) {
-  const select = document.createElement('select');
-  select.setAttribute('aria-label', `Fascia di ${project.name}`);
-  for (const [slot, label] of Object.entries(SLOTS)) {
-    // Una fascia dove il progetto ha già ore: scegliendola le ore si sommano.
-    const taken = slot !== row.slot && project.rows.some(r => r.slot === slot);
-    select.append(option(slot, taken ? `${label} (somma)` : label));
-  }
-  select.value = row.slot;
-  select.addEventListener('change', () => onChange(select.value));
   return select;
 }
 
@@ -106,65 +84,27 @@ function projectBox(project) {
     const name = document.createElement('div');
     name.className = 'name';
     name.textContent = project.name;
-    const lines = project.rows.map(row => {
-      const line = document.createElement('div');
-      line.className = 'row';
-      line.append(slotSelect(project, row, to => moveRow(row, to, line)), hoursSelect(project, row, hours => setHours(row, hours, line)));
-      return line;
-    });
-    const free = Object.keys(SLOTS).filter(slot => !project.rows.some(r => r.slot === slot));
-    const add = document.createElement('select');
-    add.className = 'add';
-    add.setAttribute('aria-label', `Aggiungi ore di ${project.name} in un'altra fascia`);
-    add.append(option('', '+ fascia'), ...free.map(slot => option(slot, SLOTS[slot])));
-    add.addEventListener('change', () => {
-      project.rows.push({ slot: add.value, hours: 0, saved: false });
-      paint();
-    });
-    box.replaceChildren(name, ...lines, ...(free.length ? [add] : []));
+    box.replaceChildren(name, hoursSelect(project, setHours));
     renderTotals();
   }
 
-  async function setHours(row, hours, line) {
-    const before = row.hours;
-    row.hours = hours;
+  async function setHours(hours) {
+    const before = project.hours;
+    project.hours = hours;
     renderTotals();
-    line.classList.add('saving');
+    box.classList.add('saving');
     try {
       const saved = await api('/api/hours', {
         method: 'PUT',
-        body: JSON.stringify({ projectId: project.id, date: data.date, clock: clock(hours), slot: row.slot }),
+        body: JSON.stringify({ projectId: project.id, date: data.date, clock: clock(hours) }),
       });
-      row.hours = saved.hours;
-      row.saved = saved.hours > 0;
+      project.hours = saved.hours;
       say('');
     } catch (err) {
-      row.hours = before;
+      project.hours = before;
       say(`${project.name}: ore non salvate. ${err.message}`);
     }
-    paint();
-  }
-
-  // Le ore già salvate si spostano sul Mac; una riga vuota esiste solo qui.
-  async function moveRow(row, to, line) {
-    const other = project.rows.find(r => r !== row && r.slot === to);
-    if (row.saved) {
-      line.classList.add('saving');
-      try {
-        await api('/api/slot', { method: 'PUT', body: JSON.stringify({ projectId: project.id, date: data.date, from: row.slot, to }) });
-        say('');
-      } catch (err) {
-        say(`${project.name}: fascia non cambiata. ${err.message}`);
-        return paint();
-      }
-    }
-    if (other) {
-      other.hours += row.hours;
-      other.saved = other.saved || row.saved;
-      project.rows = project.rows.filter(r => r !== row);
-    } else {
-      row.slot = to;
-    }
+    box.classList.remove('saving');
     paint();
   }
 
@@ -208,7 +148,6 @@ function renderPlan() {
 }
 
 function render() {
-  for (const area of data.areas) area.projects.forEach(buildRows);   // i totali leggono le righe di tutti
   renderPlan();
   const areas = $('areas');
   areas.replaceChildren();
