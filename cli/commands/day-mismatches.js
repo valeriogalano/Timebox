@@ -3,7 +3,7 @@
 const { getDaySummaryData } = require('./day-summary');
 const { getImportedTodoistTasksData } = require('./todoist-imported');
 
-const { SLOTS, normalizeSlot } = require('../../lib/domain');
+const { SLOTS, normalizeSlot, isSlotOver } = require('../../lib/domain');
 
 function roundHours(hours) {
   return Math.round((hours + Number.EPSILON) * 100) / 100;
@@ -21,7 +21,7 @@ function taskLabel(task) {
   return task.title || task.todoistProject || task.id || '(untitled)';
 }
 
-function getDayMismatchesData(date) {
+function getDayMismatchesData(date, now = new Date()) {
   const summary = getDaySummaryData(date);
   const imported = getImportedTodoistTasksData(date);
   const tasks = imported.tasks || [];
@@ -113,6 +113,7 @@ function getDayMismatchesData(date) {
 
   const blocksWithoutReadyTasks = [];
   for (const [key, planned] of plannedByAreaSlot.entries()) {
+    if (isSlotOver(planned.slot, date, now)) continue;
     const trackedHours = trackedByAreaSlot.get(key) || 0;
     const availableHours = roundHours(Math.max(0, planned.plannedHours - trackedHours));
     if (availableHours <= 0) continue;
