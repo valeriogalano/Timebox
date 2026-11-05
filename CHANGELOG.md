@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Impostazioni → Database: il pulsante "Salva copia…". Copiava solo il file `.db`, senza le scritture recenti che con l'app aperta stanno ancora nel file `-wal`, quindi la copia poteva essere incompleta senza dirlo. Per un backup basta copiare il file del database con l'app chiusa: alla chiusura il `.db` contiene tutto.
 
 ### Fixed
+- Settimana: i banner «Budget totale superato» e del limite settimanale non compaiono più per i progetti archiviati, come già in Andamento e nella CLI.
 - Ricorrenza: la modifica del template non congela più la settimana in corso intera né le settimane future. Si congelano le settimane passate e, nella settimana in corso, solo i giorni prima di oggi. La cache Todoist non conta più come segno che una settimana è stata usata.
 - `set_recurring_slot` e l'API `/recurring` congelano le settimane passate come la schermata Ricorrenza, e `set_recurring_slot` sostituisce la fascia in una sola operazione: se un blocco non è valido (area inesistente, fascia o giorno errati, ore non positive) non cancella più niente.
 - Andamento → Per area: il titolo della sezione torna a tutta larghezza come quello delle altre, e non ripete più "piano · fatto" sopra le colonne che lo dicono già.

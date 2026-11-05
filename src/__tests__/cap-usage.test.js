@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { capUsage, sumByProject, usageMaps, usageOf, fmtUsage, kindNote, loadProjectTotals } from '../cap-usage.js';
+import { capUsage, sumByProject, usageMaps, usageOf, projectsOverCap, fmtUsage, kindNote, loadProjectTotals } from '../cap-usage.js';
 
 describe('capUsage', () => {
   test('fuori dalle aree a ore il fatturabile non conta: vale il lavorato, senza etichetta', () => {
@@ -67,5 +67,30 @@ describe('loadProjectTotals', () => {
     } };
     t.after(() => { delete globalThis.window; });
     assert.deepEqual(await loadProjectTotals(), { worked: { p1: 7 }, billable: { p1: 5 } });
+  });
+});
+
+describe('projectsOverCap', () => {
+  const projects = [
+    { id: 'a', budgetHours: 10, weeklyHours: 5 },
+    { id: 'old', budgetHours: 10, weeklyHours: 5, archived: true },
+    { id: 'nocap', budgetHours: 0, weeklyHours: null },
+    { id: 'edge', budgetHours: 10 },
+  ];
+  const usage = Object.fromEntries(['a', 'old', 'nocap', 'edge'].map(id => [id, { worked: 12, billable: 12, worst: 12, kind: null }]));
+  usage.edge.worst = 10;
+
+  test('un progetto attivo oltre il budget compare', () => {
+    assert.deepEqual(projectsOverCap(projects, usage, 'budgetHours').map(p => p.id), ['a']);
+  });
+
+  test('un progetto archiviato non genera avvisi, né sul budget né sul limite settimanale', () => {
+    assert.ok(!projectsOverCap(projects, usage, 'budgetHours').some(p => p.id === 'old'));
+    assert.ok(!projectsOverCap(projects, usage, 'weeklyHours').some(p => p.id === 'old'));
+  });
+
+  test('senza tetto, o esattamente al tetto, non è oltre', () => {
+    const ids = projectsOverCap(projects, usage, 'budgetHours').map(p => p.id);
+    assert.ok(!ids.includes('nocap') && !ids.includes('edge'));
   });
 });

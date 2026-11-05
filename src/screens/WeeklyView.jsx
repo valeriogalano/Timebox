@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getToday, DAY_SHORT, MONTHS_IT, addDays, getMondayOfWeek, fmt, fmtH, parseHHMM, effBillable, isHourly, SLOTS, SLOT_META, budgetAlertLevel } from '../utils';
-import { sumByProject, usageMaps, usageOf, fmtUsage, loadProjectTotals } from '../cap-usage';
+import { sumByProject, usageMaps, usageOf, fmtUsage, loadProjectTotals, projectsOverCap } from '../cap-usage';
 import { doneCutoff, weekDoneTotals } from '../week-done';
 import PlanningCell from '../components/PlanningCell';
 import ExtraCell from '../components/ExtraCell';
@@ -589,14 +589,10 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const totalUsage = usageMaps(projectTotals, projects, clients);
 
   // Projects exceeding weekly limit this week
-  const weeklyOverProjects = projects.filter(p =>
-    p.weeklyHours > 0 && usageOf(weekUsage.project, p.id).worst > p.weeklyHours
-  );
+  const weeklyOverProjects = projectsOverCap(projects, weekUsage.project, 'weeklyHours');
 
   // Projects exceeding total budget
-  const budgetOverProjects = projects.filter(p =>
-    p.budgetHours > 0 && usageOf(totalUsage.project, p.id).worst > p.budgetHours
-  );
+  const budgetOverProjects = projectsOverCap(projects, totalUsage.project, 'budgetHours');
 
   // Clients exceeding weekly area limit
   const weeklyOverClients = clients.filter(c =>
