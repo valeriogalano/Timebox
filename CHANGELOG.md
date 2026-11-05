@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Andamento → Settimana: il verdetto per area sul Previsto contro il piano è sostituito dallo scarto sull'obiettivo. Spostare un blocco non cambia più il numero, compensare lo chiude, e togliere il blocco di oggi dopo averci lavorato dice che mancano ancora ore invece di "sovraccarico". Il Carico della settimana mostra le ore fatte sull'obiettivo totale, con blocchi rimasti e scarto; percentuale, glifo e Δ sulla capacità escono. I Limiti della settimana restano sul Previsto (fatto + blocchi rimasti).
 - Giorno: tolti il gauge "Carico di oggi" e la card "Capacità libera della giornata". La capacità delle Impostazioni resta per le barre delle fasce.
 - Giorno e MCP: nei "Blocchi pianificati senza azioni" di oggi non compaiono più le fasce già finite (mattina fino alle 13, pomeriggio fino alle 18). Giorni passati e futuri restano come prima.
+- MCP: le descrizioni di `get_recurring`, `log_hours`, `day_ready_blocks` e `merge_project_entries` dicono quello che i tool fanno davvero: fasce `am|pm|sera`, ore fatturabili conservate se mancano, giorno scelto invece di oggi, regola del fatturato e import Todoist nell'unione.
 - iPhone: i pulsanti −15m/+15m/+1h sono sostituiti da due menu nativi, fascia e ore, che su iPhone si aprono come ruota. Le ore vanno da 0h a 12h a passi di 15 minuti. Un giorno con ore su più fasce si modifica dalla pagina, senza più l'errore che rimandava a Giorno.
 
 ### Removed
@@ -27,6 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settimana: i banner «Budget totale superato» e del limite settimanale non compaiono più per i progetti archiviati, come già in Andamento e nella CLI.
 - Ricorrenza: la modifica del template non congela più la settimana in corso intera né le settimane future. Si congelano le settimane passate e, nella settimana in corso, solo i giorni prima di oggi. La cache Todoist non conta più come segno che una settimana è stata usata.
 - `set_recurring_slot` e l'API `/recurring` congelano le settimane passate come la schermata Ricorrenza, e `set_recurring_slot` sostituisce la fascia in una sola operazione: se un blocco non è valido (area inesistente, fascia o giorno errati, ore non positive) non cancella più niente.
+- Aree: un progetto con ore registrate non si elimina più. Al posto dell'eliminazione l'app propone di archiviarlo, e un'area che ha progetti con ore non si elimina finché quelle ore restano. Prima la conferma non diceva che le ore sarebbero sparite. La stessa regola vale per HTTP, MCP e IPC.
+- Unione di progetti (`merge_project_entries`, `POST /projects/merge`): una entry unita risulta fatturata solo se lo erano tutte e due, e il registro degli import Todoist passa al progetto di destinazione. Prima ore mai fatturate potevano sparire dal Rendiconto, e un task importato tornava a sembrare nuovo e veniva aggiunto una seconda volta.
+- Import dei completati Todoist: le ore aggiunte a una entry già fatturata la rimettono tra quelle da fatturare, invece di finire fatturate senza esserlo. Cambiare solo titolo o nota di un import non tocca la entry.
+- Annullare un import Todoist non lascia più le ore fatturabili sopra quelle lavorate, quando l'override era una riduzione. Un override sopra le lavorate, come un minimo o un arrotondamento, resta com'è.
+- `log_hours`, `POST /log` e `timebox log`: un testo che non è un'ora valida dà errore invece di cancellare la entry. Accettano `2h 30m`, rifiutano ore negative o sopra 24 e date che non esistono. Un numero senza unità sono ore.
+- API HTTP: fasce, giorni, ore e date non validi su `/overrides`, `/recurring`, `/today` e sugli altri endpoint del giorno rispondono 400 invece di finire nel database.
+- Eliminare un'area toglie i suoi blocchi dagli override delle settimane. Prima CLI e MCP li mostravano come area "?" e li contavano nella capacità pianificata.
+- Andamento: un'area a ore senza tariffa conta le sue ore in "Fatturabile a consumo", con valore 0 €, come già in Rendiconto. Prima spariva.
+- Settimana: il riepilogo conta le ore fino a oggi, come Andamento, e le due schermate danno lo stesso numero. Le ore datate nei giorni successivi compaiono su una riga a parte, "+ 1h 30m datate nei prossimi giorni".
+- Dati demo: le date della cache Todoist sono in ora locale. Subito dopo mezzanotte non slittano più al giorno prima.
 - Andamento → Per area: il titolo della sezione torna a tutta larghezza come quello delle altre, e non ripete più "piano · fatto" sopra le colonne che lo dicono già.
 
 ## [0.13.1] - 2026-10-24
