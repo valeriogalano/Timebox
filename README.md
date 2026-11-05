@@ -250,7 +250,7 @@ While the app is open, a local API is available at `http://127.0.0.1:37373`.
 | `GET` | `/entries?from=YYYY-MM-DD&to=&area=&project=` | Single logged entries in a date range (`to` defaults to today), with worked and billable totals by area and by project. |
 | `GET` | `/clients?search=` | Area/client list. |
 | `GET` | `/areas?search=` | Alias for `/clients`. |
-| `GET` | `/status` | Today, week, alerts (project budget, project weekly limit, area limit) and `gapAlerts`: the current week's areas whose gap on the target is not zero, plus the target warnings. |
+| `GET` | `/status` | Today, week, alerts (project budget, project weekly limit, area limit) and `gapAlerts`: the current week's areas whose gap on the target is beyond the Andamento tolerance (0.5h or 10% of the target, whichever is larger), plus the target warnings. |
 | `GET` | `/targets?week=YYYY-MM-DD` | Per area for a Monday week key (default: current week): template hours, Monday and final target, done, blocks left, gap and warnings (target above the weekly limit, closed area with a target). |
 | `POST` | `/targets` | Set an area's weekly target: `{ weekKey, areaId, hours }`. Appends a row; the same value as the current target stores nothing. |
 | `POST` | `/log` | Log hours: `{ project, hours, slot, date, add, billableHours }`. `billableHours` is kept only for projects in hourly areas. Without `slot`, a project with hours in more than one slot that day is a 400. |

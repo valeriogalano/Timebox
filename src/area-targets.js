@@ -10,9 +10,17 @@
 // chiude, togliere il blocco di oggi dopo averci lavorato lascia le ore mancanti in vista.
 // Scarto positivo = ore che mancano; negativo = ore oltre l'obiettivo.
 // Gemello CommonJS per CLI e MCP in lib/domain.js: stesse funzioni, stessi risultati.
+import { TOL_HOURS, TOL_PCT } from './progress-insights.js';
 
-// Sotto questa soglia lo scarto è arrotondamento, non una differenza da segnalare.
+// Sotto questa soglia due numeri di ore sono uguali (arrotondamento), per gli avvisi
+// sull'obiettivo.
 export const GAP_EPSILON = 0.01;
+
+// Uno scarto entro la tolleranza dei verdetti di Andamento (mezz'ora o il 10%
+// dell'obiettivo, la più larga) è "in pari": la GUI lo scrive così e status non lo elenca.
+export function gapWithinTolerance(gap, target) {
+  return Math.abs(gap) <= Math.max(TOL_HOURS, target * TOL_PCT);
+}
 
 // Ore di template per area: la somma della ricorrenza, weekend compreso. È l'obiettivo di
 // un'area finché nella settimana non se ne fissa uno.

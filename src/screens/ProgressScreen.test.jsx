@@ -82,6 +82,30 @@ describe('ProgressScreen / Settimana: limiti e budget', () => {
     expect(getByText('15h oltre')).toBeInTheDocument();
   });
 
+  test('uno scarto entro la tolleranza dei verdetti si legge "in pari", oltre no', async () => {
+    // Libera: 4h di template su una settimana chiusa
+    const lastWeek = fmt(addDays(getMondayOfWeek(getToday()), -7));
+    const recurring = [{ id: 'r1', clientId: 'c3', day: 0, slot: 'am', hours: 4, position: 0 }];
+    const rowWith = async hours => {
+      window.api.getEntries = () => Promise.resolve([{ id: 'e1', projectId: 'p3', date: lastWeek, hours, slot: 'am' }]);
+      const view = render(
+        <ProgressScreen clients={clients} projects={projects} recurring={recurring} screen="progress"
+          weekOffset={-1} setWeekOffset={() => {}} />
+      );
+      const row = (await view.findByLabelText('Obiettivo Libera')).closest('span').parentElement;
+      return { row, view };
+    };
+
+    // 3h30m fatte: manca mezz'ora, sul confine della tolleranza
+    const inside = await rowWith(3.5);
+    await vi.waitFor(() => expect(inside.row).toHaveTextContent('in pari'));
+    inside.view.unmount();
+
+    // 3h fatte: manca 1h, oltre
+    const outside = await rowWith(3);
+    await vi.waitFor(() => expect(outside.row).toHaveTextContent('mancano 1h'));
+  });
+
   test('ogni card mostra il residuo, o di quanto il tetto è superato', async () => {
     const { findByText } = renderPanoramica();
 

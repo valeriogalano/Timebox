@@ -120,6 +120,18 @@ describe('getWeekTargetsData', () => {
     assert.match(alerts[3].label, /closed this week/);
   });
 
+  it('a gap within the verdict tolerance is not listed: 0.5h or 10% of the target, whichever is larger', () => {
+    // Alfa: 24h di obiettivo, gap 4h. Con 22h il gap è 2h, entro il 10% (2.2h); con 21h 30m è 1.5h, ancora entro.
+    q.addWeekAreaTarget({ weekKey: WEEK, areaId: 'a', hours: 22 });
+    assert.ok(!weekTargetAlerts(getWeekTargetsData(WEEK, WED)).some(x => x.kind === 'area-gap' && x.areaId === 'a'));
+    q.addWeekAreaTarget({ weekKey: WEEK, areaId: 'a', hours: 22.5 });
+    // gap 2.5h oltre il 10% di 22.5h (2.25h): elencata
+    assert.ok(weekTargetAlerts(getWeekTargetsData(WEEK, WED)).some(x => x.kind === 'area-gap' && x.areaId === 'a'));
+    // Beta: obiettivo 1h, 3h fatte. A 2h30m il gap è -0.5h, sul confine della mezz'ora: non elencata
+    q.addWeekAreaTarget({ weekKey: WEEK, areaId: 'b', hours: 2.5 });
+    assert.ok(!weekTargetAlerts(getWeekTargetsData(WEEK, WED)).some(x => x.kind === 'area-gap' && x.areaId === 'b'));
+  });
+
   it('a closed week has no blocks left', () => {
     const a = areaOf(getWeekTargetsData(WEEK, '2026-11-20'), 'a');
     assert.equal(a.remaining, 0);

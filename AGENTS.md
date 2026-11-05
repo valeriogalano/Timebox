@@ -225,7 +225,7 @@ In development, wrappers point at repository files. In packaged builds, they poi
 | `GET` | `/entries?from=&to=&area=&project=` | `getEntriesData(...)`: single entries in a date range plus totals by area and project. `from` is required, `to` defaults to today; a malformed date is a 400. |
 | `GET` | `/clients?search=` | `getClientsData(...)`. |
 | `GET` | `/areas?search=` | Alias for clients/areas. |
-| `GET` | `/status` | `getStatusData(today)`: cap `alerts`, plus `gapAlerts` from `weekTargetAlerts` (areas whose gap is not zero, target warnings) for the current week. |
+| `GET` | `/status` | `getStatusData(today)`: cap `alerts`, plus `gapAlerts` from `weekTargetAlerts` (areas whose gap is beyond the tolerance, target warnings) for the current week. |
 | `GET` | `/targets?week=` | `getWeekTargetsData(week, today)` plus its `alerts`; `week` is a Monday, default the current week (a non-Monday is a 400). |
 | `POST` | `/targets` | `{ weekKey, areaId, hours }` through `addWeekAreaTarget`. 400 on a non-Monday or hours that are not a number ≥ 0, 404 on an unknown area id. |
 | `POST` | `/log` | `logHours(...)`; supports `billableHours` and `slot`. Without `slot`, a project with hours in more than one slot that day is an error. |
@@ -389,6 +389,7 @@ Each area has a weekly target: how many hours it should get that week. Andamento
 - **State, never gestures.** The numbers depend only on target, entries and effective blocks (template + overrides), never on how the board was edited: moving a block leaves the gap unchanged, compensating closes it, and removing today's block after logging hours on it leaves those hours as missing (the old per-area verdict, Previsto against plan, flipped to "over" there).
 - **Where the logic lives.** `src/area-targets.js` (`templateHoursByArea`, `weekTargets`, `areaGaps`, `targetWarnings`), CommonJS twin in `lib/domain.js`; the two must stay in step and are tested together in `src/__tests__/area-targets.test.js`. The CLI side is `cli/commands/targets.js` (`getWeekTargetsData`, `weekTargetAlerts`), used by `GET /targets`, `status` and the MCP tools.
 - **Warnings, not blocks.** A target above the area's weekly limit, and a target above zero on an area whose effective status that week is `closed`. Area status stays a manual label otherwise: no calculation uses it.
+- **Tolerance.** A gap within `TOL_HOURS` (0.5h) or `TOL_PCT` (10%) of the target, whichever is larger, is "in pari": the GUI writes it so and `status` does not list the area. Both go through `gapWithinTolerance`; the constants live in `src/progress-insights.js` (the Andamento verdicts) with their CommonJS twin in `lib/domain.js`.
 - **The load card** (*Carico della settimana*) shows done hours against the total target, with total blocks left and total gap. The total sums the areas, so opposite gaps cancel out; the per-area table is where decisions are made.
 
 ### Weekly Limits Are on the Forecast (Previsto)

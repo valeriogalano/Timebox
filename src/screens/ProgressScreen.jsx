@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getToday, MONTHS_IT, getMondayOfWeek, addDays, fmt, fmtH, parseHHMM, effBillable, isHourly, SLOTS } from '../utils';
 import { getEffectiveBlocks } from '../dayPlanning';
 import { forecastTodayIndex, forecastUsage } from '../week-forecast';
-import { areaGaps, templateHoursByArea, targetWarnings, weekTargets, GAP_EPSILON } from '../area-targets';
+import { areaGaps, gapWithinTolerance, templateHoursByArea, targetWarnings, weekTargets } from '../area-targets';
 import { withAreaStatus } from './WeeklyView';
 import { areaMix } from '../area-colors';
 import { sumByProject, usageMaps, usageOf, kindNote, fmtUsage, loadProjectTotals } from '../cap-usage';
@@ -496,7 +496,7 @@ function RetroSummary({ stats }) {
         <CapacityBar done={stats.totalDone} capacity={target} />
         <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--tb-border-soft)', display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--tb-text-muted)' }}>
           <span>Blocchi rimasti <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{fmtH(remaining)}</span></span>
-          <span>Scarto <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{gapLabel(gap)}</span></span>
+          <span>Scarto <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--tb-text-primary)' }}>{gapLabel(gap, target)}</span></span>
         </div>
       </Card>
 
@@ -531,11 +531,11 @@ function RetroSummary({ stats }) {
   );
 }
 
-// Scarto a parole: il segno da solo non dice se mancano ore o se sono troppe.
-function gapLabel(gap) {
-  if (gap >= GAP_EPSILON) return `mancano ${fmtH(gap)}`;
-  if (gap <= -GAP_EPSILON) return `${fmtH(-gap)} oltre`;
-  return 'in pari';
+// Scarto a parole: il segno da solo non dice se mancano ore o se sono troppe. Entro la
+// tolleranza è "in pari", la stessa regola per cui status non elenca l'area.
+function gapLabel(gap, target) {
+  if (gapWithinTolerance(gap, target)) return 'in pari';
+  return gap > 0 ? `mancano ${fmtH(gap)}` : `${fmtH(-gap)} oltre`;
 }
 
 function warningText(w) {
@@ -623,7 +623,7 @@ function AreaTargets({ clients, stats, onSave }) {
                 </span>
                 <span style={{ ...numCell, ...topCell }}>{fmtH(g.done)}</span>
                 <span style={{ ...numCell, ...topCell, color: 'var(--tb-text-secondary)' }}>{fmtH(g.remaining)}</span>
-                <span style={{ ...numCell, ...topCell, whiteSpace: 'nowrap' }}>{gapLabel(g.gap)}</span>
+                <span style={{ ...numCell, ...topCell, whiteSpace: 'nowrap' }}>{gapLabel(g.gap, t.target)}</span>
               </React.Fragment>
             );
           })}

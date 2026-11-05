@@ -171,7 +171,7 @@ const TOOLS = [
   },
   {
     name: 'status',
-    description: 'Get a quick overview: hours logged today and this week, alerts on project budgets, project weekly limits and area limits, and the current week\'s area targets: every area whose gap (target − done − blocks left) is not zero, an area whose target is above its weekly limit, and a closed area with a target above zero.',
+    description: 'Get a quick overview: hours logged today and this week, alerts on project budgets, project weekly limits and area limits, and the current week\'s area targets: every area whose gap (target − done − blocks left) is beyond 0.5h or 10% of its target, whichever is larger, an area whose target is above its weekly limit, and a closed area with a target above zero.',
     inputSchema: { type: 'object', properties: {} },
   },
   {

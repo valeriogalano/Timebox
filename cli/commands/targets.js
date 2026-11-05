@@ -6,7 +6,7 @@ const {
 } = require('../../db/queries');
 const { fmt, addDays } = require('../format');
 const {
-  SLOTS, forecastTodayIndex, templateHoursByArea, weekTargets, areaGaps, targetWarnings, GAP_EPSILON,
+  SLOTS, forecastTodayIndex, templateHoursByArea, weekTargets, areaGaps, targetWarnings, gapWithinTolerance,
 } = require('../../lib/domain');
 const { getEffectiveBlocks, buildOverrideMap } = require('./day-summary');
 
@@ -84,12 +84,12 @@ function warningLabel(a, w) {
 
 const round = h => Math.round(h * 100) / 100;
 
-// Avvisi della settimana: lo scarto di ogni area che non è in pari, e gli avvisi
-// sull'obiettivo. Come la tabella in Andamento → Settimana: si mostrano, non suggeriscono.
+// Avvisi della settimana: lo scarto di ogni area fuori tolleranza (gapWithinTolerance, la
+// stessa che in Andamento scrive "in pari"), e gli avvisi sull'obiettivo. Come la tabella in Andamento → Settimana: si mostrano, non suggeriscono.
 function weekTargetAlerts(data) {
   const out = [];
   for (const a of data.areas) {
-    if (Math.abs(a.gap) >= GAP_EPSILON) out.push({ kind: 'area-gap', area: a.area, areaId: a.areaId, gap: a.gap, label: gapLabel(a) });
+    if (!gapWithinTolerance(a.gap, a.target)) out.push({ kind: 'area-gap', area: a.area, areaId: a.areaId, gap: a.gap, label: gapLabel(a) });
     for (const w of a.warnings) out.push({ kind: w.kind, area: a.area, areaId: a.areaId, label: warningLabel(a, w) });
   }
   return out;

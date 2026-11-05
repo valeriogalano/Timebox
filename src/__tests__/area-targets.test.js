@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import * as esm from '../area-targets.js';
+import { TOL_HOURS, TOL_PCT } from '../progress-insights.js';
 
 // Gemello CommonJS usato da CLI e MCP: deve dare gli stessi risultati.
 const cjs = createRequire(import.meta.url)('../../lib/domain.js');
@@ -107,6 +108,20 @@ for (const [name, impl] of [['src/area-targets.js', esm], ['lib/domain.js', cjs]
     });
   });
 
+  describe(`gapWithinTolerance (${name})`, () => {
+    test('mezz\'ora sugli obiettivi piccoli, confine compreso', () => {
+      assert.equal(impl.gapWithinTolerance(0.5, 4), true);
+      assert.equal(impl.gapWithinTolerance(-0.5, 4), true);
+      assert.equal(impl.gapWithinTolerance(0.51, 4), false);
+      assert.equal(impl.gapWithinTolerance(-0.51, 0), false);
+    });
+    test('il 10% dell\'obiettivo quando è più largo', () => {
+      assert.equal(impl.gapWithinTolerance(2, 20), true);
+      assert.equal(impl.gapWithinTolerance(-2, 20), true);
+      assert.equal(impl.gapWithinTolerance(2.01, 20), false);
+    });
+  });
+
   describe(`targetWarnings (${name})`, () => {
     const weekly = { limitType: 'weekly', limitHours: 10 };
     test('obiettivo sopra il limite settimanale', () => {
@@ -120,3 +135,8 @@ for (const [name, impl] of [['src/area-targets.js', esm], ['lib/domain.js', cjs]
     });
   });
 }
+
+test('la tolleranza del gemello CommonJS è quella di progress-insights', () => {
+  assert.equal(cjs.TOL_HOURS, TOL_HOURS);
+  assert.equal(cjs.TOL_PCT, TOL_PCT);
+});
