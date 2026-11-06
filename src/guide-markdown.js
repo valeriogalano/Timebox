@@ -18,7 +18,7 @@ export function parseGuide(md) {
     para = [];
     list = null;
   };
-  for (const line of md.split('\n')) {
+  for (const line of md.split(/\r?\n/)) {
     const h = /^(#{1,3}) (.+)$/.exec(line);
     const li = /^( *)- (.+)$/.exec(line);
     if (h) {
