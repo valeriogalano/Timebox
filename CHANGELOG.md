@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-11-06
+
+### Fixed
+- Windows: la Guida riconosce titoli e sezioni anche quando il file ha gli a capo di Windows. La 0.14.0 non era uscita per Windows per questo motivo.
+
 ## [0.14.0] - 2026-11-06
 
 ### Added

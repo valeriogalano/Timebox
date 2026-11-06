@@ -29,6 +29,12 @@ test('parseGuide riconosce titoli, paragrafi, elenchi annidati e righe di contin
   ]);
 });
 
+test('a capo Windows (CRLF): stessi blocchi, senza \\r nei titoli', async () => {
+  const { parseGuide } = await load();
+  const md = ['# Titolo', '', 'Testo.', '', '- voce', '  - figlio'].join('\n');
+  assert.deepEqual(parseGuide(md.replace(/\n/g, '\r\n')), parseGuide(md));
+});
+
 test('un paragrafo seguito da un elenco senza riga vuota chiude il paragrafo', async () => {
   const { parseGuide } = await load();
   const blocks = parseGuide('Intro\n- a');
