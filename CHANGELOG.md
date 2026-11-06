@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-06
+
 ### Added
 - Guida: nuova schermata in fondo alla sidebar, scritta in `docs/guida.md` e inclusa nell'app. Spiega i concetti e come si calcolano i numeri (template, override, piano, obiettivo del lunedì e finale, fatto, blocchi rimasti, scarto e tolleranza, limiti, stato dell'area, taratura del template, congelamento, capacità), una sezione per schermata e un glossario con le parole dell'interfaccia. I testi di aiuto rimandano alla Guida dove serve una spiegazione più lunga ("Vedi Guida → Scarto").
 - Obiettivo settimanale per area. In Andamento → Settimana la tabella per area mostra obiettivo, fatto, blocchi rimasti e scarto (obiettivo − fatto − blocchi rimasti). L'obiettivo parte dalle ore del template dell'area e si cambia scrivendo un numero nella tabella; l'app tiene il primo valore della settimana e l'ultimo, e lo scarto si misura sull'ultimo. Un ⚠ segnala un obiettivo sopra il limite settimanale dell'area o un'area chiusa con un obiettivo sopra lo zero, senza bloccare.
