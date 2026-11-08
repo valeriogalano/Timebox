@@ -2,6 +2,7 @@
 
 const { getEntries, getProjects, getClients, getProjectTotals, getProjectBillableTotals } = require('../../db/queries');
 const { getMondayOfWeek, addDays, fmt, effBillable, isHourly, capUsage, fmtH } = require('../format');
+const { weeklyLimitsAtRisk } = require('../../lib/domain');
 const { getWeekTargetsData, weekTargetAlerts } = require('./targets');
 
 const ALERT_THRESHOLD = 0.8;
@@ -85,10 +86,31 @@ function getStatusData(today) {
       addAlert({ kind: 'area-total', area: c.name, usage: areaUsage(totals, billableTotals, c), limit: c.limitHours, scope: 'tot.' });
     }
   }
+
+  // Previsto della settimana (fatto + blocchi rimasti) per area, dallo stesso calcolo di
+  // Andamento → Settimana: serve all'avviso "a rischio" e allo scarto più sotto.
+  const weekTargets = getWeekTargetsData(fmt(monday), today);
+  const forecast = { byArea: Object.fromEntries(weekTargets.areas.map(a => [a.areaId, { done: a.done, forecast: a.done + a.remaining }])) };
+  const weekAreaUsage = Object.fromEntries(clients.map(c => [c.id, areaUsage(weekByProject, weekBillableByProject, c)]));
+
+  // Limite settimanale d'area che il Previsto supera mentre il fatto ci sta ancora: gli
+  // avvisi sopra scattano a fatto già all'80%, questo arriva mentre si pianifica (come in
+  // Settimana, weeklyLimitsAtRisk). Un progetto non ha piano, quindi non ne ha uno.
+  // `logged` e `billable` restano le ore fatte (come negli altri avvisi); `forecast` è il
+  // Previsto sul conteggio peggiore, e `count` e `pct` si riferiscono a quello.
+  for (const { client: c, usage } of weeklyLimitsAtRisk(clients, weekAreaUsage, forecast)) {
+    const done = weekAreaUsage[c.id];
+    alerts.push({
+      kind: 'area-weekly-forecast', area: c.name, client: c.name, project: null,
+      logged: done.worked, billable: done.billable, forecast: usage.worst, count: usage.kind,
+      limit: c.limitHours, budget: c.limitHours, pct: usage.worst / c.limitHours,
+      label: `${c.name} — previsto ${fmtH(usage.worst)}${usage.kind ? ` ${usage.kind}` : ''} / ${fmtH(c.limitHours)} sett. (a rischio)`,
+    });
+  }
   alerts.sort((a, b) => b.pct - a.pct);
 
   // Scarto sull'obiettivo per area e avvisi sull'obiettivo, come Andamento → Settimana.
-  const gapAlerts = weekTargetAlerts(getWeekTargetsData(fmt(monday), today));
+  const gapAlerts = weekTargetAlerts(weekTargets);
 
   return { today, todayTotal, weekTotal, todayBillable, weekBillable, alerts, gapAlerts };
 }

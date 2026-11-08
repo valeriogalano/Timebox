@@ -3,9 +3,10 @@
 const { test, describe, before } = require('node:test');
 const assert = require('node:assert/strict');
 const { createTestDb } = require('./helpers');
+const { initDb } = require('../../db/schema');
 const { getStatusData } = require('../commands/status');
 const { logHours } = require('../commands/log');
-const { saveProject, getProjects, getClients, saveClient, saveEntry } = require('../../db/queries');
+const { init, saveProject, getProjects, getClients, saveClient, saveEntry, saveRecurring } = require('../../db/queries');
 
 const TEST_DATE = '2020-09-01';
 
@@ -122,6 +123,72 @@ describe('getStatusData', () => {
 
     assert.equal(getStatusData('2020-09-15').alerts
       .some(a => a.kind === 'project-weekly' && a.project === project.name), false);
+  });
+
+  describe('forecast alert (a rischio)', () => {
+    // Lunedì 2 novembre 2026, oggi mercoledì 4. Alfa: limite 10h a settimana, 4h al giorno da lunedì a venerdì.
+    const WED = '2026-11-04';
+    const setup = ({ limitType = 'weekly', billing = 'none', days = [0, 1, 2, 3, 4] } = {}) => {
+      // Database vuota, senza i dati demo: con delle entry già presenti saveRecurring congela
+      // i giorni della settimana corrente prima di cambiare il template.
+      init(initDb(':memory:'));
+      const base = { color: '#000', billable: billing === 'hourly', rate: null, position: 90 };
+      saveClient({ id: 'fc-a', name: 'Alfa', billing, limitType, limitHours: 10, ...base });
+      saveProject({ id: 'fc-p', clientId: 'fc-a', name: 'Progetto Alfa', description: null, budgetHours: null, weeklyHours: null, fixedPrice: null, position: 90, archived: false });
+      for (const day of days) saveRecurring({ id: `fc-r${day}`, clientId: 'fc-a', slot: 'am', day, hours: 4, position: 0 });
+    };
+    const entry = (id, date, hours, billableHours = null) =>
+      saveEntry({ id, projectId: 'fc-p', date, hours, billableHours, slot: 'am', billed: false });
+    const forecastAlert = d => d.alerts.find(a => a.kind === 'area-weekly-forecast' && a.area === 'Alfa');
+
+    test('previsto sopra il limite mentre il fatto ci sta: avviso a rischio e nessun area-weekly', () => {
+      setup({ days: [2] });
+      saveRecurring({ id: 'fc-r3', clientId: 'fc-a', slot: 'am', day: 3, hours: 6, position: 0 });
+      // 6h fatte oggi (il piano di oggi è 4h) e 6h di blocchi giovedì: previsto 12h, fatto sotto l'80%
+      entry('fc-e1', WED, 6);
+      const d = getStatusData(WED);
+      const alert = forecastAlert(d);
+      assert.ok(alert, 'Expected a forecast alert');
+      assert.equal(alert.project, null);
+      assert.equal(alert.logged, 6);
+      assert.equal(alert.forecast, 12);
+      assert.equal(alert.limit, 10);
+      assert.equal(alert.pct, 1.2);
+      assert.equal(alert.label, 'Alfa — previsto 12h / 10h sett. (a rischio)');
+      assert.equal(d.alerts.some(a => a.kind === 'area-weekly' && a.area === 'Alfa'), false);
+    });
+
+    test('fatto già oltre il limite: solo area-weekly', () => {
+      setup({ days: [3] });
+      entry('fc-e2', WED, 11);
+      const d = getStatusData(WED);
+      assert.equal(forecastAlert(d), undefined);
+      assert.ok(d.alerts.some(a => a.kind === 'area-weekly' && a.area === 'Alfa'));
+    });
+
+    test('limite globale: nessun avviso sul previsto', () => {
+      setup({ limitType: 'global', days: [3] });
+      entry('fc-e3', WED, 6);
+      assert.equal(forecastAlert(getStatusData(WED)), undefined);
+    });
+
+    test('domenica senza blocchi rimasti: il previsto è il fatto, nessun avviso', () => {
+      setup({ days: [3, 4] });
+      entry('fc-e4', WED, 6);
+      assert.equal(forecastAlert(getStatusData('2026-11-08')), undefined);
+    });
+
+    test('fatturabili oltre il lavorato: l\'etichetta dice fatt.', () => {
+      setup({ billing: 'hourly', days: [3] });
+      entry('fc-e5', WED, 5, 7);
+      // lavorate 5 + 4 = 9 (ci sta), fatturabili 7 + 4 = 11 (oltre)
+      const alert = forecastAlert(getStatusData(WED));
+      assert.ok(alert, 'Expected a forecast alert from the billable count');
+      assert.equal(alert.count, 'fatt.');
+      assert.equal(alert.billable, 7);
+      assert.equal(alert.forecast, 11);
+      assert.equal(alert.label, 'Alfa — previsto 11h fatt. / 10h sett. (a rischio)');
+    });
   });
 
   test('no alert when the area has no limit configured', () => {

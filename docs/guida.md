@@ -54,7 +54,7 @@ Un tetto di ore, in tre forme:
 
 Si impostano in Aree. Ogni tetto si misura su due conteggi, ore lavorate e ore fatturabili (queste solo nelle aree a ore); le soglie usano il peggiore e, quando i due differiscono, ogni numero porta la sua etichetta ("lavorate" o "fatt."). Un numero senza etichetta sono ore lavorate. Le barrette del tetto si accendono al 50%, all'80% e al 100%.
 
-I tetti settimanali si giudicano sul **previsto**: il fatto più i blocchi rimasti. Per un'area il ⚠ scatta quando il previsto supera il tetto; per un progetto vale solo il fatto, perché il piano è per area. I tetti cumulativi si leggono in Andamento → In prospettiva. Settimana mostra un banner quando un tetto è superato (o, per il limite settimanale dell'area, quando lo supera il piano mentre il fatto ci sta ancora).
+I tetti settimanali si giudicano sul **previsto**: il fatto più i blocchi rimasti. Per un'area il ⚠ scatta quando il previsto supera il tetto; per un progetto vale solo il fatto, perché il piano è per area. I tetti cumulativi si leggono in Andamento → In prospettiva. Settimana mostra un banner quando un tetto è superato (o, per il limite settimanale dell'area, quando lo supera il piano mentre il fatto ci sta ancora). Lo stesso avviso "a rischio" arriva anche da `status` (CLI e MCP), accanto a quelli che scattano a fatto già all'80% del tetto.
 
 ### Stato dell'area
 
