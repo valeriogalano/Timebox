@@ -6,7 +6,8 @@
 // Giorno per giorno: prima di oggi conta il fatto; da oggi in avanti il giorno arriva almeno
 // al piano, o a quanto è già registrato se è di più. Oggi vale quindi fatto + residuo del
 // piano di oggi, max(0, piano − fatto), per area.
-// Gemello CommonJS per CLI e MCP: weekForecast e forecastTodayIndex in lib/domain.js.
+// Gemelli CommonJS per CLI e MCP: weekForecast, forecastTodayIndex, forecastUsage e
+// weeklyLimitsAtRisk in lib/domain.js.
 import { capUsage, usageOf } from './cap-usage.js';
 import { isHourly } from './utils.js';
 

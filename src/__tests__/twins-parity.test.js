@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { capUsage } from '../cap-usage.js';
 import { planDayEntrySave, fillPlannedBlocks } from '../dayPlanning.js';
-import { weekForecast, forecastTodayIndex } from '../week-forecast.js';
+import { weekForecast, forecastTodayIndex, forecastUsage, weeklyLimitsAtRisk } from '../week-forecast.js';
 import { gapWithinTolerance, templateHoursByArea, referenceHoursByArea, weekTargets, areaGaps, targetWarnings, GAP_EPSILON } from '../area-targets.js';
 import { TOL_HOURS, TOL_PCT } from '../progress-insights.js';
 import { fmtH, isHourly, effBillable, slotForDate, getMondayOfWeek, addDays, fmt, parseHHMM } from '../utils.js';
@@ -47,6 +47,31 @@ describe('src/ and lib/domain.js give the same answers', () => {
     [{ plannedByDay: [4, 4, 4, 4, 4, 0, 0], doneByDay: [4, 5, 2, 0, 0, 0, 0], todayIdx: 2 }],
     [{ plannedByDay: [4, 4, 4, 4, 4, 0, 0], doneByDay: [4, 5, 2, 6, 0, 0, 0], todayIdx: 7 }],
     [{ plannedByDay: [4, 4, 4, 4, 4, 0, 0], doneByDay: [0, 0, 0, 0, 0, 0, 0], todayIdx: -1 }],
+  ]);
+
+  same('forecastUsage', forecastUsage, cjs.forecastUsage, [
+    [capUsage(10, 8, true), 3, true],
+    [capUsage(10, 12, true), 2, true],
+    [capUsage(10), 2, false],
+    [capUsage(), 0, false],
+  ]);
+
+  const riskClients = [
+    { id: 'a', name: 'A', limitType: 'weekly', limitHours: 10, billing: 'none' },
+    { id: 'b', name: 'B', limitType: 'weekly', limitHours: 10, billing: 'hourly' },
+    { id: 'c', name: 'C', limitType: 'global', limitHours: 10, billing: 'none' },
+    { id: 'd', name: 'D', limitType: 'weekly', limitHours: 10, billing: 'none' },
+    { id: 'e', name: 'E', limitType: 'weekly', limitHours: 0, billing: 'none' },
+  ];
+  const riskUsage = { a: capUsage(6), b: capUsage(6, 8, true), c: capUsage(6), d: capUsage(11) };
+  const riskForecast = { byArea: {
+    a: { done: 6, forecast: 12 }, b: { done: 6, forecast: 9 }, c: { done: 6, forecast: 12 },
+    d: { done: 11, forecast: 13 }, e: { done: 6, forecast: 12 },
+  } };
+  same('weeklyLimitsAtRisk', weeklyLimitsAtRisk, cjs.weeklyLimitsAtRisk, [
+    [riskClients, riskUsage, riskForecast],
+    [riskClients.slice(0, 1), {}, { byArea: {} }],
+    [riskClients, undefined, { byArea: { a: { done: 0, forecast: 12 } } }],
   ]);
 
   test('verdict tolerance constants', () => {
