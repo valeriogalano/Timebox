@@ -453,4 +453,4 @@ function backupBeforeMigrations(db) {
   return target;
 }
 
-module.exports = { initDb, backupBeforeMigrations, mergeSameDayEntries, INIT_CLIENTS, INIT_PROJECTS, INIT_RECURRING, getSeedEntries };
+module.exports = { initDb, mergeSameDayEntries, INIT_CLIENTS, INIT_PROJECTS, INIT_RECURRING, getSeedEntries };
