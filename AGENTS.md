@@ -288,6 +288,8 @@ todoist_cache  (dateStr, tasksJson, syncedAt)
 
 Startup runs migrations from `db/schema.js`, enables WAL mode, and uses exclusive locking to reduce iCloud Drive conflicts.
 
+**Backup before migrations.** At every start, `initDb` first copies an existing database with `VACUUM INTO` (`backupBeforeMigrations` in `db/schema.js`) to `backups/<name>-<UTC timestamp>.db` in the folder of the database file, and keeps the last 3 copies of that file. In-memory databases and a file with no tables yet (a new one) are skipped. If the copy fails, `initDb` throws and no migration runs; `main.js` shows it in the "Impossibile aprire il database" dialog and quits. The `ALTER TABLE ... ADD COLUMN` migrations ignore only "duplicate column name"; any other error stops the start. To restore: quit Timebox, then copy the chosen file from `backups/` over the database file (the path is in `config.json`, see below) and delete the `-wal` and `-shm` files next to it. The developer CLI (`cli/db.js`) opens the database with `{ backup: false }`, so it takes no copy and does not rotate the app's; run from the repo with newer code than the installed app on the real database, it migrates that database with no backup.
+
 There are three database paths, and confusing them is easy — the first launch resolves one of them and then records it, so from the second launch on only `config.json` matters:
 
 | role | path | chosen by |

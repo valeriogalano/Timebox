@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `status` (HTTP, CLI e MCP): un avviso "a rischio" (`area-weekly-forecast`) per le aree con limite settimanale il cui Previsto (fatto più blocchi rimasti) supera il limite mentre il fatto ci sta ancora, come l'avviso di Settimana. Gli avvisi all'80% sul fatto restano com'erano. Se ore lavorate e fatturabili differiscono, l'etichetta dice quale conteggio è il peggiore.
+- A ogni avvio, prima delle migrazioni, il database viene copiato in `backups/` accanto al file (ultime 3 copie). Se la copia fallisce, le migrazioni non partono e l'errore compare nella finestra di avvio.
 
 ### Changed
 - Settimana: tolto un calcolo del Δ sul piano che nessuna parte della schermata leggeva. Nessuna differenza visibile.
+
+### Fixed
+- Le migrazioni che aggiungono colonne ignorano solo l'errore "duplicate column name": ogni altro errore ferma l'avvio invece di sparire.
 
 ## [0.14.1] - 2026-11-06
 
