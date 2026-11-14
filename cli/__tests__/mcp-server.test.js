@@ -1,6 +1,6 @@
 'use strict';
 
-const { describe, it, before, after } = require('node:test');
+const { describe, it, before, after, mock } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
@@ -376,22 +376,26 @@ describe('MCP server', () => {
     const out = set.result.content[0].text;
     assert.ok(!set.result.isError, out);
     assert.match(out, /^Target set to 30h for week 2020-01-06\./);
-    assert.match(out, /\[c1\] [^(]+ \(active\): target 30h \(set\)/);
+    // La settimana è passata: il primo salvataggio scrive prima il piano di allora come lunedì.
+    assert.match(out, /\[c1\] [^(]+ \(active\): target 30h \(set, Monday 8\.5h\)/);
     // Acme ha un limite settimanale di 20h: l'avviso c'è, il salvataggio pure
     assert.match(out, /: target 30h is above the weekly limit \(20h\)/);
 
     const again = await rpc(mcp, msg('tools/call', { name: 'set_week_target', arguments: { areaId: 'c1', hours: 25, weekKey: '2020-01-06' } }));
-    assert.match(again.result.content[0].text, /target 25h \(set, Monday 30h\)/);
+    assert.match(again.result.content[0].text, /target 25h \(set, Monday 8\.5h\)/);
     const same = await rpc(mcp, msg('tools/call', { name: 'set_week_target', arguments: { areaId: 'c1', hours: 25, weekKey: '2020-01-06' } }));
     assert.match(same.result.content[0].text, /^Target already 25h for week 2020-01-06: nothing stored\./);
 
-    // senza weekKey vale la settimana in corso
+    // senza weekKey vale la settimana in corso; oggi fissato a mercoledì 4 novembre 2026, così il
+    // primo obiettivo cade dopo il lunedì e il test non dipende da quando gira
+    mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-04T10:00:00') });
     const current = await rpc(mcp, msg('tools/call', { name: 'set_week_target', arguments: { areaId: 'c2', hours: 1 } }));
-    assert.match(current.result.content[0].text, /^Target set to 1h for week \d{4}-\d{2}-\d{2}\./);
+    assert.match(current.result.content[0].text, /^Target set to 1h for week 2026-11-02\./);
     const status = await rpc(mcp, msg('tools/call', { name: 'status', arguments: {} }));
     assert.match(status.result.content[0].text, /Week targets \(gap = target − done − blocks left\):/);
     const read = await rpc(mcp, msg('tools/call', { name: 'week_targets', arguments: {} }));
-    assert.match(read.result.content[0].text, /\[c2\] The Blog \(active\): target 1h \(set\)/);
+    mock.timers.reset();
+    assert.match(read.result.content[0].text, /\[c2\] The Blog \(active\): target 1h \(set, Monday 6\.5h\)/);
 
     const bad = await rpc(mcp, msg('tools/call', { name: 'set_week_target', arguments: { areaId: 'Acme Corp', hours: 3, weekKey: '2020-01-06' } }));
     assert.ok(bad.result.isError);

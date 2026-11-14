@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A ogni avvio, prima delle migrazioni, il database viene copiato in `backups/` accanto al file (ultime 3 copie). Se la copia fallisce, le migrazioni non partono e l'errore compare nella finestra di avvio.
 
 ### Changed
+- Obiettivi: se il primo obiettivo di un'area in una settimana si salva dopo il lunedì, l'app scrive prima, con la data del lunedì, il valore che valeva fino a lì (il template), poi quello nuovo. La Taratura del template non segnala più un template sbagliato quando l'obiettivo cambia a metà settimana per un'urgenza.
 - Settimana: tolto un calcolo del Δ sul piano che nessuna parte della schermata leggeva. Nessuna differenza visibile.
 
 ### Fixed

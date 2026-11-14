@@ -26,7 +26,7 @@ Le ore che una settimana deve dare a un'area. Senza un valore scelto è la somma
 
 - **Cambiarlo.** Andamento → Settimana, tabella "Per area · obiettivo", campo Obiettivo. Si scrive `10`, `10h`, `10:30` o `1h 30m`; un numero nudo qui è sempre in ore. Invio conferma, Esc annulla, riscrivere lo stesso valore non salva niente. Si può farlo anche su settimane future.
 - **Lunedì e finale.** L'app tiene ogni cambio. Il primo valore salvato nella settimana è l'obiettivo del lunedì, l'ultimo è l'obiettivo finale. Lo scarto si misura sul finale, così un'urgenza non risulta deriva. La taratura del template usa quello del lunedì, così un'urgenza non fa sembrare sbagliato il template.
-- **Attenzione.** "Del lunedì" significa "il primo salvato", non "quello scritto di lunedì". Senza valori già salvati, un cambio fatto a metà settimana diventa anche il valore del lunedì.
+- **Salvare a metà settimana.** Se il primo valore della settimana si salva dopo il lunedì, l'app scrive prima, con la data del lunedì, quello che valeva fino a lì (il template, o il piano congelato per una settimana passata), poi il nuovo. L'obiettivo del lunedì resta quello di partenza e un cambio per un'urgenza non fa sembrare sbagliato il template. Se il primo valore salvato è di lunedì, o uguale al template, non cambia niente.
 - **Avvisi.** Un ⚠ accanto all'area segnala un obiettivo sopra il limite settimanale dell'area, oppure un obiettivo sopra zero su un'area chiusa. Segnala e basta, non blocca.
 
 ### Blocchi rimasti

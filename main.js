@@ -12,6 +12,7 @@ const { setupUpdateNotifier } = require('./lib/update-notifier');
 const { createMobileServer } = require('./lib/mobile-server');
 const { createMobileAccess } = require('./lib/mobile-access');
 const { currentNetwork } = require('./lib/home-network');
+const { saveWeekTarget } = require('./cli/commands/targets');
 const { getMobileDayData, saveMobileHours, isDate } = require('./cli/commands/mobile');
 const { fmt, getToday, slotForDueValue } = require('./lib/domain');
 
@@ -391,7 +392,7 @@ function setupIpc() {
   ipcMain.handle('db:getWeekAreaStatuses', (_, wk)         => q.getWeekAreaStatuses(wk));
   ipcMain.handle('db:saveWeekAreaStatus',  (_, s)          => q.saveWeekAreaStatus(s));
   ipcMain.handle('db:getWeekAreaTargets',  (_, wk)         => q.getWeekAreaTargets(wk));
-  ipcMain.handle('db:addWeekAreaTarget',   (_, t)          => q.addWeekAreaTarget(t));
+  ipcMain.handle('db:addWeekAreaTarget',   (_, t)          => saveWeekTarget(t));
   ipcMain.handle('db:freezeWeeksBeforeRecurringChange', (_, r) => q.freezeWeeksBeforeRecurringChange(r));
 
   ipcMain.handle('db:resetAllData',        ()              => q.resetAllData());

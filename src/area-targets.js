@@ -65,6 +65,21 @@ export function weekTargets({ areaIds, rows = [], templateByArea = {} }) {
   return out;
 }
 
+// Righe da aggiungere salvando `hours` come obiettivo di un'area. rows: le righe già salvate
+// di quell'area in quella settimana, in ordine. Con righe: una nuova se il valore cambia.
+// Senza righe, se si salva dopo il lunedì (`today` > `weekKey`), prima si scrive col lunedì
+// il valore che valeva fin lì (`referenceHours`, il template o il piano congelato) e poi il
+// nuovo, così un cambio di metà settimana non diventa l'obiettivo del lunedì. Se è uguale al
+// riferimento resta la sola riga del lunedì. `monday: true` = riga datata lunedì.
+// Gemello CommonJS in lib/domain.js.
+export function targetRowsToAdd({ rows = [], referenceHours, hours, weekKey, today }) {
+  const same = (a, b) => Math.abs(a - b) < 0.001;
+  if (rows.length) return same(rows[rows.length - 1].hours, hours) ? [] : [{ hours, monday: false }];
+  if (referenceHours == null || !(today > weekKey)) return [{ hours, monday: false }];
+  const monday = { hours: referenceHours, monday: true };
+  return same(referenceHours, hours) ? [monday] : [monday, { hours, monday: false }];
+}
+
 // targets: { areaId: ore }. plannedByDay, doneByDay: 7 mappe { areaId: ore }, da lunedì a
 // domenica. todayIdx come forecastTodayIndex: negativo per una settimana futura, oltre 6
 // per una passata. Le ore fatte vanno passate fino a oggi: un'ora datata nel futuro non è
