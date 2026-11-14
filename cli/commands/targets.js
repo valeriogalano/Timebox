@@ -2,7 +2,7 @@
 
 const {
   getEntries, getProjects, getClients, getRecurring, getWeekOverrides,
-  getWeekAreaStatusMap, getWeekAreaTargets,
+  getWeekAreaStatusMap, getWeekAreaTargets, addWeekAreaTarget,
 } = require('../../db/queries');
 const { fmt, addDays } = require('../format');
 const {
@@ -96,4 +96,12 @@ function weekTargetAlerts(data) {
   return out;
 }
 
-module.exports = { getWeekTargetsData, weekTargetAlerts };
+// Salva un obiettivo con il riferimento della settimana (template, o piano congelato per una
+// settimana passata): se è il primo salvato dopo il lunedì, il lunedì prende quel valore.
+// today è YYYY-MM-DD; senza, la data di oggi.
+function saveWeekTarget({ weekKey, areaId, hours }, today = fmt(new Date())) {
+  const area = getWeekTargetsData(weekKey, today).areas.find(a => a.areaId === areaId);
+  return addWeekAreaTarget({ weekKey, areaId, hours, referenceHours: area?.templateHours, today });
+}
+
+module.exports = { getWeekTargetsData, weekTargetAlerts, saveWeekTarget };

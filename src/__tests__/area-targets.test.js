@@ -161,3 +161,30 @@ test('la tolleranza del gemello CommonJS è quella di progress-insights', () => 
   assert.equal(cjs.TOL_HOURS, TOL_HOURS);
   assert.equal(cjs.TOL_PCT, TOL_PCT);
 });
+
+describe('targetRowsToAdd', () => {
+  for (const [name, impl] of [['src', esm], ['lib/domain', cjs]]) {
+    test(`${name}: the Monday row comes first when the first save is after Monday`, () => {
+      const base = { rows: [], referenceHours: 20, weekKey: '2026-11-02' };
+      assert.deepEqual(impl.targetRowsToAdd({ ...base, hours: 12, today: '2026-11-02' }), [{ hours: 12, monday: false }]);
+      assert.deepEqual(impl.targetRowsToAdd({ ...base, hours: 12, today: '2026-11-04' }),
+        [{ hours: 20, monday: true }, { hours: 12, monday: false }]);
+      assert.deepEqual(impl.targetRowsToAdd({ ...base, hours: 20, today: '2026-11-04' }), [{ hours: 20, monday: true }]);
+      assert.deepEqual(impl.targetRowsToAdd({ ...base, referenceHours: 0, hours: 5, today: '2026-11-04' }),
+        [{ hours: 0, monday: true }, { hours: 5, monday: false }]);
+      assert.deepEqual(impl.targetRowsToAdd({ ...base, rows: [{ hours: 12 }], hours: 15, today: '2026-11-04' }), [{ hours: 15, monday: false }]);
+      assert.deepEqual(impl.targetRowsToAdd({ ...base, rows: [{ hours: 12 }], hours: 12, today: '2026-11-04' }), []);
+    });
+
+    test(`${name}: with the Monday row, Taratura sees the template, not the urgency`, () => {
+      // Otto settimane, ogni volta un'urgenza il mercoledì: 12h contro 20h di template.
+      const weeks = Array.from({ length: 8 }, () => {
+        const rows = impl.targetRowsToAdd({ rows: [], referenceHours: 20, hours: 12, weekKey: '2026-11-02', today: '2026-11-04' })
+          .map(r => ({ areaId: 'a', hours: r.hours }));
+        const t = impl.weekTargets({ areaIds: ['a'], rows, templateByArea: { a: 20 } }).a;
+        return { monday: t.monday, set: t.set };
+      });
+      assert.ok(weeks.every(w => w.monday === 20));
+    });
+  }
+});

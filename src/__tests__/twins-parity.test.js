@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { capUsage } from '../cap-usage.js';
 import { planDayEntrySave, fillPlannedBlocks } from '../dayPlanning.js';
 import { weekForecast, forecastTodayIndex, forecastUsage, weeklyLimitsAtRisk } from '../week-forecast.js';
-import { gapWithinTolerance, templateHoursByArea, referenceHoursByArea, weekTargets, areaGaps, targetWarnings, GAP_EPSILON } from '../area-targets.js';
+import { gapWithinTolerance, templateHoursByArea, referenceHoursByArea, weekTargets, targetRowsToAdd, areaGaps, targetWarnings, GAP_EPSILON } from '../area-targets.js';
 import { TOL_HOURS, TOL_PCT } from '../progress-insights.js';
 import { fmtH, isHourly, effBillable, slotForDate, getMondayOfWeek, addDays, fmt, parseHHMM } from '../utils.js';
 
@@ -90,6 +90,16 @@ describe('src/ and lib/domain.js give the same answers', () => {
   same('weekTargets', weekTargets, cjs.weekTargets, [
     [{ areaIds: ['c1', 'c2'], templateByArea: { c1: 10 } }],
     [{ areaIds: ['c1'], rows: [{ areaId: 'c1', hours: 12 }, { areaId: 'c1', hours: 8 }, { areaId: 'zz', hours: 3 }], templateByArea: { c1: 10 } }],
+  ]);
+  same('targetRowsToAdd', targetRowsToAdd, cjs.targetRowsToAdd, [
+    [{ rows: [], referenceHours: 10, hours: 6, weekKey: '2026-11-02', today: '2026-11-02' }],
+    [{ rows: [], referenceHours: 10, hours: 6, weekKey: '2026-11-02', today: '2026-11-04' }],
+    [{ rows: [], referenceHours: 10, hours: 10, weekKey: '2026-11-02', today: '2026-11-04' }],
+    [{ rows: [], referenceHours: 0, hours: 5, weekKey: '2026-11-02', today: '2026-11-04' }],
+    [{ rows: [], referenceHours: 10, hours: 6, weekKey: '2026-11-09', today: '2026-11-04' }],
+    [{ rows: [{ hours: 6 }], referenceHours: 10, hours: 8, weekKey: '2026-11-02', today: '2026-11-04' }],
+    [{ rows: [{ hours: 6 }], referenceHours: 10, hours: 6, weekKey: '2026-11-02', today: '2026-11-04' }],
+    [{ hours: 6, weekKey: '2026-11-02', today: '2026-11-04' }],
   ]);
   const plannedByDay = [{ c1: 4 }, { c1: 4 }, { c1: 4, c2: 2 }, { c1: 4 }, { c1: 4 }, {}, {}];
   const doneByDay = [{ c1: 4 }, { c1: 3, c3: 1 }, { c1: 1 }, {}, {}, {}, {}];

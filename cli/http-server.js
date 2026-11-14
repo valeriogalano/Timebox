@@ -15,7 +15,7 @@ const { getProjectsData } = require('./commands/projects');
 const { getEntriesData } = require('./commands/entries');
 const { getClientsData }  = require('./commands/clients');
 const { getStatusData }   = require('./commands/status');
-const { getWeekTargetsData, weekTargetAlerts } = require('./commands/targets');
+const { getWeekTargetsData, weekTargetAlerts, saveWeekTarget } = require('./commands/targets');
 const { logHours }        = require('./commands/log');
 const { getPlanVsTrackedData, MAX_DAYS } = require('./commands/plan-vs-tracked');
 const { fmt, getToday }   = require('./format');
@@ -25,7 +25,7 @@ const {
   hasProjectEntries, mergeProjectEntries,
   getRecurring, saveRecurring, replaceRecurringSlot, deleteRecurring,
   getWeekOverrides, saveWeekOverride, deleteWeekOverride, toMonday,
-  getWeekAreaStatuses, saveWeekAreaStatus, addWeekAreaTarget,
+  getWeekAreaStatuses, saveWeekAreaStatus,
   resolveTodoistColor, TODOIST_COLORS,
 } = require('../db/queries');
 
@@ -361,7 +361,7 @@ function createHttpServer() {
           return json(res, 400, { error: 'hours must be a number >= 0' });
         if (!getClients().some(c => c.id === areaId))
           return json(res, 404, { error: `Area not found: ${areaId}. areaId must be an area id (see find_area).` });
-        const result = addWeekAreaTarget({ weekKey, areaId, hours });
+        const result = saveWeekTarget({ weekKey, areaId, hours });
         emitter.emit('change', 'structure');
         return json(res, 200, result);
       }

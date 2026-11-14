@@ -1,5 +1,5 @@
 const { INIT_CLIENTS, INIT_PROJECTS, INIT_RECURRING, getSeedEntries } = require('./schema');
-const { SLOTS, normalizeSlot } = require('../lib/domain');
+const { SLOTS, normalizeSlot, targetRowsToAdd } = require('../lib/domain');
 const { isSlot, isDayIndex, isPositiveHours, MAX_BLOCK_HOURS } = require('../lib/validate');
 const { randomUUID } = require('crypto');
 
@@ -636,17 +636,26 @@ function getWeekAreaTargets(weekKey) {
   ).all(weekKey);
 }
 
-function addWeekAreaTarget({ weekKey, areaId, hours }) {
+// referenceHours e today (YYYY-MM-DD) sono opzionali: con loro, il primo obiettivo di una
+// settimana salvato dopo il lunedì fa scrivere prima, datato lunedì, il valore che valeva
+// fin lì (vedi targetRowsToAdd). Senza, si salva solo il valore dato.
+function addWeekAreaTarget({ weekKey, areaId, hours, referenceHours, today }) {
   if (!weekKey || !areaId) throw new Error('weekKey and areaId are required');
   if (typeof hours !== 'number' || !Number.isFinite(hours) || hours < 0) throw new Error('Invalid hours: must be a number >= 0');
-  const last = db.prepare(
-    'SELECT hours FROM week_area_targets WHERE weekKey=? AND areaId=? ORDER BY createdAt DESC, rowid DESC LIMIT 1'
-  ).get(weekKey, areaId);
-  const createdAt = new Date().toISOString();
+  const rows = db.prepare(
+    'SELECT hours FROM week_area_targets WHERE weekKey=? AND areaId=? ORDER BY createdAt, rowid'
+  ).all(weekKey, areaId);
+  const toAdd = targetRowsToAdd({ rows, referenceHours, hours, weekKey, today });
+  const insert = db.prepare('INSERT INTO week_area_targets (id,weekKey,areaId,hours,createdAt) VALUES (?,?,?,?,?)');
+  let createdAt = null;
+  db.transaction(() => {
+    for (const row of toAdd) {
+      // La riga del lunedì sta prima di ogni altra: l'ordine di lettura è per createdAt.
+      createdAt = row.monday ? `${weekKey}T00:00:00.000Z` : new Date().toISOString();
+      insert.run(randomUUID(), weekKey, areaId, row.hours, createdAt);
+    }
+  })();
   // Riscrivere lo stesso numero non è un cambio di intenzione: nessuna riga nuova.
-  if (last && Math.abs(last.hours - hours) < 0.001) return { weekKey, areaId, hours, createdAt: null };
-  db.prepare('INSERT INTO week_area_targets (id,weekKey,areaId,hours,createdAt) VALUES (?,?,?,?,?)')
-    .run(randomUUID(), weekKey, areaId, hours, createdAt);
   return { weekKey, areaId, hours, createdAt };
 }
 

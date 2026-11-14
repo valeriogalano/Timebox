@@ -419,7 +419,7 @@ const TOOLS = [
   },
   {
     name: 'set_week_target',
-    description: 'Set the weekly target of one area, in hours. Targets are append-only: every change is kept, the first one of the week is the Monday target and the last one is the target the gap is measured on. Setting the same number as the current target stores nothing. A target above the area\'s weekly limit is accepted and reported as a warning.',
+    description: 'Set the weekly target of one area, in hours. Targets are append-only: every change is kept, the first one of the week is the Monday target and the last one is the target the gap is measured on. If the first target of an area in a week is set after the Monday, the value that held until then (the template, or the frozen plan of a past week) is stored first as the Monday target. Setting the same number as the current target stores nothing. A target above the area\'s weekly limit is accepted and reported as a warning.',
     inputSchema: {
       type: 'object',
       required: ['areaId', 'hours'],
