@@ -6,6 +6,7 @@ const { createTestDb } = require('./helpers');
 const { initDb } = require('../../db/schema');
 const { getStatusData } = require('../commands/status');
 const { logHours } = require('../commands/log');
+const { weekForecast, forecastTodayIndex } = require('../../lib/domain');
 const { init, saveProject, getProjects, getClients, saveClient, saveEntry, saveRecurring } = require('../../db/queries');
 
 const TEST_DATE = '2020-09-01';
@@ -176,6 +177,18 @@ describe('getStatusData', () => {
       setup({ days: [3, 4] });
       entry('fc-e4', WED, 6);
       assert.equal(forecastAlert(getStatusData('2026-11-08')), undefined);
+    });
+
+    test('lo stesso previsto di Settimana (weekForecast) sugli stessi dati', () => {
+      setup();
+      entry('fc-m1', '2026-11-02', 2);
+      entry('fc-m2', '2026-11-03', 5);
+      entry('fc-m3', WED, 1);
+      const week = planned => Array.from({ length: 7 }, (_, d) => (d < 5 ? { 'fc-a': planned } : {}));
+      const doneByDay = [{ 'fc-a': 2 }, { 'fc-a': 5 }, { 'fc-a': 1 }, {}, {}, {}, {}];
+      const expected = weekForecast({ plannedByDay: week(4), doneByDay, todayIdx: forecastTodayIndex('2026-11-02', WED) });
+      assert.equal(expected.byArea['fc-a'].forecast, 19);
+      assert.equal(forecastAlert(getStatusData(WED)).forecast, expected.byArea['fc-a'].forecast);
     });
 
     test('fatturabili oltre il lavorato: l\'etichetta dice fatt.', () => {
