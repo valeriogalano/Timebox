@@ -38,6 +38,12 @@ describe('backup before migrations', () => {
     copy.close();
   });
 
+  test('backup: false skips the copy', () => {
+    createOldDb();
+    initDb(dbPath, { backup: false }).close();
+    assert.deepEqual(backups(), []);
+  });
+
   test('only the last 3 copies are kept', () => {
     createOldDb();
     initDb(dbPath).close();

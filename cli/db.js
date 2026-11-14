@@ -21,7 +21,9 @@ function openDb() {
   const dbPath = process.env.TIMEBOX_DB || DEFAULT_DB_PATH;
   // initDb runs schema creation and all migrations (adds missing columns).
   // busy_timeout avoids instant failure if the Electron app holds a momentary lock.
-  const db = initDb(dbPath);
+  // shortcut: no backup, or each CLI run would rotate out the app's copies. Risk: the CLI run from
+  // the repo, with newer code than the installed app, on the real database migrates it without a copy.
+  const db = initDb(dbPath, { backup: false });
   db.pragma('busy_timeout = 3000');
   init(db);
   return db;

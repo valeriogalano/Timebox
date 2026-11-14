@@ -86,7 +86,7 @@ function getSeedEntries() {
   ];
 }
 
-function initDb(dbPath) {
+function initDb(dbPath, { backup = true } = {}) {
   const db = new Database(dbPath);
 
   // Hold an exclusive lock so iCloud Drive cannot lock the file during writes.
@@ -98,7 +98,7 @@ function initDb(dbPath) {
   // Before anything touches the schema. A failed copy stops the start: no migration runs
   // without a way back, and the error reaches the user through main.js's startup dialog.
   try {
-    backupBeforeMigrations(db);
+    if (backup) backupBeforeMigrations(db);
   } catch (err) {
     db.close();
     throw new Error(`Backup del database non riuscito, le migrazioni non sono state eseguite: ${err.message}`);
