@@ -655,7 +655,8 @@ function addWeekAreaTarget({ weekKey, areaId, hours, referenceHours, today }) {
       insert.run(randomUUID(), weekKey, areaId, row.hours, createdAt);
     }
   })();
-  // Riscrivere lo stesso numero non è un cambio di intenzione: nessuna riga nuova.
+  // createdAt resta null se non è stata scritta nessuna riga: riscrivere lo stesso numero non
+  // è un cambio di intenzione.
   return { weekKey, areaId, hours, createdAt };
 }
 
