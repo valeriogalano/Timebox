@@ -443,9 +443,11 @@ function backupBeforeMigrations(db) {
   const { dir, name } = path.parse(db.name);
   const backupDir = path.join(dir, 'backups');
   fs.mkdirSync(backupDir, { recursive: true });
-  // Milliseconds included: VACUUM INTO refuses to overwrite, and two starts can share a second.
-  const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 17);
-  const target = path.join(backupDir, `${name}-${stamp}.db`);
+  // Milliseconds included, and bumped while the name is taken: VACUUM INTO refuses to overwrite.
+  let ms = Date.now();
+  const nameAt = t => path.join(backupDir, `${name}-${new Date(t).toISOString().replace(/\D/g, '').slice(0, 17)}.db`);
+  while (fs.existsSync(nameAt(ms))) ms++;
+  const target = nameAt(ms);
   db.prepare('VACUUM INTO ?').run(target);
   const mine = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d{17}\\.db$`);
   const copies = fs.readdirSync(backupDir).filter(f => mine.test(f)).sort();
