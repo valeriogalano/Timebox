@@ -104,150 +104,157 @@ function initDb(dbPath, { backup = true } = {}) {
     throw new Error(`Backup del database non riuscito, le migrazioni non sono state eseguite: ${err.message}`);
   }
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS clients (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      color TEXT,
-      billable INTEGER DEFAULT 1,
-      billing TEXT,
-      rate REAL,
-      limitType TEXT,
-      limitHours REAL,
-      position INTEGER DEFAULT 0,
-      defaultStatus TEXT DEFAULT 'active'
-    );
-    CREATE TABLE IF NOT EXISTS projects (
-      id TEXT PRIMARY KEY,
-      clientId TEXT REFERENCES clients(id) ON DELETE CASCADE,
-      name TEXT,
-      budgetHours REAL,
-      weeklyHours REAL,
-      fixedPrice REAL,
-      description TEXT,
-      position INTEGER DEFAULT 0,
-      archived INTEGER DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS recurring (
-      id TEXT PRIMARY KEY,
-      clientId TEXT REFERENCES clients(id) ON DELETE CASCADE,
-      slot TEXT,
-      day INTEGER,
-      hours REAL,
-      position INTEGER DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS entries (
-      id TEXT PRIMARY KEY,
-      projectId TEXT REFERENCES projects(id) ON DELETE CASCADE,
-      date TEXT,
-      hours REAL,
-      billableHours REAL,
-      slot TEXT, -- unused since the entry slot was removed; kept for older versions
-      billed INTEGER DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS week_overrides (
-      id TEXT PRIMARY KEY,
-      weekKey TEXT NOT NULL,
-      dayIndex INTEGER NOT NULL,
-      slot TEXT NOT NULL,
-      blocksJson TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS week_area_status (
-      id TEXT PRIMARY KEY,
-      weekKey TEXT NOT NULL,
-      areaId TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-      status TEXT NOT NULL CHECK(status IN ('active', 'minimal', 'closed'))
-    );
-    -- Obiettivi settimanali per area, append-only: la prima riga della settimana è
-    -- l'obiettivo del lunedì, l'ultima quello finale. Senza righe vale il template.
-    CREATE TABLE IF NOT EXISTS week_area_targets (
-      id TEXT PRIMARY KEY,
-      weekKey TEXT NOT NULL,
-      areaId TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-      hours REAL NOT NULL,
-      createdAt TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT
-    );
-    CREATE TABLE IF NOT EXISTS todoist_cache (
-      dateStr TEXT PRIMARY KEY,
-      tasksJson TEXT NOT NULL DEFAULT '[]',
-      syncedAt TEXT
-    );
-    CREATE TABLE IF NOT EXISTS todoist_imports (
-      todoistTaskId TEXT PRIMARY KEY,
-      projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      date TEXT NOT NULL,
-      hours REAL NOT NULL,
-      slot TEXT NOT NULL DEFAULT 'am', -- unused, like entries.slot
-      titleSnapshot TEXT,
-      note TEXT,
-      importedAt TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(date);
-    CREATE INDEX IF NOT EXISTS idx_overrides_weekkey ON week_overrides(weekKey);
-    CREATE INDEX IF NOT EXISTS idx_week_area_status_weekkey ON week_area_status(weekKey);
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_week_area_status_unique ON week_area_status(weekKey, areaId);
-    CREATE INDEX IF NOT EXISTS idx_week_area_targets_weekkey ON week_area_targets(weekKey);
-    CREATE INDEX IF NOT EXISTS idx_todoist_imports_date ON todoist_imports(date);
-    CREATE INDEX IF NOT EXISTS idx_todoist_imports_project_date ON todoist_imports(projectId, date);
-  `);
+  // A failed migration must not leave the file open: on Windows an open SQLite file
+  // cannot be deleted, and the exclusive lock would block any later open.
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS clients (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        color TEXT,
+        billable INTEGER DEFAULT 1,
+        billing TEXT,
+        rate REAL,
+        limitType TEXT,
+        limitHours REAL,
+        position INTEGER DEFAULT 0,
+        defaultStatus TEXT DEFAULT 'active'
+      );
+      CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        clientId TEXT REFERENCES clients(id) ON DELETE CASCADE,
+        name TEXT,
+        budgetHours REAL,
+        weeklyHours REAL,
+        fixedPrice REAL,
+        description TEXT,
+        position INTEGER DEFAULT 0,
+        archived INTEGER DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS recurring (
+        id TEXT PRIMARY KEY,
+        clientId TEXT REFERENCES clients(id) ON DELETE CASCADE,
+        slot TEXT,
+        day INTEGER,
+        hours REAL,
+        position INTEGER DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS entries (
+        id TEXT PRIMARY KEY,
+        projectId TEXT REFERENCES projects(id) ON DELETE CASCADE,
+        date TEXT,
+        hours REAL,
+        billableHours REAL,
+        slot TEXT, -- unused since the entry slot was removed; kept for older versions
+        billed INTEGER DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS week_overrides (
+        id TEXT PRIMARY KEY,
+        weekKey TEXT NOT NULL,
+        dayIndex INTEGER NOT NULL,
+        slot TEXT NOT NULL,
+        blocksJson TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS week_area_status (
+        id TEXT PRIMARY KEY,
+        weekKey TEXT NOT NULL,
+        areaId TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        status TEXT NOT NULL CHECK(status IN ('active', 'minimal', 'closed'))
+      );
+      -- Obiettivi settimanali per area, append-only: la prima riga della settimana è
+      -- l'obiettivo del lunedì, l'ultima quello finale. Senza righe vale il template.
+      CREATE TABLE IF NOT EXISTS week_area_targets (
+        id TEXT PRIMARY KEY,
+        weekKey TEXT NOT NULL,
+        areaId TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        hours REAL NOT NULL,
+        createdAt TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      );
+      CREATE TABLE IF NOT EXISTS todoist_cache (
+        dateStr TEXT PRIMARY KEY,
+        tasksJson TEXT NOT NULL DEFAULT '[]',
+        syncedAt TEXT
+      );
+      CREATE TABLE IF NOT EXISTS todoist_imports (
+        todoistTaskId TEXT PRIMARY KEY,
+        projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        hours REAL NOT NULL,
+        slot TEXT NOT NULL DEFAULT 'am', -- unused, like entries.slot
+        titleSnapshot TEXT,
+        note TEXT,
+        importedAt TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(date);
+      CREATE INDEX IF NOT EXISTS idx_overrides_weekkey ON week_overrides(weekKey);
+      CREATE INDEX IF NOT EXISTS idx_week_area_status_weekkey ON week_area_status(weekKey);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_week_area_status_unique ON week_area_status(weekKey, areaId);
+      CREATE INDEX IF NOT EXISTS idx_week_area_targets_weekkey ON week_area_targets(weekKey);
+      CREATE INDEX IF NOT EXISTS idx_todoist_imports_date ON todoist_imports(date);
+      CREATE INDEX IF NOT EXISTS idx_todoist_imports_project_date ON todoist_imports(projectId, date);
+    `);
 
-  // Migrations. Only "duplicate column name" (already migrated) is expected; any other
-  // failure is real and must stop the start instead of leaving a half-migrated file.
-  const ignoreDuplicateColumn = fn => {
-    try { fn(); } catch (err) {
-      if (!/duplicate column name/i.test(err.message)) throw err;
-    }
-  };
-  ignoreDuplicateColumn(() => db.exec('ALTER TABLE recurring ADD COLUMN position INTEGER DEFAULT 0'));
-  ignoreDuplicateColumn(() => db.exec('ALTER TABLE clients ADD COLUMN billable INTEGER DEFAULT 1'));
-  ignoreDuplicateColumn(() => db.exec("ALTER TABLE clients ADD COLUMN defaultStatus TEXT DEFAULT 'active'"));
-  ignoreDuplicateColumn(() => {
-    db.exec('ALTER TABLE clients ADD COLUMN position INTEGER DEFAULT 0');
-    const clientRows = db.prepare('SELECT id FROM clients ORDER BY rowid').all();
-    clientRows.forEach((row, i) => db.prepare('UPDATE clients SET position=? WHERE id=?').run(i, row.id));
-  });
-  ignoreDuplicateColumn(() => {
-    db.exec('ALTER TABLE projects ADD COLUMN position INTEGER DEFAULT 0');
-    const projectRows = db.prepare('SELECT id FROM projects ORDER BY rowid').all();
-    projectRows.forEach((row, i) => db.prepare('UPDATE projects SET position=? WHERE id=?').run(i, row.id));
-  });
-  ignoreDuplicateColumn(() => db.exec('ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0'));
-  ignoreDuplicateColumn(() => db.exec('ALTER TABLE projects ADD COLUMN weeklyHours REAL'));
-  ignoreDuplicateColumn(() => db.exec('ALTER TABLE projects ADD COLUMN description TEXT'));
-  ignoreDuplicateColumn(() => db.exec('ALTER TABLE projects ADD COLUMN fixedPrice REAL'));
-  ignoreDuplicateColumn(() => db.exec('ALTER TABLE entries ADD COLUMN billableHours REAL'));
-  ignoreDuplicateColumn(() => db.exec("ALTER TABLE todoist_imports ADD COLUMN slot TEXT NOT NULL DEFAULT 'am'"));
-  ignoreDuplicateColumn(() => db.exec('ALTER TABLE todoist_imports ADD COLUMN note TEXT'));
-  // Alcuni week_overrides sono stati scritti con weekKey di domenica (probabile
-  // shift UTC su una scrittura di lunedì locale). weekKey + 1 giorno è la
-  // settimana giusta: la copiamo sotto la chiave di lunedì (INSERT OR IGNORE la
-  // lascia stare se esiste già) e poi eliminiamo tutte le righe di domenica.
-  db.exec(`
-    INSERT OR IGNORE INTO week_overrides (id, weekKey, dayIndex, slot, blocksJson)
-    SELECT date(weekKey, '+1 day') || '-' || dayIndex || '-' || slot,
-           date(weekKey, '+1 day'), dayIndex, slot, blocksJson
-    FROM week_overrides
-    WHERE strftime('%w', weekKey) = '0';
+    // Migrations. Only "duplicate column name" (already migrated) is expected; any other
+    // failure is real and must stop the start instead of leaving a half-migrated file.
+    const ignoreDuplicateColumn = fn => {
+      try { fn(); } catch (err) {
+        if (!/duplicate column name/i.test(err.message)) throw err;
+      }
+    };
+    ignoreDuplicateColumn(() => db.exec('ALTER TABLE recurring ADD COLUMN position INTEGER DEFAULT 0'));
+    ignoreDuplicateColumn(() => db.exec('ALTER TABLE clients ADD COLUMN billable INTEGER DEFAULT 1'));
+    ignoreDuplicateColumn(() => db.exec("ALTER TABLE clients ADD COLUMN defaultStatus TEXT DEFAULT 'active'"));
+    ignoreDuplicateColumn(() => {
+      db.exec('ALTER TABLE clients ADD COLUMN position INTEGER DEFAULT 0');
+      const clientRows = db.prepare('SELECT id FROM clients ORDER BY rowid').all();
+      clientRows.forEach((row, i) => db.prepare('UPDATE clients SET position=? WHERE id=?').run(i, row.id));
+    });
+    ignoreDuplicateColumn(() => {
+      db.exec('ALTER TABLE projects ADD COLUMN position INTEGER DEFAULT 0');
+      const projectRows = db.prepare('SELECT id FROM projects ORDER BY rowid').all();
+      projectRows.forEach((row, i) => db.prepare('UPDATE projects SET position=? WHERE id=?').run(i, row.id));
+    });
+    ignoreDuplicateColumn(() => db.exec('ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0'));
+    ignoreDuplicateColumn(() => db.exec('ALTER TABLE projects ADD COLUMN weeklyHours REAL'));
+    ignoreDuplicateColumn(() => db.exec('ALTER TABLE projects ADD COLUMN description TEXT'));
+    ignoreDuplicateColumn(() => db.exec('ALTER TABLE projects ADD COLUMN fixedPrice REAL'));
+    ignoreDuplicateColumn(() => db.exec('ALTER TABLE entries ADD COLUMN billableHours REAL'));
+    ignoreDuplicateColumn(() => db.exec("ALTER TABLE todoist_imports ADD COLUMN slot TEXT NOT NULL DEFAULT 'am'"));
+    ignoreDuplicateColumn(() => db.exec('ALTER TABLE todoist_imports ADD COLUMN note TEXT'));
+    // Alcuni week_overrides sono stati scritti con weekKey di domenica (probabile
+    // shift UTC su una scrittura di lunedì locale). weekKey + 1 giorno è la
+    // settimana giusta: la copiamo sotto la chiave di lunedì (INSERT OR IGNORE la
+    // lascia stare se esiste già) e poi eliminiamo tutte le righe di domenica.
+    db.exec(`
+      INSERT OR IGNORE INTO week_overrides (id, weekKey, dayIndex, slot, blocksJson)
+      SELECT date(weekKey, '+1 day') || '-' || dayIndex || '-' || slot,
+             date(weekKey, '+1 day'), dayIndex, slot, blocksJson
+      FROM week_overrides
+      WHERE strftime('%w', weekKey) = '0';
 
-    DELETE FROM week_overrides WHERE strftime('%w', weekKey) = '0';
-  `);
-  // One entry per project and day: the entry slot is gone. The column stays, unused
-  // and NULL in new rows, so an older version can still open the file.
-  mergeSameDayEntries(db);
-  db.exec(`
-    DROP INDEX IF EXISTS idx_entries_project_date_slot;
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_project_date ON entries(projectId, date);
-    DELETE FROM settings WHERE key = 'slotsTrackedSince';
-  `);
+      DELETE FROM week_overrides WHERE strftime('%w', weekKey) = '0';
+    `);
+    // One entry per project and day: the entry slot is gone. The column stays, unused
+    // and NULL in new rows, so an older version can still open the file.
+    mergeSameDayEntries(db);
+    db.exec(`
+      DROP INDEX IF EXISTS idx_entries_project_date_slot;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_project_date ON entries(projectId, date);
+      DELETE FROM settings WHERE key = 'slotsTrackedSince';
+    `);
 
-  cleanupOrphans(db);
-  rebuildForeignKeyTables(db);
-  ensureIndexes(db);
-  db.pragma('foreign_keys = ON');
+    cleanupOrphans(db);
+    rebuildForeignKeyTables(db);
+    ensureIndexes(db);
+    db.pragma('foreign_keys = ON');
+  } catch (err) {
+    db.close();
+    throw err;
+  }
 
   return db;
 }

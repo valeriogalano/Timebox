@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-11-14
+
+### Fixed
+- Se una migrazione fallisce all'avvio, il database viene chiuso prima di mostrare l'errore, invece di restare aperto e bloccato. Su Windows il file aperto impediva anche i test di build: la 0.15.0 non era uscita per Windows per questo motivo.
+
 ## [0.15.0] - 2026-11-14
 
 ### Added
