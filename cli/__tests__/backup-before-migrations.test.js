@@ -70,4 +70,14 @@ describe('backup before migrations', () => {
     old.close();
     assert.throws(() => initDb(dbPath), /view/i);
   });
+
+  test('a failed migration closes the database, so the file is not left locked', () => {
+    const old = new Database(dbPath);
+    old.exec('CREATE TABLE base (x); CREATE VIEW recurring AS SELECT x FROM base');
+    old.close();
+    assert.throws(() => initDb(dbPath), /view/i);
+    const again = new Database(dbPath);
+    again.exec('CREATE TABLE probe (x)');
+    again.close();
+  });
 });
