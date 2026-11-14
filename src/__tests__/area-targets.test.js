@@ -63,6 +63,15 @@ for (const [name, impl] of [['src/area-targets.js', esm], ['lib/domain.js', cjs]
       assert.deepEqual(gapOf(removed), { target: 20, done: 10, remaining: 8, gap: 2 });
     });
 
+    test('caso INVALSI: obiettivo 4h, 2h fatte oggi, blocco di oggi tolto: mancano 2h', () => {
+      const doneToday = week([[2, { a: 2 }]]);
+      const withBlock = week([[2, { a: 4 }]]);
+      // con il blocco: restano 2h di oggi, lo scarto è 4 - 2 - 2 = 0
+      assert.deepEqual(gapOf(withBlock, { a: 4 }, doneToday), { target: 4, done: 2, remaining: 2, gap: 0 });
+      // senza il blocco: nessun residuo, le 2h fatte restano da recuperare, non sono "sopra"
+      assert.deepEqual(gapOf(week([]), { a: 4 }, doneToday), { target: 4, done: 2, remaining: 0, gap: 2 });
+    });
+
     test('oggi oltre il piano non dà blocchi rimasti negativi', () => {
       const over = week([[2, { a: 6 }]]);
       assert.equal(gapOf(plan(), undefined, over).remaining, 8);

@@ -433,7 +433,6 @@ export default function WeeklyView({ clients, projects, recurring, weekOffset, s
   const weekActual   = days.reduce((s, d) => s + d.dayHours, 0);
   const weekBillable = days.reduce((s, d) => s + d.dayBillable, 0);
   const weekDivergent = days.some(d => d.dayDivergent);
-  const weekDelta    = weekActual - weekPlanned;
   const endSun = addDays(monday, 6);
   const weekLabel = `${monday.getDate()} ${MONTHS_IT[monday.getMonth()]} – ${endSun.getDate()} ${MONTHS_IT[endSun.getMonth()]} ${endSun.getFullYear()}`;
 

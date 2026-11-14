@@ -229,7 +229,7 @@ In development, wrappers point at repository files. In packaged builds, they poi
 | `GET` | `/entries?from=&to=&area=&project=` | `getEntriesData(...)`: single entries in a date range plus totals by area and project. `from` is required, `to` defaults to today; a malformed date is a 400. |
 | `GET` | `/clients?search=` | `getClientsData(...)`. |
 | `GET` | `/areas?search=` | Alias for clients/areas. |
-| `GET` | `/status` | `getStatusData(today)`: cap `alerts`, plus `gapAlerts` from `weekTargetAlerts` (areas whose gap is beyond the tolerance, target warnings) for the current week. |
+| `GET` | `/status` | `getStatusData(today)`: cap `alerts` (80% of a cap on the done hours, plus `area-weekly-forecast` for a weekly area limit that the Previsto exceeds while the done hours still fit), and `gapAlerts` from `weekTargetAlerts` (areas whose gap is beyond the tolerance, target warnings) for the current week. |
 | `GET` | `/targets?week=` | `getWeekTargetsData(week, today)` plus its `alerts`; `week` is a Monday, default the current week (a non-Monday is a 400). |
 | `POST` | `/targets` | `{ weekKey, areaId, hours }` through `addWeekAreaTarget`. 400 on a non-Monday or hours that are not a number ≥ 0, 404 on an unknown area id. |
 | `POST` | `/log` | `logHours(...)`; supports `billableHours`. One entry per project and day: replaces its hours, or adds to them with `add`. A `slot` field is ignored. |
@@ -378,6 +378,8 @@ There is one entry per `projectId + date`; the database enforces this with a uni
 
 `entries.billed` is stored as `INTEGER` 0/1 and normalized to boolean in queries. `entries.billableHours` can override billable time for billing/reporting while leaving actual tracked hours unchanged.
 
+**The override is an absolute value, also with Todoist imports.** An import of completed tasks (`addImportedHours` in `db/queries.js`) grows the worked hours, leaves an existing override where it is, and puts `billed` back to 0 (the added hours were never invoiced). So on an entry with 3h worked and 3.5h billable, importing 1h gives 4h worked and still 3.5h billable. Taking the import away (`subtractImportedHours`, from editing or deleting a row of the import ledger) subtracts the worked hours and changes the override only if it was a reduction, that is below the worked hours: it is capped at the hours still worked (3.5h billable on an entry back to 3h becomes 3h). An override at or above the worked hours is deliberate (a minimum, a round-up) and stays. The override never follows the import hour for hour. Do not change this without the maintainer deciding it (#123). Pinned by `cli/__tests__/import-subtract-billable.test.js` and `cli/__tests__/todoist-imports.test.js`.
+
 ### Limits Count Both Worked and Billable Hours
 
 Every cap (area limit, project budget, project weekly limit) is measured on two counts: worked hours (`entries.hours`) and billable hours (`billableHours`, falling back to worked). They can only differ in areas with `billing === 'hourly'`; elsewhere billable hours are ignored. `capUsage` returns both counts plus `worst` (the higher one) and `kind` (`'lavorate'`, `'fatt.'`, or `null` when they coincide). Thresholds, bars and alerts always use `worst`, and any number shown while the counts differ carries its label — a bare number means worked hours.
@@ -411,7 +413,8 @@ Replaces the old "Da decidere" card and the "Override ripetuti" list in Ricorren
 
 The weekly-limit warnings judge the **Previsto**: done hours plus blocks left (the same blocks left as the gap). `weekForecast` (`src/week-forecast.js`, CommonJS twin in `lib/domain.js`) computes it for Settimana; Andamento uses the blocks left from `areaGaps`, which is the same number. A project has no plan (`recurring` maps areas), so its Previsto is its done hours.
 
-- `forecastUsage` adds the blocks left to both counts of a cap (worked and billable); `weeklyLimitsAtRisk` is the warning in Settimana while planning, for areas whose Previsto exceeds the weekly limit while the done hours still fit.
+- `forecastUsage` adds the blocks left to both counts of a cap (worked and billable); `weeklyLimitsAtRisk` is the warning in Settimana while planning, for areas whose Previsto exceeds the weekly limit while the done hours still fit. Both have CommonJS twins in `lib/domain.js` (no `usageOf` there: a missing area falls back to `capUsage()`), kept in step by `src/__tests__/twins-parity.test.js`.
+- `status` raises the same warning as an extra alert, `kind: 'area-weekly-forecast'`, next to the 80% alerts (`area-weekly`, `area-total`, `project-*`), which stay on the done hours and keep their meaning. Its `forecast` is the Previsto on the worse count, `count` and `pct` refer to it, `logged` and `billable` stay the done hours. The blocks left come from `getWeekTargetsData`, the same number as Andamento, so `status` calls it once and reuses it for `gapAlerts`. Only areas: a project has no plan, so no forecast alert for projects.
 - The Trend mini charts judge the closed weeks only.
 
 ### Reset to Template
