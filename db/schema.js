@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
 
@@ -94,6 +95,15 @@ function initDb(dbPath) {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = OFF');
 
+  // Before anything touches the schema. A failed copy stops the start: no migration runs
+  // without a way back, and the error reaches the user through main.js's startup dialog.
+  try {
+    backupBeforeMigrations(db);
+  } catch (err) {
+    db.close();
+    throw new Error(`Backup del database non riuscito, le migrazioni non sono state eseguite: ${err.message}`);
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS clients (
       id TEXT PRIMARY KEY,
@@ -185,27 +195,33 @@ function initDb(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_todoist_imports_project_date ON todoist_imports(projectId, date);
   `);
 
-  // Migrations
-  try { db.exec('ALTER TABLE recurring ADD COLUMN position INTEGER DEFAULT 0'); } catch (_) {}
-  try { db.exec('ALTER TABLE clients ADD COLUMN billable INTEGER DEFAULT 1'); } catch (_) {}
-  try { db.exec("ALTER TABLE clients ADD COLUMN defaultStatus TEXT DEFAULT 'active'"); } catch (_) {}
-  try {
+  // Migrations. Only "duplicate column name" (already migrated) is expected; any other
+  // failure is real and must stop the start instead of leaving a half-migrated file.
+  const ignoreDuplicateColumn = fn => {
+    try { fn(); } catch (err) {
+      if (!/duplicate column name/i.test(err.message)) throw err;
+    }
+  };
+  ignoreDuplicateColumn(() => db.exec('ALTER TABLE recurring ADD COLUMN position INTEGER DEFAULT 0'));
+  ignoreDuplicateColumn(() => db.exec('ALTER TABLE clients ADD COLUMN billable INTEGER DEFAULT 1'));
+  ignoreDuplicateColumn(() => db.exec("ALTER TABLE clients ADD COLUMN defaultStatus TEXT DEFAULT 'active'"));
+  ignoreDuplicateColumn(() => {
     db.exec('ALTER TABLE clients ADD COLUMN position INTEGER DEFAULT 0');
     const clientRows = db.prepare('SELECT id FROM clients ORDER BY rowid').all();
     clientRows.forEach((row, i) => db.prepare('UPDATE clients SET position=? WHERE id=?').run(i, row.id));
-  } catch (_) {}
-  try {
+  });
+  ignoreDuplicateColumn(() => {
     db.exec('ALTER TABLE projects ADD COLUMN position INTEGER DEFAULT 0');
     const projectRows = db.prepare('SELECT id FROM projects ORDER BY rowid').all();
     projectRows.forEach((row, i) => db.prepare('UPDATE projects SET position=? WHERE id=?').run(i, row.id));
-  } catch (_) {}
-  try { db.exec('ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0'); } catch (_) {}
-  try { db.exec('ALTER TABLE projects ADD COLUMN weeklyHours REAL'); } catch (_) {}
-  try { db.exec('ALTER TABLE projects ADD COLUMN description TEXT'); } catch (_) {}
-  try { db.exec('ALTER TABLE projects ADD COLUMN fixedPrice REAL'); } catch (_) {}
-  try { db.exec('ALTER TABLE entries ADD COLUMN billableHours REAL'); } catch (_) {}
-  try { db.exec("ALTER TABLE todoist_imports ADD COLUMN slot TEXT NOT NULL DEFAULT 'am'"); } catch (_) {}
-  try { db.exec('ALTER TABLE todoist_imports ADD COLUMN note TEXT'); } catch (_) {}
+  });
+  ignoreDuplicateColumn(() => db.exec('ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0'));
+  ignoreDuplicateColumn(() => db.exec('ALTER TABLE projects ADD COLUMN weeklyHours REAL'));
+  ignoreDuplicateColumn(() => db.exec('ALTER TABLE projects ADD COLUMN description TEXT'));
+  ignoreDuplicateColumn(() => db.exec('ALTER TABLE projects ADD COLUMN fixedPrice REAL'));
+  ignoreDuplicateColumn(() => db.exec('ALTER TABLE entries ADD COLUMN billableHours REAL'));
+  ignoreDuplicateColumn(() => db.exec("ALTER TABLE todoist_imports ADD COLUMN slot TEXT NOT NULL DEFAULT 'am'"));
+  ignoreDuplicateColumn(() => db.exec('ALTER TABLE todoist_imports ADD COLUMN note TEXT'));
   // Alcuni week_overrides sono stati scritti con weekKey di domenica (probabile
   // shift UTC su una scrittura di lunedì locale). weekKey + 1 giorno è la
   // settimana giusta: la copiamo sotto la chiave di lunedì (INSERT OR IGNORE la
@@ -414,4 +430,27 @@ function backupDatabase(db, label) {
   return target;
 }
 
-module.exports = { initDb, mergeSameDayEntries, INIT_CLIENTS, INIT_PROJECTS, INIT_RECURRING, getSeedEntries };
+const BACKUP_KEEP = 3;
+
+// Copy of the database into <db folder>/backups/<name>-<timestamp>.db, taken at every
+// start before the schema is touched; only the last BACKUP_KEEP copies of this file are
+// kept. Skipped for in-memory databases and for a file with no tables yet (a new one has
+// nothing to lose). Throws on failure, so the caller must not migrate. Restore: quit the
+// app and copy a backup over the database file (see AGENTS.md).
+function backupBeforeMigrations(db) {
+  if (db.memory) return null;
+  if (db.prepare('SELECT COUNT(*) AS n FROM sqlite_master').get().n === 0) return null;
+  const { dir, name } = path.parse(db.name);
+  const backupDir = path.join(dir, 'backups');
+  fs.mkdirSync(backupDir, { recursive: true });
+  // Milliseconds included: VACUUM INTO refuses to overwrite, and two starts can share a second.
+  const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 17);
+  const target = path.join(backupDir, `${name}-${stamp}.db`);
+  db.prepare('VACUUM INTO ?').run(target);
+  const mine = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d{17}\\.db$`);
+  const copies = fs.readdirSync(backupDir).filter(f => mine.test(f)).sort();
+  for (const old of copies.slice(0, -BACKUP_KEEP)) fs.unlinkSync(path.join(backupDir, old));
+  return target;
+}
+
+module.exports = { initDb, backupBeforeMigrations, mergeSameDayEntries, INIT_CLIENTS, INIT_PROJECTS, INIT_RECURRING, getSeedEntries };

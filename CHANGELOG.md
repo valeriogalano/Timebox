@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A ogni avvio, prima delle migrazioni, il database viene copiato in `backups/` accanto al file (ultime 3 copie). Se la copia fallisce, le migrazioni non partono e l'errore compare nella finestra di avvio.
+
+### Fixed
+- Le migrazioni che aggiungono colonne ignorano solo l'errore "duplicate column name": ogni altro errore ferma l'avvio invece di sparire.
+
 ## [0.14.1] - 2026-11-06
 
 ### Fixed
